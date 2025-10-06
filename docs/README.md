@@ -1,8 +1,8 @@
-# Smart-Home Event Sequence Alignment
+# Smart-Home Event Sequence Alignment (discover-v2)
 
-A PyTorch implementation for aligning smart-home event sequences to text via CLIP-style contrastive learning.
+A PyTorch implementation for aligning smart-home event sequences to text via CLIP-style contrastive learning, implementing Recipe R2 for HAR clustering research.
 
-## Overview
+## Project Overview
 
 This project implements a dual-tower architecture that learns to align sensor event sequences with natural language descriptions:
 
@@ -11,7 +11,83 @@ This project implements a dual-tower architecture that learns to align sensor ev
 - **Training**: Bidirectional InfoNCE (CLIP) loss + multi-field MLM with span masking
 - **Retrieval**: FAISS-based similarity search for text-to-sensor and sensor-to-text queries
 
-## Architecture
+## Current Project Structure (Post-Reorganization)
+
+```
+discover-v2/
+├── src/                          # Main source code
+│   ├── data/                     # Data processing pipeline
+│   │   ├── data_load_clean.py    # Raw CASAS data processing
+│   │   ├── data_loader.py        # Unified data loading
+│   │   ├── generate_data.py      # Data generation scripts
+│   │   └── ...
+│   ├── models/                   # Neural network architectures
+│   │   ├── text_encoder.py       # Frozen GTE-base text encoder
+│   │   ├── sensor_encoder.py     # Custom Transformer with ALiBi
+│   │   ├── scan_model.py         # SCAN clustering model
+│   │   └── ...
+│   ├── training/                 # Training scripts
+│   │   ├── train_clip.py         # Main CLIP training
+│   │   ├── train_scan.py         # SCAN clustering training
+│   │   └── ...
+│   ├── evals/                    # Evaluation scripts
+│   │   ├── evaluate_embeddings.py
+│   │   ├── visualize_embeddings.py
+│   │   ├── scan_evaluation.py
+│   │   └── ...
+│   ├── utils/                    # Utility functions
+│   └── losses/                   # Loss functions
+├── configs/                      # Configuration files
+│   ├── training/milan/           # Training configs (JSON)
+│   └── data_generation/milan/   # Data generation presets
+├── data/                         # Data directories
+│   ├── raw/casas/               # Raw CASAS datasets
+│   └── processed/casas/milan/    # Processed data
+├── trained_models/milan/         # Model checkpoints
+├── logs/                         # Training logs
+│   ├── text/                    # Text logs
+│   └── wandb/                   # WandB logs
+├── results/evals/milan/          # Evaluation results
+├── docs/                         # Documentation
+└── AGENTS.md                     # Agent instructions
+```
+
+## Quick Start
+
+### 1. Environment Setup
+```bash
+# Create conda environment
+conda env create -f env.yaml
+conda activate discover-v2-env
+```
+
+### 2. Data Generation
+```bash
+# Generate Milan training data
+python src/data/generate_data.py --config training_50 --force
+```
+
+### 3. Training
+```bash
+# Train CLIP model
+python src/training/train_clip.py --config configs/training/milan/tiny_50_oct1.json
+
+# Train SCAN clustering model
+python src/training/train_scan.py --config configs/training/milan/baseline.json
+```
+
+### 4. Evaluation
+```bash
+# Evaluate embeddings
+python src/evals/evaluate_embeddings.py \
+    --checkpoint trained_models/milan/tiny_50/best_model.pt \
+    --train_data data/processed/casas/milan/training_50/train.json \
+    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
+    --vocab data/processed/casas/milan/training_50/vocab.json \
+    --output_dir results/evals/milan/tiny_50
+```
+
+## Architecture Details
 
 ### Sensor Token Embedding
 - Sum of categorical field embeddings: `sensor_id + room_id + event_type + sensor_type + tod_bucket + delta_t_bucket + [floor_id] + [dow]`
@@ -31,158 +107,51 @@ This project implements a dual-tower architecture that learns to align sensor ev
   - Field-balanced priors: room(.30), event_type(.20), sensor_id(.20), tod(.15), delta_t_bucket(.10), sensor_type(.05)
   - BERT-style 80/10/10 masking
 
-## Installation
+## Configuration System
 
-```bash
-pip install torch transformers faiss-cpu scikit-learn numpy pandas wandb
-```
+The project uses a two-tier configuration system:
 
-## Quick Start
+### Training Configs (`configs/training/milan/`)
+- JSON files defining model architecture, training parameters, and data paths
+- Examples: `baseline.json`, `tiny_50_oct1.json`, `gemma_50.json`
 
-### 1. Create Sample Data
-```python
-from dataio.dataset import create_sample_dataset
+### Data Generation Configs (`configs/data_generation/milan/`)
+- JSON presets for data processing pipelines
+- Examples: `training_20.json`, `training_50.json`, `presegmented.json`
 
-create_sample_dataset(
-    output_path="sample_data.json",
-    vocab_path="sample_vocab.json",
-    num_samples=1000,
-    sequence_length=20
-)
-```
+## Key Features
 
-### 2. Train Model
-```bash
-python train.py \
-    --train_data sample_data.json \
-    --vocab sample_vocab.json \
-    --output_dir ./outputs \
-    --batch_size 32 \
-    --learning_rate 2e-4 \
-    --max_steps 10000
-```
+- **Multi-Dataset Support**: Milan, Aruba, Cairo, Tulum2009, twor.2009
+- **Flexible Architecture**: Configurable transformer layers, attention mechanisms
+- **Comprehensive Evaluation**: Embedding quality, clustering, retrieval metrics
+- **SCAN Integration**: Clustering-based activity recognition
+- **WandB Integration**: Experiment tracking and visualization
+- **Device Support**: CUDA, Apple Silicon (MPS), CPU
 
-### 3. Evaluate Retrieval
-```bash
-python eval_retrieval.py \
-    --checkpoint ./outputs/best_model.pt \
-    --eval_data sample_data.json \
-    --vocab sample_vocab.json \
-    --run_demo \
-    --save_embeddings
-```
+## Documentation
 
-## Data Format
+- `docs/README.md` - This file (project overview)
+- `docs/PIPELINE_ORGANIZATION.md` - Detailed pipeline structure
+- `docs/README_DATA_GENERATION.md` - Data generation guide
+- `docs/WANDB_SETUP_GUIDE.md` - WandB configuration
+- `docs/RETRIEVAL_GUIDE.md` - Retrieval system usage
+- `AGENTS.md` - Instructions for AI agents
 
-### Input Data Structure
-```json
-{
-  "events": [
-    {
-      "sensor_id": "motion_001",
-      "room_id": "kitchen",
-      "event_type": "ON",
-      "sensor_type": "motion",
-      "tod_bucket": "hour_8",
-      "delta_t_bucket": "bucket_2",
-      "floor_id": "floor_1",
-      "dow": "day_1",
-      "x": 2.5,
-      "y": 3.1,
-      "timestamp": 1234567890
-    }
-  ],
-  "captions": [
-    "morning routine",
-    "getting ready for work",
-    "kitchen activity"
-  ]
-}
-```
+## Recent Changes (Post-Reorganization)
 
-### Vocabulary Structure
-```json
-{
-  "sensor_id": {"sensor_001": 0, "sensor_002": 1, "<UNK>": 2, "<PAD>": 3},
-  "room_id": {"kitchen": 0, "bedroom": 1, "<UNK>": 2, "<PAD>": 3},
-  "event_type": {"ON": 0, "OFF": 1, "<UNK>": 2, "<PAD>": 3}
-}
-```
-
-## Configuration
-
-See `config.json` for full configuration options:
-
-- **Model**: Architecture parameters (layers, heads, dimensions)
-- **Training**: Optimization settings (lr, batch size, schedules)
-- **Loss**: CLIP and MLM loss weights and parameters
-- **MLM**: Masking probabilities and field priors
-- **Logging**: Intervals and output settings
-
-## Retrieval Demo
-
-The evaluation script includes a FAISS-based retrieval demo:
-
-```python
-# Text-to-sensor queries
-demo_queries = [
-    "night wandering",
-    "morning routine",
-    "cooking dinner",
-    "watching TV"
-]
-
-# Returns top-k most similar sensor sequences
-results = evaluator.text_to_sensor_retrieval(demo_queries, k=10)
-```
-
-## Training Features
-
-- **Device Support**: Automatic detection of CUDA, Apple Silicon (MPS), and CPU
-- **Mixed Precision**: Automatic Mixed Precision (AMP) with GradScaler (CUDA only)
-- **Gradient Checkpointing**: Memory-efficient training
-- **Learning Rate Schedule**: Cosine annealing with 5% warmup
-- **Monitoring**: Weights & Biases integration (optional)
-- **Checkpointing**: Regular model saving with best model tracking
-
-## File Structure
-
-```
-src/
-├── models/
-│   ├── text_encoder.py      # Frozen gte-base encoder
-│   ├── sensor_encoder.py    # Transformer with ALiBi/RoPE
-│   └── mlm_heads.py         # Multi-field MLM heads
-├── losses/
-│   └── clip.py              # CLIP + combined loss
-├── dataio/
-│   ├── dataset.py           # Smart-home dataset
-│   └── collate.py           # Batch collation with masking
-├── train.py                 # Training script
-├── eval_retrieval.py        # FAISS retrieval evaluation
-└── config.json              # Configuration template
-```
-
-## Metrics
-
-The evaluation computes:
-- **Precision@k** (k=1,5,10): Retrieval precision
-- **nDCG@k** (k=1,5,10): Normalized discounted cumulative gain
-- **Bidirectional accuracy**: Sensor↔text alignment accuracy
+- **Directory Structure**: Renamed `src-v2/` → `src/` for cleaner organization
+- **Configuration Management**: Moved to `configs/` with JSON-based presets
+- **Results Organization**: Centralized in `results/evals/{city_name}/`
+- **Model Storage**: Organized by city in `trained_models/{city_name}/`
+- **Log Management**: Separated text and WandB logs in `logs/`
 
 ## Requirements
 
-- PyTorch ≥ 1.12 (with MPS support for Apple Silicon)
+- Python 3.8+
+- PyTorch ≥ 1.12
 - transformers ≥ 4.20
 - faiss-cpu or faiss-gpu
 - scikit-learn, numpy, pandas
 - Optional: wandb for experiment tracking
 
-### Device Support
-- **CUDA**: Full support with AMP and pinned memory
-- **Apple Silicon (MPS)**: Optimized settings, single-threaded data loading
-- **CPU**: Fallback with optimized settings
-
-## License
-
-This implementation is provided as-is for research purposes.
+See `env.yaml` for complete conda environment specification.

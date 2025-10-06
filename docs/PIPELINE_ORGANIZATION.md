@@ -1,137 +1,202 @@
 # Pipeline Organization
 
 ## Overview
-This document describes the reorganized structure of the smart-home event sequence alignment pipeline after reorganization on September 24, 2025.
+This document describes the current structure of the smart-home event sequence alignment pipeline after major reorganization (October 2024).
 
-## Directory Structure
+## Current Directory Structure
 
 ### Core Pipeline (`src/`)
 Contains the main implementation modules:
+
+- **`data/`**: Complete data processing pipeline
+  - `data_load_clean.py` - Raw CASAS data processing and cleaning
+  - `data_loader.py` - Unified data loading with ProcessedDataset
+  - `generate_data.py` - Data generation scripts with config presets
+  - `data_config.py` - ProcessingConfig and data configuration
+  - `datasets.py` - Dataset configurations and metadata
+  - `pipeline.py` - End-to-end data processing pipeline
+
 - **`models/`**: Neural network architectures
   - `text_encoder.py` - Frozen GTE-base text encoder
   - `sensor_encoder.py` - Custom Transformer with ALiBi attention
+  - `scan_model.py` - SCAN clustering model
   - `mlm_heads.py` - Multi-field MLM heads
+  - `classification_head.py` - Classification heads
+  - `text_encoders/` - Specialized text encoders (Gemma, cached)
+
+- **`training/`**: Training scripts
+  - `train_clip.py` - Main CLIP training with dual-encoder alignment
+  - `train_scan.py` - SCAN clustering training
+  - `classification_trainer.py` - Classification training
+
+- **`evals/`**: Evaluation and analysis scripts
+  - `evaluate_embeddings.py` - Embedding quality evaluation
+  - `visualize_embeddings.py` - t-SNE/UMAP visualization
+  - `scan_evaluation.py` - SCAN clustering evaluation
+  - `evaluate_checkpoints.py` - Checkpoint evaluation
+  - `embedding_alignment_analysis.py` - Alignment analysis
+  - `caption_alignment_analysis.py` - Caption alignment analysis
+  - `run_all_evals.py` - Comprehensive evaluation suite
+
+- **`utils/`**: Utility functions
+  - `process_data_configs.py` - Data configuration helpers
+  - `extract_milan_captions.py` - Caption extraction
+  - `debug_training.py` - Training debugging utilities
+  - `wandb_config.py` - WandB configuration
+
 - **`losses/`**: Loss functions
   - `clip.py` - CLIP + combined loss implementation
+  - `scan_loss.py` - SCAN clustering loss
+
 - **`dataio/`**: Data loading and processing
   - `dataset.py` - Smart-home dataset implementation
   - `collate.py` - Batch collation with masking
-- **`data/`**: Data processing pipeline modules
-- **`config/`**: Configuration management
-- **`utils/`**: Utility functions
-- **`experiments/`**: Experiment configurations
+  - `classification_dataset.py` - Classification datasets
+  - `scan_dataset.py` - SCAN-specific datasets
 
-### Scripts (`scripts/`)
-Main entry point scripts:
-- **`train.py`** - Main training script with full configuration support
+### Configuration System (`configs/`)
 
-### Core Pipeline (`src/`) - Evaluation Module
-- **`evals/`**: All evaluation-related scripts and results
-  - **`eval_retrieval.py`** - FAISS retrieval evaluation with metrics
-  - **`query_retrieval.py`** - Interactive query interface
-  - **`evaluate_embeddings.py`** - Embedding quality evaluation
-  - **`visualize_embeddings.py`** - t-SNE/UMAP visualization
-  - **`summarize_evaluation.py`** - Evaluation result summarization
-  - **`embedding_evaluation/`** - Evaluation results and confusion matrices
-  - **`embedding_visualizations/`** - t-SNE/UMAP visualization outputs
+- **`training/milan/`**: Training configuration files (JSON)
+  - `baseline.json` - Standard baseline configuration
+  - `tiny_50_oct1.json` - Tiny model with 50% data
+  - `gemma_50.json` - Gemma text encoder configuration
+  - `improved_mlm.json` - Improved MLM configuration
+  - And more...
 
-### Data Evaluation (`evals/`) - Root Level (Git Ignored)
-Contains large data files and experimental results not tracked by git:
-- **`data_for_deepcasas/`** - Preprocessed data for DeepCASAS comparison
-- **`data_for_tdost/`** - Preprocessed data for TDOST comparison
-- **Various CSV and analysis files** - Clustering metrics and ground truth data
+- **`data_generation/milan/`**: Data generation presets (JSON)
+  - `training_20.json` - 20% data generation preset
+  - `training_50.json` - 50% data generation preset
+  - `presegmented.json` - Presegmented data preset
+  - `quick_validation.json` - Quick validation preset
 
-### Models (`models/`)
-Trained model checkpoints and outputs:
-- **`outputs/milan_training/`** - Training outputs
-  - `best_model.pt` - Best performing checkpoint
-  - `final_model.pt` - Final training checkpoint
+### Data Organization (`data/`)
+
+- **`raw/casas/`**: Raw CASAS datasets
+  - `milan/` - Milan dataset
+  - `aruba/` - Aruba dataset
+  - `cairo/` - Cairo dataset
+  - `tulum2009/` - Tulum 2009 dataset
+  - `twor.2009/` - twor.2009 dataset
+
+- **`processed/casas/milan/`**: Processed data
+  - `training_20/` - 20% training data
+  - `training_50/` - 50% training data
+  - `presegmented/` - Presegmented data
+  - Various JSON files (train.json, test.json, vocab.json, etc.)
+
+### Model Storage (`trained_models/`)
+
+- **`milan/`**: Milan-specific model checkpoints
+  - `baseline/` - Baseline model outputs
+  - `tiny_50/` - Tiny model with 50% data
+  - `gemma_50/` - Gemma model outputs
+  - `scan_50clusters/` - SCAN clustering models
+  - And more...
 
 ### Logs (`logs/`)
-Training and execution logs:
-- **`training_log.txt`** - Main training log
-- **`milan_training_train.log`** - Milan-specific training log
 
-### Configuration (`config/`)
-Configuration files:
-- **`config.json`** - Main model and training configuration
+- **`text/`**: Text-based training logs
+- **`wandb/`**: WandB experiment logs
+
+### Results (`results/`)
+
+- **`evals/milan/`**: Evaluation results organized by model
+  - `baseline/` - Baseline evaluation results
+  - `tiny_50/` - Tiny model evaluation results
+  - `gemma_50/` - Gemma model evaluation results
+  - Various analysis outputs (clustering, alignment, visualizations)
 
 ### Documentation (`docs/`)
-Documentation files:
-- **`README.md`** - Main project documentation
-- **`RETRIEVAL_GUIDE.md`** - Guide for using the retrieval system
-- **`PIPELINE_ORGANIZATION.md`** - This file
 
-## Workflow
+- `README.md` - Main project documentation
+- `PIPELINE_ORGANIZATION.md` - This file
+- `README_DATA_GENERATION.md` - Data generation guide
+- `WANDB_SETUP_GUIDE.md` - WandB configuration
+- `RETRIEVAL_GUIDE.md` - Retrieval system usage
 
-### 1. Training
+## Workflow Examples
+
+### 1. Data Generation
 ```bash
-cd scripts
-python train.py \
-    --train_data ../data/processed/milan_train.json \
-    --vocab ../data/processed/milan_vocab.json \
-    --config ../config/config.json \
-    --output_dir ../models/outputs/milan_training
+# Generate Milan training data with 50% split
+python src/data/generate_data.py --config training_50 --force
+
+# Generate custom data configuration
+python src/data/generate_data.py --custom --datasets milan --windows 20 50
 ```
 
-### 2. Evaluation
+### 2. Training
 ```bash
-cd src/evals
-python eval_retrieval.py \
-    --checkpoint ../../models/outputs/milan_training/best_model.pt \
-    --eval_data ../../data/processed/milan_test.json \
-    --vocab ../../data/processed/milan_vocab.json
+# Train CLIP model
+python src/training/train_clip.py --config configs/training/milan/tiny_50_oct1.json
+
+# Train SCAN clustering model
+python src/training/train_scan.py --config configs/training/milan/baseline.json
 ```
 
-### 3. Interactive Querying
+### 3. Evaluation
 ```bash
-cd src/evals
-python query_retrieval.py --interactive
+# Evaluate embeddings
+python src/evals/evaluate_embeddings.py \
+    --checkpoint trained_models/milan/tiny_50/best_model.pt \
+    --train_data data/processed/casas/milan/training_50/train.json \
+    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
+    --vocab data/processed/casas/milan/training_50/vocab.json \
+    --output_dir results/evals/milan/tiny_50
+
+# Run comprehensive evaluation suite
+python src/evals/run_all_evals.py \
+    --checkpoint trained_models/milan/tiny_50/best_model.pt \
+    --train_data data/processed/casas/milan/training_50/train.json \
+    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
+    --vocab data/processed/casas/milan/training_50/vocab.json
 ```
 
 ### 4. Visualization
 ```bash
-cd src/evals
-python visualize_embeddings.py \
-    --checkpoint ../../models/outputs/milan_training/best_model.pt \
-    --data ../../data/processed/milan_test.json \
-    --output_dir embedding_visualizations/
+# Generate t-SNE visualizations
+python src/evals/visualize_embeddings.py \
+    --checkpoint trained_models/milan/tiny_50/best_model.pt \
+    --train_data data/processed/casas/milan/training_50/train.json \
+    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
+    --vocab data/processed/casas/milan/training_50/vocab.json \
+    --output_dir results/evals/milan/tiny_50
 ```
 
-## Key Benefits of Reorganization
+## Key Benefits of Current Organization
 
 1. **Clear Separation of Concerns**
    - Core implementation in `src/`
-   - Entry points in `scripts/`
-   - Evaluation tools in `evals/`
-   - Model artifacts in `models/`
+   - Configuration management in `configs/`
+   - Data organization in `data/`
+   - Results and logs properly separated
 
-2. **Improved Maintainability**
+2. **Scalable Structure**
+   - Easy to add new cities (just add to `configs/training/{city}/`)
+   - Easy to add new model configurations
+   - Centralized data processing pipeline
+
+3. **Maintainable Codebase**
    - Related files grouped together
    - Clear dependency structure
-   - Centralized configuration
+   - JSON-based configuration system
 
-3. **Better Development Workflow**
-   - Easy to find relevant files
-   - Logical execution flow
-   - Separated logs and outputs
+4. **Research-Friendly**
+   - All evaluation tools in `src/evals/`
+   - Comprehensive result organization
+   - Easy comparison of different models
 
-4. **Research-Friendly Structure**
-   - All evaluation tools in one place
-   - Easy comparison of methods
-   - Organized experimental results
+## Migration History
 
-## Migration Notes
+- **October 2024**: Major reorganization from `src-v2/` to `src/`
+- **Configuration System**: Moved from Python configs to JSON presets
+- **Results Organization**: Centralized evaluation results in `results/evals/`
+- **Model Storage**: Organized by city in `trained_models/{city}/`
+- **Log Management**: Separated text and WandB logs
 
-- All evaluation scripts now include proper import path adjustments
-- Training script moved to `scripts/` with updated imports
-- Configuration centralized in `config/` folder
-- Model outputs organized in `models/` folder
-- Logs separated from source code
+## Future Considerations
 
-## Next Steps
-
-1. Update any external scripts that reference old paths
-2. Consider creating a `requirements.txt` in the root directory
-3. Add integration tests for the reorganized structure
-4. Update any CI/CD pipelines to use new paths
+1. **Multi-City Support**: Easy to extend to other CASAS cities
+2. **Model Variants**: Simple to add new architecture configurations
+3. **Evaluation Metrics**: Comprehensive evaluation suite already in place
+4. **Documentation**: Self-documenting structure with clear organization
