@@ -25,7 +25,7 @@
 - Keep documentation short and to the point
 - Documentation is primarily for future Cursor chat sessions, not human consumption
 - Update existing docs when making structural changes
-- **IMPORTANT**: Always consult existing docs in `docs/` folder before making changes
+ - Consult existing docs in `docs/` folder when needed
 - **IMPORTANT**: Update relevant docs when making major structural or functional changes
 
 ## Testing and Scripts

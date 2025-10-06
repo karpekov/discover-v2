@@ -56,11 +56,11 @@ class RetrievalEvaluator:
     # Initialize text encoder
     # Use text encoder factory to handle different encoder types
 
-    eval_config = model_config.copy() if "model_config" in locals() else {"text_model_name": self.config.get('text_model_name', 'thenlper/gte-base'}
+    eval_config = model_config.copy() if "model_config" in locals() else {"text_model_name": self.config.get('text_model_name', 'thenlper/gte-base')}
 
     eval_config["use_cached_embeddings"] = False  # Compute embeddings on-the-fly for eval
 
-    self.text_encoder = build_text_encoder(eval_config))
+    self.text_encoder = build_text_encoder(eval_config)
     self.text_encoder.to(self.device)
 
     # Initialize sensor encoder
