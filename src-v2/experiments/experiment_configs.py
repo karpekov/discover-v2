@@ -98,7 +98,7 @@ def create_training_config() -> ProcessingConfig:
         ),
         export=ExportConfig(
             formats=['json'],  # JSON format for training
-            output_dir="data/data_for_alignment/{config_name}",  # Save in data/data_for_alignment/{config_name}/
+            output_dir="data/processed/casas/milan/{config_name}",  # Save in data/processed/casas/milan/{config_name}/
             compress=False,
             include_raw_events=False,
             include_statistics=True
@@ -191,7 +191,7 @@ def create_presegmented_config() -> ProcessingConfig:
         ),
         export=ExportConfig(
             formats=['json'],  # JSON format for training
-            output_dir="data/data_for_alignment/{config_name}",
+            output_dir="data/processed/casas/milan/{config_name}",
             compress=False,
             include_raw_events=False,
             include_statistics=True

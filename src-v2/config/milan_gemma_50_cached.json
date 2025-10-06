@@ -7,7 +7,7 @@
   "text_output_dim": 512,
   "use_text_proj_head": true,
   "use_cached_embeddings": true,
-  "text_embeddings_cache_path": "data/data_for_alignment/milan_training_50/milan_gemma_embeddings_cache.pkl",
+  "text_embeddings_cache_path": "data/processed/casas/milan/milan_training_50/gemma_embeddings_cache.pkl",
   "use_fallback_encoder": false,
 
   "d_model": 512,
@@ -64,9 +64,9 @@
   "wandb_notes": "Milan baseline with CACHED EmbeddingGemma embeddings for fast training. Pre-computed embeddings with learnable projection head (768->512). Should be much faster than computing embeddings on-the-fly.",
   "wandb_group": "milan",
 
-  "train_data_path": "data/data_for_alignment/milan_training_50/milan_train.json",
-  "val_data_path": "data/data_for_alignment/milan_training_50/milan_test.json",
-  "vocab_path": "data/data_for_alignment/milan_training_50/milan_vocab.json",
+  "train_data_path": "data/processed/casas/milan/milan_training_50/train.json",
+  "val_data_path": "data/processed/casas/milan/milan_training_50/test.json",
+  "vocab_path": "data/processed/casas/milan/milan_training_50/vocab.json",
 
   "use_amp": false,
   "gradient_checkpointing": false,

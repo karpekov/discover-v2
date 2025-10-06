@@ -6,9 +6,9 @@
 
   "pretrained_model_path": "trained_models/milan_baseline/best_model.pt",
 
-  "train_data_path": "../data/data_for_alignment/milan_training_20/milan_presegmented_train.json",
-  "val_data_path": "../data/data_for_alignment/milan_training_20/milan_presegmented_test.json",
-  "vocab_path": "../data/data_for_alignment/milan_training_20/milan_vocab.json",
+  "train_data_path": "../data/processed/casas/milan/milan_training_20/presegmented_train.json",
+  "val_data_path": "../data/processed/casas/milan/milan_training_20/presegmented_test.json",
+  "vocab_path": "../data/processed/casas/milan/milan_training_20/vocab.json",
 
   "sequence_length": 20,
   "max_captions": 4,

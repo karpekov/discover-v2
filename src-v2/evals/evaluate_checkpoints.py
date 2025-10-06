@@ -11,9 +11,9 @@ Evaluates F1 performance across all available checkpoints to track training prog
 Sample Usage:
 python src-v2/evals/evaluate_checkpoints.py \
     --model_dir src-v2/trained_models/milan_tiny_20_oct1 \
-    --train_data data/data_for_alignment/milan_training_20/milan_train.json \
-    --test_data data/data_for_alignment/milan_training_20/milan_presegmented_test.json \
-    --vocab data/data_for_alignment/milan_training_20/milan_vocab.json \
+    --train_data data/processed/casas/milan/training_20/train.json \
+    --test_data data/processed/casas/milan/training_20/presegmented_test.json \
+    --vocab data/processed/casas/milan/training_20/vocab.json \
     --output_dir src-v2/analysis/milan_tiny_20_oct1_checkpoints \
     --max_samples 5000 \
     --filter_noisy_labels

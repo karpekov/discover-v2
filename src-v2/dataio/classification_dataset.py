@@ -320,8 +320,8 @@ if __name__ == "__main__":
     try:
         # Create dataset
         dataset = SmartHomeClassificationDataset(
-            data_path="data/data_for_alignment/milan_training_20/milan_train.json",
-            vocab_path="data/data_for_alignment/milan_training_20/milan_vocab.json",
+            data_path="data/processed/casas/milan/training_20/train.json",
+            vocab_path="data/processed/casas/milan/training_20/vocab.json",
             sequence_length=20,
             exclude_no_activity=True
         )

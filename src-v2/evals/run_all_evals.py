@@ -11,9 +11,9 @@ Example usage:
     # Run full evaluation suite (from src-v2 directory)
     cd /Users/alexkarpekov/code/har/casas_clustering/src-v2 && python evals/run_all_evals.py \
         --checkpoint trained_models/milan_tiny_50/best_model.pt \
-        --train_data ../data/data_for_alignment/milan_training_50/milan_train.json \
-        --test_data ../data/data_for_alignment/milan_training_50/milan_presegmented_test.json \
-        --vocab ../data/data_for_alignment/milan_training_50/milan_vocab.json \
+        --train_data ../data/processed/casas/milan/training_50/train.json \
+        --test_data ../data/processed/casas/milan/training_50/presegmented_test.json \
+        --vocab ../data/processed/casas/milan/training_50/vocab.json \
         --output_dir analysis/milan_tiny_50
 
     # Skip specific evaluations

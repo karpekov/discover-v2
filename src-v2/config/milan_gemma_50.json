@@ -61,9 +61,9 @@
   "wandb_notes": "Milan baseline with EmbeddingGemma (512-dim, 4-layer) with 0.3 MLM dropout, batch_size=64, 8 epochs, window size 50. Uses EmbeddingGemma with MRL truncation to 512 dims and retrieval prompts. Includes comprehensive metrics: alignment health, MLM accuracy, representation diagnostics, F1 scores.",
   "wandb_group": "milan",
 
-  "train_data_path": "data/data_for_alignment/milan_training_50/milan_train.json",
-  "val_data_path": "data/data_for_alignment/milan_training_50/milan_test.json",
-  "vocab_path": "data/data_for_alignment/milan_training_50/milan_vocab.json",
+  "train_data_path": "data/processed/casas/milan/milan_training_50/train.json",
+  "val_data_path": "data/processed/casas/milan/milan_training_50/test.json",
+  "vocab_path": "data/processed/casas/milan/milan_training_50/vocab.json",
 
   "use_amp": false,
   "gradient_checkpointing": false,

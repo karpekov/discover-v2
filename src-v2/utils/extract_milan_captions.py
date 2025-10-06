@@ -160,10 +160,10 @@ def main():
     project_root = script_dir.parent.parent
 
     # Path to Milan test dataset
-    test_data_path = project_root / "data" / "data_for_alignment" / "milan_training_50" / "milan_presegmented_test.json"
+    test_data_path = project_root / "data" / "processed" / "casas" / "milan" / "training_50" / "presegmented_test.json"
 
     # Output path for captions
-    output_path = project_root / "data" / "data_for_alignment" / "milan_training_50" / "milan_test_l1_captions_40_per_label.txt"
+    output_path = project_root / "data" / "processed" / "casas" / "milan" / "training_50" / "test_l1_captions_40_per_label.txt"
 
     # Extract captions
     label_captions = extract_captions_by_label(str(test_data_path), milan_labels, captions_per_label=40)

@@ -509,10 +509,10 @@ def main():
                        default='models/milan_20epochs_final/best_model.pt',
                        help='Path to model checkpoint')
     parser.add_argument('--data', type=str,
-                       default='data/data_for_alignment/milan_training_20/milan_test.json',
+                       default='data/processed/casas/milan/training_20/test.json',
                        help='Path to test data')
     parser.add_argument('--vocab', type=str,
-                       default='data/data_for_alignment/milan_training_20/milan_vocab.json',
+                       default='data/processed/casas/milan/training_20/vocab.json',
                        help='Path to vocabulary file')
     parser.add_argument('--max_samples', type=int, default=5000,
                        help='Maximum number of samples to analyze')

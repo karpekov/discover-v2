@@ -10,9 +10,9 @@ Creates 2D projections (t-SNE/UMAP) of sensor sequence embeddings colored by CAS
 Usage:
     python src-v2/evals/visualize_embeddings.py \
         --checkpoint src-v2/trained_models/milan_tiny_50/best_model.pt \
-        --train_data src-v2/data/data_for_alignment/milan_training_50/milan_train.json \
-        --test_data src-v2/data/data_for_alignment/milan_training_50/milan_presegmented_test.json \
-        --vocab src-v2/data/data_for_alignment/milan_training_50/milan_vocab.json \
+        --train_data src-v2/data/processed/casas/milan/training_50/train.json \
+        --test_data src-v2/data/processed/casas/milan/training_50/presegmented_test.json \
+        --vocab src-v2/data/processed/casas/milan/training_50/vocab.json \
         --output_dir src-v2/analysis/milan_tiny_50 \
         --max_samples 10000
 """

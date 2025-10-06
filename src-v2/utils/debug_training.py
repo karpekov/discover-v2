@@ -82,8 +82,8 @@ def get_debug_config():
         'use_wandb': False,
 
         # Data paths (relative to project root)
-        'train_data_path': str(project_root / 'data/data_for_alignment/milan_training_20/milan_train.json'),
-        'vocab_path': str(project_root / 'data/data_for_alignment/milan_training_20/milan_vocab.json'),
+        'train_data_path': str(project_root / 'data/processed/casas/milan/training_20/train.json'),
+        'vocab_path': str(project_root / 'data/processed/casas/milan/training_20/vocab.json'),
         'val_data_path': None,  # No validation for debugging
 
         # Device config

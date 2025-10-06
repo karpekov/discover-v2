@@ -56,9 +56,9 @@
   "wandb_notes": "Small model (512-dim, 4-layer) with 0.3 MLM dropout, batch_size=64, 5 epochs, window size 100. Includes comprehensive metrics: alignment health, MLM accuracy, representation diagnostics, F1 scores.",
   "wandb_group": "milan",
 
-  "train_data_path": "data/data_for_alignment/milan_training_100/milan_train.json",
-  "val_data_path": "data/data_for_alignment/milan_training_100/milan_test.json",
-  "vocab_path": "data/data_for_alignment/milan_training_100/milan_vocab.json",
+  "train_data_path": "data/processed/casas/milan/milan_training_100/train.json",
+  "val_data_path": "data/processed/casas/milan/milan_training_100/test.json",
+  "vocab_path": "data/processed/casas/milan/milan_training_100/vocab.json",
 
   "use_amp": false,
   "gradient_checkpointing": false,

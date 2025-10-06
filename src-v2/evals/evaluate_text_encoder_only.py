@@ -11,8 +11,8 @@ Compares captions against text-based activity prototypes using cosine similarity
 
 Sample Usage:
   python src-v2/evals/evaluate_text_encoder_only.py \
-    --train_data data/data_for_alignment/milan_training_50/milan_train.json \
-    --test_data data/data_for_alignment/milan_training_50/milan_presegmented_test.json \
+    --train_data data/processed/casas/milan/training_50/train.json \
+    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
     --output_dir src-v2/analysis/milan_50_textonly_new \
     --max_samples 10000 \
     --filter_noisy_labels
@@ -721,8 +721,8 @@ def main():
         epilog='''
 Example usage:
   python src-v2/evals/evaluate_text_encoder_only.py \\
-    --train_data data/data_for_alignment/milan_training_50/milan_train.json \\
-    --test_data data/data_for_alignment/milan_training_50/milan_test.json \\
+    --train_data data/processed/casas/milan/training_50/train.json \\
+    --test_data data/processed/casas/milan/training_50/test.json \\
     --output_dir src-v2/analysis/milan_50_textonly \\
     --max_samples 1000 \\
     --filter_noisy_labels
@@ -732,9 +732,9 @@ Example usage:
 
     # Data paths (required arguments)
     parser.add_argument('--train_data', type=str, required=True,
-                       help='Path to training data (e.g., data/data_for_alignment/milan_training_50/milan_train.json)')
+                       help='Path to training data (e.g., data/processed/casas/milan/training_50/train.json)')
     parser.add_argument('--test_data', type=str, required=True,
-                       help='Path to test data (e.g., data/data_for_alignment/milan_training_50/milan_test.json)')
+                       help='Path to test data (e.g., data/processed/casas/milan/training_50/test.json)')
     parser.add_argument('--output_dir', type=str, required=True,
                        help='Output directory for results (e.g., src-v2/analysis/milan_50_textonly)')
 
