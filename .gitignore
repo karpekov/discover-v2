@@ -36,7 +36,7 @@ src/wandb/
 # src/trained_models/  (migrated to top-level)
 src/analysis/
 
-# New top-level logs directories
+# Logs, models, and results
 logs/
 trained_models/
 results/

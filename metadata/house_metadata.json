@@ -149,7 +149,7 @@
       "Guest_Bathroom": "Bathing",
       "no_activity": "No_Activity"
     },
-    "lable": {
+    "label": {
       "Master_Bedroom_Activity": "#3B75AF",
       "Sleep": "#2F6397",
       "Master_Bathroom": "#4B68C9",
@@ -193,6 +193,108 @@
 
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
+    },
+    "label_to_text": {
+      "Kitchen_Activity": {
+        "short_desc": "cooking and kitchen activities",
+        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."]
+      },
+      "Sleep": {
+        "short_desc": "sleeping in bed in master bedroom, usually at night time",
+        "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."]
+      },
+      "Read": {
+        "short_desc": "reading a book or newspaper in a static position",
+        "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."]
+      },
+      "Watch_TV": {
+        "short_desc": "watching television",
+        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"]
+      },
+      "Master_Bedroom_Activity": {
+        "short_desc": "activities and motion in the master bedroom",
+        "long_desc": ["General master bedroom bedroom activity during day or evening."]
+      },
+      "Master_Bathroom": {
+        "short_desc": "using the master bathroom, shower, or bathtub",
+        "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."]
+      },
+      "Guest_Bathroom": {
+        "short_desc": "using the guest bathroom, shower, or bathtub",
+        "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."]
+      },
+      "Dining_Rm_Activity": {
+        "short_desc": "activity and motion in dining room",
+        "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."]
+      },
+      "Desk_Activity": {
+        "short_desc": "working at desk in workspace",
+        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."]
+      },
+      "Leave_Home": {
+        "short_desc": "leaving or entering the house through the door",
+        "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"]
+      },
+      "Chores": {
+        "short_desc": "doing household chores",
+        "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"]
+      },
+      "Meditate": {
+        "short_desc": "meditation",
+        "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"]
+      },
+      "no_activity": {
+        "short_desc": "no specific activity or idle time",
+        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement."]
+      },
+      "Bed_to_Toilet": {
+        "short_desc": "going from bed to toilet at night",
+        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"]
+      },
+      "Morning_Meds": {
+        "short_desc": "taking morning medication",
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"]
+      },
+      "Eve_Meds": {
+        "short_desc": "taking evening medication",
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"]
+      },
+      "Cook": {
+        "short_desc": "cooking and preparing food",
+        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."]
+      },
+      "No_Activity": {
+        "short_desc": "no specific activity or idle time",
+        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement.", "Inactive state with no significant motion."]
+      },
+      "Work": {
+        "short_desc": "working at desk or workspace",
+        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."]
+      },
+      "Eat": {
+        "short_desc": "eating meals",
+        "long_desc": ["Activity spanning short and long periods in dining room, including movement around the dining room table."]
+      },
+      "Relax": {
+        "short_desc": "relaxing, watching TV or reading",
+        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in tv room, ranging from brief moments to extended periods."]
+      },
+      "Bathing": {
+        "short_desc": "bathing or using bathroom",
+        "long_desc": ["Bathroom activity in guest or master bathroom, with short transitions through nearby areas and motions related to hygiene."]
+      },
+      "Other": {
+        "short_desc": "other miscellaneous activities",
+        "long_desc": ["Activity often happening in guest bedroom or master bedroom only."]
+      },
+      "Take_medicine": {
+        "short_desc": "taking medication",
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"]
+      },
+      "Bed_to_toilet": {
+        "short_desc": "going from bed to toilet at night",
+        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"]
+      }
     }
   },
 
@@ -347,7 +449,8 @@
 
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
-    }
+    },
+    "label_to_text": {}
   },
 
   "tulum":
@@ -454,7 +557,8 @@
 
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
-    }
+    },
+    "label_to_text": {}
   },
 
   "cairo":
@@ -594,7 +698,8 @@
 
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
-    }
+    },
+    "label_to_text": {}
   },
 
   "kyoto":
@@ -872,7 +977,8 @@
 
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
-    }
+    },
+    "label_to_text": {}
   },
 
   "aware_home":
@@ -969,7 +1075,8 @@
       "no_sensor_readings": "#bababa"
     },
     "label_deepcasas_color": {
-    }
+    },
+    "label_to_text": {}
   },
 
   "cepid10":
@@ -1047,6 +1154,7 @@
 
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
-    }
+    },
+    "label_to_text": {}
   }
 }
