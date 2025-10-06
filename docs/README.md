@@ -148,7 +148,7 @@ results = evaluator.text_to_sensor_retrieval(demo_queries, k=10)
 ## File Structure
 
 ```
-src-v2/
+src/
 ├── models/
 │   ├── text_encoder.py      # Frozen gte-base encoder
 │   ├── sensor_encoder.py    # Transformer with ALiBi/RoPE

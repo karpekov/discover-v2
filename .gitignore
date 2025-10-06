@@ -31,10 +31,10 @@ dist/
 
 # Project data and artifacts
 data/
-src-v2/logs/
-src-v2/wandb/
-# src-v2/trained_models/  (migrated to top-level)
-src-v2/analysis/
+src/logs/
+src/wandb/
+# src/trained_models/  (migrated to top-level)
+src/analysis/
 
 # New top-level logs directories
 logs/

@@ -9,7 +9,7 @@ Checkpoint evaluation script for CASAS activity recognition.
 Evaluates F1 performance across all available checkpoints to track training progress.
 
 Sample Usage:
-python src-v2/evals/evaluate_checkpoints.py \
+python src/evals/evaluate_checkpoints.py \
     --model_dir trained_models/milan/tiny_20_oct1 \
     --train_data data/processed/casas/milan/training_20/train.json \
     --test_data data/processed/casas/milan/training_20/presegmented_test.json \

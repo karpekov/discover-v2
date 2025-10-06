@@ -7,7 +7,7 @@ This script dynamically detects the number of clusters from the SCAN model check
 so it works with models trained with any number of clusters (20, 50, etc.).
 
 Sample Usage:
-python src-v2/evals/scan_evaluation.py \
+python src/evals/scan_evaluation.py \
     --scan_model_path trained_models/milan/scan_50clusters_finetune/best_model.pt \
     --baseline_model_path trained_models/milan/baseline_50/best_model.pt \
     --data_path data/processed/casas/milan/training_50/presegmented_test.json \

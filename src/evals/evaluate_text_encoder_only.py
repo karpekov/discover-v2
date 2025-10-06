@@ -10,7 +10,7 @@ Evaluates text captions using raw text encoder embeddings (768-dim GTE) without 
 Compares captions against text-based activity prototypes using cosine similarity.
 
 Sample Usage:
-  python src-v2/evals/evaluate_text_encoder_only.py \
+  python src/evals/evaluate_text_encoder_only.py \
     --train_data data/processed/casas/milan/training_50/train.json \
     --test_data data/processed/casas/milan/training_50/presegmented_test.json \
     --output_dir results/evals/milan/50_textonly_new \
@@ -720,7 +720,7 @@ def main():
         description='Evaluate text encoder only activity recognition',
         epilog='''
 Example usage:
-  python src-v2/evals/evaluate_text_encoder_only.py \\
+  python src/evals/evaluate_text_encoder_only.py \\
     --train_data data/processed/casas/milan/training_50/train.json \\
     --test_data data/processed/casas/milan/training_50/test.json \\
     --output_dir results/evals/milan/50_textonly \\

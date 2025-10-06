@@ -2,7 +2,7 @@
 
 """
 Usage:
-  python src-v2/training/train_clip.py --config configs/training/milan/tiny_50_oct1.json
+  python src/training/train_clip.py --config configs/training/milan/tiny_50_oct1.json
 """
 
 import os

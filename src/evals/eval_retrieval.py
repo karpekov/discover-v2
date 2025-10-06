@@ -13,7 +13,7 @@ import faiss
 from sklearn.metrics import ndcg_score
 
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src-v2'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from models.text_encoder import TextEncoder, build_text_encoder
 from models.sensor_encoder import SensorEncoder

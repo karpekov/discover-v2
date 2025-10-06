@@ -1,9 +1,9 @@
 # Data and heavy outputs
 data/**
-src-v2/analysis/**
-src-v2/logs/**
-src-v2/wandb/**
-src-v2/trained_models/**
+src/analysis/**
+src/logs/**
+src/wandb/**
+src/trained_models/**
 logs/**
 results/**
 

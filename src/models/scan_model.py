@@ -1,5 +1,5 @@
 """
-SCAN Clustering Model for src-v2 pipeline.
+SCAN Clustering Model for src pipeline.
 Uses pre-trained sensor encoder and adds clustering head.
 """
 import torch

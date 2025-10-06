@@ -5,11 +5,11 @@ Simple Debug Training Script
 Just calls the existing SmartHomeTrainer with debug-friendly settings.
 Set breakpoints wherever you need to inspect the training process.
 
-Run from src-v2/utils/ directory:
-    cd src-v2/utils
+Run from src/utils/ directory:
+    cd src/utils
     python debug_training.py
 
-Or from src-v2/ directory:
+Or from src/ directory:
     python -m utils.debug_training
 """
 
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         print("✓ Successfully imported SmartHomeTrainer")
     except ImportError as e:
         print(f"✗ Import failed: {e}")
-        print("Make sure you're running from src-v2/utils/ directory or src-v2/ directory")
+        print("Make sure you're running from src/utils/ directory or src/ directory")
         print("Current Python path:")
         for p in sys.path:
             print(f"  {p}")

@@ -38,7 +38,7 @@ class SCANVisualizationAnalyzer:
         model_path: str,
         data_path: str,
         vocab_path: str,
-        output_dir: str = "src-v2/analysis/scan_visualization"
+        output_dir: str = "src/analysis/scan_visualization"
     ):
         self.model_path = model_path
         self.data_path = data_path
@@ -461,7 +461,7 @@ def main():
     parser.add_argument('--vocab_path', type=str, required=True,
                        help='Path to vocabulary file')
     parser.add_argument('--output_dir', type=str,
-                       default='src-v2/analysis/scan_visualization',
+                       default='src/analysis/scan_visualization',
                        help='Output directory for visualizations')
     parser.add_argument('--max_samples', type=int, default=5000,
                        help='Maximum number of samples to use for visualization')

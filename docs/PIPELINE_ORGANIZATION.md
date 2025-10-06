@@ -5,7 +5,7 @@ This document describes the reorganized structure of the smart-home event sequen
 
 ## Directory Structure
 
-### Core Pipeline (`src-v2/`)
+### Core Pipeline (`src/`)
 Contains the main implementation modules:
 - **`models/`**: Neural network architectures
   - `text_encoder.py` - Frozen GTE-base text encoder
@@ -25,7 +25,7 @@ Contains the main implementation modules:
 Main entry point scripts:
 - **`train.py`** - Main training script with full configuration support
 
-### Core Pipeline (`src-v2/`) - Evaluation Module
+### Core Pipeline (`src/`) - Evaluation Module
 - **`evals/`**: All evaluation-related scripts and results
   - **`eval_retrieval.py`** - FAISS retrieval evaluation with metrics
   - **`query_retrieval.py`** - Interactive query interface
@@ -76,7 +76,7 @@ python train.py \
 
 ### 2. Evaluation
 ```bash
-cd src-v2/evals
+cd src/evals
 python eval_retrieval.py \
     --checkpoint ../../models/outputs/milan_training/best_model.pt \
     --eval_data ../../data/processed/milan_test.json \
@@ -85,13 +85,13 @@ python eval_retrieval.py \
 
 ### 3. Interactive Querying
 ```bash
-cd src-v2/evals
+cd src/evals
 python query_retrieval.py --interactive
 ```
 
 ### 4. Visualization
 ```bash
-cd src-v2/evals
+cd src/evals
 python visualize_embeddings.py \
     --checkpoint ../../models/outputs/milan_training/best_model.pt \
     --data ../../data/processed/milan_test.json \
@@ -101,7 +101,7 @@ python visualize_embeddings.py \
 ## Key Benefits of Reorganization
 
 1. **Clear Separation of Concerns**
-   - Core implementation in `src-v2/`
+   - Core implementation in `src/`
    - Entry points in `scripts/`
    - Evaluation tools in `evals/`
    - Model artifacts in `models/`

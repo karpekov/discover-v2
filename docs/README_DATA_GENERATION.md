@@ -13,13 +13,13 @@ The data generation system processes raw CASAS sensor data into structured train
 conda activate har_env
 
 # List available configurations
-python src-v2/generate_data.py --list-configs
+python src/generate_data.py --list-configs
 
 # Generate Milan training data (recommended)
-python src-v2/generate_data.py --config milan_training --force
+python src/generate_data.py --config milan_training --force
 
 # Quick validation test
-python src-v2/generate_data.py --config quick_validation
+python src/generate_data.py --config quick_validation
 ```
 
 ## Key Features
@@ -64,13 +64,13 @@ python src-v2/generate_data.py --config quick_validation
 ### Basic Usage
 ```bash
 # Run pre-defined configuration
-python src-v2/generate_data.py --config <config_name> [--force]
+python src/generate_data.py --config <config_name> [--force]
 
 # List all available configurations
-python src-v2/generate_data.py --list-configs
+python src/generate_data.py --list-configs
 
 # Custom configuration
-python src-v2/generate_data.py --custom --datasets milan aruba --windows 20 50
+python src/generate_data.py --custom --datasets milan aruba --windows 20 50
 ```
 
 ### Arguments
@@ -141,16 +141,16 @@ include_room_transitions: True # Include movement descriptions
 ### Generate Training Data
 ```bash
 # Generate Milan training data with random splitting
-python src-v2/generate_data.py --config milan_training --force
+python src/generate_data.py --config milan_training --force
 
 # Generate with temporal splitting for comparison
-python src-v2/generate_data.py --config milan_temporal_split --force
+python src/generate_data.py --config milan_temporal_split --force
 ```
 
 ### Custom Processing
 ```bash
 # Process multiple datasets with different window sizes
-python src-v2/generate_data.py --custom \
+python src/generate_data.py --custom \
   --datasets milan aruba cairo \
   --windows 20 50 100 \
   --output-dir data/my_custom_data
@@ -159,7 +159,7 @@ python src-v2/generate_data.py --custom \
 ### Quick Testing
 ```bash
 # Fast validation with small dataset
-python src-v2/generate_data.py --config quick_validation
+python src/generate_data.py --config quick_validation
 ```
 
 ## Caption Examples
@@ -205,7 +205,7 @@ Add `--force` flag to regenerate existing data and see full processing logs.
 ## File Organization
 
 ```
-src-v2/
+src/
 ├── generate_data.py           # Main data generation script
 ├── config/
 │   ├── processing.py          # Processing configurations

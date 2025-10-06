@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-SCAN Clustering Training Script for src-v2 pipeline.
+SCAN Clustering Training Script for src pipeline.
 Performs clustering training on pre-trained sensor encoder embeddings.
 """
 

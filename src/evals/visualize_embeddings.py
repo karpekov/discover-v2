@@ -8,11 +8,11 @@ Embedding visualization script for evaluating learned representations.
 Creates 2D projections (t-SNE/UMAP) of sensor sequence embeddings colored by CASAS ground truth labels.
 
 Usage:
-    python src-v2/evals/visualize_embeddings.py \
+    python src/evals/visualize_embeddings.py \
         --checkpoint trained_models/milan/tiny_50/best_model.pt \
-        --train_data src-v2/data/processed/casas/milan/training_50/train.json \
-        --test_data src-v2/data/processed/casas/milan/training_50/presegmented_test.json \
-        --vocab src-v2/data/processed/casas/milan/training_50/vocab.json \
+        --train_data src/data/processed/casas/milan/training_50/train.json \
+        --test_data src/data/processed/casas/milan/training_50/presegmented_test.json \
+        --vocab src/data/processed/casas/milan/training_50/vocab.json \
         --output_dir results/evals/milan/tiny_50 \
         --max_samples 10000
 """

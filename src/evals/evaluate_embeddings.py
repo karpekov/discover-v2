@@ -8,7 +8,7 @@ Embedding-based evaluation script for CASAS activity recognition.
 Computes nearest neighbor predictions in embedding space and evaluates against ground truth labels.
 
 Sample Usage:
-python src-v2/evals/evaluate_embeddings.py \
+python src/evals/evaluate_embeddings.py \
     --checkpoint trained_models/milan/tiny_50/best_model.pt \
     --train_data data/processed/casas/milan/training_50/train.json \
     --test_data data/processed/casas/milan/training_50/presegmented_test.json \

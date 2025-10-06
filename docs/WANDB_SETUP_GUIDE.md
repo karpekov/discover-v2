@@ -227,6 +227,6 @@ python scripts/train.py --no_wandb [other args...]
 
 3. **Explore features**: Try different experiments, compare runs, and use the model artifacts
 
-4. **Customize**: Modify `src-v2/config/wandb_config.py` for your specific needs
+4. **Customize**: Modify `src/config/wandb_config.py` for your specific needs
 
 Happy training! 🚀

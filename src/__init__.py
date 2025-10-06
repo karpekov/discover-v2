@@ -1,5 +1,5 @@
 """
-Dual-Encoder Alignment Pipeline (src-v2)
+Dual-Encoder Alignment Pipeline (src)
 
 Complete pipeline for CASAS data processing and dual-encoder alignment.
 Implements Recipe R2 for HAR clustering research.

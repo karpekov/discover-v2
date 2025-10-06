@@ -8,8 +8,8 @@ Comprehensive evaluation runner for trained HAR models.
 Runs all evaluation scripts in sequence to generate a complete analysis suite.
 
 Example usage:
-    # Run full evaluation suite (from src-v2 directory)
-    cd /Users/alexkarpekov/code/har/casas_clustering/src-v2 && python evals/run_all_evals.py \
+    # Run full evaluation suite (from src directory)
+    cd /Users/alexkarpekov/code/har/casas_clustering/src && python evals/run_all_evals.py \
         --checkpoint trained_models/milan_tiny_50/best_model.pt \
         --train_data ../data/processed/casas/milan/training_50/train.json \
         --test_data ../data/processed/casas/milan/training_50/presegmented_test.json \
@@ -40,14 +40,14 @@ class ComprehensiveEvaluator:
 
     def _convert_paths_for_project_root(self):
         """Convert relative paths to work from project root directory."""
-        # Convert checkpoint path - needs to be prefixed with src-v2/ since individual scripts run from project root
+        # Convert checkpoint path - needs to be prefixed with src/ since individual scripts run from project root
         if not Path(self.config['checkpoint']).is_absolute():
             checkpoint_path = Path(self.config['checkpoint'])
-            if not str(checkpoint_path).startswith('src-v2/'):
-                self.config['checkpoint'] = f"src-v2/{self.config['checkpoint']}"
+            if not str(checkpoint_path).startswith('src/'):
+                self.config['checkpoint'] = f"src/{self.config['checkpoint']}"
 
-        # Convert data paths - these are relative to src-v2, but individual scripts run from project root
-        # So ../data/... from src-v2 becomes data/... from project root
+        # Convert data paths - these are relative to src, but individual scripts run from project root
+        # So ../data/... from src becomes data/... from project root
         for path_key in ['train_data', 'test_data', 'vocab']:
             if path_key in self.config and not Path(self.config[path_key]).is_absolute():
                 path_str = self.config[path_key]
@@ -55,11 +55,11 @@ class ComprehensiveEvaluator:
                     # Remove the ../ prefix since we're now running from project root
                     self.config[path_key] = path_str[3:]
 
-        # Convert output directory - should be prefixed with src-v2/ since scripts run from project root
+        # Convert output directory - should be prefixed with src/ since scripts run from project root
         if 'output_dir' in self.config and not Path(self.config['output_dir']).is_absolute():
             output_dir = self.config['output_dir']
-            if not output_dir.startswith('src-v2/'):
-                self.config['output_dir'] = f"src-v2/{output_dir}"
+            if not output_dir.startswith('src/'):
+                self.config['output_dir'] = f"src/{output_dir}"
 
     def run_command(self, cmd: list, description: str) -> bool:
         """Run a command and handle errors."""
@@ -89,7 +89,7 @@ class ComprehensiveEvaluator:
     def run_embedding_evaluation(self) -> bool:
         """Run dual embedding evaluation (filtered vs unfiltered)."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src-v2/evals/evaluate_embeddings.py',
+            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/evaluate_embeddings.py',
             '--checkpoint', self.config['checkpoint'],
             '--train_data', self.config['train_data'],
             '--test_data', self.config['test_data'],
@@ -104,7 +104,7 @@ class ComprehensiveEvaluator:
     def run_embedding_visualization(self) -> bool:
         """Run embedding visualization with t-SNE."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src-v2/evals/visualize_embeddings.py',
+            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/visualize_embeddings.py',
             '--checkpoint', self.config['checkpoint'],
             '--train_data', self.config['train_data'],
             '--test_data', self.config['test_data'],
@@ -122,7 +122,7 @@ class ComprehensiveEvaluator:
     def run_clustering_visualization(self) -> bool:
         """Run embedding visualization with clustering analysis."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src-v2/evals/visualize_embeddings.py',
+            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/visualize_embeddings.py',
             '--checkpoint', self.config['checkpoint'],
             '--train_data', self.config['train_data'],
             '--test_data', self.config['test_data'],
@@ -142,7 +142,7 @@ class ComprehensiveEvaluator:
     def run_embedding_alignment(self) -> bool:
         """Run embedding alignment analysis."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src-v2/evals/embedding_alignment_analysis.py',
+            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/embedding_alignment_analysis.py',
             '--checkpoint', self.config['checkpoint'],
             '--data', self.config['test_data'],
             '--vocab', self.config['vocab'],
@@ -155,7 +155,7 @@ class ComprehensiveEvaluator:
     def run_caption_alignment(self) -> bool:
         """Run caption alignment analysis."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src-v2/evals/caption_alignment_analysis.py',
+            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/caption_alignment_analysis.py',
             '--checkpoint', self.config['checkpoint'],
             '--data', self.config['test_data'],
             '--vocab', self.config['vocab'],
@@ -169,7 +169,7 @@ class ComprehensiveEvaluator:
     def run_clustering_evaluation(self) -> bool:
         """Run clustering evaluation with K-means and DBSCAN."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src-v2/evals/clustering_evaluation.py',
+            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/clustering_evaluation.py',
             '--checkpoint', self.config['checkpoint'],
             '--test_data', self.config['test_data'],
             '--vocab', self.config['vocab'],
