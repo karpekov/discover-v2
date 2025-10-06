@@ -1,0 +1,51 @@
+{
+  "comment": "Milan L2 activity classification fine-tuning - Frozen backbone with linear classifier",
+
+  "experiment_name": "milan_l2_classification",
+  "output_dir": "src-v2/trained_models/milan_classification",
+
+  "pretrained_model_path": "trained_models/milan_baseline/best_model.pt",
+
+  "train_data_path": "../data/data_for_alignment/milan_training_20/milan_presegmented_train.json",
+  "val_data_path": "../data/data_for_alignment/milan_training_20/milan_presegmented_test.json",
+  "vocab_path": "../data/data_for_alignment/milan_training_20/milan_vocab.json",
+
+  "sequence_length": 20,
+  "max_captions": 4,
+  "caption_types": "long",
+  "exclude_no_activity": true,
+
+  "freeze_backbone": true,
+  "classifier_hidden_dim": null,
+  "classifier_dropout": 0.1,
+  "use_class_weights": true,
+
+  "batch_size": 64,
+  "learning_rate": 1e-3,
+  "betas": [0.9, 0.999],
+  "weight_decay": 0.01,
+  "max_epochs": 10,
+  "grad_clip_norm": 1.0,
+
+  "scheduler": "cosine",
+  "min_lr": 1e-6,
+
+  "use_amp": false,
+
+  "log_interval": 25,
+  "val_interval": 1,
+  "save_interval": 1000,
+  "metrics_interval": 10000,
+  "metrics_sample_size": 2000,
+
+  "use_wandb": true,
+  "wandb_project": "discover-v2-classification",
+  "wandb_name": "milan_l2_linear_frozen",
+  "wandb_tags": ["milan", "l2-classification", "frozen-backbone", "linear-head"],
+  "wandb_notes": "L2 activity classification with frozen SensorEncoder backbone and linear classification head. Excludes 'no_activity' samples.",
+  "wandb_group": "milan-classification",
+
+  "num_workers": 4,
+  "pin_memory": true,
+  "device": "auto"
+}

@@ -1,0 +1,28 @@
+# VCS
+.git/
+
+# Data and heavy outputs
+data/**
+src-v2/analysis/**
+src-v2/logs/**
+src-v2/wandb/**
+src-v2/trained_models/**
+
+# Notebooks and HTML reports
+*.ipynb
+*.html
+.ipynb_checkpoints/**
+
+# Binary/large artifacts
+*.pt
+*.pth
+*.pkl
+*.npz
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# OS/Editor
+.DS_Store
+.vscode/**
