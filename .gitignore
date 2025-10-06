@@ -39,6 +39,7 @@ src-v2/analysis/
 # New top-level logs directories
 logs/
 trained_models/
+results/
 
 # Large/binary artifacts
 *.pt

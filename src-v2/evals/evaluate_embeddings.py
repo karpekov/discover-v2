@@ -13,7 +13,7 @@ python src-v2/evals/evaluate_embeddings.py \
     --train_data data/processed/casas/milan/training_50/train.json \
     --test_data data/processed/casas/milan/training_50/presegmented_test.json \
     --vocab data/processed/casas/milan/training_50/vocab.json \
-    --output_dir src-v2/analysis/milan_tiny_50_TEST \
+    --output_dir results/evals/milan/tiny_50_TEST \
     --max_samples 10000 \
     --compare_filtering
 """
@@ -2242,7 +2242,7 @@ def main():
                        help='Maximum number of samples to evaluate')
     parser.add_argument('--k_neighbors', type=int, default=1,
                        help='Number of neighbors for k-NN prediction')
-    parser.add_argument('--output_dir', type=str, default='./embedding_evaluation',
+    parser.add_argument('--output_dir', type=str, default='results/evals/milan/embedding_evaluation',
                        help='Output directory for results')
     parser.add_argument('--filter_noisy_labels', action='store_true',
                        help='Filter out noisy labels like "Other" and "No_Activity"')

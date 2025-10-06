@@ -516,7 +516,7 @@ def main():
                        help='Path to vocabulary file')
     parser.add_argument('--max_samples', type=int, default=5000,
                        help='Maximum number of samples to analyze')
-    parser.add_argument('--output_dir', type=str, default='src-v2/evals/alignment_analysis',
+    parser.add_argument('--output_dir', type=str, default='results/evals/milan/alignment_analysis',
                        help='Output directory for results')
 
     args = parser.parse_args()

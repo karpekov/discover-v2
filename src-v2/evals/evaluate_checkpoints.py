@@ -14,7 +14,7 @@ python src-v2/evals/evaluate_checkpoints.py \
     --train_data data/processed/casas/milan/training_20/train.json \
     --test_data data/processed/casas/milan/training_20/presegmented_test.json \
     --vocab data/processed/casas/milan/training_20/vocab.json \
-    --output_dir src-v2/analysis/milan_tiny_20_oct1_checkpoints \
+    --output_dir results/evals/milan/tiny_20_oct1_checkpoints \
     --max_samples 5000 \
     --filter_noisy_labels
 """

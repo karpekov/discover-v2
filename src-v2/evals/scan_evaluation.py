@@ -12,7 +12,7 @@ python src-v2/evals/scan_evaluation.py \
     --baseline_model_path trained_models/milan/baseline_50/best_model.pt \
     --data_path data/processed/casas/milan/training_50/presegmented_test.json \
     --vocab_path data/processed/casas/milan/training_50/vocab.json \
-    --output_dir src-v2/analysis/milan_baseline_50/scan_evaluations_50clusters \
+    --output_dir results/evals/milan/baseline_50/scan_evaluations_50clusters \
     --max_samples 10000
 
 """
@@ -81,7 +81,7 @@ class SCANEvaluator:
         baseline_model_path: str,
         data_path: str,
         vocab_path: str,
-        output_dir: str = "src-v2/analysis/milan_baseline_50/scan_evaluations"
+        output_dir: str = "results/evals/milan/baseline_50/scan_evaluations"
     ):
         self.scan_model_path = scan_model_path
         self.baseline_model_path = baseline_model_path
@@ -2157,7 +2157,7 @@ def main():
     parser.add_argument('--vocab_path', type=str, required=True,
                        help='Path to vocabulary file')
     parser.add_argument('--output_dir', type=str,
-                       default='src-v2/analysis/milan_baseline_50/scan_evaluations',
+                       default='results/evals/milan/baseline_50/scan_evaluations',
                        help='Output directory for results')
     parser.add_argument('--max_samples', type=int, default=10000,
                        help='Maximum number of samples to evaluate')

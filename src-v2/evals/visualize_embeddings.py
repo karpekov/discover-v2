@@ -13,7 +13,7 @@ Usage:
         --train_data src-v2/data/processed/casas/milan/training_50/train.json \
         --test_data src-v2/data/processed/casas/milan/training_50/presegmented_test.json \
         --vocab src-v2/data/processed/casas/milan/training_50/vocab.json \
-        --output_dir src-v2/analysis/milan_tiny_50 \
+        --output_dir results/evals/milan/tiny_50 \
         --max_samples 10000
 """
 
@@ -874,7 +874,7 @@ def main():
                        help='Use Altair for interactive plots')
     parser.add_argument('--use_matplotlib', action='store_true',
                        help='Use matplotlib instead of Altair')
-    parser.add_argument('--output_dir', type=str, default='./embedding_visualizations',
+    parser.add_argument('--output_dir', type=str, default='results/evals/milan/embedding_visualizations',
                        help='Output directory for plots and data')
     parser.add_argument('--filter_noisy_labels', action='store_true',
                        help='Filter out noisy labels like "Other" and "No_Activity"')

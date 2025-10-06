@@ -617,7 +617,7 @@ def main():
                        help='Path to vocabulary file')
     parser.add_argument('--max_samples', type=int, default=5000,
                        help='Maximum number of samples to analyze')
-    parser.add_argument('--output_dir', type=str, default='src-v2/evals/caption_alignment',
+    parser.add_argument('--output_dir', type=str, default='results/evals/milan/caption_alignment',
                        help='Output directory for results')
     parser.add_argument('--filter_noisy', action='store_true',
                        help='Filter out noisy labels like no_activity')

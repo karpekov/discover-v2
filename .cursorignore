@@ -5,6 +5,7 @@ src-v2/logs/**
 src-v2/wandb/**
 src-v2/trained_models/**
 logs/**
+results/**
 
 # Notebooks and HTML reports
 *.ipynb

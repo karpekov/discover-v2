@@ -13,7 +13,7 @@ Sample Usage:
   python src-v2/evals/evaluate_text_encoder_only.py \
     --train_data data/processed/casas/milan/training_50/train.json \
     --test_data data/processed/casas/milan/training_50/presegmented_test.json \
-    --output_dir src-v2/analysis/milan_50_textonly_new \
+    --output_dir results/evals/milan/50_textonly_new \
     --max_samples 10000 \
     --filter_noisy_labels
 """
@@ -624,7 +624,7 @@ class TextEncoderOnlyEvaluator:
             print("7. CREATING VISUALIZATIONS")
             print("="*60)
 
-            output_dir = Path(self.config.get('output_dir', './src-v2/analysis/milan_50_textonly'))
+            output_dir = Path(self.config.get('output_dir', './results/evals/milan/50_textonly'))
             output_dir.mkdir(parents=True, exist_ok=True)
 
             # Confusion matrices
@@ -723,7 +723,7 @@ Example usage:
   python src-v2/evals/evaluate_text_encoder_only.py \\
     --train_data data/processed/casas/milan/training_50/train.json \\
     --test_data data/processed/casas/milan/training_50/test.json \\
-    --output_dir src-v2/analysis/milan_50_textonly \\
+    --output_dir results/evals/milan/50_textonly \\
     --max_samples 1000 \\
     --filter_noisy_labels
         ''',
@@ -736,7 +736,7 @@ Example usage:
     parser.add_argument('--test_data', type=str, required=True,
                        help='Path to test data (e.g., data/processed/casas/milan/training_50/test.json)')
     parser.add_argument('--output_dir', type=str, required=True,
-                       help='Output directory for results (e.g., src-v2/analysis/milan_50_textonly)')
+                       help='Output directory for results (e.g., results/evals/milan/50_textonly)')
 
     # Model parameters
     parser.add_argument('--text_model_name', type=str, default='thenlper/gte-base',

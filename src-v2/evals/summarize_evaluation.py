@@ -162,7 +162,7 @@ def analyze_performance_insights(results: List[Dict[str, Any]]):
 
 def main():
     parser = argparse.ArgumentParser(description='Summarize embedding evaluation results')
-    parser.add_argument('--results_dir', type=str, default='./embedding_evaluation',
+    parser.add_argument('--results_dir', type=str, default='results/evals/milan/embedding_evaluation',
                        help='Directory containing evaluation results')
 
     args = parser.parse_args()
