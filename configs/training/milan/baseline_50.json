@@ -1,0 +1,66 @@
+{
+  "comment": "Milan baseline model with window size 50 - 5 epochs, smaller model, long captions, smaller batch size",
+
+  "text_model_name": "thenlper/gte-base",
+  "d_model": 512,
+  "n_layers": 4,
+  "n_heads": 8,
+  "d_ff": 2048,
+  "dropout": 0.3,
+  "fourier_bands": 12,
+  "max_seq_len": 512,
+  "sequence_length": 50,
+  "max_captions": 4,
+  "caption_types": "long",
+
+  "batch_size": 64,
+  "learning_rate": 2e-4,
+  "betas": [0.9, 0.98],
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "max_epochs": 8,
+  "grad_clip_norm": 1.0,
+
+  "mlm_weight": 0.3,
+  "clip_weight": 0.7,
+  "temperature_init": 0.03,
+  "learnable_temperature": true,
+
+  "use_hard_negatives": true,
+  "hard_negative_memory_size": 2048,
+  "hard_negative_ratio": 0.3,
+  "hard_negative_strategy": "mixed",
+  "hard_negative_sampling_temperature": 0.1,
+
+  "mask_prob": 0.3,
+  "mean_span_length": 5.0,
+
+  "enable_field_blackout": true,
+  "p_transition_seed": 0.3,
+  "strict_corr_mask": true,
+  "adaptive_mask": true,
+  "mask_acc_threshold": 0.97,
+  "adaptive_window_steps": 100,
+
+  "log_interval": 25,
+  "val_interval": 500,
+  "save_interval": 1000,
+  "metrics_interval": 500,
+  "metrics_sample_size": 1000,
+  "output_dir": "trained_models/milan/baseline_50",
+
+  "use_wandb": true,
+  "wandb_project": "discover-v2",
+  "wandb_name": "milan_baseline_50",
+  "wandb_tags": ["milan", "small-model", "5-epochs", "regularized", "clip-projections", "comprehensive-metrics", "window-50"],
+  "wandb_notes": "Small model (512-dim, 4-layer) with 0.3 MLM dropout, batch_size=64, 5 epochs, window size 50. Includes comprehensive metrics: alignment health, MLM accuracy, representation diagnostics, F1 scores.",
+  "wandb_group": "milan",
+
+  "train_data_path": "data/processed/casas/milan/milan_training_50/train.json",
+  "val_data_path": "data/processed/casas/milan/milan_training_50/test.json",
+  "vocab_path": "data/processed/casas/milan/milan_training_50/vocab.json",
+
+  "use_amp": false,
+  "gradient_checkpointing": false,
+  "num_workers": 4
+}

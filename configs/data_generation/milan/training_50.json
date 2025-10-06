@@ -1,0 +1,7 @@
+{
+  "description": "Training data export (JSON) with window size 50",
+  "window_sizes": [
+    50
+  ],
+  "export_dir": "data/processed/casas/milan/{config_name}"
+}

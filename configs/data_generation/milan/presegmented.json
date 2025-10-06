@@ -1,0 +1,8 @@
+{
+  "description": "Presegmented clean windows (L1)",
+  "window_sizes": [
+    20
+  ],
+  "presegmented": true,
+  "export_dir": "data/processed/casas/milan/{config_name}"
+}

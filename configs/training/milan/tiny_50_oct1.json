@@ -1,0 +1,66 @@
+{
+  "comment": "Milan tiny sensor transformer: smaller model, harder masking, more CLIP, same features.",
+
+  "text_model_name": "thenlper/gte-base",
+  "d_model": 192,
+  "n_layers": 2,
+  "n_heads": 3,
+  "d_ff": 768,
+  "dropout": 0.2,
+  "fourier_bands": 8,
+  "max_seq_len": 256,
+  "sequence_length": 50,
+  "max_captions": 4,
+  "caption_types": "long",
+
+  "batch_size": 128,
+  "learning_rate": 0.0003,
+  "betas": [0.9, 0.98],
+  "weight_decay": 0.02,
+  "warmup_ratio": 0.06,
+  "max_epochs": 12,
+  "grad_clip_norm": 1.0,
+
+  "mlm_weight": 0.3,
+  "clip_weight": 0.7,
+  "temperature_init": 0.05,
+  "learnable_temperature": true,
+
+  "use_hard_negatives": true,
+  "hard_negative_memory_size": 2048,
+  "hard_negative_ratio": 0.4,
+  "hard_negative_strategy": "mixed",
+  "hard_negative_sampling_temperature": 0.07,
+
+  "mask_prob": 0.45,
+  "mean_span_length": 8.0,
+
+  "enable_field_blackout": true,
+  "p_transition_seed": 0.35,
+  "strict_corr_mask": true,
+  "adaptive_mask": true,
+  "mask_acc_threshold": 0.94,
+  "adaptive_window_steps": 75,
+
+  "log_interval": 25,
+  "val_interval": 500,
+  "save_interval": 500,
+  "metrics_interval": 500,
+  "metrics_sample_size": 400,
+  "output_dir": "trained_models/milan/tiny_50_oct1",
+
+  "use_wandb": true,
+  "wandb_project": "discover-v2",
+  "wandb_name": "milan_tiny_50_oct1",
+  "wandb_tags": ["milan", "tiny", "hard-masking", "more-clip", "window-50"],
+  "wandb_notes": "Tiny model to avoid MLM overfitting; harder masking; CLIP-weighted; batch↑.",
+  "wandb_group": "milan",
+
+  "train_data_path": "data/processed/casas/milan/milan_training_50/train.json",
+  "val_data_path": "data/processed/casas/milan/milan_training_50/test.json",
+  "vocab_path": "data/processed/casas/milan/milan_training_50/vocab.json",
+
+  "use_amp": false,
+  "gradient_checkpointing": false,
+  "num_workers": 4
+}
