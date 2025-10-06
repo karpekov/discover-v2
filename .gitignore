@@ -33,11 +33,12 @@ dist/
 data/
 src-v2/logs/
 src-v2/wandb/
-src-v2/trained_models/
+# src-v2/trained_models/  (migrated to top-level)
 src-v2/analysis/
 
 # New top-level logs directories
 logs/
+trained_models/
 
 # Large/binary artifacts
 *.pt

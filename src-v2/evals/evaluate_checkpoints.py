@@ -10,7 +10,7 @@ Evaluates F1 performance across all available checkpoints to track training prog
 
 Sample Usage:
 python src-v2/evals/evaluate_checkpoints.py \
-    --model_dir src-v2/trained_models/milan_tiny_20_oct1 \
+    --model_dir trained_models/milan/tiny_20_oct1 \
     --train_data data/processed/casas/milan/training_20/train.json \
     --test_data data/processed/casas/milan/training_20/presegmented_test.json \
     --vocab data/processed/casas/milan/training_20/vocab.json \
@@ -529,7 +529,7 @@ def main():
 
     # Model and data paths
     parser.add_argument('--model_dir', type=str, required=True,
-                       help='Directory containing checkpoint files (e.g., src-v2/trained_models/milan_tiny_20_oct1)')
+                       help='Directory containing checkpoint files (e.g., trained_models/milan/tiny_20_oct1)')
     parser.add_argument('--train_data', type=str, required=True,
                        help='Path to training data')
     parser.add_argument('--test_data', type=str, required=True,

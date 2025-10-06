@@ -8,8 +8,8 @@ so it works with models trained with any number of clusters (20, 50, etc.).
 
 Sample Usage:
 python src-v2/evals/scan_evaluation.py \
-    --scan_model_path src-v2/trained_models/milan_scan_50clusters_finetune/best_model.pt \
-    --baseline_model_path src-v2/trained_models/milan_baseline_50/best_model.pt \
+    --scan_model_path trained_models/milan/scan_50clusters_finetune/best_model.pt \
+    --baseline_model_path trained_models/milan/baseline_50/best_model.pt \
     --data_path data/processed/casas/milan/training_50/presegmented_test.json \
     --vocab_path data/processed/casas/milan/training_50/vocab.json \
     --output_dir src-v2/analysis/milan_baseline_50/scan_evaluations_50clusters \

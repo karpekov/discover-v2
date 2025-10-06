@@ -48,7 +48,7 @@
   "save_interval": 1000,
   "metrics_interval": 500,
   "metrics_sample_size": 200,
-  "output_dir": "src-v2/trained_models/milan_improved_mlm_50",
+  "output_dir": "trained_models/milan/improved_mlm_50",
 
   "use_wandb": true,
   "wandb_project": "discover-v2",

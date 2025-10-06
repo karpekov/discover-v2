@@ -9,7 +9,7 @@ Computes nearest neighbor predictions in embedding space and evaluates against g
 
 Sample Usage:
 python src-v2/evals/evaluate_embeddings.py \
-    --checkpoint src-v2/trained_models/milan_tiny_50/best_model.pt \
+    --checkpoint trained_models/milan/tiny_50/best_model.pt \
     --train_data data/processed/casas/milan/training_50/train.json \
     --test_data data/processed/casas/milan/training_50/presegmented_test.json \
     --vocab data/processed/casas/milan/training_50/vocab.json \

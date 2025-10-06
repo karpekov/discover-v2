@@ -1459,7 +1459,7 @@ def main():
   parser.add_argument('--train_data', type=str, help='Path to training data')
   parser.add_argument('--vocab', type=str, help='Path to vocabulary file')
   parser.add_argument('--val_data', type=str, help='Path to validation data')
-  parser.add_argument('--output_dir', type=str, default='src-v2/trained_models/default_run', help='Output directory')
+  parser.add_argument('--output_dir', type=str, default='trained_models/default_run', help='Output directory')
   parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
   parser.add_argument('--learning_rate', type=float, default=2e-4, help='Learning rate')
   parser.add_argument('--max_steps', type=int, help='Maximum training steps (alternative to max_epochs)')
@@ -1517,15 +1517,30 @@ def main():
     config['val_data_path'] = args.val_data
 
   # Handle output_dir with smart versioning
-  if args.output_dir != 'src-v2/trained_models/default_run':  # If explicitly provided
+  if args.output_dir != 'trained_models/default_run':  # If explicitly provided
     config['output_dir'] = args.output_dir
   elif 'output_dir' not in config or not config['output_dir']:  # If not in config
-    # Generate output_dir from config file name
+    # Generate output_dir from config file name and inferred house
+    from pathlib import Path as _Path
+    house = None
+    td = config.get('train_data_path') or ''
+    # infer house from processed path: data/processed/casas/<house>/...
+    m = re.search(r'data/processed/casas/([^/]+)/', td)
+    if m:
+      house = m.group(1)
+    # fallback: if path contains '/milan/' etc.
+    if not house:
+      for cand in ['milan','aruba','cairo','cep','kyoto','tulum2009','twor.2009','cepid10','tulum']:
+        if f'/{cand}/' in td:
+          house = cand
+          break
+    if not house:
+      house = 'default'
     if args.config:
-      config_name = Path(args.config).stem  # Get filename without extension
-      config['output_dir'] = f'src-v2/trained_models/{config_name}'
+      config_name = _Path(args.config).stem  # Get filename without extension
+      config['output_dir'] = f'trained_models/{house}/{config_name}'
     else:
-      config['output_dir'] = args.output_dir  # Fall back to default
+      config['output_dir'] = f'trained_models/{house}/default_run'  # Fall back to default
 
   # Add versioning if directory already exists
   base_output_dir = config['output_dir']

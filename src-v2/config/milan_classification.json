@@ -2,7 +2,7 @@
   "comment": "Milan L2 activity classification fine-tuning - Frozen backbone with linear classifier",
 
   "experiment_name": "milan_l2_classification",
-  "output_dir": "src-v2/trained_models/milan_classification",
+  "output_dir": "trained_models/milan/classification",
 
   "pretrained_model_path": "trained_models/milan_baseline/best_model.pt",
 

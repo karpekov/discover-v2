@@ -47,7 +47,7 @@
   "save_interval": 500,
   "metrics_interval": 500,
   "metrics_sample_size": 500,
-  "output_dir": "src-v2/trained_models/milan_tiny_20",
+  "output_dir": "trained_models/milan/tiny_20",
 
   "use_wandb": true,
   "wandb_project": "discover-v2",

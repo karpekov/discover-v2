@@ -52,7 +52,7 @@
   "save_interval": 1000,
   "metrics_interval": 500,
   "metrics_sample_size": 1000,
-  "output_dir": "src-v2/trained_models/milan_gemma_50",
+  "output_dir": "trained_models/milan/gemma_50",
 
   "use_wandb": true,
   "wandb_project": "discover-v2",

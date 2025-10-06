@@ -2,7 +2,7 @@
   "comment": "Milan L2 activity classification fine-tuning - Frozen backbone with MLP classifier, excluding 'Other' label",
 
   "experiment_name": "milan_l2_classification_mlp_no_other",
-  "output_dir": "src-v2/trained_models/milan_classification_mlp_no_other",
+  "output_dir": "trained_models/milan/classification_mlp_no_other",
 
   "pretrained_model_path": "trained_models/milan_baseline/best_model.pt",
 
