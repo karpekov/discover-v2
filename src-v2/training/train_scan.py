@@ -69,8 +69,8 @@ class SCANTrainer:
     def setup_logging(self):
         """Setup logging configuration."""
         # Create logs directory
-        log_dir = Path('src-v2/logs')
-        log_dir.mkdir(exist_ok=True)
+        log_dir = Path('logs/text')
+        log_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate log filename with timestamp
         from datetime import datetime
@@ -91,8 +91,8 @@ class SCANTrainer:
 
         # Initialize wandb if enabled
         if self.config.get('use_wandb', False) and WANDB_AVAILABLE:
-            wandb_dir = log_dir / 'wandb'
-            wandb_dir.mkdir(exist_ok=True)
+            wandb_dir = Path('logs/wandb')
+            wandb_dir.mkdir(parents=True, exist_ok=True)
 
             wandb.init(
                 project=self.config.get('wandb_project', 'discover-scan'),

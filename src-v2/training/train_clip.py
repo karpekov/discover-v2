@@ -184,8 +184,8 @@ class SmartHomeTrainer:
 
   def setup_logging(self):
     """Setup logging configuration."""
-    # Create logs directory in src-v2
-    log_dir = os.path.join('src-v2', 'logs')
+    # Create logs directory at repo root
+    log_dir = os.path.join('logs', 'text')
     os.makedirs(log_dir, exist_ok=True)
 
     # Generate log filename with timestamp
@@ -211,7 +211,7 @@ class SmartHomeTrainer:
     # Initialize wandb if enabled and available
     if self.config.get('use_wandb', False) and WANDB_AVAILABLE:
       # Set W&B directory to integrate with project structure
-      wandb_dir = os.path.join('src-v2', 'logs', 'wandb')
+      wandb_dir = os.path.join('logs', 'wandb')
       os.makedirs(wandb_dir, exist_ok=True)
 
       # Enhanced W&B initialization with better organization

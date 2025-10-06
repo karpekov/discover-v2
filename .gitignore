@@ -36,6 +36,9 @@ src-v2/wandb/
 src-v2/trained_models/
 src-v2/analysis/
 
+# New top-level logs directories
+logs/
+
 # Large/binary artifacts
 *.pt
 *.pth
