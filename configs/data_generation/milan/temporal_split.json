@@ -1,8 +1,0 @@
-{
-  "description": "Temporal split evaluation set",
-  "window_sizes": [
-    20
-  ],
-  "split_strategy": "temporal",
-  "export_dir": "data/processed/casas/milan/{config_name}"
-}

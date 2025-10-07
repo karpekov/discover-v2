@@ -1,6 +1,6 @@
 """ Functions to download and process raw CASAS data.
 
-All relevant metadata is stored in `metadata/city_metadata.json` file.
+All relevant metadata is stored in `metadata/house_metadata.json` file.
 
 Main function:
 - casas_end_to_end_preprocess(city_name: str)
@@ -35,7 +35,7 @@ from termcolor import colored
 import json
 
 
-def _get_json_metadata(file_path='metadata/city_metadata.json'):
+def _get_json_metadata(file_path='metadata/house_metadata.json'):
   with open(file_path, 'r') as file:
     metadata = json.load(file)
   return metadata
@@ -53,7 +53,8 @@ def download_and_unzip(
     delete_zip (bool):
       Whether to delete the zip file after extracting its contents.
   """
-  data_dir = 'data'
+  # Store raw CASAS archives under unified raw directory
+  data_dir = 'data/raw/casas'
   os.makedirs(data_dir, exist_ok=True)
 
   filename = url.split('/')[-1]
@@ -139,7 +140,7 @@ def download_and_unzip(
 
 
 def read_and_process_data(
-    file_path='data/tulum2009/data.txt',
+    file_path='data/raw/casas/tulum2009/data.txt',
     columns=['date', 'sensor', 'state', 'activity_full']
 ):
   """Read and process the data from a text file.
@@ -155,7 +156,7 @@ def read_and_process_data(
       - activity (should be something like 'Sleeping', 'Showering', etc.)
       - marker (should be 'begin', 'end', or NaN).
   """
-  if file_path in ['data/milan/data', 'data/aruba/data', 'data/twor.2009/data']:
+  if file_path in ['data/raw/casas/milan/data', 'data/raw/casas/aruba/data', 'data/raw/casas/twor.2009/data']:
     return _read_irregular_data(file_path)
 
   df_raw = (pd
@@ -179,7 +180,7 @@ def read_and_process_data(
   return df_raw
 
 def _read_irregular_data(
-    file_path='data/aruba/data',
+    file_path='data/raw/casas/aruba/data',
     columns=['date', 'time', 'sensor', 'state', 'activity', 'marker'],
 ):
   """Read and process the data from a text file with irregular spacing."""
@@ -298,7 +299,7 @@ def get_df_dated_sample(df, start_date_str, end_date_str=None):
 def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=False, custom_train_test_split=False):
   """ Process the CASAS dataset.
 
-  Given the `metadata/city_metadata.json` file, this function downloads the
+  Given the `metadata/house_metadata.json` file, this function downloads the
   raw data from CASAS website, processes it, and returns a clean DataFrame with
   labels and other annotations.
 
@@ -311,7 +312,7 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
     )
   elif dataset_name not in CASAS_METADATA:
     raise ValueError(
-      f'Dataset name "{dataset_name}" not in `city_metadata.json`. Must be one of: {list(CASAS_METADATA.keys())}'
+      f'Dataset name "{dataset_name}" not in `house_metadata.json`. Must be one of: {list(CASAS_METADATA.keys())}'
     )
   metadata = CASAS_METADATA.get(dataset_name)
 
@@ -319,6 +320,10 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
   data_processed_filename = metadata['data_processed_filename']
   data_raw_filename = metadata['data_raw_filename']
   folder_name = metadata['data_raw_filename'].split('/')[0]
+
+  # Prefer local raw path under data/raw/casas/{folder_name}/ if present
+  local_raw_dir = f'data/raw/casas/{folder_name}'
+  local_raw_file = f'{local_raw_dir}/data' if folder_name in ['milan', 'aruba', 'twor.2009'] else f'{local_raw_dir}/data.txt'
 
   # Check if processed data already exists:
   if os.path.exists(f'data/{data_processed_filename}') and not force_download:
@@ -337,9 +342,13 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
       print(colored(f'Processed data loaded from CSV. Shape: {df.shape}', 'magenta'))
 
       return df
-  # Else, download and process the raw data:
-  download_and_unzip(casas_url)
-  df_raw = read_and_process_data(file_path=f'data/{data_raw_filename}')
+  # Else, locate local raw data or download as fallback
+  if os.path.exists(local_raw_file):
+    print(colored(f'Using local raw data at {local_raw_file}', 'magenta'))
+    df_raw = read_and_process_data(file_path=local_raw_file)
+  else:
+    download_and_unzip(casas_url)
+    df_raw = read_and_process_data(file_path=f'data/raw/casas/{data_raw_filename}')
   df = process_raw_data(df_raw)
   # df = tulum_specific_preprocess(df)
 
@@ -358,8 +367,11 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
   print(colored(f'Processed data loaded. Shape: {df.shape}', 'magenta'))
   # Save the data to a CSV file:
   if save_to_csv:
-    df.to_csv(f'data/{data_processed_filename}', index=False)
-    print(colored(f'Processed data saved to "data/{data_processed_filename}"', 'magenta'))
+    # Save processed under data/processed to keep outputs small and consistent
+    processed_out_path = f'data/{data_processed_filename}'
+    os.makedirs(os.path.dirname(processed_out_path), exist_ok=True)
+    df.to_csv(processed_out_path, index=False)
+    print(colored(f'Processed data saved to "{processed_out_path}"', 'magenta'))
 
   # Custom train-test split for Milan and Aruba datasets and save to disk.
   if custom_train_test_split:

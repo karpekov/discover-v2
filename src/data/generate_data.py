@@ -25,14 +25,82 @@ parent_path = current_path.parent  # This is src-v2
 sys.path.insert(0, str(parent_path))
 
 from utils.process_data_configs import load_preset, build_processing_config_from_preset
-from data.datasets import DATASET_REGISTRY
-from data.pipeline import DualEncoderPipeline
+# Avoid importing heavy data pipeline modules at import time.
+# We'll import them lazily inside functions that actually run processing.
 
+
+# -------------------------------
+# Experiment registry utilities
+# -------------------------------
+from dataclasses import dataclass
+
+
+@dataclass
+class ExperimentConfig:
+    name: str
+    description: str
+    datasets: List[str]
+    window_sizes: List[int]
+    expected_processing_time_hours: float
+    processing_config_template: Any
+    generate_presegmented: bool
+    dir_name: str
+
+
+def _milan_preset_path() -> Path:
+    return Path(__file__).parent.parent.parent / 'configs' / 'data_generation' / 'milan'
+
+
+def list_available_experiments() -> Dict[str, str]:
+    """List preset names and descriptions discovered in the Milan data_generation configs."""
+    presets_dir = _milan_preset_path()
+    available: Dict[str, str] = {}
+    if not presets_dir.exists():
+        return available
+    for json_file in sorted(presets_dir.glob('*.json')):
+        try:
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+            name = json_file.stem
+            desc = data.get('description', name)
+            available[name] = desc
+        except Exception:
+            continue
+    return available
+
+
+def get_experiment_config(config_name: str) -> ExperimentConfig:
+    """Load a JSON preset (e.g., training_80) and build an ExperimentConfig for Milan."""
+    preset = load_preset('milan', config_name)
+    processing_cfg = build_processing_config_from_preset(preset)
+    window_sizes = preset.get('window_sizes', [20])
+    description = preset.get('description', config_name)
+    # Presegmented dual generation default: True unless explicitly disabled
+    generate_presegmented = preset.get('generate_presegmented', True)
+    # Directory name default: seq{first_window_size}
+    default_dir_name = f"seq{window_sizes[0] if window_sizes else 20}"
+    dir_name = preset.get('dir_name', default_dir_name)
+
+    # Default to Milan dataset for all presets in this folder
+    return ExperimentConfig(
+        name=config_name,
+        description=description,
+        datasets=['milan'],
+        window_sizes=window_sizes,
+        expected_processing_time_hours=max(0.1, 0.02 * sum(window_sizes)),
+        processing_config_template=processing_cfg,
+        generate_presegmented=generate_presegmented,
+        dir_name=dir_name,
+    )
 
 def process_single_dataset(dataset_name: str, config_template, window_sizes: List[int],
                           output_dir: Path, force_reprocess: bool = False,
                           filter_labels: List[str] = None) -> Dict[str, Any]:
     """Process a single dataset with the given configuration."""
+
+    # Lazy imports to prevent loading metadata when just listing configs
+    from data.datasets import DATASET_REGISTRY
+    from data.pipeline import DualEncoderPipeline
 
     print(f"\nProcessing {dataset_name.upper()}")
     print(f"   Window sizes: {window_sizes}")
@@ -43,15 +111,20 @@ def process_single_dataset(dataset_name: str, config_template, window_sizes: Lis
     if dataset_name not in DATASET_REGISTRY._configs:
         return {'status': 'error', 'message': f'Dataset {dataset_name} not found'}
 
-    # Create dataset-specific output directory
-    dataset_output_dir = output_dir / dataset_name
-    dataset_output_dir.mkdir(parents=True, exist_ok=True)
+    # Create dataset-specific output directory only when exporting to default location
+    will_use_custom_output = (config_template.export.output_dir != "data/processed_v2")
+    if not will_use_custom_output:
+        dataset_output_dir = output_dir / dataset_name
+        dataset_output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        dataset_output_dir = output_dir  # placeholder when custom exporter dir is used
 
     # Check if already processed
     if not force_reprocess:
-        existing_files = list(dataset_output_dir.glob(f"{dataset_name}_w*.pkl*"))
-        if len(existing_files) >= len(window_sizes):
-            print(f"   Already processed ({len(existing_files)} files)")
+        check_dir = dataset_output_dir if not will_use_custom_output else Path(config_template.export.output_dir)
+        existing_files = list(check_dir.glob(f"{dataset_name}_*train.json")) or list(check_dir.glob(f"{dataset_name}_w*.pkl*"))
+        if len(existing_files) >= 1:
+            print(f"   Already processed (found {len(existing_files)} exported files)")
             return {'status': 'skipped', 'existing_files': len(existing_files)}
 
     try:
@@ -230,7 +303,10 @@ def run_data_generation(config_name: str, output_dir: Path,
     elif config_template.export.output_dir != "data/processed_v2":
         # Substitute config name in output directory template
         try:
-            actual_output_dir = config_template.export.output_dir.format(config_name=config_name)
+            actual_output_dir = config_template.export.output_dir.format(
+                config_name=config_name,
+                dir_name=config.dir_name
+            )
             data_output_dir = Path(actual_output_dir)
         except (KeyError, ValueError):
             # No template substitution needed
@@ -267,6 +343,22 @@ def run_data_generation(config_name: str, output_dir: Path,
         # Brief pause between datasets
         if result['status'] == 'success':
             time.sleep(1)
+
+        # Optionally run presegmented generation per dataset
+        if getattr(config, 'generate_presegmented', True):
+            preseg_template = copy.deepcopy(dataset_config_template)
+            # Lazy import for enum
+            from data.data_config import WindowStrategy  # type: ignore
+            preseg_template.windowing.strategy = WindowStrategy.PRESEGMENTED
+            preseg_result = process_single_dataset(
+                dataset_name=dataset_name,
+                config_template=preseg_template,
+                window_sizes=config.window_sizes,
+                output_dir=dataset_output_dir,
+                force_reprocess=force_reprocess,
+                filter_labels=filter_labels
+            )
+            results[f"{dataset_name}_presegmented"] = preseg_result
 
     # Generate processing summary
     total_time = time.time() - total_start_time
@@ -363,12 +455,17 @@ Examples:
         print("Available Data Generation Configurations:")
         print("=" * 50)
         for name, description in list_available_experiments().items():
-            config = EXPERIMENT_CONFIGS[name]
-            print(f"\n{name}")
-            print(f"   {description}")
-            print(f"   Datasets: {config.datasets}")
-            print(f"   Windows: {config.window_sizes}")
-            print(f"   Est. time: {config.expected_processing_time_hours:.1f}h")
+            try:
+                cfg = get_experiment_config(name)
+                print(f"\n{name}")
+                print(f"   {description}")
+                print(f"   Datasets: {cfg.datasets}")
+                print(f"   Windows: {cfg.window_sizes}")
+                print(f"   Est. time: {cfg.expected_processing_time_hours:.1f}h")
+            except Exception as e:
+                print(f"\n{name}")
+                print(f"   {description}")
+                print(f"   (error loading config: {e})")
         return
 
     # Validate arguments

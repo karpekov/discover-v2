@@ -121,7 +121,7 @@ class EmbeddingEvaluator:
     def _load_label_colors(self):
         """Load label colors from city metadata."""
         try:
-            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "city_metadata.json"
+            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "house_metadata.json"
             with open(metadata_path, 'r') as f:
                 city_metadata = json.load(f)
 
