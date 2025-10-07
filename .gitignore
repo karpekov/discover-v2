@@ -30,7 +30,7 @@ dist/
 *.egg-info/
 
 # Project data and artifacts
-data/
+/data/
 src/logs/
 src/wandb/
 # src/trained_models/  (migrated to top-level)
