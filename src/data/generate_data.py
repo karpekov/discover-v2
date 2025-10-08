@@ -3,7 +3,7 @@
 Data generation script for CASAS dataset processing.
 
 This script generates processed data from CASAS datasets using the dual-encoder pipeline.
-It supports pre-defined experiments or custom configurations for processing datasets.
+It supports pre-defined configs or custom configurations for processing datasets.
 
 Usage:
     python src-v2/data/generate_data.py --config milan_training_20
@@ -30,13 +30,13 @@ from utils.process_data_configs import load_preset, build_processing_config_from
 
 
 # -------------------------------
-# Experiment registry utilities
+# Config registry utilities
 # -------------------------------
 from dataclasses import dataclass
 
 
 @dataclass
-class ExperimentConfig:
+class Config:
     name: str
     description: str
     datasets: List[str]
@@ -51,27 +51,46 @@ def _milan_preset_path() -> Path:
     return Path(__file__).parent.parent.parent / 'configs' / 'data_generation' / 'milan'
 
 
-def list_available_experiments() -> Dict[str, str]:
-    """List preset names and descriptions discovered in the Milan data_generation configs."""
-    presets_dir = _milan_preset_path()
+def list_available_configs() -> Dict[str, str]:
+    """List preset names and descriptions discovered across all dataset config folders."""
     available: Dict[str, str] = {}
-    if not presets_dir.exists():
-        return available
-    for json_file in sorted(presets_dir.glob('*.json')):
-        try:
-            with open(json_file, 'r') as f:
-                data = json.load(f)
-            name = json_file.stem
-            desc = data.get('description', name)
-            available[name] = desc
-        except Exception:
+    dataset_folders = ['milan', 'aruba', 'cairo', 'kyoto', 'tulum']
+
+    for dataset in dataset_folders:
+        presets_dir = Path(__file__).parent.parent.parent / 'configs' / 'data_generation' / dataset
+        if not presets_dir.exists():
             continue
+
+        for json_file in sorted(presets_dir.glob('*.json')):
+            try:
+                with open(json_file, 'r') as f:
+                    data = json.load(f)
+                name = json_file.stem
+                desc = f"[{dataset}] {data.get('description', name)}"
+                available[name] = desc
+            except Exception:
+                continue
     return available
 
 
-def get_experiment_config(config_name: str) -> ExperimentConfig:
-    """Load a JSON preset (e.g., training_80) and build an ExperimentConfig for Milan."""
-    preset = load_preset('milan', config_name)
+def get_config(config_name: str) -> Config:
+    """Load a JSON preset (e.g., training_80) and build a Config for the appropriate dataset."""
+    # Try to find the config in different dataset folders
+    dataset_folders = ['milan', 'aruba', 'cairo', 'kyoto', 'tulum']
+    dataset_name = None
+    preset = None
+
+    for dataset in dataset_folders:
+        try:
+            preset = load_preset(dataset, config_name)
+            dataset_name = dataset
+            break
+        except FileNotFoundError:
+            continue
+
+    if preset is None:
+        raise FileNotFoundError(f"Config '{config_name}' not found in any dataset folder")
+
     processing_cfg = build_processing_config_from_preset(preset)
     window_sizes = preset.get('window_sizes', [20])
     description = preset.get('description', config_name)
@@ -81,11 +100,10 @@ def get_experiment_config(config_name: str) -> ExperimentConfig:
     default_dir_name = f"seq{window_sizes[0] if window_sizes else 20}"
     dir_name = preset.get('dir_name', default_dir_name)
 
-    # Default to Milan dataset for all presets in this folder
-    return ExperimentConfig(
+    return Config(
         name=config_name,
         description=description,
-        datasets=['milan'],
+        datasets=[dataset_name],
         window_sizes=window_sizes,
         expected_processing_time_hours=max(0.1, 0.02 * sum(window_sizes)),
         processing_config_template=processing_cfg,
@@ -279,7 +297,7 @@ def run_data_generation(config_name: str, output_dir: Path,
     """Run data generation with a pre-defined configuration."""
 
     # Get configuration
-    config = get_experiment_config(config_name)
+    config = get_config(config_name)
 
     # Handle dual pipeline configuration specially
     if config_name == 'milan_dual_pipeline':
@@ -454,9 +472,9 @@ Examples:
     if args.list_configs:
         print("Available Data Generation Configurations:")
         print("=" * 50)
-        for name, description in list_available_experiments().items():
+        for name, description in list_available_configs().items():
             try:
-                cfg = get_experiment_config(name)
+                cfg = get_config(name)
                 print(f"\n{name}")
                 print(f"   {description}")
                 print(f"   Datasets: {cfg.datasets}")

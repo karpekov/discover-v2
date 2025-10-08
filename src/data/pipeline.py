@@ -12,6 +12,7 @@ from .data_loader import DataLoader, ProcessedDataset
 from .windowing import WindowProcessor, ProcessedWindow
 from .features import FeatureExtractor, WindowFeatures, EventFeatures
 from .captions import CaptionGenerator, Caption
+from .captions_sourish import SourishCaptionGenerator
 from .exporters import DataExporter
 
 
@@ -26,7 +27,19 @@ class DualEncoderPipeline:
         self.data_loader = DataLoader(config)
         self.window_processor = WindowProcessor(config.windowing)
         self.feature_extractor = FeatureExtractor(config.features, self.dataset_config)
-        self.caption_generator = CaptionGenerator(config.captions)
+
+        # Select caption generator based on style
+        caption_style = config.captions.caption_style if hasattr(config.captions, 'caption_style') else 'baseline'
+        if caption_style == 'sourish':
+            # Pass dataset name to Sourish generator for dataset-specific rules
+            caption_config = config.captions
+            self.caption_generator = SourishCaptionGenerator(caption_config)
+            self.caption_generator.dataset_name = config.dataset_name
+            print(f"  Using Sourish-style caption generator")
+        else:
+            self.caption_generator = CaptionGenerator(config.captions)
+            print(f"  Using baseline caption generator")
+
         self.exporter = DataExporter(config.export)
 
         # Results storage
@@ -48,7 +61,8 @@ class DualEncoderPipeline:
         # Step 2: Create windows
         print("\n2. Creating windows...")
         self.windows_by_size = self.window_processor.process_dataset(
-            self.dataset.train_df, self.dataset.test_df
+            self.dataset.train_df, self.dataset.test_df,
+            max_windows=self.config.max_windows
         )
 
         # Step 3: Extract features

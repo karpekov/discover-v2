@@ -124,6 +124,7 @@ def build_processing_config_from_preset(preset: Dict[str, Any]) -> ProcessingCon
     captions = CaptionConfig(
         num_captions_per_window=captions_overrides.get('num_captions_per_window', captions_defaults['num_captions_per_window']),
         max_caption_length=captions_overrides.get('max_caption_length', captions_defaults['max_caption_length']),
+        caption_style=captions_overrides.get('caption_style', 'baseline'),  # NEW: support caption style selection
         use_enhanced_captions=captions_overrides.get('use_enhanced_captions', captions_defaults['use_enhanced_captions']),
         include_duration=captions_overrides.get('include_duration', captions_defaults['include_duration']),
         include_time_context=captions_overrides.get('include_time_context', captions_defaults['include_time_context']),
@@ -161,4 +162,6 @@ def build_processing_config_from_preset(preset: Dict[str, Any]) -> ProcessingCon
         min_sequence_length=int(preset.get('min_sequence_length', 1)),
         max_workers=preset.get('max_workers', None),
         filter_labels=preset.get('filter_labels', None),
+        max_lines=preset.get('max_lines', None),
+        max_windows=preset.get('max_windows', None),
     )

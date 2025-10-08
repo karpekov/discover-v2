@@ -56,9 +56,9 @@
   "wandb_notes": "Tiny model to avoid MLM overfitting; harder masking; CLIP-weighted; batch↑.",
   "wandb_group": "milan",
 
-  "train_data_path": "data/processed/casas/milan/milan_training_20/train.json",
-  "val_data_path": "data/processed/casas/milan/milan_training_20/test.json",
-  "vocab_path": "data/processed/casas/milan/milan_training_20/vocab.json",
+  "train_data_path": "data/processed/casas/milan/seq20/milan_train.json",
+  "val_data_path": "data/processed/casas/milan/seq20/milan_test.json",
+  "vocab_path": "data/processed/casas/milan/seq20/milan_vocab.json",
 
   "use_amp": false,
   "gradient_checkpointing": false,

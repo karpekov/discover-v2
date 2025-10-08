@@ -90,6 +90,9 @@ class CaptionGenerator:
         room_sequence = window_features.room_sequence
         unique_rooms = []
         for room in room_sequence:
+            # Convert to string if it's not already (handles NaN, floats, etc.)
+            if not isinstance(room, str):
+                room = str(room) if room is not None and (not isinstance(room, float) or not pd.isna(room)) else 'unknown'
             if not unique_rooms or room != unique_rooms[-1]:
                 unique_rooms.append(room)
 
@@ -246,6 +249,8 @@ class CaptionGenerator:
 
         # Time of day (clean up)
         tod = first_event.get('tod_bucket', 'unknown')
+        if isinstance(tod, (int, float)):
+            tod = str(tod)
         tod = tod.replace('_', ' ').replace('after midnight', 'night')
 
         # Duration in minutes
@@ -255,6 +260,9 @@ class CaptionGenerator:
         room_sequence = window_features.room_sequence
         unique_rooms = []
         for room in room_sequence:
+            # Convert to string if it's not already (handles NaN, floats, etc.)
+            if not isinstance(room, str):
+                room = str(room) if room is not None and (not isinstance(room, float) or not pd.isna(room)) else 'unknown'
             clean_room = room.replace('_', ' ')
             if not unique_rooms or clean_room != unique_rooms[-1]:
                 unique_rooms.append(clean_room)
@@ -682,6 +690,9 @@ class CaptionGenerator:
         unique_rooms = []
         room_sequence = window_features.room_sequence
         for room in room_sequence:
+            # Convert to string if it's not already (handles NaN, floats, etc.)
+            if not isinstance(room, str):
+                room = str(room) if room is not None and (not isinstance(room, float) or not pd.isna(room)) else 'unknown'
             if not unique_rooms or room != unique_rooms[-1]:
                 unique_rooms.append(room.replace('_', ' '))
 

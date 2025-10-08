@@ -43,12 +43,15 @@ class DataLoader:
     def load_and_process(self) -> ProcessedDataset:
         """Load and process a CASAS dataset."""
         print(f"Loading dataset: {self.config.dataset_name}")
+        if self.config.max_lines is not None:
+            print(f"🔍 DataLoader config has max_lines={self.config.max_lines}")
 
         # Load raw data using existing pipeline
         df = casas_end_to_end_preprocess(
             self.config.dataset_name,
             save_to_csv=False,
-            force_download=False
+            force_download=False,
+            max_lines=self.config.max_lines
         )
 
         # Basic cleaning and filtering

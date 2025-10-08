@@ -133,9 +133,11 @@ The project uses a two-tier configuration system:
 - `docs/README.md` - This file (project overview)
 - `docs/PIPELINE_ORGANIZATION.md` - Detailed pipeline structure
 - `docs/README_DATA_GENERATION.md` - Data generation guide
+- `docs/CAPTION_STYLES.md` - Caption generation styles (baseline vs. Sourish)
 - `docs/WANDB_SETUP_GUIDE.md` - WandB configuration
 - `docs/RETRIEVAL_GUIDE.md` - Retrieval system usage
-- `AGENTS.md` - Instructions for AI agents
+- `docs/AGENT_GUIDE.md` - Guide for AI agents
+- `AGENTS.md` - Quick reference for AI agents
 
 ## Recent Changes (Post-Reorganization)
 

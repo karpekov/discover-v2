@@ -1,0 +1,59 @@
+{
+  "description": "Training data export (JSON) with window size 20 for Aruba",
+  "window_sizes": [20],
+  "dir_name": "seq20",
+  "export_dir": "data/processed/casas/aruba/{dir_name}",
+  "generate_presegmented": true,
+  "split_strategy": "random",
+  "test_ratio": 0.2,
+  "random_seed": 42,
+  "windowing": {
+    "strategy": "sliding",
+    "overlap_ratio": 0.75,
+    "min_events": 8,
+    "max_gap_minutes": 30,
+    "drop_incomplete": true,
+    "presegment_activity_level": "l1",
+    "min_segment_events": 8,
+    "exclude_no_activity": true
+  },
+  "features": {
+    "use_coordinates": true,
+    "use_fourier_coords": true,
+    "fourier_coord_dims": 32,
+    "include_house_tokens": true,
+    "include_event_type": true,
+    "include_sensor_type": true,
+    "include_time_features": true,
+    "include_delta_time": true,
+    "time_bucket_minutes": 30,
+    "delta_time_log_scale": true,
+    "tod_bucketing": "parts_of_day",
+    "max_delta_t_minutes": 60,
+    "include_day_of_week": true,
+    "include_sequence_position": false
+  },
+  "captions": {
+    "num_captions_per_window": 4,
+    "max_caption_length": 50,
+    "use_enhanced_captions": true,
+    "include_duration": true,
+    "include_time_context": true,
+    "include_room_transitions": true,
+    "include_salient_sensors": true,
+    "caption_types": "long",
+    "random_seed": 42,
+    "use_synonyms": true
+  },
+  "export": {
+    "formats": ["json"],
+    "output_dir": "data/processed/casas/aruba/{dir_name}",
+    "compress": false,
+    "include_raw_events": false,
+    "include_statistics": true,
+    "separate_files_per_window_size": true,
+    "include_metadata": true
+  }
+}
+
+

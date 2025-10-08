@@ -253,7 +253,12 @@ class FeatureExtractor:
 
         # Remove duplicates and sort
         for key in vocab:
-            vocab[key] = sorted(list(set(vocab[key])))
+            # Convert all values to strings and filter out None/NaN values
+            unique_values = set()
+            for value in vocab[key]:
+                if value is not None and not (isinstance(value, float) and pd.isna(value)):
+                    unique_values.add(str(value))
+            vocab[key] = sorted(list(unique_values))
 
         # Add special tokens
         for key in vocab:

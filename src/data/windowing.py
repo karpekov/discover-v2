@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Any, Iterator, Tuple
+from typing import List, Dict, Any, Iterator, Tuple, Optional
 from dataclasses import dataclass
 import warnings
 from tqdm import tqdm
@@ -66,7 +66,7 @@ class WindowProcessor:
         self.config = config
         self._window_id_counter = 0
 
-    def process_dataset(self, train_df: pd.DataFrame, test_df: pd.DataFrame) -> Dict[int, List[ProcessedWindow]]:
+    def process_dataset(self, train_df: pd.DataFrame, test_df: pd.DataFrame, max_windows: Optional[int] = None) -> Dict[int, List[ProcessedWindow]]:
         """Process train and test dataframes into windows of different sizes.
 
         Returns:
@@ -88,6 +88,11 @@ class WindowProcessor:
 
             # Filter out invalid windows
             valid_windows = [w for w in all_windows if w.is_valid]
+
+            # Apply max_windows limit if specified
+            if max_windows is not None and len(valid_windows) > max_windows:
+                print(f"    Limiting to first {max_windows} windows (was {len(valid_windows)})")
+                valid_windows = valid_windows[:max_windows]
 
             print(f"    Window size {window_size}: {len(all_windows)} total, {len(valid_windows)} valid (>={self.config.min_events} events)")
 

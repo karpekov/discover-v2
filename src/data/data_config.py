@@ -81,7 +81,10 @@ class CaptionConfig:
     num_captions_per_window: int = 4  # 2 templated + 2 short creative
     max_caption_length: int = 30  # In tokens
 
-    # Enhanced caption features
+    # Caption style selection
+    caption_style: str = 'baseline'  # 'baseline', 'sourish', or future styles
+
+    # Enhanced caption features (for baseline style)
     use_enhanced_captions: bool = True
     include_duration: bool = True
     include_time_context: bool = True
@@ -136,6 +139,8 @@ class ProcessingConfig:
 
     # Label filtering for debugging
     filter_labels: Optional[List[str]] = None  # If provided, only keep data with these first_activity labels
+    max_lines: Optional[int] = None  # Limit number of lines for testing
+    max_windows: Optional[int] = None  # Limit number of windows for testing
 
     def __post_init__(self):
         """Validate configuration after initialization."""

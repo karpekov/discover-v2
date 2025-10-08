@@ -141,7 +141,8 @@ def download_and_unzip(
 
 def read_and_process_data(
     file_path='data/raw/casas/tulum2009/data.txt',
-    columns=['date', 'sensor', 'state', 'activity_full']
+    columns=['date', 'sensor', 'state', 'activity_full'],
+    max_lines=None
 ):
   """Read and process the data from a text file.
 
@@ -157,7 +158,7 @@ def read_and_process_data(
       - marker (should be 'begin', 'end', or NaN).
   """
   if file_path in ['data/raw/casas/milan/data', 'data/raw/casas/aruba/data', 'data/raw/casas/twor.2009/data']:
-    return _read_irregular_data(file_path)
+    return _read_irregular_data(file_path, max_lines=max_lines)
 
   df_raw = (pd
     .read_csv(
@@ -182,10 +183,18 @@ def read_and_process_data(
 def _read_irregular_data(
     file_path='data/raw/casas/aruba/data',
     columns=['date', 'time', 'sensor', 'state', 'activity', 'marker'],
+    max_lines=None
 ):
   """Read and process the data from a text file with irregular spacing."""
   with open(file_path, 'r') as file:
       lines = file.read().splitlines()
+
+  total_lines = len(lines)
+
+  # Limit lines for testing if specified
+  if max_lines is not None:
+      lines = lines[:max_lines]
+      print(colored(f'⚠️  LIMITED TO FIRST {max_lines} LINES FOR TESTING (original file had {total_lines} lines)', 'yellow'))
 
   # Remove extra spaces in each line and format delimiters as single space
   lines = [" ".join(line.split()) for line in lines]
@@ -296,7 +305,7 @@ def get_df_dated_sample(df, start_date_str, end_date_str=None):
     )
   return df_sample
 
-def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=False, custom_train_test_split=False):
+def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=False, custom_train_test_split=False, max_lines=None):
   """ Process the CASAS dataset.
 
   Given the `metadata/house_metadata.json` file, this function downloads the
@@ -306,6 +315,9 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
   If `custom_train_test_split` is set to True, the function will split the data
   into train and test sets and return tow DataFrames instead of one.
   """
+  if max_lines is not None:
+    print(colored(f'🔍 casas_end_to_end_preprocess called with max_lines={max_lines}', 'cyan'))
+
   if dataset_name == 'aware_home':
     raise ValueError(
       'Use the `awaerehome_end_to_end_preprocess()` function for the Aware Home dataset.'
@@ -345,10 +357,10 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
   # Else, locate local raw data or download as fallback
   if os.path.exists(local_raw_file):
     print(colored(f'Using local raw data at {local_raw_file}', 'magenta'))
-    df_raw = read_and_process_data(file_path=local_raw_file)
+    df_raw = read_and_process_data(file_path=local_raw_file, max_lines=max_lines)
   else:
     download_and_unzip(casas_url)
-    df_raw = read_and_process_data(file_path=f'data/raw/casas/{data_raw_filename}')
+    df_raw = read_and_process_data(file_path=f'data/raw/casas/{data_raw_filename}', max_lines=max_lines)
   df = process_raw_data(df_raw)
   # df = tulum_specific_preprocess(df)
 
@@ -364,7 +376,13 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
     # Fix the 'OFF5' state to 'OFF'
     df['state'] = df.state.replace('OFF5', 'OFF')
 
+  # Apply max_lines limit after processing if specified
+  if max_lines is not None and len(df) > max_lines:
+    print(colored(f'Limiting processed data to first {max_lines} rows (was {len(df)})', 'yellow'))
+    df = df.head(max_lines).copy()
+
   print(colored(f'Processed data loaded. Shape: {df.shape}', 'magenta'))
+  print(colored(f'Data date range: {df["datetime"].min()} to {df["datetime"].max()}', 'cyan'))
   # Save the data to a CSV file:
   if save_to_csv:
     # Save processed under data/processed to keep outputs small and consistent

@@ -1,8 +1,8 @@
 {
-  "description": "Training data export (JSON) with window size 20",
-  "window_sizes": [20],
-  "dir_name": "seq20",
-  "export_dir": "data/processed/casas/milan/{dir_name}",
+  "description": "Training data export (JSON) with window size 100 for Aruba",
+  "window_sizes": [100],
+  "dir_name": "seq100",
+  "export_dir": "data/processed/casas/aruba/{dir_name}",
   "generate_presegmented": true,
   "split_strategy": "random",
   "test_ratio": 0.2,
@@ -47,7 +47,7 @@
   },
   "export": {
     "formats": ["json"],
-    "output_dir": "data/processed/casas/milan/{dir_name}",
+    "output_dir": "data/processed/casas/aruba/{dir_name}",
     "compress": false,
     "include_raw_events": false,
     "include_statistics": true,
