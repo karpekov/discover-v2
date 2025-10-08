@@ -134,6 +134,8 @@ The project uses a two-tier configuration system:
 - `docs/PIPELINE_ORGANIZATION.md` - Detailed pipeline structure
 - `docs/README_DATA_GENERATION.md` - Data generation guide
 - `docs/CAPTION_STYLES.md` - Caption generation styles (baseline vs. Sourish)
+- `docs/LABEL_DESCRIPTION_STYLES.md` - Label description styles for text-only evaluation
+- `docs/SOURISH_COMPARISON_RESULTS.md` - Comparison of text encoders and label description styles
 - `docs/WANDB_SETUP_GUIDE.md` - WandB configuration
 - `docs/RETRIEVAL_GUIDE.md` - Retrieval system usage
 - `docs/AGENT_GUIDE.md` - Guide for AI agents

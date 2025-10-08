@@ -50,24 +50,30 @@ The system supports multiple caption generation styles to enable different resea
 - **Dataset-specific mappings**: Hard-coded sensor-to-location mappings for each dataset
 - **Mechanical descriptions**: Lists facts without interpretation
 
-**Template Structure:**
+**Template Structure (4-Component Format):**
+
+All Sourish captions follow the exact same structure with 4 required components:
+
 ```
-Full Caption:
 "The activity started at [TIME] [AM/PM] [ZONE] and ended at [TIME] [AM/PM] [ZONE].
 The activity was performed for [DURATION].
 The activity is taking place [LOCATION1] mainly and parts of it [LOCATION2].
 The [most commonly fired sensor(s)] in this activity are [SENSOR_TYPE] [SENSOR_LOCATION]."
-
-Short Caption:
-"The activity is taking place [LOCATION1] mainly and parts of it [LOCATION2]."
 ```
 
-**Example Captions:**
+**Components:**
+1. **Time of Occurrence**: When the activity started and ended (with period of day)
+2. **Duration**: How long the activity lasted
+3. **Top-2 Locations**: Most common and second most common locations
+4. **Top-2 Sensors**: Most commonly fired sensors with their context
+```
+
+**Example Caption:**
 ```
 "The activity started at eight AM morning and ended at eight AM morning. The activity was performed for two minutes. The activity is taking place in master bedroom mainly and parts of it in aisle near master bedroom. The two most commonly fired sensors in this activity are Motion sensor in master bedroom and Motion sensor in aisle near master bedroom."
-
-"The activity is taking place in kitchen near fridge mainly and parts of it in kitchen near stove."
 ```
+
+Note: Every caption contains all 4 components - no shortened versions.
 
 **When to Use:**
 - Zero-shot activity classification
@@ -167,8 +173,8 @@ python src/data/generate_data.py --config milan_sourish_test
 - Dataset-specific special cases (e.g., Milan bed-to-toilet scenarios)
 
 **Output:**
-- 2 full structured captions (when + duration + where + sensors)
-- 2 short location-focused captions (where only)
+- 1 full structured caption per window (all 4 components: when + duration + where + sensors)
+- Deterministic - same window always produces the same caption
 
 ---
 

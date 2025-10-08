@@ -59,15 +59,27 @@ class TextEncoderOnlyEvaluator:
         self._load_dataset()
 
     def _load_text_encoder(self):
-        """Load text encoder for raw embedding extraction (768-dim)."""
-        print(f"🔄 Loading text encoder: {self.config.get('text_model_name', 'thenlper/gte-base')}")
-
+        """Load text encoder for raw embedding extraction."""
         model_name = self.config.get('text_model_name', 'thenlper/gte-base')
-        self.text_encoder = TextEncoder(model_name)
-        self.text_encoder.to(self.device)
-        self.text_encoder.eval()
+        print(f"🔄 Loading text encoder: {model_name}")
 
-        print("✅ Text encoder loaded successfully (768-dim raw embeddings)")
+        # Use SentenceTransformer for sentence-transformers models
+        if 'sentence-transformers' in model_name or model_name.startswith('all-'):
+            print(f"   Using SentenceTransformer encoder (proper mean pooling)")
+            # Lazy import to avoid Python version issues
+            from models.sentence_transformer_encoder import SentenceTransformerEncoder
+            self.text_encoder = SentenceTransformerEncoder(model_name)
+            self.text_encoder.to(self.device)
+            self.text_encoder.eval()
+            embedding_dim = self.text_encoder.embedding_dim
+        else:
+            print(f"   Using standard TextEncoder (CLS token pooling)")
+            self.text_encoder = TextEncoder(model_name)
+            self.text_encoder.to(self.device)
+            self.text_encoder.eval()
+            embedding_dim = 768
+
+        print(f"✅ Text encoder loaded successfully ({embedding_dim}-dim raw embeddings)")
 
     def _load_dataset(self):
         """Load Milan dataset with captions."""
@@ -177,16 +189,19 @@ class TextEncoderOnlyEvaluator:
         return filtered_captions, filtered_labels_l1, filtered_labels_l2
 
     def embed_captions(self, captions: List[str], batch_size: int = 64) -> np.ndarray:
-        """Embed captions using text encoder (768-dim raw embeddings)."""
+        """Embed captions using text encoder."""
         print(f"🔄 Embedding {len(captions)} captions...")
 
         embeddings = []
+
+        # Check if using SentenceTransformer
+        is_sentence_transformer = hasattr(self.text_encoder, 'model') and hasattr(self.text_encoder.model, 'encode')
 
         # Process in batches
         for i in range(0, len(captions), batch_size):
             batch_captions = captions[i:i + batch_size]
 
-            # Use the raw forward method (768-dim, no CLIP projection)
+            # Use the raw forward method (no CLIP projection)
             with torch.no_grad():
                 batch_embeddings = self.text_encoder.encode_texts(batch_captions, self.device)
                 embeddings.append(batch_embeddings.cpu().numpy())
@@ -200,10 +215,10 @@ class TextEncoderOnlyEvaluator:
 
         return embeddings
 
-    def create_text_prototypes(self, labels: List[str]) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
+    def create_text_prototypes(self, labels: List[str], description_style: str = "baseline") -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
         """Create text-based prototypes using the text encoder with multiple captions per label."""
 
-        print(f"🔄 Creating text-based label prototypes...")
+        print(f"🔄 Creating text-based label prototypes (style: {description_style})...")
 
         # Get unique labels and their counts
         label_counts = Counter(labels)
@@ -212,7 +227,11 @@ class TextEncoderOnlyEvaluator:
         print(f"📝 Encoding {len(unique_labels)} unique labels with text encoder...")
 
         # Convert labels to multiple natural language descriptions
-        label_descriptions_lists = convert_labels_to_text(unique_labels)
+        # Get house_name from config or default to milan
+        house_name = self.config.get('house_name', 'milan')
+        label_descriptions_lists = convert_labels_to_text(unique_labels, single_description=False,
+                                                          house_name=house_name,
+                                                          description_style=description_style)
 
         # Create prototypes dictionary by averaging embeddings for multiple captions
         prototypes = {}
@@ -275,7 +294,7 @@ class TextEncoderOnlyEvaluator:
         return predictions
 
     def evaluate_predictions(self, true_labels: List[str], pred_labels: List[str],
-                           label_type: str) -> Dict[str, Any]:
+                           label_type: str, verbose: bool = False) -> Dict[str, Any]:
         """Compute evaluation metrics."""
 
         print(f"🔄 Computing metrics for {label_type} labels...")
@@ -311,6 +330,12 @@ class TextEncoderOnlyEvaluator:
         per_class_f1 = f1_score(true_filtered, pred_filtered, average=None, zero_division=0, labels=unique_labels)
         metrics['per_class_f1'] = dict(zip(unique_labels, per_class_f1))
 
+        # Per-class precision and recall
+        per_class_precision = precision_score(true_filtered, pred_filtered, average=None, zero_division=0, labels=unique_labels)
+        per_class_recall = recall_score(true_filtered, pred_filtered, average=None, zero_division=0, labels=unique_labels)
+        metrics['per_class_precision'] = dict(zip(unique_labels, per_class_precision))
+        metrics['per_class_recall'] = dict(zip(unique_labels, per_class_recall))
+
         # Classification report
         metrics['classification_report'] = classification_report(
             true_filtered, pred_filtered,
@@ -330,7 +355,223 @@ class TextEncoderOnlyEvaluator:
         print(f"    Classes: {metrics['num_classes']}")
         print(f"    Samples: {metrics['num_samples']}")
 
+        # Verbose output: Per-label statistics
+        if verbose:
+            print(f"\n📊 Per-Label Performance ({label_type}):")
+            print(f"{'Label':<30} {'Support':>8} {'Precision':>10} {'Recall':>10} {'F1-Score':>10}")
+            print("-" * 70)
+
+            label_counts = Counter(true_filtered)
+            for label in sorted(unique_labels, key=lambda x: label_counts.get(x, 0), reverse=True):
+                support = label_counts.get(label, 0)
+                prec = metrics['per_class_precision'][label]
+                rec = metrics['per_class_recall'][label]
+                f1 = metrics['per_class_f1'][label]
+                print(f"{label:<30} {support:>8} {prec:>10.4f} {rec:>10.4f} {f1:>10.4f}")
+
         return metrics
+
+    def show_classification_examples(self, captions: List[str], true_labels: List[str],
+                                     pred_labels: List[str], embeddings: np.ndarray,
+                                     prototypes: Dict[str, np.ndarray], label_type: str,
+                                     num_examples: int = 3):
+        """Show examples of correct and incorrect classifications with similarity scores."""
+
+        print(f"\n🔍 Classification Examples ({label_type}):")
+        print("=" * 100)
+
+        # Find correct and incorrect predictions
+        correct_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels))
+                          if true == pred and true != 'Unknown']
+        incorrect_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels))
+                            if true != pred and true != 'Unknown' and pred != 'Unknown']
+
+        # Show correct classifications
+        if correct_indices:
+            print(f"\n✅ CORRECT Classifications (showing up to {num_examples} per label):")
+            print("-" * 100)
+
+            # Group by label
+            correct_by_label = defaultdict(list)
+            for idx in correct_indices:
+                correct_by_label[true_labels[idx]].append(idx)
+
+            for label in sorted(correct_by_label.keys())[:5]:  # Show top 5 labels
+                indices = correct_by_label[label][:num_examples]
+                print(f"\n  Label: {label} ({len(correct_by_label[label])} correct)")
+                for idx in indices:
+                    # Compute similarity to predicted prototype
+                    emb = embeddings[idx]
+                    proto = prototypes[pred_labels[idx]]
+                    similarity = np.dot(emb, proto) / (np.linalg.norm(emb) * np.linalg.norm(proto))
+
+                    # Get top 3 similar labels
+                    similarities = {}
+                    for lbl, proto_emb in prototypes.items():
+                        sim = np.dot(emb, proto_emb) / (np.linalg.norm(emb) * np.linalg.norm(proto_emb))
+                        similarities[lbl] = sim
+                    top_3 = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:3]
+
+                    print(f"    Caption: \"{captions[idx][:80]}...\"" if len(captions[idx]) > 80 else f"    Caption: \"{captions[idx]}\"")
+                    print(f"    Similarity: {similarity:.4f} | Top-3: {', '.join([f'{l}({s:.3f})' for l, s in top_3])}")
+
+        # Show incorrect classifications
+        if incorrect_indices:
+            print(f"\n\n❌ INCORRECT Classifications (showing up to {num_examples * 2}):")
+            print("-" * 100)
+
+            # Show diverse errors
+            shown = 0
+            for idx in incorrect_indices[:num_examples * 2]:
+                true_label = true_labels[idx]
+                pred_label = pred_labels[idx]
+
+                # Compute similarities
+                emb = embeddings[idx]
+                true_proto = prototypes.get(true_label)
+                pred_proto = prototypes.get(pred_label)
+
+                if true_proto is not None and pred_proto is not None:
+                    true_sim = np.dot(emb, true_proto) / (np.linalg.norm(emb) * np.linalg.norm(true_proto))
+                    pred_sim = np.dot(emb, pred_proto) / (np.linalg.norm(emb) * np.linalg.norm(pred_proto))
+
+                    print(f"\n  True: {true_label} | Predicted: {pred_label}")
+                    print(f"    Caption: \"{captions[idx][:80]}...\"" if len(captions[idx]) > 80 else f"    Caption: \"{captions[idx]}\"")
+                    print(f"    True similarity: {true_sim:.4f} | Predicted similarity: {pred_sim:.4f} | Δ: {pred_sim - true_sim:.4f}")
+                    shown += 1
+
+                if shown >= num_examples * 2:
+                    break
+
+        print("\n" + "=" * 100)
+
+    def _save_verbose_report(self, report_path: Path, 
+                            metrics_l1: Dict, metrics_l2: Dict,
+                            captions: List[str], true_labels_l1: List[str], true_labels_l2: List[str],
+                            pred_labels_l1: List[str], pred_labels_l2: List[str],
+                            embeddings: np.ndarray, prototypes_l1: Dict, prototypes_l2: Dict,
+                            description_style: str):
+        """Save verbose evaluation report to markdown file."""
+        
+        with open(report_path, 'w') as f:
+            f.write("# Verbose Evaluation Report\n\n")
+            f.write(f"**Description Style**: {description_style}\n")
+            f.write(f"**Total Test Samples**: {len(captions)}\n\n")
+            
+            # L1 Performance Table
+            f.write("## L1 (Primary) Label Performance\n\n")
+            f.write(f"**Overall Metrics**:\n")
+            f.write(f"- Accuracy: {metrics_l1['accuracy']:.4f}\n")
+            f.write(f"- F1-Macro: {metrics_l1['f1_macro']:.4f}\n")
+            f.write(f"- F1-Weighted: {metrics_l1['f1_weighted']:.4f}\n\n")
+            
+            f.write("### Per-Label Statistics\n\n")
+            f.write("| Label | Support | Precision | Recall | F1-Score |\n")
+            f.write("|-------|---------|-----------|--------|----------|\n")
+            
+            label_counts = Counter(true_labels_l1)
+            unique_labels_l1 = metrics_l1['unique_labels']
+            for label in sorted(unique_labels_l1, key=lambda x: label_counts.get(x, 0), reverse=True):
+                support = label_counts.get(label, 0)
+                prec = metrics_l1['per_class_precision'][label]
+                rec = metrics_l1['per_class_recall'][label]
+                f1 = metrics_l1['per_class_f1'][label]
+                f.write(f"| {label} | {support} | {prec:.4f} | {rec:.4f} | {f1:.4f} |\n")
+            
+            # L2 Performance Table
+            f.write("\n## L2 (Secondary) Label Performance\n\n")
+            f.write(f"**Overall Metrics**:\n")
+            f.write(f"- Accuracy: {metrics_l2['accuracy']:.4f}\n")
+            f.write(f"- F1-Macro: {metrics_l2['f1_macro']:.4f}\n")
+            f.write(f"- F1-Weighted: {metrics_l2['f1_weighted']:.4f}\n\n")
+            
+            f.write("### Per-Label Statistics\n\n")
+            f.write("| Label | Support | Precision | Recall | F1-Score |\n")
+            f.write("|-------|---------|-----------|--------|----------|\n")
+            
+            label_counts_l2 = Counter(true_labels_l2)
+            unique_labels_l2 = metrics_l2['unique_labels']
+            for label in sorted(unique_labels_l2, key=lambda x: label_counts_l2.get(x, 0), reverse=True):
+                support = label_counts_l2.get(label, 0)
+                prec = metrics_l2['per_class_precision'][label]
+                rec = metrics_l2['per_class_recall'][label]
+                f1 = metrics_l2['per_class_f1'][label]
+                f.write(f"| {label} | {support} | {prec:.4f} | {rec:.4f} | {f1:.4f} |\n")
+            
+            # Classification Examples for L1
+            f.write("\n## L1 Classification Examples\n\n")
+            self._write_classification_examples(f, captions, true_labels_l1, pred_labels_l1, 
+                                               embeddings, prototypes_l1, "L1", num_examples=3)
+            
+            # Classification Examples for L2
+            f.write("\n## L2 Classification Examples\n\n")
+            self._write_classification_examples(f, captions, true_labels_l2, pred_labels_l2, 
+                                               embeddings, prototypes_l2, "L2", num_examples=3)
+
+    def _write_classification_examples(self, f, captions: List[str], true_labels: List[str], 
+                                       pred_labels: List[str], embeddings: np.ndarray,
+                                       prototypes: Dict[str, np.ndarray], label_type: str,
+                                       num_examples: int = 3):
+        """Write classification examples to file."""
+        
+        # Find correct and incorrect predictions
+        correct_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels)) 
+                          if true == pred and true != 'Unknown']
+        incorrect_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels)) 
+                            if true != pred and true != 'Unknown' and pred != 'Unknown']
+        
+        # Correct classifications
+        if correct_indices:
+            f.write("### ✅ Correct Classifications\n\n")
+            
+            correct_by_label = defaultdict(list)
+            for idx in correct_indices:
+                correct_by_label[true_labels[idx]].append(idx)
+            
+            for label in sorted(correct_by_label.keys())[:5]:
+                indices = correct_by_label[label][:num_examples]
+                f.write(f"\n**{label}** ({len(correct_by_label[label])} correct):\n\n")
+                
+                for i, idx in enumerate(indices, 1):
+                    emb = embeddings[idx]
+                    proto = prototypes[pred_labels[idx]]
+                    similarity = np.dot(emb, proto) / (np.linalg.norm(emb) * np.linalg.norm(proto))
+                    
+                    # Get top 3
+                    similarities = {}
+                    for lbl, proto_emb in prototypes.items():
+                        sim = np.dot(emb, proto_emb) / (np.linalg.norm(emb) * np.linalg.norm(proto_emb))
+                        similarities[lbl] = sim
+                    top_3 = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:3]
+                    
+                    f.write(f"{i}. Caption: \"{captions[idx]}\"\n")
+                    f.write(f"   - Similarity: {similarity:.4f}\n")
+                    f.write(f"   - Top-3: {', '.join([f'{l} ({s:.3f})' for l, s in top_3])}\n\n")
+        
+        # Incorrect classifications
+        if incorrect_indices:
+            f.write("\n### ❌ Incorrect Classifications\n\n")
+            
+            shown = 0
+            for idx in incorrect_indices[:num_examples * 2]:
+                true_label = true_labels[idx]
+                pred_label = pred_labels[idx]
+                
+                emb = embeddings[idx]
+                true_proto = prototypes.get(true_label)
+                pred_proto = prototypes.get(pred_label)
+                
+                if true_proto is not None and pred_proto is not None:
+                    true_sim = np.dot(emb, true_proto) / (np.linalg.norm(emb) * np.linalg.norm(true_proto))
+                    pred_sim = np.dot(emb, pred_proto) / (np.linalg.norm(emb) * np.linalg.norm(pred_proto))
+                    
+                    f.write(f"{shown + 1}. **True**: {true_label} | **Predicted**: {pred_label}\n")
+                    f.write(f"   - Caption: \"{captions[idx]}\"\n")
+                    f.write(f"   - True similarity: {true_sim:.4f} | Predicted similarity: {pred_sim:.4f} | Δ: {pred_sim - true_sim:.4f}\n\n")
+                    shown += 1
+                
+                if shown >= num_examples * 2:
+                    break
 
     def create_confusion_matrix_plot(self, confusion_matrix: np.ndarray,
                                    labels: List[str],
@@ -535,12 +776,15 @@ class TextEncoderOnlyEvaluator:
     def run_evaluation(self, max_samples: int = 10000,
                       k_neighbors: int = 1,
                       filter_noisy_labels: bool = True,
-                      save_results: bool = True) -> Dict[str, Any]:
+                      save_results: bool = True,
+                      description_style: str = "baseline",
+                      verbose: bool = False) -> Dict[str, Any]:
         """Run complete text encoder only evaluation pipeline."""
 
         print("🚀 Starting text encoder only evaluation...")
         print(f"   Max samples: {max_samples}")
         print(f"   K-neighbors: {k_neighbors}")
+        print(f"   Verbose mode: {verbose}")
         print(f"   Filter noisy labels: {filter_noisy_labels}")
 
         results = {}
@@ -565,8 +809,8 @@ class TextEncoderOnlyEvaluator:
         print("2. CREATING TEXT-BASED LABEL PROTOTYPES")
         print("="*60)
 
-        prototypes_l1, counts_l1 = self.create_text_prototypes(train_labels_l1)
-        prototypes_l2, counts_l2 = self.create_text_prototypes(train_labels_l2)
+        prototypes_l1, counts_l1 = self.create_text_prototypes(train_labels_l1, description_style)
+        prototypes_l2, counts_l2 = self.create_text_prototypes(train_labels_l2, description_style)
 
         results['prototypes_l1'] = prototypes_l1
         results['prototypes_l2'] = prototypes_l2
@@ -608,8 +852,8 @@ class TextEncoderOnlyEvaluator:
         print("6. EVALUATING PREDICTIONS")
         print("="*60)
 
-        metrics_l1 = self.evaluate_predictions(test_labels_l1, pred_labels_l1, "L1 (Primary)")
-        metrics_l2 = self.evaluate_predictions(test_labels_l2, pred_labels_l2, "L2 (Secondary)")
+        metrics_l1 = self.evaluate_predictions(test_labels_l1, pred_labels_l1, "L1 (Primary)", verbose=verbose)
+        metrics_l2 = self.evaluate_predictions(test_labels_l2, pred_labels_l2, "L2 (Secondary)", verbose=verbose)
 
         results['metrics_l1'] = metrics_l1
         results['metrics_l2'] = metrics_l2
@@ -618,10 +862,37 @@ class TextEncoderOnlyEvaluator:
         results['ground_truth_l1'] = test_labels_l1
         results['ground_truth_l2'] = test_labels_l2
 
-        # 7. Create visualizations
+        # Show classification examples if verbose
+        if verbose and test_embeddings is not None:
+            self.show_classification_examples(
+                test_captions, test_labels_l1, pred_labels_l1,
+                test_embeddings, prototypes_l1, "L1 (Primary)", num_examples=3
+            )
+            self.show_classification_examples(
+                test_captions, test_labels_l2, pred_labels_l2,
+                test_embeddings, prototypes_l2, "L2 (Secondary)", num_examples=3
+            )
+
+        # 7. Save verbose report if enabled
+        if verbose and save_results:
+            output_dir = Path(self.config.get('output_dir', './results/evals/milan/50_textonly'))
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            verbose_report_path = output_dir / 'verbose_evaluation_report.md'
+            self._save_verbose_report(
+                verbose_report_path,
+                metrics_l1, metrics_l2,
+                test_captions, test_labels_l1, test_labels_l2,
+                pred_labels_l1, pred_labels_l2,
+                test_embeddings, prototypes_l1, prototypes_l2,
+                description_style
+            )
+            print(f"\n💾 Verbose report saved: {verbose_report_path}")
+
+        # 8. Create visualizations
         if save_results and metrics_l1:
             print("\n" + "="*60)
-            print("7. CREATING VISUALIZATIONS")
+            print("8. CREATING VISUALIZATIONS")
             print("="*60)
 
             output_dir = Path(self.config.get('output_dir', './results/evals/milan/50_textonly'))
@@ -749,6 +1020,12 @@ Example usage:
                        help='Number of neighbors for k-NN prediction (default: 1)')
     parser.add_argument('--filter_noisy_labels', action='store_true',
                        help='Filter out noisy labels like "Other" and "No_Activity"')
+    parser.add_argument('--description_style', type=str, default='baseline', choices=['baseline', 'sourish'],
+                       help='Style of label descriptions to use: "baseline" or "sourish" (default: baseline)')
+    parser.add_argument('--house_name', type=str, default='milan',
+                       help='House name for label descriptions (default: milan)')
+    parser.add_argument('--verbose', action='store_true',
+                       help='Enable verbose output with per-label stats and classification examples')
 
     args = parser.parse_args()
 
@@ -758,6 +1035,7 @@ Example usage:
         'test_data_path': args.test_data,
         'text_model_name': args.text_model_name,
         'output_dir': args.output_dir,
+        'house_name': args.house_name,
     }
 
     # Run evaluation
@@ -766,7 +1044,9 @@ Example usage:
         max_samples=args.max_samples,
         k_neighbors=args.k_neighbors,
         filter_noisy_labels=args.filter_noisy_labels,
-        save_results=True
+        save_results=True,
+        description_style=args.description_style,
+        verbose=args.verbose
     )
 
     print(f"\n✅ Text encoder only evaluation complete! Results saved in: {args.output_dir}")

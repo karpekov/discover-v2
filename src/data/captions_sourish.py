@@ -195,30 +195,25 @@ class SourishCaptionGenerator:
         """Generate captions and return them separated into long and short arrays.
 
         For Sourish-style captions:
-        - Long captions: Full structured descriptions (when + duration + where + sensors)
-        - Short captions: Where sentence only (location-focused)
+        - All captions follow the full 4-component format (when + duration + where + sensors)
+        - Generate only 1 caption per window since there's no variation
         """
 
-        long_captions = []
-        short_captions = []
+        # Generate single full structured caption (Sourish captions are deterministic)
+        caption = self._generate_full_caption(window, window_features, sensor_details)
 
-        # Generate 2 full structured captions
-        for _ in range(2):
-            caption = self._generate_full_caption(window, window_features, sensor_details)
-            if caption:
-                long_captions.append(caption)
-
-        # Generate 2 short location-focused captions
-        for _ in range(2):
-            caption = self._generate_short_caption(window, window_features, sensor_details)
-            if caption:
-                short_captions.append(caption)
-
-        return {
-            'long': long_captions,
-            'short': short_captions,
-            'all': long_captions + short_captions
-        }
+        if caption:
+            return {
+                'long': [caption],
+                'short': [],
+                'all': [caption]
+            }
+        else:
+            return {
+                'long': [],
+                'short': [],
+                'all': []
+            }
 
     def _generate_full_caption(self, window: ProcessedWindow,
                               window_features: WindowFeatures,
@@ -240,15 +235,8 @@ class SourishCaptionGenerator:
         where_sentence = self._generate_where_sentence(sensor_seq, window_features, sensor_details)
         sensors_sentence = self._generate_sensors_sentence(sensor_seq, window_features, sensor_details)
 
-        # Combine into full caption
+        # Combine into full caption - ALWAYS use all 4 components as per Sourish's paper
         caption_text = f"{when_sentence} {duration_sentence} {where_sentence} {sensors_sentence}"
-
-        # Apply dataset-specific rules (Milan special cases from Sourish's code)
-        if self.dataset_name == "milan":
-            if "guest" in caption_text.lower():
-                caption_text = where_sentence
-            elif "master bedroom" in caption_text.lower() and "master bathroom" in caption_text.lower():
-                caption_text = where_sentence
 
         return Caption(
             text=caption_text,

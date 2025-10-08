@@ -495,7 +495,13 @@ Examples:
 
     # Set up output directory
     output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Only create output_dir if it will actually be used:
+    # - For custom configurations (no preset config)
+    # - For debugging with filter_labels
+    # When using preset configs with their own export_dir, this directory is not needed
+    if not args.config or args.filter_labels:
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         if args.config:

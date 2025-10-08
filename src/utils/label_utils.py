@@ -27,13 +27,15 @@ def load_house_metadata(house_name: str = "milan") -> Dict[str, Any]:
     return metadata.get(house_name, {})
 
 
-def convert_labels_to_text(labels: List[str], single_description: bool = False, house_name: str = "milan") -> Union[List[List[str]], List[str]]:
+def convert_labels_to_text(labels: List[str], single_description: bool = False, house_name: str = "milan",
+                           description_style: str = "baseline") -> Union[List[List[str]], List[str]]:
     """Convert CASAS activity labels to natural language descriptions.
 
     Args:
         labels: List of CASAS activity labels
         single_description: If True, return single description per label. If False, return multiple descriptions per label.
         house_name: Name of the house to get label descriptions for
+        description_style: Style of descriptions to use - "baseline" (default) or "sourish"
 
     Returns:
         List of descriptions (single or multiple per label)
@@ -41,32 +43,50 @@ def convert_labels_to_text(labels: List[str], single_description: bool = False, 
 
     # Load house metadata
     house_metadata = load_house_metadata(house_name)
-    label_to_text = house_metadata.get("label_to_text", {})
 
-    descriptions = []
-
-    if single_description:
-        # Return single description per label
+    # Select the appropriate label-to-text mapping based on description style
+    if description_style == "sourish":
+        label_to_text_sourish = house_metadata.get("label_to_text_sourish", {})
+        # For sourish style, always return single descriptions (they don't have multiple versions)
+        descriptions = []
         for label in labels:
-            if label in label_to_text:
-                descriptions.append(label_to_text[label]["short_desc"])
+            if label in label_to_text_sourish:
+                desc = label_to_text_sourish[label]
+                # If requesting multiple descriptions but sourish has only one, return as list with single item
+                descriptions.append([desc] if not single_description else desc)
             else:
                 # Fallback: convert label to readable text
                 readable = label.replace('_', ' ').lower()
-                descriptions.append(f"{readable} activity")
+                fallback = f"{readable} activity"
+                descriptions.append([fallback] if not single_description else fallback)
+        return descriptions
     else:
-        # Return multiple descriptions per label
-        for label in labels:
-            if label in label_to_text:
-                descriptions.append(label_to_text[label]["long_desc"])
-            else:
-                # Fallback: convert label to readable text with multiple variations
-                readable = label.replace('_', ' ').lower()
-                fallback_descriptions = [
-                    f"{readable} activity",
-                    f"general {readable} behavior",
-                    f"{readable} related tasks"
-                ]
-                descriptions.append(fallback_descriptions)
+        # Original baseline behavior
+        label_to_text = house_metadata.get("label_to_text", {})
+        descriptions = []
 
-    return descriptions
+        if single_description:
+            # Return single description per label
+            for label in labels:
+                if label in label_to_text:
+                    descriptions.append(label_to_text[label]["short_desc"])
+                else:
+                    # Fallback: convert label to readable text
+                    readable = label.replace('_', ' ').lower()
+                    descriptions.append(f"{readable} activity")
+        else:
+            # Return multiple descriptions per label
+            for label in labels:
+                if label in label_to_text:
+                    descriptions.append(label_to_text[label]["long_desc"])
+                else:
+                    # Fallback: convert label to readable text with multiple variations
+                    readable = label.replace('_', ' ').lower()
+                    fallback_descriptions = [
+                        f"{readable} activity",
+                        f"general {readable} behavior",
+                        f"{readable} related tasks"
+                    ]
+                    descriptions.append(fallback_descriptions)
+
+        return descriptions
