@@ -445,30 +445,30 @@ class TextEncoderOnlyEvaluator:
 
         print("\n" + "=" * 100)
 
-    def _save_verbose_report(self, report_path: Path, 
+    def _save_verbose_report(self, report_path: Path,
                             metrics_l1: Dict, metrics_l2: Dict,
                             captions: List[str], true_labels_l1: List[str], true_labels_l2: List[str],
                             pred_labels_l1: List[str], pred_labels_l2: List[str],
                             embeddings: np.ndarray, prototypes_l1: Dict, prototypes_l2: Dict,
                             description_style: str):
         """Save verbose evaluation report to markdown file."""
-        
+
         with open(report_path, 'w') as f:
             f.write("# Verbose Evaluation Report\n\n")
             f.write(f"**Description Style**: {description_style}\n")
             f.write(f"**Total Test Samples**: {len(captions)}\n\n")
-            
+
             # L1 Performance Table
             f.write("## L1 (Primary) Label Performance\n\n")
             f.write(f"**Overall Metrics**:\n")
             f.write(f"- Accuracy: {metrics_l1['accuracy']:.4f}\n")
             f.write(f"- F1-Macro: {metrics_l1['f1_macro']:.4f}\n")
             f.write(f"- F1-Weighted: {metrics_l1['f1_weighted']:.4f}\n\n")
-            
+
             f.write("### Per-Label Statistics\n\n")
             f.write("| Label | Support | Precision | Recall | F1-Score |\n")
             f.write("|-------|---------|-----------|--------|----------|\n")
-            
+
             label_counts = Counter(true_labels_l1)
             unique_labels_l1 = metrics_l1['unique_labels']
             for label in sorted(unique_labels_l1, key=lambda x: label_counts.get(x, 0), reverse=True):
@@ -477,18 +477,18 @@ class TextEncoderOnlyEvaluator:
                 rec = metrics_l1['per_class_recall'][label]
                 f1 = metrics_l1['per_class_f1'][label]
                 f.write(f"| {label} | {support} | {prec:.4f} | {rec:.4f} | {f1:.4f} |\n")
-            
+
             # L2 Performance Table
             f.write("\n## L2 (Secondary) Label Performance\n\n")
             f.write(f"**Overall Metrics**:\n")
             f.write(f"- Accuracy: {metrics_l2['accuracy']:.4f}\n")
             f.write(f"- F1-Macro: {metrics_l2['f1_macro']:.4f}\n")
             f.write(f"- F1-Weighted: {metrics_l2['f1_weighted']:.4f}\n\n")
-            
+
             f.write("### Per-Label Statistics\n\n")
             f.write("| Label | Support | Precision | Recall | F1-Score |\n")
             f.write("|-------|---------|-----------|--------|----------|\n")
-            
+
             label_counts_l2 = Counter(true_labels_l2)
             unique_labels_l2 = metrics_l2['unique_labels']
             for label in sorted(unique_labels_l2, key=lambda x: label_counts_l2.get(x, 0), reverse=True):
@@ -497,79 +497,79 @@ class TextEncoderOnlyEvaluator:
                 rec = metrics_l2['per_class_recall'][label]
                 f1 = metrics_l2['per_class_f1'][label]
                 f.write(f"| {label} | {support} | {prec:.4f} | {rec:.4f} | {f1:.4f} |\n")
-            
+
             # Classification Examples for L1
             f.write("\n## L1 Classification Examples\n\n")
-            self._write_classification_examples(f, captions, true_labels_l1, pred_labels_l1, 
+            self._write_classification_examples(f, captions, true_labels_l1, pred_labels_l1,
                                                embeddings, prototypes_l1, "L1", num_examples=3)
-            
+
             # Classification Examples for L2
             f.write("\n## L2 Classification Examples\n\n")
-            self._write_classification_examples(f, captions, true_labels_l2, pred_labels_l2, 
+            self._write_classification_examples(f, captions, true_labels_l2, pred_labels_l2,
                                                embeddings, prototypes_l2, "L2", num_examples=3)
 
-    def _write_classification_examples(self, f, captions: List[str], true_labels: List[str], 
+    def _write_classification_examples(self, f, captions: List[str], true_labels: List[str],
                                        pred_labels: List[str], embeddings: np.ndarray,
                                        prototypes: Dict[str, np.ndarray], label_type: str,
                                        num_examples: int = 3):
         """Write classification examples to file."""
-        
+
         # Find correct and incorrect predictions
-        correct_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels)) 
+        correct_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels))
                           if true == pred and true != 'Unknown']
-        incorrect_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels)) 
+        incorrect_indices = [i for i, (true, pred) in enumerate(zip(true_labels, pred_labels))
                             if true != pred and true != 'Unknown' and pred != 'Unknown']
-        
+
         # Correct classifications
         if correct_indices:
             f.write("### ✅ Correct Classifications\n\n")
-            
+
             correct_by_label = defaultdict(list)
             for idx in correct_indices:
                 correct_by_label[true_labels[idx]].append(idx)
-            
+
             for label in sorted(correct_by_label.keys())[:5]:
                 indices = correct_by_label[label][:num_examples]
                 f.write(f"\n**{label}** ({len(correct_by_label[label])} correct):\n\n")
-                
+
                 for i, idx in enumerate(indices, 1):
                     emb = embeddings[idx]
                     proto = prototypes[pred_labels[idx]]
                     similarity = np.dot(emb, proto) / (np.linalg.norm(emb) * np.linalg.norm(proto))
-                    
+
                     # Get top 3
                     similarities = {}
                     for lbl, proto_emb in prototypes.items():
                         sim = np.dot(emb, proto_emb) / (np.linalg.norm(emb) * np.linalg.norm(proto_emb))
                         similarities[lbl] = sim
                     top_3 = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:3]
-                    
+
                     f.write(f"{i}. Caption: \"{captions[idx]}\"\n")
                     f.write(f"   - Similarity: {similarity:.4f}\n")
                     f.write(f"   - Top-3: {', '.join([f'{l} ({s:.3f})' for l, s in top_3])}\n\n")
-        
+
         # Incorrect classifications
         if incorrect_indices:
             f.write("\n### ❌ Incorrect Classifications\n\n")
-            
+
             shown = 0
             for idx in incorrect_indices[:num_examples * 2]:
                 true_label = true_labels[idx]
                 pred_label = pred_labels[idx]
-                
+
                 emb = embeddings[idx]
                 true_proto = prototypes.get(true_label)
                 pred_proto = prototypes.get(pred_label)
-                
+
                 if true_proto is not None and pred_proto is not None:
                     true_sim = np.dot(emb, true_proto) / (np.linalg.norm(emb) * np.linalg.norm(true_proto))
                     pred_sim = np.dot(emb, pred_proto) / (np.linalg.norm(emb) * np.linalg.norm(pred_proto))
-                    
+
                     f.write(f"{shown + 1}. **True**: {true_label} | **Predicted**: {pred_label}\n")
                     f.write(f"   - Caption: \"{captions[idx]}\"\n")
                     f.write(f"   - True similarity: {true_sim:.4f} | Predicted similarity: {pred_sim:.4f} | Δ: {pred_sim - true_sim:.4f}\n\n")
                     shown += 1
-                
+
                 if shown >= num_examples * 2:
                     break
 
@@ -877,7 +877,7 @@ class TextEncoderOnlyEvaluator:
         if verbose and save_results:
             output_dir = Path(self.config.get('output_dir', './results/evals/milan/50_textonly'))
             output_dir.mkdir(parents=True, exist_ok=True)
-            
+
             verbose_report_path = output_dir / 'verbose_evaluation_report.md'
             self._save_verbose_report(
                 verbose_report_path,
