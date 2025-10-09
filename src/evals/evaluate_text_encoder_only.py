@@ -11,11 +11,14 @@ Compares captions against text-based activity prototypes using cosine similarity
 
 Sample Usage:
   python src/evals/evaluate_text_encoder_only.py \
-    --train_data data/processed/casas/milan/training_50/train.json \
-    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
-    --output_dir results/evals/milan/50_textonly_new \
+    --train_data data/processed/casas/milan/sourish_seq100/milan_train.json \
+    --test_data data/processed/casas/milan/sourish_seq100/milan_presegmented_test.json \
+    --output_dir results/evals/milan/sourish_100/textonly_gte \
+    --description_style sourish \
+    --text_model_name gte \
     --max_samples 10000 \
-    --filter_noisy_labels
+    --filter_noisy_labels \
+    --verbose
 """
 
 import torch
@@ -1010,8 +1013,9 @@ Example usage:
                        help='Output directory for results (e.g., results/evals/milan/50_textonly)')
 
     # Model parameters
-    parser.add_argument('--text_model_name', type=str, default='thenlper/gte-base',
-                       help='Text encoder model name (default: thenlper/gte-base)')
+    parser.add_argument('--text_model_name', type=str, default='gte',
+                       choices=['gte', 'distilroberta', 'thenlper/gte-base', 'sentence-transformers/all-distilroberta-v1'],
+                       help='Text encoder model name (default: gte)')
 
     # Evaluation parameters
     parser.add_argument('--max_samples', type=int, default=10000,
@@ -1029,11 +1033,18 @@ Example usage:
 
     args = parser.parse_args()
 
+    # Map simplified model names to full names
+    model_name_mapping = {
+        'gte': 'thenlper/gte-base',
+        'distilroberta': 'sentence-transformers/all-distilroberta-v1'
+    }
+    text_model_name = model_name_mapping.get(args.text_model_name, args.text_model_name)
+
     # Configuration
     config = {
         'train_data_path': args.train_data,
         'test_data_path': args.test_data,
-        'text_model_name': args.text_model_name,
+        'text_model_name': text_model_name,
         'output_dir': args.output_dir,
         'house_name': args.house_name,
     }

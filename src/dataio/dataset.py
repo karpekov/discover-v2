@@ -155,14 +155,20 @@ class SmartHomeDataset(Dataset):
     delta_times = [0.0]  # First event has delta_t = 0
 
     for i in range(1, len(events)):
-      if 'timestamp' in events[i] and 'timestamp' in events[i-1]:
-        # Compute actual time difference
+      # Priority 1: Use pre-computed delta_t_since_prev (most accurate, in seconds)
+      if 'delta_t_since_prev' in events[i]:
+        delta_t = events[i]['delta_t_since_prev']
+      # Priority 2: Compute from timestamps (could be Unix ms or normalized index)
+      elif 'timestamp' in events[i] and 'timestamp' in events[i-1]:
         curr_time = events[i]['timestamp']
         prev_time = events[i-1]['timestamp']
         delta_t = max(0.0, curr_time - prev_time)
+        # If timestamps are in milliseconds (Unix time), convert to seconds
+        if curr_time > 10000:  # Heuristic: Unix timestamps are large
+          delta_t = delta_t / 1000.0
       else:
-        # Use provided delta_t_since_prev or default
-        delta_t = events[i].get('delta_t_since_prev', 1.0)
+        # Fallback to default
+        delta_t = 1.0
 
       delta_times.append(delta_t)
 

@@ -325,7 +325,27 @@ class DataExporter:
             # Extract events from window
             events = []
 
+            # Get actual timestamps from the window dataframe
+            window_events_df = window.events.reset_index(drop=True)
+
             for i, event_features in enumerate(window_features_obj.events):
+                # Get the actual datetime for this event
+                if i < len(window_events_df) and 'datetime' in window_events_df.columns:
+                    event_datetime = window_events_df.iloc[i]['datetime']
+                    # Convert to Unix milliseconds timestamp (compatible with Sourish's code)
+                    timestamp_ms = int(event_datetime.timestamp() * 1000)
+
+                    # Calculate delta time from previous event in seconds
+                    if i > 0:
+                        prev_datetime = window_events_df.iloc[i-1]['datetime']
+                        delta_t_sec = (event_datetime - prev_datetime).total_seconds()
+                    else:
+                        delta_t_sec = 0.0
+                else:
+                    # Fallback to index-based timestamps if datetime not available
+                    timestamp_ms = i * 1000
+                    delta_t_sec = 1.0
+
                 # Build event dict
                 event_dict = {
                     'sensor_id': event_features.sensor_id,
@@ -336,8 +356,8 @@ class DataExporter:
                     'delta_t_bucket': event_features.delta_t_bucket,
                     'x': float(event_features.x_coord) if event_features.x_coord is not None else 0.0,
                     'y': float(event_features.y_coord) if event_features.y_coord is not None else 0.0,
-                    'timestamp': float(i),  # Use index as timestamp for now
-                    'delta_t_since_prev': 1.0  # Default time delta
+                    'timestamp': timestamp_ms,  # Unix timestamp in milliseconds
+                    'delta_t_since_prev': delta_t_sec  # Time delta in seconds (prioritized by dataset loader)
                 }
 
                 # Add optional fields

@@ -6,9 +6,9 @@ This script generates processed data from CASAS datasets using the dual-encoder 
 It supports pre-defined configs or custom configurations for processing datasets.
 
 Usage:
-    python src-v2/data/generate_data.py --config milan_training_20
-    python src-v2/data/generate_data.py --list-configs
-    python src-v2/data/generate_data.py --custom --datasets milan aruba --windows 50 100
+    python src/data/generate_data.py --config milan_baseline_seq20
+    python src/data/generate_data.py --list-configs
+    python src/data/generate_data.py --custom --datasets milan aruba --windows 50 100
 """
 
 import sys
