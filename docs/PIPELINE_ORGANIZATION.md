@@ -19,6 +19,7 @@ Contains the main implementation modules:
 - **`models/`**: Neural network architectures
   - `text_encoder.py` - Frozen GTE-base text encoder
   - `sensor_encoder.py` - Custom Transformer with ALiBi attention
+  - `chronos_encoder.py` - Chronos-2 time series encoder (frozen Chronos + trainable MLP)
   - `scan_model.py` - SCAN clustering model
   - `mlm_heads.py` - Multi-field MLM heads
   - `classification_head.py` - Classification heads
@@ -26,6 +27,7 @@ Contains the main implementation modules:
 
 - **`training/`**: Training scripts
   - `train_clip.py` - Main CLIP training with dual-encoder alignment
+  - `train_chronos_clip.py` - Chronos-2 encoder CLIP training (CLIP only, no MLM)
   - `train_scan.py` - SCAN clustering training
   - `classification_trainer.py` - Classification training
 

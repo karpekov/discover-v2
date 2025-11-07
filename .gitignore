@@ -36,6 +36,10 @@ src/wandb/
 # src/trained_models/  (migrated to top-level)
 src/analysis/
 
+# experimental scripts
+src/experimental/
+
+
 # Logs, models, and results
 logs/
 trained_models/

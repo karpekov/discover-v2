@@ -147,22 +147,38 @@ class EmbeddingVisualizer:
         self.text_encoder = build_text_encoder(eval_config)
         self.text_encoder.to(self.device)
 
-        # Sensor encoder - use config from checkpoint
-        self.vocab_sizes = checkpoint['vocab_sizes']
+        # Sensor encoder - check if it's ChronosEncoder or SensorEncoder
+        self.vocab_sizes = checkpoint.get('vocab_sizes', {})
         model_config = checkpoint.get('config', {})
-        self.sensor_encoder = SensorEncoder(
-            vocab_sizes=self.vocab_sizes,
-            d_model=model_config.get('d_model', 768),
-            n_layers=model_config.get('n_layers', 6),
-            n_heads=model_config.get('n_heads', 8),
-            d_ff=model_config.get('d_ff', 3072),
-            max_seq_len=model_config.get('max_seq_len', 512),
-            dropout=model_config.get('dropout', 0.1),
-            fourier_bands=model_config.get('fourier_bands', 12),
-            use_rope_time=model_config.get('use_rope_time', False),
-            use_rope_2d=model_config.get('use_rope_2d', False)
-        )
-        self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+
+        # Check if this is a Chronos checkpoint
+        if 'chronos_encoder_state_dict' in checkpoint:
+            from models.chronos_encoder import ChronosEncoder
+            self.sensor_encoder = ChronosEncoder(
+                vocab_sizes=self.vocab_sizes,
+                chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
+                projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
+                projection_dropout=model_config.get('projection_dropout', 0.1),
+                output_dim=model_config.get('output_dim', 512),
+                sequence_length=model_config.get('sequence_length', 50)
+            )
+            self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+        else:
+            # Standard SensorEncoder
+            self.sensor_encoder = SensorEncoder(
+                vocab_sizes=self.vocab_sizes,
+                d_model=model_config.get('d_model', 768),
+                n_layers=model_config.get('n_layers', 6),
+                n_heads=model_config.get('n_heads', 8),
+                d_ff=model_config.get('d_ff', 3072),
+                max_seq_len=model_config.get('max_seq_len', 512),
+                dropout=model_config.get('dropout', 0.1),
+                fourier_bands=model_config.get('fourier_bands', 12),
+                use_rope_time=model_config.get('use_rope_time', False),
+                use_rope_2d=model_config.get('use_rope_2d', False)
+            )
+            self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+
         self.sensor_encoder.to(self.device)
 
         # Set to eval mode

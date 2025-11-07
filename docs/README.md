@@ -24,10 +24,12 @@ discover-v2/
 │   ├── models/                   # Neural network architectures
 │   │   ├── text_encoder.py       # Frozen GTE-base text encoder
 │   │   ├── sensor_encoder.py     # Custom Transformer with ALiBi
+│   │   ├── chronos_encoder.py    # Chronos-2 time series encoder
 │   │   ├── scan_model.py         # SCAN clustering model
 │   │   └── ...
 │   ├── training/                 # Training scripts
 │   │   ├── train_clip.py         # Main CLIP training
+│   │   ├── train_chronos_clip.py # Chronos-2 CLIP training
 │   │   ├── train_scan.py         # SCAN clustering training
 │   │   └── ...
 │   ├── evals/                    # Evaluation scripts
@@ -72,6 +74,9 @@ python src/data/generate_data.py --config training_50 --force
 # Train CLIP model
 python src/training/train_clip.py --config configs/training/milan/tiny_50_oct1.json
 
+# Train Chronos-2 encoder with CLIP alignment
+python src/training/train_chronos_clip.py --config configs/training/milan/chronos_clip.json
+
 # Train SCAN clustering model
 python src/training/train_scan.py --config configs/training/milan/baseline.json
 ```
@@ -89,23 +94,37 @@ python src/evals/evaluate_embeddings.py \
 
 ## Architecture Details
 
-### Sensor Token Embedding
+### Sensor Encoder Options
+
+**1. Transformer Encoder (sensor_encoder.py)**
 - Sum of categorical field embeddings: `sensor_id + room_id + event_type + sensor_type + tod_bucket + delta_t_bucket + [floor_id] + [dow]`
 - Fourier features for continuous (x,y) coordinates (L=12 bands)
 - Log-bucketed time delta embeddings
-
-### Transformer Features
 - ALiBi positional bias (default)
 - Optional RoPE for time/space (configurable)
 - Pre-LN architecture (6-8 layers, 8 heads, d=768)
 - Sequence pooling: 0.5×CLS + 0.5×mean(masked tokens)
 
+**2. Chronos-2 Encoder (chronos_encoder.py)**
+- Uses Amazon's Chronos-2 time series foundation model (frozen)
+- Converts sensor sequences to multivariate time series
+- Trainable MLP projection head (256-dim hidden, 512-dim output)
+- Only projection head is trainable; Chronos model remains frozen
+- Compatible with CLIP alignment training
+
 ### Training Objectives
+
+**Standard Training (train_clip.py)**
 - **CLIP Loss**: Bidirectional InfoNCE with learnable temperature (init=0.05)
 - **MLM Loss** (λ=0.3): Multi-field masked language modeling
   - ~25% span masking (Poisson length≈3)
   - Field-balanced priors: room(.30), event_type(.20), sensor_id(.20), tod(.15), delta_t_bucket(.10), sensor_type(.05)
   - BERT-style 80/10/10 masking
+
+**Chronos-2 Training (train_chronos_clip.py)**
+- **CLIP Loss Only**: Bidirectional InfoNCE with learnable temperature
+- No MLM: Only CLIP-style contrastive learning
+- Only the MLP projection head is trainable; Chronos-2 model is frozen
 
 ## Configuration System
 

@@ -1,0 +1,53 @@
+{
+  "comment": "Chronos-2 encoder with CLIP alignment - frozen Chronos model, trainable MLP projection head only",
+
+  "chronos_model_name": "amazon/chronos-2",
+  "projection_hidden_dim": 256,
+  "projection_dropout": 0.1,
+  "output_dim": 512,
+  "sequence_length": 50,
+
+  "text_model_name": "thenlper/gte-base",
+  "max_captions": 4,
+  "caption_types": "long",
+
+  "batch_size": 64,
+  "learning_rate": 0.001,
+  "betas": [0.9, 0.98],
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "max_epochs": 50,
+  "grad_clip_norm": 1.0,
+
+  "temperature_init": 0.02,
+  "learnable_temperature": true,
+
+  "use_hard_negatives": false,
+  "hard_negative_memory_size": 2048,
+  "hard_negative_ratio": 0.5,
+  "hard_negative_strategy": "mixed",
+  "hard_negative_sampling_temperature": 0.1,
+
+  "log_interval": 50,
+  "val_interval": 500,
+  "save_interval": 2000,
+  "metrics_interval": 1000,
+  "metrics_sample_size": 1000,
+  "output_dir": "trained_models/milan/chronos_clip",
+
+  "use_wandb": true,
+  "wandb_project": "discover-v2",
+  "wandb_name": "milan_chronos_clip",
+  "wandb_tags": ["milan", "chronos", "clip-only", "frozen-backbone", "window-50"],
+  "wandb_notes": "Chronos-2 encoder with CLIP alignment. Frozen Chronos model, only MLP projection head is trainable. No MLM.",
+  "wandb_group": "milan-chronos",
+
+  "train_data_path": "data/processed/casas/milan/seq50/milan_train.json",
+  "val_data_path": "data/processed/casas/milan/seq50/milan_test.json",
+  "vocab_path": "data/processed/casas/milan/seq50/milan_vocab.json",
+
+  "use_amp": false,
+  "gradient_checkpointing": false,
+  "num_workers": 0
+}
+

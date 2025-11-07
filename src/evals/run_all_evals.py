@@ -40,11 +40,15 @@ class ComprehensiveEvaluator:
 
     def _convert_paths_for_project_root(self):
         """Convert relative paths to work from project root directory."""
-        # Convert checkpoint path - needs to be prefixed with src/ since individual scripts run from project root
+        # Checkpoint path - check if it exists, if not try with src/ prefix
         if not Path(self.config['checkpoint']).is_absolute():
             checkpoint_path = Path(self.config['checkpoint'])
-            if not str(checkpoint_path).startswith('src/'):
-                self.config['checkpoint'] = f"src/{self.config['checkpoint']}"
+            # If path doesn't exist, try with src/ prefix
+            if not checkpoint_path.exists():
+                src_checkpoint = Path(f"src/{self.config['checkpoint']}")
+                if src_checkpoint.exists():
+                    self.config['checkpoint'] = str(src_checkpoint)
+            # Otherwise keep as-is (already correct)
 
         # Convert data paths - these are relative to src, but individual scripts run from project root
         # So ../data/... from src becomes data/... from project root
@@ -55,11 +59,15 @@ class ComprehensiveEvaluator:
                     # Remove the ../ prefix since we're now running from project root
                     self.config[path_key] = path_str[3:]
 
-        # Convert output directory - should be prefixed with src/ since scripts run from project root
+        # Convert output directory - check if it exists, if not try with src/ prefix
         if 'output_dir' in self.config and not Path(self.config['output_dir']).is_absolute():
-            output_dir = self.config['output_dir']
-            if not output_dir.startswith('src/'):
-                self.config['output_dir'] = f"src/{output_dir}"
+            output_dir = Path(self.config['output_dir'])
+            # If path doesn't exist as parent, try with src/ prefix
+            if not output_dir.parent.exists():
+                src_output = Path(f"src/{self.config['output_dir']}")
+                if src_output.parent.exists():
+                    self.config['output_dir'] = str(src_output)
+            # Otherwise keep as-is (already correct)
 
     def run_command(self, cmd: list, description: str) -> bool:
         """Run a command and handle errors."""
@@ -89,7 +97,7 @@ class ComprehensiveEvaluator:
     def run_embedding_evaluation(self) -> bool:
         """Run dual embedding evaluation (filtered vs unfiltered)."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/evaluate_embeddings.py',
+            'python', 'src/evals/evaluate_embeddings.py',
             '--checkpoint', self.config['checkpoint'],
             '--train_data', self.config['train_data'],
             '--test_data', self.config['test_data'],
@@ -104,7 +112,7 @@ class ComprehensiveEvaluator:
     def run_embedding_visualization(self) -> bool:
         """Run embedding visualization with t-SNE."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/visualize_embeddings.py',
+            'python', 'src/evals/visualize_embeddings.py',
             '--checkpoint', self.config['checkpoint'],
             '--train_data', self.config['train_data'],
             '--test_data', self.config['test_data'],
@@ -122,7 +130,7 @@ class ComprehensiveEvaluator:
     def run_clustering_visualization(self) -> bool:
         """Run embedding visualization with clustering analysis."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/visualize_embeddings.py',
+            'python', 'src/evals/visualize_embeddings.py',
             '--checkpoint', self.config['checkpoint'],
             '--train_data', self.config['train_data'],
             '--test_data', self.config['test_data'],
@@ -142,7 +150,7 @@ class ComprehensiveEvaluator:
     def run_embedding_alignment(self) -> bool:
         """Run embedding alignment analysis."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/embedding_alignment_analysis.py',
+            'python', 'src/evals/embedding_alignment_analysis.py',
             '--checkpoint', self.config['checkpoint'],
             '--data', self.config['test_data'],
             '--vocab', self.config['vocab'],
@@ -155,7 +163,7 @@ class ComprehensiveEvaluator:
     def run_caption_alignment(self) -> bool:
         """Run caption alignment analysis."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/caption_alignment_analysis.py',
+            'python', 'src/evals/caption_alignment_analysis.py',
             '--checkpoint', self.config['checkpoint'],
             '--data', self.config['test_data'],
             '--vocab', self.config['vocab'],
@@ -169,7 +177,7 @@ class ComprehensiveEvaluator:
     def run_clustering_evaluation(self) -> bool:
         """Run clustering evaluation with K-means and DBSCAN."""
         cmd = [
-            'conda', 'run', '-n', 'har_env', 'python', 'src/evals/clustering_evaluation.py',
+            'python', 'src/evals/clustering_evaluation.py',
             '--checkpoint', self.config['checkpoint'],
             '--test_data', self.config['test_data'],
             '--vocab', self.config['vocab'],
