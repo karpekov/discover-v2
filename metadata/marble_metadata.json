@@ -1,0 +1,193 @@
+{
+  "marble": {
+    "name": "MARBLE",
+    "num_residents": 1,
+    "casas_url": null,
+    "data_raw_filename": "marble/MARBLE/dataset",
+    "data_processed_filename": "marble/marble_environment_single_resident.csv",
+    "label_to_text_sourish": {
+      "ANSWERING_PHONE": "Answering Phone activity takes place when the actor extracts a smartphone from the pocket and answers to an incoming call",
+      "CLEARING_TABLE": "Clearing Table activity takes place when the actor collects dishes, glasses and cutlery, put the bottles in the fridge, and remove the tablecloth from the table",
+      "COOKING": "Cooking activity simulates the cooking of milk or pasta. For milk, the actor takes a pot, fills it with some milk taken from the fridge, and warm it by using the cooker. For pasta, the actor takes a pot, fills it with some tap water, and warm it by using the cooker. Then he/she adds salt and pasta to the pot. After a while, he/she drains pasta and, if he/she wants to, dresses it with condiments taken from the fridge",
+      "EATING": "Eating activity takes place when the actor sits on a dining room chair and starts eating and drinking. The Eating label is used also when a subject just drink a glass of water",
+      "ENTERING_HOME": "Entering Home activity takes place when the actor enters in the smart-home and, if necessary, takes off his/her coat, hanging it on the coat hanger",
+      "LEAVING_HOME": "Leaving Home activity takes place when the actor wears the coat, if necessary, and leaves the smart-home",
+      "MAKING_PHONE_CALL": "Making Phone Call activity takes place when the actor extracts the smartphone from the pocket, types a phone number, and makes a call",
+      "PREPARING_COLD_MEAL": "Preparing Cold Meal activity takes place when the actor prepares a sandwich or a salad. For the sandwich, he/she takes the bread, cuts it with a knife, and fills it with food taken from the fridge. For the salad, he/she takes the salad from the fridge, puts it in a bowl, and mixes it with salt and oil",
+      "SETTING_UP_TABLE": "Setting Up Table activity takes place when the actor puts tablecloth, dishes, glasses, napkins, cutlery, and beverages on the table",
+      "TAKING_MEDICINES": "Taking Medicines activity takes place when the actor takes a medicine from the proper drawer and gets it; he/she can sit on one of the smart-home chairs, and, if necessary, drinking a glass of water taken from the kitchen",
+      "USING_PC": "Using Pc activity takes place when the actor sits on the office chair and uses the pc",
+      "WASHING_DISHES": "Washing Dishes activity takes place when the actor washes the dishes in the sink",
+      "WATCHING_TV": "Watching Tv activity takes place when the actor switches on the television if is off and sits on a living room chair; at the end of the activity, he/she can switch off the television if nobody else is watching it",
+      "TRANSITION": "Transition activity represents the transition between one activity to the subsequent one performed by the subject",
+      "No_Activity": "No activity or other activity"
+    },
+    "sensor_location": {
+      "R1": "pantry",
+      "R2": "kitchen",
+      "R5": "kitchen",
+      "R6": "kitchen",
+      "R7": "kitchen",
+      "E1": "kitchen",
+      "E2": "living_room",
+      "P1": "dining_room",
+      "P2": "office",
+      "P3": "living_room",
+      "P4": "dining_room",
+      "P5": "dining_room",
+      "P6": "dining_room",
+      "P7": "living_room",
+      "P8": "living_room",
+      "P9": "living_room"
+    },
+    "sensor_coordinates": {
+      "R1": [355,341],
+      "R2": [321,427],
+      "R5": [223, 341],
+      "R6": [42,187],
+      "R7": [373,427],
+      "E1": [223,306],
+      "E2": [351,15],
+      "P1": [644,346],
+      "P2": [665,250],
+      "P3": [437,255],
+      "P4": [707,346],
+      "P5": [644,440],
+      "P6": [707,440],
+      "P7": [362,252],
+      "P8": [318,252],
+      "P9": [272,252]
+    },
+    "sensor_details": {
+      "R1": "Magnetic sensor in pantry",
+      "R2": "Magnetic sensor in cutlery drawer",
+      "R5": "Magnetic sensor in pots drawer",
+      "R6": "Magnetic sensor in medicines cabinet",
+      "R7": "Magnetic sensor in fridge",
+      "E1": "Smart Plug sensor for stove",
+      "E2": "Smart Plug sensor for television",
+      "P1": "Pressure Mat sensor on dining room chair",
+      "P2": "Pressure Mat sensor on office chair",
+      "P3": "Pressure Mat sensor on living room couch",
+      "P4": "Pressure Mat sensor on dining room chair",
+      "P5": "Pressure Mat sensor on dining room chair",
+      "P6": "Pressure Mat sensor on dining room chair",
+      "P7": "Pressure Mat sensor on living room couch",
+      "P8": "Pressure Mat sensor on living room couch",
+      "P9": "Pressure Mat sensor on living room couch"
+    },
+    "label_l2": {
+      "ANSWERING_PHONE": "Phone_Call",
+      "CLEARING_TABLE": "Cleaning_Table",
+      "COOKING": "Cooking",
+      "EATING": "Eat",
+      "ENTERING_HOME": "Entering_Home",
+      "LEAVING_HOME": "Leaving_Home",
+      "MAKING_PHONE_CALL": "Phone_Call",
+      "PREPARING_COLD_MEAL": "Preparing_Cold_Meal",
+      "SETTING_UP_TABLE": "Setting_Up_Table",
+      "TAKING_MEDICINES": "Taking_Medicines",
+      "USING_PC": "Using_PC",
+      "WASHING_DISHES": "No_Activity",
+      "WATCHING_TV": "Watching_TV",
+      "TRANSITION": "Transition",
+      "No_Activity": "No_Activity"
+    },
+    "label_color": {
+      "ANSWERING_PHONE": "#6C6EC9",
+      "CLEARING_TABLE": "#7fbc41",
+      "COOKING": "#EF8636",
+      "EATING": "#fdae61",
+      "ENTERING_HOME": "#519E3E",
+      "LEAVING_HOME": "#519E3E",
+      "MAKING_PHONE_CALL": "#6C6EC9",
+      "PREPARING_COLD_MEAL": "#EF8636",
+      "SETTING_UP_TABLE": "#7fbc41",
+      "TAKING_MEDICINES": "#F9DA56",
+      "USING_PC": "#de77ae",
+      "WASHING_DISHES": "#7fbc41",
+      "WATCHING_TV": "#ae017e",
+      "TRANSITION": "#878787",
+      "No_Activity": "#878787"
+    },
+    "label_l2_color": {
+      "Phone_Call": "#6C6EC9",
+      "Cleaning_Table": "#7fbc41",
+      "Cooking": "#EF8636",
+      "Eat": "#fdae61",
+      "Entering_Home": "#519E3E",
+      "Leaving_Home": "#519E3E",
+      "Preparing_Cold_Meal": "#EF8636",
+      "Setting_Up_Table": "#7fbc41",
+      "Taking_Medicines": "#F9DA56",
+      "Using_PC": "#de77ae",
+      "No_Activity": "#878787",
+      "Watching_TV": "#ae017e",
+      "Transition": "#878787"
+    },
+
+    "label_to_text": {
+      "ANSWERING_PHONE": {
+        "short_desc": "answering an incoming phone call",
+        "long_desc": ["The actor extracts a smartphone from the pocket and answers to an incoming call."]
+      },
+      "CLEARING_TABLE": {
+        "short_desc": "clearing the dining table after a meal",
+        "long_desc": ["The actor collects dishes, glasses and cutlery, put the bottles in the fridge, and remove the tablecloth from the table."]
+      },
+      "COOKING": {
+        "short_desc": "cooking meals using the stove",
+        "long_desc": ["This activity simulates the cooking of milk or pasta. For milk, the actor takes a pot, fills it with some milk taken from the fridge, and warm it by using the cooker. For pasta, the actor takes a pot, fills it with some tap water, and warm it by using the cooker. Then he/she adds salt and pasta to the pot. After a while, he/she drains pasta and, if he/she wants to, dresses it with condiments taken from the fridge."]
+      },
+      "EATING": {
+        "short_desc": "eating meals or drinking water at the dining table",
+        "long_desc": ["The actor sits on a dining room chair and starts eating and drinking. The Eating label is used also when a subject just drink a glass of water."]
+      },
+      "ENTERING_HOME": {
+        "short_desc": "entering the smart-home",
+        "long_desc": ["The actor enters in the smart-home and, if necessary, takes off his/her coat, hanging it on the coat hanger."]
+      },
+      "LEAVING_HOME": {
+        "short_desc": "leaving the smart-home",
+        "long_desc": ["The actor wears the coat, if necessary, and leaves the smart-home."]
+      },
+      "MAKING_PHONE_CALL": {
+        "short_desc": "making a phone call",
+        "long_desc": ["The actor extracts the smartphone from the pocket, types a phone number, and makes a call."]
+      },
+      "PREPARING_COLD_MEAL": {
+        "short_desc": "preparing a sandwich or salad",
+        "long_desc": ["The actor prepares a sandwich or a salad. For the sandwich, he/she takes the bread, cuts it with a knife, and fills it with food taken from the fridge. For the salad, he/she takes the salad from the fridge, puts it in a bowl, and mixes it with salt and oil."]
+      },
+      "SETTING_UP_TABLE": {
+        "short_desc": "setting up the dining table before a meal",
+        "long_desc": ["The actor puts tablecloth, dishes, glasses, napkins, cutlery, and beverages on the table."]
+      },
+      "TAKING_MEDICINES": {
+        "short_desc": "taking medicines from the cabinet",
+        "long_desc": ["The actor takes a medicine from the proper drawer and gets it; he/she can sit on one of the smart-home chairs, and, if necessary, drinking a glass of water taken from the kitchen."]
+      },
+      "USING_PC": {
+        "short_desc": "using the computer in the office",
+        "long_desc": ["The actor sits on the office chair and uses the pc."]
+      },
+      "WASHING_DISHES": {
+        "short_desc": "washing dishes in the sink",
+        "long_desc": ["The actor washes the dishes in the sink."]
+      },
+      "WATCHING_TV": {
+        "short_desc": "watching television in the living room",
+        "long_desc": ["The actor switches on the television if is off and sits on a living room chair; at the end of the activity, he/she can switch off the television if nobody else is watching it."]
+      },
+      "TRANSITION": {
+        "short_desc": "transition between activities",
+        "long_desc": ["Transition activity represents the transition between one activity to the subsequent one performed by the subject."]
+      },
+      "No_Activity": {
+        "short_desc": "no specific activity or idle time",
+        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement."]
+      }
+    }
+  }
+}
+

@@ -33,6 +33,7 @@ import datetime
 from io import StringIO
 from termcolor import colored
 import json
+import argparse
 
 
 def _get_json_metadata(file_path='metadata/house_metadata.json'):
@@ -599,53 +600,312 @@ def _add_missing_microseconds(date_str):
     return date_str + '.000000'  # Add .000000 if no microseconds are present
   return date_str
 
-if __name__ == '__main__':
 
-  df_list = []
-  # for city in CASAS_METADATA:
-  for city in ['milan', 'aruba', 'cairo']:
-    print(
-      colored(f"Processing {city} dataset...", 'magenta')
-    )
-    if city == 'aware_home':
-      df = awaerehome_end_to_end_preprocess()
+def process_marble_environmental_data(
+    base_path='data/raw/marble/MARBLE/dataset',
+    output_path='data/processed/marble/marble_environment_single_resident.csv',
+    save_to_csv=True
+):
+  """Process MARBLE dataset environmental sensors and labels for single resident scenarios.
+
+  Processes only single resident scenarios (A1*, B1*, C1*, D1*) and merges
+  environmental.csv with labels.csv from each subject folder.
+
+  Args:
+    base_path (str): Base path to MARBLE dataset directory.
+    output_path (str): Path to save the processed CSV file.
+    save_to_csv (bool): Whether to save the processed data to CSV.
+
+  Returns:
+    pd.DataFrame: Processed dataframe with columns:
+      - scenario: Scenario ID (A1, B1, C1, D1)
+      - time_of_day: Time period code (m=morning, a=afternoon, e=evening)
+      - instance: Instance number
+      - subject: Subject ID
+      - sensor_id: Environmental sensor ID
+      - sensor_status: Sensor status (ON/OFF)
+      - ts: Timestamp (UNIX milliseconds)
+      - subject_id: Subject ID from environmental.csv (may be same as subject)
+      - activity: Activity label from labels.csv (None if no activity at that time)
+      - activity_start: Start timestamp of activity interval
+      - activity_end: End timestamp of activity interval
+  """
+  import glob
+
+  print(colored("Processing MARBLE dataset (single resident scenarios)...", 'magenta'))
+
+  all_data = []
+
+  # Process only single resident scenarios: A1, B1, C1, D1
+  single_resident_scenarios = ['A1', 'B1', 'C1', 'D1']
+
+  for scenario_prefix in single_resident_scenarios:
+    # Find all scenario folders matching the pattern (e.g., A1a, A1m, A1e)
+    scenario_pattern = os.path.join(base_path, f'{scenario_prefix}*')
+    scenario_dirs = glob.glob(scenario_pattern)
+
+    for scenario_dir in scenario_dirs:
+      scenario_name = os.path.basename(scenario_dir)
+      # Extract scenario (A1, B1, etc.) and time_of_day (m, a, e)
+      scenario = scenario_name[:2]  # A1, B1, C1, D1
+      time_of_day = scenario_name[2] if len(scenario_name) > 2 else None
+
+      if time_of_day not in ['m', 'a', 'e']:
+        print(colored(f"⚠️  Skipping scenario {scenario_name} (unknown time_of_day)", 'yellow'))
+        continue
+
+      print(colored(f"Processing scenario: {scenario_name}", 'cyan'))
+
+      # Find all instance folders
+      instance_dirs = glob.glob(os.path.join(scenario_dir, 'instance*'))
+
+      for instance_dir in instance_dirs:
+        instance_name = os.path.basename(instance_dir)
+        # Extract instance number (e.g., "instance1" -> "1")
+        instance_num = instance_name.replace('instance', '')
+
+        # Check for environmental.csv
+        env_file = os.path.join(instance_dir, 'environmental.csv')
+        if not os.path.exists(env_file):
+          print(colored(f"⚠️  environmental.csv not found in {instance_dir}", 'yellow'))
+          continue
+
+        # Read environmental.csv
+        try:
+          df_env = pd.read_csv(env_file)
+          if df_env.empty:
+            continue
+          # Convert subject_id to numeric for consistent comparison
+          df_env['subject_id'] = pd.to_numeric(df_env['subject_id'], errors='coerce')
+        except Exception as e:
+          print(colored(f"⚠️  Error reading {env_file}: {e}", 'yellow'))
+          continue
+
+        # Find all subject folders
+        subject_dirs = glob.glob(os.path.join(instance_dir, 'subject-*'))
+
+        for subject_dir in subject_dirs:
+          subject_id_str = os.path.basename(subject_dir).replace('subject-', '')
+          # Convert to int to match the type in environmental.csv
+          try:
+            subject_id = int(subject_id_str)
+          except ValueError:
+            # If conversion fails, try string comparison
+            subject_id = subject_id_str
+
+          # Check for labels.csv
+          labels_file = os.path.join(subject_dir, 'labels.csv')
+          if not os.path.exists(labels_file):
+            print(colored(f"⚠️  labels.csv not found in {subject_dir}", 'yellow'))
+            continue
+
+          # Read labels.csv
+          try:
+            df_labels = pd.read_csv(labels_file)
+            if df_labels.empty:
+              continue
+          except Exception as e:
+            print(colored(f"⚠️  Error reading {labels_file}: {e}", 'yellow'))
+            continue
+
+          # Filter environmental data for this subject
+          df_env_subject = df_env[df_env['subject_id'] == subject_id].copy()
+
+          if df_env_subject.empty:
+            continue
+
+          # Merge environmental data with labels based on timestamps
+          # For each environmental event, find the activity that was active at that time
+          df_env_subject['activity'] = None
+          df_env_subject['activity_start'] = None
+          df_env_subject['activity_end'] = None
+
+          for idx, row in df_env_subject.iterrows():
+            event_ts = row['ts']
+            # Find activity that was active at this timestamp
+            # Activity is active if ts_start <= event_ts <= ts_end
+            active_activities = df_labels[
+              (df_labels['ts_start'] <= event_ts) &
+              (df_labels['ts_end'] >= event_ts)
+            ]
+
+            if not active_activities.empty:
+              # Take the first matching activity (should be only one)
+              activity_row = active_activities.iloc[0]
+              df_env_subject.at[idx, 'activity'] = activity_row['act']
+              df_env_subject.at[idx, 'activity_start'] = activity_row['ts_start']
+              df_env_subject.at[idx, 'activity_end'] = activity_row['ts_end']
+
+          # Add metadata columns
+          df_env_subject['scenario'] = scenario
+          df_env_subject['time_of_day'] = time_of_day
+          df_env_subject['instance'] = instance_num
+          df_env_subject['subject'] = subject_id
+
+          # Reorder columns
+          column_order = [
+            'scenario', 'time_of_day', 'instance', 'subject',
+            'sensor_id', 'sensor_status', 'ts', 'subject_id',
+            'activity', 'activity_start', 'activity_end'
+          ]
+          # Only include columns that exist
+          column_order = [col for col in column_order if col in df_env_subject.columns]
+          df_env_subject = df_env_subject[column_order]
+
+          all_data.append(df_env_subject)
+
+          print(colored(
+            f"  ✓ Processed {scenario_name}/{instance_name}/subject-{subject_id}: "
+            f"{len(df_env_subject)} environmental events", 'green'
+          ))
+
+  if not all_data:
+    print(colored("⚠️  No data found to process", 'yellow'))
+    return pd.DataFrame()
+
+  # Concatenate all data
+  df_combined = pd.concat(all_data, ignore_index=True)
+
+  print(colored(f"Processed data shape: {df_combined.shape}", 'magenta'))
+  print(colored(
+    f"Scenarios: {df_combined['scenario'].unique()}, "
+    f"Instances: {df_combined['instance'].nunique()}, "
+    f"Subjects: {df_combined['subject'].nunique()}", 'cyan'
+  ))
+
+  # Save to CSV
+  if save_to_csv:
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df_combined.to_csv(output_path, index=False)
+    print(colored(f"Processed data saved to '{output_path}'", 'magenta'))
+
+  return df_combined
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser(
+    description='Process CASAS or MARBLE datasets',
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog="""
+Examples:
+  # Process MARBLE dataset
+  python src/data/data_load_clean.py --dataset marble --function process_marble_environmental_data
+
+  # Process CASAS dataset (milan)
+  python src/data/data_load_clean.py --dataset milan
+
+  # Process CASAS dataset with custom train-test split
+  python src/data/data_load_clean.py --dataset aruba --custom_train_test_split
+    """
+  )
+
+  parser.add_argument(
+    '--dataset',
+    type=str,
+    help='Dataset name (e.g., milan, aruba, cairo, marble)'
+  )
+
+  parser.add_argument(
+    '--function',
+    type=str,
+    default=None,
+    help='Function to run (for marble: process_marble_environmental_data)'
+  )
+
+  parser.add_argument(
+    '--force_download',
+    action='store_true',
+    help='Force re-download of raw data (for CASAS datasets)'
+  )
+
+  parser.add_argument(
+    '--custom_train_test_split',
+    action='store_true',
+    help='Create custom train-test split (for CASAS datasets)'
+  )
+
+  parser.add_argument(
+    '--max_lines',
+    type=int,
+    default=None,
+    help='Limit number of lines to process (for testing)'
+  )
+
+  parser.add_argument(
+    '--base_path',
+    type=str,
+    default='data/raw/marble/MARBLE/dataset',
+    help='Base path to MARBLE dataset (for marble dataset only)'
+  )
+
+  parser.add_argument(
+    '--output_path',
+    type=str,
+    default='data/processed/marble/marble_environment_single_resident.csv',
+    help='Output path for processed CSV (for marble dataset only)'
+  )
+
+  args = parser.parse_args()
+
+  # Process MARBLE dataset
+  if args.dataset == 'marble':
+    if args.function == 'process_marble_environmental_data' or args.function is None:
+      df = process_marble_environmental_data(
+        base_path=args.base_path,
+        output_path=args.output_path,
+        save_to_csv=True
+      )
+      print(colored(f"\n✓ Processing complete! Shape: {df.shape}", 'green'))
     else:
-      if city in ['milan', 'aruba', 'kyoto', 'cairo']:
+      print(colored(f"⚠️  Unknown function '{args.function}' for marble dataset", 'yellow'))
+      print(colored("Available functions: process_marble_environmental_data", 'yellow'))
+
+  # Process CASAS datasets
+  elif args.dataset in CASAS_METADATA or args.dataset == 'aware_home':
+    if args.dataset == 'aware_home':
+      df = awaerehome_end_to_end_preprocess(save_to_csv=True)
+    else:
+      # Use explicit flag if provided, otherwise default based on dataset
+      if args.custom_train_test_split:
+        custom_train_test_split = True
+      elif args.dataset in ['milan', 'aruba', 'kyoto', 'cairo']:
         custom_train_test_split = True
       else:
         custom_train_test_split = False
+
       df = casas_end_to_end_preprocess(
-        city,
-        force_download=True,
-        custom_train_test_split=custom_train_test_split
+        args.dataset,
+        save_to_csv=True,
+        force_download=args.force_download,
+        custom_train_test_split=custom_train_test_split,
+        max_lines=args.max_lines
       )
       print(df.groupby(['first_activity_l2', 'first_activity']).agg(
           num=('sensor', 'count')).assign(perc=lambda df: df.num/df.num.sum()))
-      df_list.append(df)
+    print(colored(f"\n✓ Processing complete! Shape: {df.shape}", 'green'))
 
-  # df = casas_end_to_end_preprocess('milan')
-  # print(df.shape)
+  # Default: process multiple CASAS datasets (original behavior)
+  elif args.dataset is None:
+    print(colored("No dataset specified. Processing default CASAS datasets...", 'magenta'))
+    df_list = []
+    for city in ['milan', 'aruba', 'cairo']:
+      print(colored(f"Processing {city} dataset...", 'magenta'))
+      if city == 'aware_home':
+        df = awaerehome_end_to_end_preprocess()
+      else:
+        if city in ['milan', 'aruba', 'kyoto', 'cairo']:
+          custom_train_test_split = True
+        else:
+          custom_train_test_split = False
+        df = casas_end_to_end_preprocess(
+          city,
+          force_download=True,
+          custom_train_test_split=custom_train_test_split
+        )
+        print(df.groupby(['first_activity_l2', 'first_activity']).agg(
+            num=('sensor', 'count')).assign(perc=lambda df: df.num/df.num.sum()))
+        df_list.append(df)
 
-  # df_ah = awaerehome_end_to_end_preprocess()
-  # print(df_ah.shape)
-
-  # df_milan = df_list[0]
-  # df_aruba = df_list[1]
-  # df_cairo = df_list[2]
-  # print('Milan: num unique days: ', len(set(df_milan.date_col)))
-  # print('Aruba: num unique days: ', len(set(df_aruba.date_col)))
-  # print('Cairo: num unique days: ', len(set(df_cairo.date_col)))
-
-  # df_milan_gr = df_milan.groupby(['first_activity_l2']).agg(
-  #     num=('sensor', 'count')).assign(perc=lambda df: df.num/df.num.sum())
-
-  # df_aruba_gr = df_aruba.groupby(['first_activity_l2']).agg(
-  #     num=('sensor', 'count')).assign(perc=lambda df: df.num/df.num.sum())
-
-  # df_cairo_gr = df_cairo.groupby(['first_activity_l2']).agg(
-  #     num=('sensor', 'count')).assign(perc=lambda df: df.num/df.num.sum())
-
-  # # join the three dataframes
-  # df_all = df_milan_gr.join(df_aruba_gr, lsuffix='_milan', rsuffix='_aruba')
-  # df_all = df_all.join(df_cairo_gr, rsuffix='_cairo')
-  # print(df_all)
+  else:
+    print(colored(f"⚠️  Unknown dataset '{args.dataset}'", 'yellow'))
+    print(colored(f"Available datasets: {list(CASAS_METADATA.keys())}, marble, aware_home", 'yellow'))
+    parser.print_help()
