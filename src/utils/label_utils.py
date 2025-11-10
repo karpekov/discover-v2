@@ -8,7 +8,7 @@ from typing import List, Union, Dict, Any
 
 
 def load_house_metadata(house_name: str = "milan") -> Dict[str, Any]:
-    """Load house metadata from house_metadata.json file.
+    """Load house metadata from house_metadata.json or marble_metadata.json file.
 
     Args:
         house_name: Name of the house to load metadata for
@@ -19,8 +19,17 @@ def load_house_metadata(house_name: str = "milan") -> Dict[str, Any]:
     # Get the path to the metadata file
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(current_dir))
-    metadata_path = os.path.join(project_root, "metadata", "house_metadata.json")
 
+    # Check if it's MARBLE dataset
+    if house_name == "marble":
+        metadata_path = os.path.join(project_root, "metadata", "marble_metadata.json")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            return metadata.get("marble", {})
+
+    # Default to house_metadata.json for CASAS datasets
+    metadata_path = os.path.join(project_root, "metadata", "house_metadata.json")
     with open(metadata_path, 'r') as f:
         metadata = json.load(f)
 

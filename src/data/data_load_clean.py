@@ -34,6 +34,7 @@ from io import StringIO
 from termcolor import colored
 import json
 import argparse
+from sklearn.model_selection import train_test_split
 
 
 def _get_json_metadata(file_path='metadata/house_metadata.json'):
@@ -781,14 +782,795 @@ def process_marble_environmental_data(
 
   return df_combined
 
+
+def process_marble_to_trainable_data(
+    csv_path='data/processed/marble/marble_environment_single_resident.csv',
+    window_length_sec=16.0,
+    overlap_fraction=0.5,
+    power_threshold=10.0,
+    temperature_bins=5,
+    train_split=0.8,
+    output_dir='data/processed/marble',
+    save_to_json=True
+):
+  """Process MARBLE environmental CSV to trainable data following ADL-LLM preprocessing.
+
+  This function implements the complete ADL-LLM preprocessing pipeline:
+  1. Build event stream (ON/OFF events from sensors)
+  2. Convert events to sensor states
+  3. Create fixed-length sliding windows
+  4. Classify states inside windows
+  5. Assign activity labels to windows
+  6. Split into train/test sets
+
+  Args:
+    csv_path (str): Path to the input CSV file.
+    window_length_sec (float): Window length in seconds (τ).
+    overlap_fraction (float): Overlap fraction (o) between windows.
+    power_threshold (float): Threshold for power sensors (above = ON, below = OFF).
+    temperature_bins (int): Number of bins for temperature discretization.
+    train_split (float): Fraction of data for training (default 0.8).
+    output_dir (str): Directory to save output files.
+    save_to_json (bool): Whether to save processed data to JSON.
+
+  Returns:
+    tuple: (df_train, df_test) DataFrames with windowed data.
+  """
+  print(colored("Processing MARBLE data for ADL-LLM preprocessing...", 'magenta'))
+
+  # Step 1: Check if CSV exists, if not, try to generate it
+  if not os.path.exists(csv_path):
+    print(colored(f"CSV file not found at {csv_path}", 'yellow'))
+    print(colored("Attempting to generate it from raw MARBLE data...", 'cyan'))
+
+    # Default base path for raw MARBLE data
+    default_base_path = 'data/raw/marble/MARBLE/dataset'
+
+    # Check if raw data exists
+    if not os.path.exists(default_base_path):
+      print(colored("\n" + "="*80, 'red'))
+      print(colored("ERROR: Raw MARBLE dataset not found!", 'red'))
+      print(colored("="*80, 'red'))
+      print(colored("\nPlease download and extract the MARBLE dataset first:", 'yellow'))
+      print(colored(f"  1. Download MARBLE.rar from:", 'yellow'))
+      print(colored("     https://dataverse.unimi.it/dataset.xhtml?persistentId=doi:10.13130/RD_UNIMI/VGLD0Y", 'cyan'))
+      print(colored(f"  2. Extract the archive to: {os.path.dirname(default_base_path)}", 'yellow'))
+      print(colored(f"  3. Expected structure: {default_base_path}/", 'yellow'))
+      print(colored("     (should contain scenario folders like A1a, A1m, A1e, etc.)", 'yellow'))
+      print(colored("\nAfter extraction, run this command again.", 'yellow'))
+      print(colored("="*80 + "\n", 'red'))
+      raise FileNotFoundError(
+        f"Raw MARBLE dataset not found at {default_base_path}. "
+        f"Please download and extract MARBLE.rar first."
+      )
+
+    # Try to generate the CSV
+    try:
+      print(colored(f"Processing raw MARBLE data from {default_base_path}...", 'cyan'))
+      df_env = process_marble_environmental_data(
+        base_path=default_base_path,
+        output_path=csv_path,
+        save_to_csv=True
+      )
+      if df_env.empty:
+        raise ValueError("Generated CSV file is empty. Please check the raw data.")
+      print(colored(f"Successfully generated CSV file with {len(df_env)} rows", 'green'))
+    except Exception as e:
+      print(colored(f"\nFailed to generate CSV file: {e}", 'red'))
+      print(colored("Please ensure the raw MARBLE data is properly extracted.", 'yellow'))
+      raise
+
+  # Read the CSV file
+  df = pd.read_csv(csv_path)
+  if df.empty:
+    raise ValueError(f"CSV file is empty: {csv_path}")
+  print(colored(f"Loaded CSV with {len(df)} rows", 'cyan'))
+
+  # Convert timestamp from milliseconds to datetime
+  df['datetime'] = pd.to_datetime(df['ts'], unit='ms')
+  df = df.sort_values('datetime').reset_index(drop=True)
+
+  # Step 2: Build event stream
+  print(colored("Building event stream...", 'cyan'))
+  events = _build_event_stream(df, power_threshold, temperature_bins)
+  print(colored(f"Created {len(events)} events", 'cyan'))
+
+  # Step 3: Convert events to sensor states
+  print(colored("Converting events to sensor states...", 'cyan'))
+  states = _convert_events_to_states(events)
+  print(colored(f"Created {len(states)} states", 'cyan'))
+
+  # Step 4: Create fixed-length sliding windows
+  print(colored("Creating sliding windows...", 'cyan'))
+  windows = _create_sliding_windows(
+    states,
+    window_length_sec,
+    overlap_fraction,
+    df  # Pass original df for activity labels
+  )
+  print(colored(f"Created {len(windows)} windows", 'cyan'))
+
+  # Step 5: Classify states and assign activity labels
+  print(colored("Classifying states and assigning activity labels...", 'cyan'))
+  windowed_data = _process_windows(windows, window_length_sec, df)
+
+  # Step 5b: Generate captions for windows
+  print(colored("Generating captions for windows...", 'cyan'))
+  import sys
+  # Add src to path if needed
+  current_dir = os.path.dirname(os.path.abspath(__file__))
+  src_dir = os.path.dirname(current_dir)
+  if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+  from data.captions_marble import MarbleCaptionGenerator
+  caption_generator = MarbleCaptionGenerator()
+  for window in windowed_data:
+    window['caption'] = caption_generator.generate_caption(window, window_length_sec)
+  print(colored(f"Generated captions for {len(windowed_data)} windows", 'cyan'))
+
+  # Convert to DataFrame (serialize nested structures)
+  df_windows = _convert_windows_to_dataframe(windowed_data)
+
+  # Filter out windows with no states
+  num_before_states = len(df_windows)
+  df_windows = df_windows[df_windows['num_states'] > 0].reset_index(drop=True)
+  num_after_states = len(df_windows)
+  num_filtered_states = num_before_states - num_after_states
+  if num_filtered_states > 0:
+    print(colored(f"Filtered out {num_filtered_states} windows with no states ({num_filtered_states/num_before_states*100:.1f}%)", 'yellow'))
+
+  # Filter out unlabeled windows (including None/NaN values)
+  num_before = len(df_windows)
+  df_windows = df_windows[
+    (df_windows['activity_label'] != 'unlabeled') &
+    (df_windows['activity_label'].notna())
+  ].reset_index(drop=True)
+  num_after = len(df_windows)
+  num_filtered = num_before - num_after
+  if num_filtered > 0:
+    print(colored(f"Filtered out {num_filtered} unlabeled windows ({num_filtered/num_before*100:.1f}%)", 'yellow'))
+
+  if num_filtered_states > 0 or num_filtered > 0:
+    print(colored(f"Remaining windows: {num_after}", 'cyan'))
+
+  # Step 6: Split into train/test (80/20)
+  print(colored("Splitting into train/test sets...", 'cyan'))
+  df_train, df_test = _split_train_test(df_windows, train_split)
+
+  print(colored(f"Train windows: {len(df_train)}, Test windows: {len(df_test)}", 'magenta'))
+
+  # Save to JSON
+  if save_to_json:
+    # Create subfolder based on window length (e.g., sec60, sec16)
+    window_length_str = f"sec{int(window_length_sec)}"
+    output_subdir = os.path.join(output_dir, window_length_str)
+    os.makedirs(output_subdir, exist_ok=True)
+
+    train_path = os.path.join(output_subdir, 'marble_trainable_train.json')
+    test_path = os.path.join(output_subdir, 'marble_trainable_test.json')
+    _save_windows_to_json(df_train, train_path)
+    _save_windows_to_json(df_test, test_path)
+    print(colored(f"Saved train data to '{train_path}'", 'green'))
+    print(colored(f"Saved test data to '{test_path}'", 'green'))
+
+    # Generate and save statistics
+    stats_path = os.path.join(output_subdir, 'marble_trainable_stats.md')
+    _generate_dataset_stats(df_train, df_test, stats_path, window_length_sec, overlap_fraction)
+    print(colored(f"Saved dataset statistics to '{stats_path}'", 'green'))
+
+  return df_train, df_test
+
+
+def _build_event_stream(df, power_threshold, temperature_bins):
+  """Build event stream from sensor data.
+
+  Binary sensors: emit ON when activated, OFF when deactivated.
+  Power sensors: apply threshold; above = ON, below = OFF.
+  Temperature: discretize into bins; emit OFF for old bin and ON for new bin.
+
+  Returns:
+    List of (sensor_or_bin, ON/OFF, timestamp_ms) tuples, sorted by time.
+  """
+  events = []
+
+  # Group by sensor to process each sensor's readings
+  for sensor_id, sensor_df in df.groupby('sensor_id'):
+    sensor_df = sensor_df.sort_values('ts').reset_index(drop=True)
+
+    # Determine sensor type from sensor_id
+    sensor_type = sensor_id[0] if len(sensor_id) > 0 else 'U'
+
+    # Check if sensor_status is numeric (power/temperature) or binary
+    first_status = sensor_df['sensor_status'].iloc[0]
+    is_numeric = isinstance(first_status, (int, float)) or (
+      isinstance(first_status, str) and first_status.replace('.', '').replace('-', '').isdigit()
+    )
+
+    if sensor_type == 'E' or (is_numeric and sensor_type not in ['T', 'E']):
+      # Power sensor or numeric sensor: apply threshold
+      for _, row in sensor_df.iterrows():
+        try:
+          value = float(row['sensor_status'])
+          event_type = 'ON' if value >= power_threshold else 'OFF'
+          events.append((sensor_id, event_type, row['ts']))
+        except (ValueError, TypeError):
+          # If conversion fails, treat as binary
+          event_type = 'ON' if str(row['sensor_status']).upper() in ['ON', '1', 'TRUE'] else 'OFF'
+          events.append((sensor_id, event_type, row['ts']))
+
+    elif sensor_type == 'T' or (is_numeric and sensor_type == 'T'):
+      # Temperature sensor: discretize into bins
+      values = []
+      for _, row in sensor_df.iterrows():
+        try:
+          values.append(float(row['sensor_status']))
+        except (ValueError, TypeError):
+          continue
+
+      if len(values) > 0:
+        min_val, max_val = min(values), max(values)
+        bin_width = (max_val - min_val) / temperature_bins if max_val > min_val else 1.0
+
+        prev_bin = None
+        for _, row in sensor_df.iterrows():
+          try:
+            value = float(row['sensor_status'])
+            current_bin = int((value - min_val) / bin_width) if bin_width > 0 else 0
+            current_bin = min(current_bin, temperature_bins - 1)
+            bin_id = f"{sensor_id}_bin{current_bin}"
+
+            if prev_bin is not None and prev_bin != current_bin:
+              # Emit OFF for old bin
+              old_bin_id = f"{sensor_id}_bin{prev_bin}"
+              events.append((old_bin_id, 'OFF', row['ts']))
+
+            # Emit ON for new bin
+            events.append((bin_id, 'ON', row['ts']))
+            prev_bin = current_bin
+          except (ValueError, TypeError):
+            continue
+
+    else:
+      # Binary sensor: use sensor_status directly
+      for _, row in sensor_df.iterrows():
+        status = str(row['sensor_status']).upper()
+        event_type = 'ON' if status in ['ON', '1', 'TRUE', 'OPEN'] else 'OFF'
+        events.append((sensor_id, event_type, row['ts']))
+
+  # Sort by timestamp
+  events.sort(key=lambda x: x[2])
+  return events
+
+
+def _convert_events_to_states(events):
+  """Convert events to sensor states.
+
+  Pair each ON with the next OFF for the same sensor/bin.
+  Each state is (sensor_or_bin, t_start, t_end).
+  For repeated ONs, close the previous interval at the new ON time.
+
+  Returns:
+    List of (sensor_or_bin, t_start_ms, t_end_ms) tuples.
+  """
+  states = []
+  active_states = {}  # sensor_or_bin -> (t_start, last_event_time)
+
+  for sensor_or_bin, event_type, timestamp in events:
+    if event_type == 'ON':
+      # If already active, close previous state and start new one
+      if sensor_or_bin in active_states:
+        prev_start, _ = active_states[sensor_or_bin]
+        states.append((sensor_or_bin, prev_start, timestamp))
+      # Start new state
+      active_states[sensor_or_bin] = (timestamp, timestamp)
+    elif event_type == 'OFF':
+      # Close the active state
+      if sensor_or_bin in active_states:
+        t_start, _ = active_states[sensor_or_bin]
+        states.append((sensor_or_bin, t_start, timestamp))
+        del active_states[sensor_or_bin]
+
+  # Close any remaining active states (use last timestamp)
+  if events:
+    last_timestamp = events[-1][2]
+    for sensor_or_bin, (t_start, _) in active_states.items():
+      states.append((sensor_or_bin, t_start, last_timestamp))
+
+  return states
+
+
+def _create_sliding_windows(states, window_length_sec, overlap_fraction, df_original):
+  """Create fixed-length sliding windows.
+
+  Window length = τ seconds.
+  Overlap fraction = o.
+  Step size = τ * (1 - o).
+
+  For each window [t, t+τ], collect states that intersect:
+    s_start ≤ t+τ and s_end ≥ t
+
+  Returns:
+    List of dicts, each containing window info and intersecting states.
+  """
+  if not states:
+    return []
+
+  # Get time range from states
+  all_times = []
+  for _, t_start, t_end in states:
+    all_times.extend([t_start, t_end])
+
+  min_time = min(all_times)
+  max_time = max(all_times)
+
+  # Convert window_length_sec to milliseconds
+  window_length_ms = window_length_sec * 1000
+  step_size_ms = window_length_ms * (1 - overlap_fraction)
+
+  windows = []
+  window_id = 0
+
+  # Create windows
+  window_start = min_time
+  while window_start + window_length_ms <= max_time:
+    window_end = window_start + window_length_ms
+
+    # Find states that intersect this window
+    # State intersects if: s_start ≤ window_end and s_end ≥ window_start
+    intersecting_states = [
+      (sensor_or_bin, t_start, t_end)
+      for sensor_or_bin, t_start, t_end in states
+      if t_start <= window_end and t_end >= window_start
+    ]
+
+    windows.append({
+      'window_id': window_id,
+      'window_start_ms': window_start,
+      'window_end_ms': window_end,
+      'states': intersecting_states
+    })
+
+    window_id += 1
+    window_start += step_size_ms
+
+  return windows
+
+
+def _process_windows(windows, window_length_sec, df_original):
+  """Process windows: classify states and assign activity labels.
+
+  For each state in each window:
+    - Inner: fully inside (s_start ≥ t and s_end ≤ t+τ)
+    - Already-active: started before window (s_start < t)
+    - Persistent: ends after window (s_end > t+τ)
+
+  Assign activity label based on maximum overlap duration.
+  """
+  window_length_ms = window_length_sec * 1000
+  processed_windows = []
+
+  for window in windows:
+    window_start = window['window_start_ms']
+    window_end = window['window_end_ms']
+    states = window['states']
+
+    # Classify states
+    inner_states = []
+    already_active_states = []
+    persistent_states = []
+
+    for sensor_or_bin, t_start, t_end in states:
+      is_inner = t_start >= window_start and t_end <= window_end
+      is_already_active = t_start < window_start
+      is_persistent = t_end > window_end
+
+      state_info = {
+        'sensor_or_bin': sensor_or_bin,
+        't_start': t_start,
+        't_end': t_end,
+        'is_inner': is_inner,
+        'is_already_active': is_already_active,
+        'is_persistent': is_persistent
+      }
+
+      if is_inner:
+        inner_states.append(state_info)
+      if is_already_active:
+        already_active_states.append(state_info)
+      if is_persistent:
+        persistent_states.append(state_info)
+
+    # Assign activity label based on overlap duration
+    activity_label, num_overlapping_activities = _assign_activity_label(window_start, window_end, df_original)
+
+    processed_windows.append({
+      'window_id': window['window_id'],
+      'window_start_ms': window_start,
+      'window_end_ms': window_end,
+      'window_start_datetime': pd.to_datetime(window_start, unit='ms'),
+      'window_end_datetime': pd.to_datetime(window_end, unit='ms'),
+      'num_states': len(states),
+      'num_inner_states': len(inner_states),
+      'num_already_active_states': len(already_active_states),
+      'num_persistent_states': len(persistent_states),
+      'inner_states': inner_states,
+      'already_active_states': already_active_states,
+      'persistent_states': persistent_states,
+      'activity_label': activity_label,
+      'num_overlapping_activities': num_overlapping_activities
+    })
+
+  return processed_windows
+
+
+def _assign_activity_label(window_start_ms, window_end_ms, df_original):
+  """Assign activity label to window based on maximum overlap duration.
+
+  Consider all ground-truth activity intervals intersecting the window.
+  Compute total duration of overlap for each activity label.
+  Window's label is the activity with maximum overlap time.
+
+  Returns:
+    tuple: (activity_label, num_overlapping_activities)
+  """
+  # Filter activities that intersect the window
+  # Activity intersects if: activity_start <= window_end and activity_end >= window_start
+  intersecting_activities = df_original[
+    (df_original['activity_start'].notna()) &
+    (df_original['activity_end'].notna()) &
+    (df_original['activity_start'] <= window_end_ms) &
+    (df_original['activity_end'] >= window_start_ms)
+  ]
+
+  if intersecting_activities.empty:
+    return 'unlabeled', 0
+
+  # Compute overlap duration for each activity
+  activity_overlaps = {}
+  for _, row in intersecting_activities.iterrows():
+    activity = row['activity']
+    if pd.isna(activity):
+      continue
+
+    activity_start = row['activity_start']
+    activity_end = row['activity_end']
+
+    # Calculate overlap
+    overlap_start = max(window_start_ms, activity_start)
+    overlap_end = min(window_end_ms, activity_end)
+    overlap_duration = max(0, overlap_end - overlap_start)
+
+    if activity not in activity_overlaps:
+      activity_overlaps[activity] = 0
+    activity_overlaps[activity] += overlap_duration
+
+  if not activity_overlaps:
+    return 'unlabeled', 0
+
+  # Count unique overlapping activities
+  num_overlapping_activities = len(activity_overlaps)
+
+  # Return activity with maximum overlap and count of overlapping activities
+  return max(activity_overlaps.items(), key=lambda x: x[1])[0], num_overlapping_activities
+
+
+def _convert_windows_to_dataframe(windowed_data):
+  """Convert windowed data to DataFrame, keeping nested structures as lists/dicts."""
+  rows = []
+  for window in windowed_data:
+    row = {
+      'window_id': window['window_id'],
+      'window_start_ms': window['window_start_ms'],
+      'window_end_ms': window['window_end_ms'],
+      'window_start_datetime': window['window_start_datetime'],
+      'window_end_datetime': window['window_end_datetime'],
+      'num_states': window['num_states'],
+      'num_inner_states': window['num_inner_states'],
+      'num_already_active_states': window['num_already_active_states'],
+      'num_persistent_states': window['num_persistent_states'],
+      'activity_label': window['activity_label'],
+      'num_overlapping_activities': window.get('num_overlapping_activities', 0),
+      'caption': window.get('caption', ''),
+      # Keep nested structures as lists/dicts (not JSON strings)
+      'inner_states': window['inner_states'],
+      'already_active_states': window['already_active_states'],
+      'persistent_states': window['persistent_states']
+    }
+    rows.append(row)
+
+  df = pd.DataFrame(rows)
+  # Convert datetime columns to strings for serialization
+  if 'window_start_datetime' in df.columns:
+    df['window_start_datetime'] = df['window_start_datetime'].astype(str)
+  if 'window_end_datetime' in df.columns:
+    df['window_end_datetime'] = df['window_end_datetime'].astype(str)
+
+  return df
+
+
+def _save_windows_to_json(df, json_path):
+  """Save windowed data to JSON file with proper nested structure."""
+  import json
+
+  # Convert DataFrame to list of dictionaries
+  records = df.to_dict('records')
+
+  # Convert datetime strings back to ISO format if needed
+  for record in records:
+    # Ensure nested structures are properly formatted
+    for key in ['inner_states', 'already_active_states', 'persistent_states']:
+      if key in record and isinstance(record[key], str):
+        # If it's a JSON string, parse it
+        try:
+          record[key] = json.loads(record[key])
+        except (json.JSONDecodeError, TypeError):
+          pass
+
+  # Save as JSON with indentation for readability
+  with open(json_path, 'w') as f:
+    json.dump(records, f, indent=2, default=str)
+
+
+def _generate_dataset_stats(df_train, df_test, stats_path, window_length_sec, overlap_fraction):
+  """Generate and save dataset statistics to a markdown file.
+
+  Args:
+    df_train (pd.DataFrame): Training set windows.
+    df_test (pd.DataFrame): Test set windows.
+    stats_path (str): Path to save the statistics file.
+    window_length_sec (float): Window length in seconds.
+    overlap_fraction (float): Overlap fraction between windows.
+  """
+  stats_lines = []
+  stats_lines.append("# MARBLE Trainable Dataset Statistics\n")
+  stats_lines.append(f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+  # Processing parameters
+  stats_lines.append("## Processing Parameters\n")
+  stats_lines.append(f"- Window length: {window_length_sec} seconds\n")
+  stats_lines.append(f"- Overlap fraction: {overlap_fraction}\n")
+  stats_lines.append(f"- Step size: {window_length_sec * (1 - overlap_fraction):.2f} seconds\n\n")
+
+  # Overall statistics
+  stats_lines.append("## Overall Statistics\n")
+  stats_lines.append(f"- **Total windows**: {len(df_train) + len(df_test):,}\n")
+  stats_lines.append(f"- **Train windows**: {len(df_train):,} ({len(df_train)/(len(df_train)+len(df_test))*100:.1f}%)\n")
+  stats_lines.append(f"- **Test windows**: {len(df_test):,} ({len(df_test)/(len(df_train)+len(df_test))*100:.1f}%)\n\n")
+
+  # Events/States statistics
+  stats_lines.append("## Window Statistics\n")
+
+  # Average events per window
+  avg_states_train = df_train['num_states'].mean() if 'num_states' in df_train.columns else 0
+  avg_states_test = df_test['num_states'].mean() if 'num_states' in df_test.columns else 0
+  avg_states_total = (df_train['num_states'].sum() + df_test['num_states'].sum()) / (len(df_train) + len(df_test))
+
+  stats_lines.append(f"- **Average states per window (train)**: {avg_states_train:.2f}\n")
+  stats_lines.append(f"- **Average states per window (test)**: {avg_states_test:.2f}\n")
+  stats_lines.append(f"- **Average states per window (total)**: {avg_states_total:.2f}\n")
+  stats_lines.append(f"- **Min states per window**: {min(df_train['num_states'].min(), df_test['num_states'].min())}\n")
+  stats_lines.append(f"- **Max states per window**: {max(df_train['num_states'].max(), df_test['num_states'].max())}\n\n")
+
+  # State type statistics
+  if 'num_inner_states' in df_train.columns:
+    avg_inner_train = df_train['num_inner_states'].mean()
+    avg_inner_test = df_test['num_inner_states'].mean()
+    avg_already_active_train = df_train['num_already_active_states'].mean()
+    avg_already_active_test = df_test['num_already_active_states'].mean()
+    avg_persistent_train = df_train['num_persistent_states'].mean()
+    avg_persistent_test = df_test['num_persistent_states'].mean()
+
+    stats_lines.append("### State Type Distribution\n")
+    stats_lines.append(f"- **Inner states** (train): {avg_inner_train:.2f} avg, (test): {avg_inner_test:.2f} avg\n")
+    stats_lines.append(f"- **Already-active states** (train): {avg_already_active_train:.2f} avg, (test): {avg_already_active_test:.2f} avg\n")
+    stats_lines.append(f"- **Persistent states** (train): {avg_persistent_train:.2f} avg, (test): {avg_persistent_test:.2f} avg\n\n")
+
+  # Overlapping activities statistics
+  if 'num_overlapping_activities' in df_train.columns:
+    avg_overlapping_train = df_train['num_overlapping_activities'].mean()
+    avg_overlapping_test = df_test['num_overlapping_activities'].mean()
+    avg_overlapping_total = (df_train['num_overlapping_activities'].sum() + df_test['num_overlapping_activities'].sum()) / (len(df_train) + len(df_test))
+    max_overlapping = max(df_train['num_overlapping_activities'].max(), df_test['num_overlapping_activities'].max())
+
+    # Count windows with multiple overlapping activities
+    multi_overlap_train = (df_train['num_overlapping_activities'] > 1).sum()
+    multi_overlap_test = (df_test['num_overlapping_activities'] > 1).sum()
+    multi_overlap_total = multi_overlap_train + multi_overlap_test
+    total_windows = len(df_train) + len(df_test)
+    multi_overlap_pct = (multi_overlap_total / total_windows * 100) if total_windows > 0 else 0
+
+    stats_lines.append("### Activity Overlap Statistics\n")
+    stats_lines.append(f"- **Average overlapping activities per window (train)**: {avg_overlapping_train:.2f}\n")
+    stats_lines.append(f"- **Average overlapping activities per window (test)**: {avg_overlapping_test:.2f}\n")
+    stats_lines.append(f"- **Average overlapping activities per window (total)**: {avg_overlapping_total:.2f}\n")
+    stats_lines.append(f"- **Max overlapping activities in a window**: {max_overlapping}\n")
+    stats_lines.append(f"- **Windows with multiple overlapping activities**: {multi_overlap_total:,} ({multi_overlap_pct:.1f}%)\n")
+    stats_lines.append(f"  - Train: {multi_overlap_train:,}, Test: {multi_overlap_test:,}\n\n")
+
+  # Label statistics
+  stats_lines.append("## Label Distribution\n\n")
+
+  # Count labels in train and test
+  train_label_counts = df_train['activity_label'].value_counts().sort_index()
+  test_label_counts = df_test['activity_label'].value_counts().sort_index()
+  all_labels = sorted(set(df_train['activity_label'].unique()) | set(df_test['activity_label'].unique()))
+
+  stats_lines.append("### Windows per Label\n\n")
+  stats_lines.append("| Label | Train | Test | Total | Train % | Test % |\n")
+  stats_lines.append("|-------|-------|------|-------|---------|--------|\n")
+
+  for label in all_labels:
+    train_count = train_label_counts.get(label, 0)
+    test_count = test_label_counts.get(label, 0)
+    total_count = train_count + test_count
+    train_pct = (train_count / len(df_train) * 100) if len(df_train) > 0 else 0
+    test_pct = (test_count / len(df_test) * 100) if len(df_test) > 0 else 0
+    stats_lines.append(f"| {label} | {train_count:,} | {test_count:,} | {total_count:,} | {train_pct:.1f}% | {test_pct:.1f}% |\n")
+
+  stats_lines.append("\n")
+
+  # Average events per label
+  stats_lines.append("### Average States per Window by Label\n\n")
+  stats_lines.append("| Label | Train Avg | Test Avg | Overall Avg |\n")
+  stats_lines.append("|-------|-----------|----------|-------------|\n")
+
+  for label in all_labels:
+    train_label_windows = df_train[df_train['activity_label'] == label]
+    test_label_windows = df_test[df_test['activity_label'] == label]
+
+    if len(train_label_windows) > 0 and len(test_label_windows) > 0:
+      train_avg = train_label_windows['num_states'].mean()
+      test_avg = test_label_windows['num_states'].mean()
+      overall_avg = (train_label_windows['num_states'].sum() + test_label_windows['num_states'].sum()) / (len(train_label_windows) + len(test_label_windows))
+      stats_lines.append(f"| {label} | {train_avg:.2f} | {test_avg:.2f} | {overall_avg:.2f} |\n")
+    elif len(train_label_windows) > 0:
+      train_avg = train_label_windows['num_states'].mean()
+      stats_lines.append(f"| {label} | {train_avg:.2f} | - | {train_avg:.2f} |\n")
+    elif len(test_label_windows) > 0:
+      test_avg = test_label_windows['num_states'].mean()
+      stats_lines.append(f"| {label} | - | {test_avg:.2f} | {test_avg:.2f} |\n")
+
+  stats_lines.append("\n")
+
+  # Time range
+  if 'window_start_ms' in df_train.columns and 'window_end_ms' in df_train.columns:
+    all_start_times = pd.concat([df_train['window_start_ms'], df_test['window_start_ms']])
+    all_end_times = pd.concat([df_train['window_end_ms'], df_test['window_end_ms']])
+
+    min_time = pd.to_datetime(all_start_times.min(), unit='ms')
+    max_time = pd.to_datetime(all_end_times.max(), unit='ms')
+    duration = max_time - min_time
+
+    stats_lines.append("## Time Range\n")
+    stats_lines.append(f"- **Start time**: {min_time}\n")
+    stats_lines.append(f"- **End time**: {max_time}\n")
+    stats_lines.append(f"- **Total duration**: {duration}\n")
+    stats_lines.append(f"- **Duration in hours**: {duration.total_seconds() / 3600:.2f}\n\n")
+
+  # Label coverage check
+  stats_lines.append("## Label Coverage\n")
+  train_labels_set = set(df_train['activity_label'].unique())
+  test_labels_set = set(df_test['activity_label'].unique())
+  all_labels_set = set(all_labels)
+
+  missing_in_test = train_labels_set - test_labels_set
+  missing_in_train = test_labels_set - train_labels_set
+
+  if missing_in_test:
+    stats_lines.append(f"⚠️ **Labels in train but not in test**: {', '.join(sorted(missing_in_test))}\n")
+  if missing_in_train:
+    stats_lines.append(f"⚠️ **Labels in test but not in train**: {', '.join(sorted(missing_in_train))}\n")
+  if not missing_in_test and not missing_in_train:
+    stats_lines.append("✅ **All labels present in both train and test sets**\n")
+
+  stats_lines.append(f"\n- **Unique labels in train**: {len(train_labels_set)}\n")
+  stats_lines.append(f"- **Unique labels in test**: {len(test_labels_set)}\n")
+  stats_lines.append(f"- **Total unique labels**: {len(all_labels_set)}\n")
+
+  # Write to file
+  with open(stats_path, 'w') as f:
+    f.writelines(stats_lines)
+
+
+def _split_train_test(df_windows, train_split):
+  """Split windows into train and test sets using stratified random sampling.
+
+  Ensures each activity label is present in both train and test sets.
+  Uses random sampling (not temporal ordering).
+
+  Args:
+    df_windows (pd.DataFrame): DataFrame with windowed data.
+    train_split (float): Fraction of data for training (default 0.8).
+
+  Returns:
+    tuple: (df_train, df_test) DataFrames with stratified split.
+  """
+  # Reset index to ensure clean indexing
+  df_windows = df_windows.reset_index(drop=True)
+
+  # Check if we have enough samples per label for stratification
+  label_counts = df_windows['activity_label'].value_counts()
+  min_samples_per_label = label_counts.min()
+
+  # Calculate test size
+  test_size = 1.0 - train_split
+
+  # If any label has fewer than 2 samples, we can't stratify properly
+  # In that case, we'll do a simple random split but try to ensure each label appears in both sets
+  if min_samples_per_label < 2:
+    print(colored(
+      f"⚠️  Warning: Some labels have < 2 samples. Using random split with label preservation.",
+      'yellow'
+    ))
+    # Simple random split, but manually ensure each label appears in both sets
+    df_train, df_test = train_test_split(
+      df_windows,
+      test_size=test_size,
+      random_state=42,
+      shuffle=True
+    )
+
+    # Ensure each label appears in both sets
+    train_labels = set(df_train['activity_label'].unique())
+    test_labels = set(df_test['activity_label'].unique())
+    missing_in_test = train_labels - test_labels
+    missing_in_train = test_labels - train_labels
+
+    # Move one sample from train to test for labels missing in test
+    for label in missing_in_test:
+      label_samples = df_train[df_train['activity_label'] == label]
+      if len(label_samples) > 1:
+        # Get the first row as a DataFrame
+        sample_to_move = label_samples.iloc[[0]]
+        df_test = pd.concat([df_test, sample_to_move], ignore_index=True)
+        df_train = df_train.drop(label_samples.index[0])
+
+    # Move one sample from test to train for labels missing in train
+    for label in missing_in_train:
+      label_samples = df_test[df_test['activity_label'] == label]
+      if len(label_samples) > 1:
+        # Get the first row as a DataFrame
+        sample_to_move = label_samples.iloc[[0]]
+        df_train = pd.concat([df_train, sample_to_move], ignore_index=True)
+        df_test = df_test.drop(label_samples.index[0])
+
+    return df_train.reset_index(drop=True), df_test.reset_index(drop=True)
+
+  # Use stratified split if we have enough samples
+  df_train, df_test = train_test_split(
+    df_windows,
+    test_size=test_size,
+    stratify=df_windows['activity_label'],
+    random_state=42,
+    shuffle=True
+  )
+
+  # Verify stratification worked
+  train_labels = set(df_train['activity_label'].unique())
+  test_labels = set(df_test['activity_label'].unique())
+  all_labels = set(df_windows['activity_label'].unique())
+
+  if train_labels != all_labels or test_labels != all_labels:
+    print(colored(
+      f"⚠️  Warning: Not all labels present in both sets. Train: {len(train_labels)}, Test: {len(test_labels)}, All: {len(all_labels)}",
+      'yellow'
+    ))
+
+  return df_train.reset_index(drop=True), df_test.reset_index(drop=True)
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(
     description='Process CASAS or MARBLE datasets',
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog="""
 Examples:
-  # Process MARBLE dataset
+  # Process MARBLE dataset (environmental data)
   python src/data/data_load_clean.py --dataset marble --function process_marble_environmental_data
+
+  # Process MARBLE dataset to trainable data (ADL-LLM preprocessing)
+  python src/data/data_load_clean.py --dataset marble --function process_marble_to_trainable_data
 
   # Process CASAS dataset (milan)
   python src/data/data_load_clean.py --dataset milan
@@ -808,7 +1590,7 @@ Examples:
     '--function',
     type=str,
     default=None,
-    help='Function to run (for marble: process_marble_environmental_data)'
+    help='Function to run (for marble: process_marble_environmental_data, process_marble_to_trainable_data)'
   )
 
   parser.add_argument(
@@ -844,6 +1626,27 @@ Examples:
     help='Output path for processed CSV (for marble dataset only)'
   )
 
+  parser.add_argument(
+    '--csv_path',
+    type=str,
+    default='data/processed/marble/marble_environment_single_resident.csv',
+    help='Path to input CSV for process_marble_to_trainable_data'
+  )
+
+  parser.add_argument(
+    '--window_length_sec',
+    type=float,
+    default=16.0,
+    help='Window length in seconds (for process_marble_to_trainable_data)'
+  )
+
+  parser.add_argument(
+    '--overlap_fraction',
+    type=float,
+    default=0.5,
+    help='Overlap fraction between windows (for process_marble_to_trainable_data)'
+  )
+
   args = parser.parse_args()
 
   # Process MARBLE dataset
@@ -855,9 +1658,17 @@ Examples:
         save_to_csv=True
       )
       print(colored(f"\n✓ Processing complete! Shape: {df.shape}", 'green'))
+    elif args.function == 'process_marble_to_trainable_data':
+      df_train, df_test = process_marble_to_trainable_data(
+        csv_path=args.csv_path,
+        window_length_sec=args.window_length_sec,
+        overlap_fraction=args.overlap_fraction,
+        save_to_json=True
+      )
+      print(colored(f"\n✓ Processing complete! Train: {df_train.shape}, Test: {df_test.shape}", 'green'))
     else:
       print(colored(f"⚠️  Unknown function '{args.function}' for marble dataset", 'yellow'))
-      print(colored("Available functions: process_marble_environmental_data", 'yellow'))
+      print(colored("Available functions: process_marble_environmental_data, process_marble_to_trainable_data", 'yellow'))
 
   # Process CASAS datasets
   elif args.dataset in CASAS_METADATA or args.dataset == 'aware_home':

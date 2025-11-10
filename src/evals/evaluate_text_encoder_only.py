@@ -5,16 +5,27 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 """
-Text encoder only evaluation script for CASAS activity recognition.
+Text encoder only evaluation script for CASAS and MARBLE activity recognition.
 Evaluates text captions using raw text encoder embeddings (768-dim GTE) without CLIP projection.
 Compares captions against text-based activity prototypes using cosine similarity.
 
-Sample Usage:
+Sample Usage (CASAS):
   python src/evals/evaluate_text_encoder_only.py \
     --train_data data/processed/casas/milan/sourish_seq100/milan_train.json \
     --test_data data/processed/casas/milan/sourish_seq100/milan_presegmented_test.json \
     --output_dir results/evals/milan/sourish_100/textonly_gte \
     --description_style sourish \
+    --text_model_name gte \
+    --max_samples 10000 \
+    --filter_noisy_labels \
+    --verbose
+
+Sample Usage (MARBLE):
+  python src/evals/evaluate_text_encoder_only.py \
+    --train_data data/processed/marble/sec16/marble_trainable_train.json \
+    --test_data data/processed/marble/sec16/marble_trainable_test.json \
+    --output_dir results/evals/marble/sec16/textonly_gte \
+    --house_name marble \
     --text_model_name gte \
     --max_samples 10000 \
     --filter_noisy_labels \
@@ -105,12 +116,23 @@ class TextEncoderOnlyEvaluator:
         print(f"📊 Test samples: {len(self.test_data)}")
 
     def extract_captions_and_labels(self, data: List[Dict], max_samples: int = None, split_name: str = "data") -> Tuple[List[str], List[str], List[str]]:
-        """Extract captions and labels from dataset with optional sampling."""
+        """Extract captions and labels from dataset with optional sampling.
+
+        Supports both CASAS format (long_captions, first_activity) and MARBLE format (caption, activity_label).
+        """
         print(f"🔄 Extracting captions and labels from {split_name}...")
 
         captions = []
         labels_l1 = []
         labels_l2 = []
+
+        # Detect dataset format
+        is_marble = False
+        if data and 'caption' in data[0] and 'activity_label' in data[0]:
+            is_marble = True
+            print(f"   Detected MARBLE dataset format")
+        else:
+            print(f"   Detected CASAS dataset format")
 
         # Apply sampling if requested
         if max_samples and len(data) > max_samples:
@@ -120,24 +142,31 @@ class TextEncoderOnlyEvaluator:
             data = random.sample(data, max_samples)
 
         for sample in data:
-            # Get long captions (more detailed and informative than short captions)
-            long_captions = sample.get('long_captions', [])
+            caption_text = None
 
-            # Get labels
-            activity_l1 = sample.get('first_activity', 'Unknown')
-            activity_l2 = sample.get('first_activity_l2', 'Unknown')
+            if is_marble:
+                # MARBLE format: single caption string
+                caption_text = sample.get('caption', '')
+                activity_l1 = sample.get('activity_label', 'Unknown')
+                # MARBLE doesn't have L2, use L1 for both
+                activity_l2 = activity_l1
+            else:
+                # CASAS format: long_captions list
+                long_captions = sample.get('long_captions', [])
+                if long_captions:
+                    first_caption = long_captions[0]
+                    if isinstance(first_caption, str):
+                        caption_text = first_caption
+                    elif isinstance(first_caption, list) and len(first_caption) > 0:
+                        # Handle case where caption is [caption_text, metadata]
+                        caption_text = first_caption[0]
 
-            # Use only the first long caption from each sample
-            if long_captions:
-                first_caption = long_captions[0]
-                if isinstance(first_caption, str):
-                    captions.append(first_caption)
-                elif isinstance(first_caption, list) and len(first_caption) > 0:
-                    # Handle case where caption is [caption_text, metadata]
-                    captions.append(first_caption[0])
-                else:
-                    continue
+                activity_l1 = sample.get('first_activity', 'Unknown')
+                activity_l2 = sample.get('first_activity_l2', 'Unknown')
 
+            # Only add if we have a valid caption
+            if caption_text and caption_text.strip():
+                captions.append(caption_text.strip())
                 labels_l1.append(activity_l1)
                 labels_l2.append(activity_l2)
 
@@ -153,7 +182,8 @@ class TextEncoderOnlyEvaluator:
         # Define labels to exclude (case-insensitive)
         exclude_labels = {
             'other', 'no_activity', 'unknown', 'none', 'null', 'nan',
-            'no activity', 'other activity', 'miscellaneous', 'misc'
+            'no activity', 'other activity', 'miscellaneous', 'misc',
+            'unlabeled'  # Add unlabeled for MARBLE datasets
         }
 
         # Find valid indices (keep samples that don't have excluded labels in either L1 or L2)
@@ -231,7 +261,21 @@ class TextEncoderOnlyEvaluator:
 
         # Convert labels to multiple natural language descriptions
         # Get house_name from config or default to milan
+        # Auto-detect if it's MARBLE dataset
         house_name = self.config.get('house_name', 'milan')
+
+        # Auto-detect MARBLE if house_name is not explicitly set and data suggests MARBLE
+        if house_name == 'milan' and hasattr(self, 'train_data') and self.train_data:
+            if isinstance(self.train_data, list) and len(self.train_data) > 0:
+                if 'caption' in self.train_data[0] and 'activity_label' in self.train_data[0]:
+                    house_name = 'marble'
+                    print(f"   Auto-detected MARBLE dataset, using marble metadata")
+
+        # For MARBLE, always use sourish style (which uses label_to_text_sourish)
+        if house_name == 'marble':
+            description_style = 'sourish'
+            print(f"   Using 'sourish' description style for MARBLE labels")
+
         label_descriptions_lists = convert_labels_to_text(unique_labels, single_description=False,
                                                           house_name=house_name,
                                                           description_style=description_style)
@@ -1025,9 +1069,9 @@ Example usage:
     parser.add_argument('--filter_noisy_labels', action='store_true',
                        help='Filter out noisy labels like "Other" and "No_Activity"')
     parser.add_argument('--description_style', type=str, default='baseline', choices=['baseline', 'sourish'],
-                       help='Style of label descriptions to use: "baseline" or "sourish" (default: baseline)')
+                       help='Style of label descriptions to use: "baseline" or "sourish" (default: baseline, auto-set to sourish for MARBLE)')
     parser.add_argument('--house_name', type=str, default='milan',
-                       help='House name for label descriptions (default: milan)')
+                       help='House name for label descriptions: "milan", "aruba", "cairo", "marble", etc. (default: milan, auto-detected for MARBLE)')
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose output with per-label stats and classification examples')
 
