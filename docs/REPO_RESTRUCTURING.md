@@ -105,7 +105,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - ⏳ **TODO**: Image-based encoders (2b) - placeholder created
 
 #### **Step 3: Caption Generation** - ✅ COMPLETE
-- **Status**: Fully implemented and documented
+- **Status**: Fully implemented, tested on real data, and documented
 - **What works**:
   - ✅ Modular caption framework with base classes
   - ✅ BaselineCaptionGenerator (natural language, multiple variations)
@@ -113,17 +113,30 @@ Given this implementation pipeline, please plan necessary changes to current rep
   - ✅ LLM-based caption placeholder (future integration)
   - ✅ YAML configuration system
   - ✅ Command-line tool (`generate_captions.py`)
-  - ✅ JSON output indexed by sample_id
+  - ✅ Style-specific filename suffixes (`train_captions_{style}.json`)
+  - ✅ Compatible with Step 1 sampled data format
   - ✅ Comprehensive documentation
-- **Output**: Caption JSON files stored with sampled data
+- **Output**: Caption JSON files with style suffixes
+  - Format: `{split}_captions_{style}.json`
+  - Examples: `train_captions_baseline.json`, `train_captions_sourish.json`, `train_captions_llm_gpt4.json`
 - **Documentation**:
-  - `docs/CAPTION_GENERATION_GUIDE.md` - Complete usage guide
-  - Usage examples and programmatic API
-- **Files**: 7 core files + 4 config files + 1 doc file + CLI script
+  - `docs/CAPTION_GENERATION_GUIDE.md` - Complete usage guide (384 lines)
+  - `docs/STEP3_CAPTION_SUMMARY.md` - Implementation summary (400+ lines)
+  - `src/captions/example_usage.py` - 5 working examples (all pass ✅)
+- **Files**: 9 core files + 4 config files + 2 doc files + CLI script (~2,220 lines)
 - **Caption Styles**:
   - Baseline: Rich natural language with temporal/spatial context
   - Sourish: Structured 4-component format (when+duration+where+sensors)
-- ⏳ **TODO**: Mixed strategy, LLM integration
+  - LLM: Placeholder for GPT-4, Claude, Gemini (future)
+- **Recent Fixes** (Nov 13, 2025):
+  - ✅ Column name normalization (timestamp→datetime, sensor_id→sensor, room→room_id)
+  - ✅ Mixed datetime format parsing (handles with/without microseconds)
+  - ✅ Automatic time-of-day computation from timestamps
+  - ✅ Fixed Unicode characters in Layer B output (en-dash → hyphen)
+  - ✅ LLM model parameter support (`--llm-model gpt4`)
+  - ✅ Successfully tested on Milan dataset (34,842 samples)
+- **Integration Status**: ✅ Ready to use with Step 1 sampled data
+- ⏳ **TODO**: Mixed strategy, LLM API integration
 
 ### ⏳ Pending Steps
 
@@ -169,12 +182,14 @@ Overall Progress:             ███████░░░░░░░░░�
 
 ### 🎉 Key Achievements So Far
 
-1. **Modular Architecture**: Clean separation between sampling and encoding
+1. **Modular Architecture**: Clean separation between sampling, encoding, and captions
 2. **Config-Driven Design**: All components use YAML configs
 3. **Variable-Length Support**: Proper padding handling throughout
 4. **Backward Compatible**: Old code still works in `src/models/`, `src/data/`
-5. **Well-Documented**: 3 comprehensive guides + working examples
-6. **Production-Ready**: Steps 1 & 2 fully tested and ready for integration
+5. **Well-Documented**: 5 comprehensive guides + working examples
+6. **Production-Ready**: Steps 1, 2, & 3 fully tested on real data
+7. **Multi-Style Support**: Generate and compare multiple caption styles simultaneously
+8. **Robust Data Handling**: Automatic column normalization and format detection
 
 ### 📁 New Directory Structure Created
 
@@ -215,25 +230,32 @@ discover-v2/
 ├── docs/
 │   ├── ENCODER_GUIDE.md              # ✅ NEW (500+ lines)
 │   ├── STEP2_ENCODER_SUMMARY.md      # ✅ NEW (325 lines)
-│   ├── CAPTION_GENERATION_GUIDE.md   # ✅ NEW (400+ lines)
+│   ├── CAPTION_GENERATION_GUIDE.md   # ✅ NEW (384 lines)
+│   ├── STEP3_CAPTION_SUMMARY.md      # ✅ NEW (400+ lines)
 │   └── REPO_RESTRUCTURING.md         # ✅ UPDATED
 │
 ├── sample_data.py          # ✅ NEW: CLI tool for sampling
-└── generate_captions.py    # ✅ NEW: CLI tool for captions
+└── generate_captions.py    # ✅ NEW: CLI tool for captions (with style suffixes)
 ```
 
 ### 🔧 Integration Status
 
 **Ready for Integration**:
 - ✅ Step 1 → Step 2: Can load sampled JSON and encode
-- ✅ Step 1 → Step 3: Can load sampled JSON and generate captions ✨ NEW
+- ✅ Step 1 → Step 3: Can load sampled JSON and generate captions ✨ TESTED
 - ✅ Step 2 → Step 5: Encoder supports CLIP training
 - ✅ Step 2 → MLM: Encoder supports MLM training
+- ✅ Step 3 outputs: Multiple caption styles with style-specific filenames
 
 **Pending Integration**:
 - ⏳ Step 3 → Step 4: Need text encoders for captions
 - ⏳ Step 2 + 4 → Step 5: Need to integrate for alignment training
 - ⏳ All steps → Unified pipeline
+
+**Tested End-to-End**:
+- ✅ Step 1 → Step 3: Milan dataset (34,842 samples) successfully processed
+  - Fixed-length sampling (20 events) → baseline captions
+  - Output: `train_captions_baseline.json`, `test_captions_baseline.json`
 
 ### 📝 Next Immediate Steps
 
@@ -559,6 +581,31 @@ class BaseSampler(ABC):
 **Decision 5**: Start with 1a (copy) and 1b (new), skip 1c for now
 - Rationale: Focus on getting 2 variants working before expanding
 - Action: Implement fixed_length.py and fixed_duration.py
+
+**Decision 6**: Store captions separately with style-specific filename suffixes
+- Rationale: Allows multiple caption styles for the same sensor data
+- Action: Use format `{split}_captions_{style}.json` (e.g., `train_captions_baseline.json`, `train_captions_sourish.json`, `train_captions_llm_gpt4.json`)
+- Benefits: Easy comparison of caption styles, flexible experimentation
+
+**Decision 7**: Normalize column names in caption generators
+- Rationale: Step 1 sampled data uses different column names than legacy code
+- Action: Map `timestamp→datetime`, `sensor_id→sensor`, `room→room_id` automatically
+- Benefits: Backward compatible with both old and new data formats
+
+**Decision 8**: Compute missing metadata fields automatically
+- Rationale: Step 1 sampled data may not have all fields (e.g., `tod_bucket`)
+- Action: Compute time-of-day from timestamps if not provided
+- Benefits: Works with minimal metadata, reduces data preprocessing requirements
+
+**Decision 9**: Use mixed datetime parsing
+- Rationale: Sampled data has inconsistent timestamp formats (with/without microseconds)
+- Action: Use `pd.to_datetime(format='mixed')` to handle both formats
+- Benefits: Robust to different timestamp precisions
+
+**Decision 10**: Port existing caption generators, don't modify originals
+- Rationale: Maintain backward compatibility, allow side-by-side comparison
+- Action: Create new modular versions in `src/captions/` while keeping `src/data/captions*.py` intact
+- Benefits: Existing experiments continue to work, new code is cleaner
 
 ===========================================================
 === IMPLEMENTATION PROGRESS ===
