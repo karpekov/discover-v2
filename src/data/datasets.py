@@ -39,7 +39,7 @@ class DatasetConfig:
 class DatasetRegistry:
     """Registry for managing dataset configurations."""
 
-    def __init__(self, metadata_path: str = "metadata/house_metadata.json"):
+    def __init__(self, metadata_path: str = "metadata/casas_metadata.json"):
         self.metadata_path = Path(metadata_path)
         self._configs: Dict[str, DatasetConfig] = {}
         self._load_configs()

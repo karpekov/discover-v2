@@ -76,6 +76,24 @@
       "P8": "Pressure Mat sensor on living room couch",
       "P9": "Pressure Mat sensor on living room couch"
     },
+    "sensor_type": {
+      "R1": "magnetic",
+      "R2": "magnetic",
+      "R5": "magnetic",
+      "R6": "magnetic",
+      "R7": "magnetic",
+      "E1": "electricity",
+      "E2": "electricity",
+      "P1": "pressure",
+      "P2": "pressure",
+      "P3": "pressure",
+      "P4": "pressure",
+      "P5": "pressure",
+      "P6": "pressure",
+      "P7": "pressure",
+      "P8": "pressure",
+      "P9": "pressure"
+    },
     "label_l2": {
       "ANSWERING_PHONE": "Phone_Call",
       "CLEARING_TABLE": "Cleaning_Table",

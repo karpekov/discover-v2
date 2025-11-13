@@ -1,6 +1,6 @@
 """ Functions to download and process raw CASAS data.
 
-All relevant metadata is stored in `metadata/house_metadata.json` file.
+All relevant metadata is stored in `metadata/casas_metadata.json` file.
 
 Main function:
 - casas_end_to_end_preprocess(city_name: str)
@@ -37,7 +37,7 @@ import argparse
 from sklearn.model_selection import train_test_split
 
 
-def _get_json_metadata(file_path='metadata/house_metadata.json'):
+def _get_json_metadata(file_path='metadata/casas_metadata.json'):
   with open(file_path, 'r') as file:
     metadata = json.load(file)
   return metadata
@@ -310,7 +310,7 @@ def get_df_dated_sample(df, start_date_str, end_date_str=None):
 def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=False, custom_train_test_split=False, max_lines=None):
   """ Process the CASAS dataset.
 
-  Given the `metadata/house_metadata.json` file, this function downloads the
+  Given the `metadata/casas_metadata.json` file, this function downloads the
   raw data from CASAS website, processes it, and returns a clean DataFrame with
   labels and other annotations.
 
@@ -326,7 +326,7 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
     )
   elif dataset_name not in CASAS_METADATA:
     raise ValueError(
-      f'Dataset name "{dataset_name}" not in `house_metadata.json`. Must be one of: {list(CASAS_METADATA.keys())}'
+      f'Dataset name "{dataset_name}" not in `casas_metadata.json`. Must be one of: {list(CASAS_METADATA.keys())}'
     )
   metadata = CASAS_METADATA.get(dataset_name)
 
@@ -369,6 +369,8 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
   df['first_activity_l2'] = df.first_activity.map(metadata['label_l2'])
   # Add a column with sensor locations
   df['sensor_location'] = df.sensor.map(metadata['sensor_location'])
+  # Add a column with sensor types
+  df['sensor_type'] = df.sensor.map(metadata.get('sensor_type', {}))
 
   if metadata['num_residents'] > 1:
     df = process_multiresident_home(df)
@@ -766,6 +768,14 @@ def process_marble_environmental_data(
 
   # Concatenate all data
   df_combined = pd.concat(all_data, ignore_index=True)
+
+  # Add sensor type mapping from MARBLE metadata
+  marble_metadata_path = 'metadata/marble_metadata.json'
+  if os.path.exists(marble_metadata_path):
+    with open(marble_metadata_path, 'r') as f:
+      marble_metadata = json.load(f)
+    sensor_type_map = marble_metadata.get('marble', {}).get('sensor_type', {})
+    df_combined['sensor_type'] = df_combined['sensor_id'].map(sensor_type_map)
 
   print(colored(f"Processed data shape: {df_combined.shape}", 'magenta'))
   print(colored(

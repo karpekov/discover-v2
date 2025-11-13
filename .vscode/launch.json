@@ -26,6 +26,22 @@
         "--config",
         "${workspaceFolder}/configs/training/milan/baseline_50.json"
       ]
+    },
+    {
+        "name": "Debug: Sample Data (Fixed Duration 60s)",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/sample_data.py",
+        "console": "integratedTerminal",
+        "args": [
+            "--config",
+            "configs/sampling/milan_fixed_duration_60.yaml",
+            "--debug"
+        ],
+        "cwd": "${workspaceFolder}",
+        "env": {},
+        "justMyCode": false,
+         "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python"
     }
   ]
 }

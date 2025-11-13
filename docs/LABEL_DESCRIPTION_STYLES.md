@@ -4,7 +4,7 @@ This document describes the different styles of activity label descriptions avai
 
 ## Overview
 
-The system supports multiple styles of text descriptions for activity labels, which are used when creating text-based prototypes for zero-shot or text-only classification. These descriptions are stored in `metadata/house_metadata.json` and accessed via `src/utils/label_utils.py`.
+The system supports multiple styles of text descriptions for activity labels, which are used when creating text-based prototypes for zero-shot or text-only classification. These descriptions are stored in `metadata/casas_metadata.json` and accessed via `src/utils/label_utils.py`.
 
 ## Available Styles
 
@@ -98,7 +98,7 @@ python src/evals/evaluate_text_encoder_only.py \
 ### label_utils.py
 
 The `convert_labels_to_text()` function:
-1. Loads house metadata from `metadata/house_metadata.json`
+1. Loads house metadata from `metadata/casas_metadata.json`
 2. Selects the appropriate description source based on `description_style`
 3. Returns descriptions in the requested format (single or multiple per label)
 

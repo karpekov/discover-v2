@@ -1,0 +1,38 @@
+# Fixed-length sampling config for Milan dataset - window size 20, presegmented
+dataset_name: "milan"
+raw_data_path: "data/raw/casas/milan"
+output_dir: "data/processed/casas/milan/fixed_length_20_presegmented"
+
+strategy: "fixed_length"
+
+# Window sizes to generate
+window_sizes: [20]
+min_events_per_window: 8
+
+# Train/test split
+split_strategy: "random"
+train_ratio: 0.8
+random_seed: 42
+
+# Overlap settings
+overlap_factor: 0.5
+
+# Presegmentation
+use_presegmentation: true
+presegment_label_level: "l1"
+min_segment_events: 8
+exclude_no_activity: true
+
+# Filtering
+filter_numeric_sensors: true
+max_gap_minutes: 30
+
+# Metadata preservation
+preserve_full_metadata: true
+include_spatial_info: true
+include_sensor_types: true
+
+# Processing limits
+max_lines: null
+max_windows: null
+

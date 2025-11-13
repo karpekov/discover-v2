@@ -8,7 +8,7 @@ from typing import List, Union, Dict, Any
 
 
 def load_house_metadata(house_name: str = "milan") -> Dict[str, Any]:
-    """Load house metadata from house_metadata.json or marble_metadata.json file.
+    """Load house metadata from casas_metadata.json or marble_metadata.json file.
 
     Args:
         house_name: Name of the house to load metadata for
@@ -28,8 +28,8 @@ def load_house_metadata(house_name: str = "milan") -> Dict[str, Any]:
                 metadata = json.load(f)
             return metadata.get("marble", {})
 
-    # Default to house_metadata.json for CASAS datasets
-    metadata_path = os.path.join(project_root, "metadata", "house_metadata.json")
+    # Default to casas_metadata.json for CASAS datasets
+    metadata_path = os.path.join(project_root, "metadata", "casas_metadata.json")
     with open(metadata_path, 'r') as f:
         metadata = json.load(f)
 

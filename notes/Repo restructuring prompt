@@ -1,0 +1,50 @@
+=== Prompt from Nov 10, 2025 to restructure the repo ===
+
+help me restructure my repo so that it can accommodate multiple architecture and processing variations in an easy and extendible way.
+
+first, look at the current repo setup using necessary tools. second, read the docs/ files to understand how training is structured now.
+
+then, rearrange the folder and files so that they can support extensions. make sure current implementations work still. create or update command line arguments and commands that will allow to train these different variations. make sure wandb logging and other logging and outputs are saved in the proper filenames and subfolder so that it's easy to compare the experiment results later.
+
+here's the full pipeline description: consisting of 7 steps.
+
+1. Sample the data
+Given sensor readings file from a dataset (casas: milan, aruba, cairo, kyoto7, etc; marble; orange4home) (similar to casas and marble right now), we cant to sample the data into chunks that could be used for training. there are 3 major strategies to do it. for all of them collect the ground truth labels (mode, all unique ones etc if more than 1 is available)
+- 1a. Fixed length: sample fixed length size window -- let's say 20 sensor readings, 50 sensor readings, etc -- this is how current generate_data functions are doing it already. output this data with and without presegmentation (i.e., use ground truth labels first to split the data and then sample the sequences from those windows). the overlap factor should say how to sample next window. default is 0.5 overlap.
+- 1b. Fixed duration: sample fixed number of seconds: 30, 60, 120 etc -- however many sensor readings happen in that time period (at least 1 is required).this implies that the length of the sequence might be variable: in the 60 seconds window any number of sensor activations could have happened - from 1 to hundreds. we will pad this data later. the overlap factor should say how to sample next window. default is 0.5 overlap. This implementation doesn't exist yet -- create a placeholder file or function, we will implement it later.
+- 1c. Variable duration: here we sample the data based on variable time duration array -- let's say [10, 30, 60, 120] -- meaning we will sample multiple windows of variable length: here we can select an interval length at uniform random, sample the data point, and then move forward by n seconds / readings and sample again. 
+The output of this step is a json file with training and testing data (80% train, 20% test, split by days). This implementation doesn't exist yet -- create a placeholder file or function, we will implement it later.
+also, make sure all necessary metadata is preserved to be able to build captions in step 3. 
+In the end of this step we get sensor_seq -- sensor sequence
+
+2. Sensor Encoder 
+Now we want to encode the sensor readings data into an embedding. there are two main ways to do it:
+2a. Raw sequence model: input sequences and their readings (like on, off, etc) into a sequence-processing model: a simple transformer whose size can be specified (the default one should be the "tiny" version) that will process this sequence and output an embedding. this transformer is fully trainable and uses either MLM loss or SimCLR loss. this is very similar to current implementation, keep it mostly as is; maybe rename certain components to make sure it is easily extendable and configurable. 
+2b. Image sequence model: here we take each sensor activation and display it on a 2d image: we show the house layout with a mark at the location where that sensor is activated. we create these maps for every sensor activation with different colors for different kinds of sensors. then these images are processed using an image or video model. it could be clip/siglip, dino, yolo, etc, or a video processing model. if it's an image processing model, for the input of size N we will get N embeddings. there are two main ways to process them: 2d1. simple pooling or averaging or 2d2. feed them into a simple transformer model and train it with MLM or SimCLR loss. both of these methods should produce the single final embedding.
+This is not currently implemented, just create some placeholders for it so we can easily plug it in later. 
+at the end of this step, we get data_emb -- data embedding.
+
+3. Captions generation
+We also want to summarize the sensor_seq as text. there are two ways we can do it:
+3a. Rule-based: use a set of rules to convert sensor readings into captions. currently, this is implemented in 3 different ways: generate_captions original implementation, sourish-style, and adl-llm style. let's create an overarching framework for rule-based caption generation where we can specify which strategy we use. let's rearrange current implementations to make them more easily extendible and manageable. For each style, we can generate multiple captions per sequence. moreover, we should be able to mix all of the rule based styles (choose one at random) to generate multiple captions per sequence.  
+3b. LLM-based: use an LLM to create a summary description of what was happening in the house in that moment. should be able to connect to APIs (chatgpt, gemini, claude) or load models locally (like llama). this is not implemented yet, just create a carcass and make sure the training pipeline can include this. 
+the output of this step should be a captions dataset where each sensor_seq has a list of captions associated with them. these could be stored separately from sensor_seq data -- just make sure they are easy to merge later (maybe using some indexing)
+
+4. Text encoder
+Now that we have captions, we can embed them using a pre-trained embedding model. It could be distilroberta, llama-embedding model, clip/siglip text encoder, etc. the output is a text embeddings of every caption. let's also store this data alongside sensor_seq since we won't be finetuning the underlying language models. 
+think of an efficient way to save all captions and all embeddings, especially since there could be very many combinations: data samplings <> captions generation strategy <> encoder model will result in very many variations. 
+The output of this step produces text_emb
+
+5. Alignment
+finally, we want to align data_emb with text_emb in the same space. we want to take data_emb and text_emb, add projections to them (could be either linear projection or very simple MLP -- this should be easily customizable) that are both trainable that project those embeddings into aligned space, where we will use CLIP-styly loss to align them. this is mostly implemented already -- make sure this step accepts data and text embeddings of variable size, uses customizable projections, and then get clip loss. also make sure this clip loss is also used to train the upstream trainable networks where possible -- for example, the sensor encoder transformer, or the image sequence transformer that both use MLM loss but will be also receiving gradients from CLIP. the balance of the two should be adjustable, e.g. Loss = 0.3 MLM + 0.7 CLIP
+
+6. Retrieval
+In the retrieval task, we want to use 1 nearest neighbor algorithm to find which labels are the closes to each data point. it will take sample data, project it using data_emb and projection head, and retrieve samples that correspond to the provided list o labels. the labels will be rewritten using either rules or LLM and passed through the same text-encoder as the one that was used for training (distilroberta, llama, etc). 
+this step should also support the use case where we want to retrieve the data using the captions (and not the data embedding). this will be our baseline to measure the difference between using just the captions vs using the actual data that is aligned with the captions. 
+this is all mostly implemented already. make sure it can support the downstream and upstream tasks easily.
+
+7. Clustering
+optionally, we can cluster data_emb using SCAN loss. this should also be already implemented somewhere. this model should be trained in isolation where data_emb (either before or after the projection) is clustered together to form groups of activities. this can be later evaluated separately. 
+
+===========
+Given this implementation pipeline, please plan necessary changes to current repo. do everything step by step, ask for clarifications where needed. the goal is to have a single configurable pipeline that can be run from a command line and trained on multiple GPUs or mps devices. it should also allow to train each individual component separately for debugging purposes. 
