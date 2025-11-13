@@ -1,0 +1,51 @@
+# Minimal transformer encoder configuration
+# Uses only sensor/state, no spatial or temporal features
+# Useful for ablation studies
+
+encoder_type: transformer
+
+# Architecture (tiny preset for speed)
+d_model: 256
+n_layers: 4
+n_heads: 4
+d_ff: 1024
+max_seq_len: 512
+dropout: 0.1
+
+# Projection for CLIP alignment
+projection_dim: 256
+
+# Positional encoding
+use_alibi: true
+use_learned_pe: false
+
+# Feature encoding
+fourier_bands: 12
+
+# Metadata configuration - MINIMAL
+metadata:
+  # Only use sensor and state
+  categorical_fields:
+    - sensor
+    - state
+
+  # Disable all continuous features
+  use_coordinates: false
+  use_time_deltas: false
+  use_time_of_day: false
+
+  # Coordinate normalization (unused)
+  coord_norm_x_max: 10.0
+  coord_norm_y_max: 10.0
+
+  # Time bucketing (unused)
+  time_delta_max_seconds: 3600.0
+  time_delta_bins: 100
+
+# Pooling strategy
+pooling: cls_mean  # Options: 'cls', 'mean', 'cls_mean'
+pooling_cls_weight: 0.5
+
+# Vocabulary sizes (will be set at runtime from data)
+vocab_sizes: {}
+

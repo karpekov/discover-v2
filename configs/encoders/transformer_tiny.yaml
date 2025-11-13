@@ -1,0 +1,51 @@
+# Tiny transformer encoder configuration
+# Use for quick experiments and debugging
+
+encoder_type: transformer
+
+# Architecture (tiny preset)
+d_model: 256
+n_layers: 4
+n_heads: 4
+d_ff: 1024
+max_seq_len: 512
+dropout: 0.1
+
+# Projection for CLIP alignment
+projection_dim: 256
+
+# Positional encoding
+use_alibi: true
+use_learned_pe: false
+
+# Feature encoding
+fourier_bands: 12
+
+# Metadata configuration
+metadata:
+  # Which categorical fields to use
+  categorical_fields:
+    - sensor
+    - state
+    - room_id
+
+  # Which continuous features to use
+  use_coordinates: true
+  use_time_deltas: true
+  use_time_of_day: false
+
+  # Coordinate normalization
+  coord_norm_x_max: 10.0
+  coord_norm_y_max: 10.0
+
+  # Time bucketing
+  time_delta_max_seconds: 3600.0
+  time_delta_bins: 100
+
+# Pooling strategy
+pooling: cls_mean  # Options: 'cls', 'mean', 'cls_mean'
+pooling_cls_weight: 0.5
+
+# Vocabulary sizes (will be set at runtime from data)
+vocab_sizes: {}
+

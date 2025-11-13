@@ -1,0 +1,54 @@
+# Base transformer encoder with MLP projection head
+# Uses 2-layer MLP projection (similar to SimCLR/MoCo)
+
+encoder_type: transformer
+
+# Architecture (base preset)
+d_model: 768
+n_layers: 6
+n_heads: 8
+d_ff: 3072
+max_seq_len: 512
+dropout: 0.1
+
+# MLP Projection for CLIP alignment
+projection_dim: 512
+projection_type: mlp  # Use MLP instead of linear
+projection_hidden_dim: 2048  # Hidden dimension in MLP
+projection_num_layers: 2  # 2-layer MLP: 768 -> 2048 -> 512
+
+# Positional encoding
+use_alibi: true
+use_learned_pe: false
+
+# Feature encoding
+fourier_bands: 12
+
+# Metadata configuration
+metadata:
+  # Which categorical fields to use
+  categorical_fields:
+    - sensor
+    - state
+    - room_id
+
+  # Which continuous features to use
+  use_coordinates: true
+  use_time_deltas: true
+  use_time_of_day: false
+
+  # Coordinate normalization
+  coord_norm_x_max: 10.0
+  coord_norm_y_max: 10.0
+
+  # Time bucketing
+  time_delta_max_seconds: 3600.0
+  time_delta_bins: 100
+
+# Pooling strategy
+pooling: cls_mean  # Options: 'cls', 'mean', 'cls_mean'
+pooling_cls_weight: 0.5
+
+# Vocabulary sizes (set at runtime)
+vocab_sizes: {}
+

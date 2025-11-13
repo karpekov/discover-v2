@@ -41,7 +41,23 @@
         "cwd": "${workspaceFolder}",
         "env": {},
         "justMyCode": false,
-         "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python"
-    }
+        "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python"
+    },
+
+    {
+        "name": "Debug: Encoder Example Usage",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/encoders/example_usage.py",
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}"
+        },
+        "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python",
+        "justMyCode": false,
+        "args": []
+    },
+
   ]
 }
