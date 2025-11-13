@@ -1,0 +1,12 @@
+# Sourish-style caption generation config for Milan dataset
+
+caption_style: sourish
+num_captions_per_sample: 1  # Sourish style is deterministic
+random_seed: 42
+
+# Dataset information (REQUIRED for Sourish style)
+dataset_name: milan
+
+# Sourish captions use hard-coded sensor-to-location mappings
+# No sensor_details_path needed
+

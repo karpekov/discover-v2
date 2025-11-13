@@ -1,0 +1,9 @@
+# Sourish-style caption generation config for Aruba dataset
+
+caption_style: sourish
+num_captions_per_sample: 1
+random_seed: 42
+
+# Dataset information (REQUIRED for Sourish style)
+dataset_name: aruba
+

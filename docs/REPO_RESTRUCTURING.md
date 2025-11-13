@@ -104,13 +104,28 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - **Parameters**: 3.3M (tiny) to 43.7M (base)
 - ⏳ **TODO**: Image-based encoders (2b) - placeholder created
 
-### ⏳ Pending Steps
+#### **Step 3: Caption Generation** - ✅ COMPLETE
+- **Status**: Fully implemented and documented
+- **What works**:
+  - ✅ Modular caption framework with base classes
+  - ✅ BaselineCaptionGenerator (natural language, multiple variations)
+  - ✅ SourishCaptionGenerator (structured template-based)
+  - ✅ LLM-based caption placeholder (future integration)
+  - ✅ YAML configuration system
+  - ✅ Command-line tool (`generate_captions.py`)
+  - ✅ JSON output indexed by sample_id
+  - ✅ Comprehensive documentation
+- **Output**: Caption JSON files stored with sampled data
+- **Documentation**:
+  - `docs/CAPTION_GENERATION_GUIDE.md` - Complete usage guide
+  - Usage examples and programmatic API
+- **Files**: 7 core files + 4 config files + 1 doc file + CLI script
+- **Caption Styles**:
+  - Baseline: Rich natural language with temporal/spatial context
+  - Sourish: Structured 4-component format (when+duration+where+sensors)
+- ⏳ **TODO**: Mixed strategy, LLM integration
 
-#### **Step 3: Caption Generation** - NOT STARTED
-- Refactor existing caption generators (baseline, sourish, marble)
-- Implement mixed caption strategy
-- Create LLM-based caption placeholder
-- YAML configs for caption strategies
+### ⏳ Pending Steps
 
 #### **Step 4: Text Encoders** - NOT STARTED
 - Refactor existing text encoders
@@ -142,14 +157,14 @@ Given this implementation pipeline, please plan necessary changes to current rep
 ```
 Step 1: Data Sampling        ████████████████████ 100% ✅
 Step 2: Sensor Encoders       ████████████████████ 100% ✅
-Step 3: Caption Generation    ░░░░░░░░░░░░░░░░░░░░   0% ⏳
+Step 3: Caption Generation    ████████████████████ 100% ✅
 Step 4: Text Encoders         ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Step 5: Alignment Training    ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Step 6: Retrieval             ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Step 7: Clustering            ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Pipeline Orchestration        ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 
-Overall Progress:             ████░░░░░░░░░░░░░░░░  25% (2/8)
+Overall Progress:             ███████░░░░░░░░░░░░░  37.5% (3/8)
 ```
 
 ### 🎉 Key Achievements So Far
@@ -181,37 +196,50 @@ discover-v2/
 │   │       │   └── transformer.py
 │   │       └── image/      # Placeholder
 │   │
+│   ├── captions/           # ✅ Step 3: NEW
+│   │   ├── base.py
+│   │   ├── config.py
+│   │   ├── rule_based/
+│   │   │   ├── baseline.py
+│   │   │   └── sourish.py
+│   │   └── llm_based/
+│   │       └── base.py     # Placeholder
+│   │
 │   └── [legacy code remains in src/data/, src/models/, etc.]
 │
 ├── configs/
 │   ├── sampling/           # ✅ NEW: 20+ YAML files
-│   └── encoders/           # ✅ NEW: 4 YAML files
+│   ├── encoders/           # ✅ NEW: 4 YAML files
+│   └── captions/           # ✅ NEW: 4 YAML files
 │
 ├── docs/
 │   ├── ENCODER_GUIDE.md              # ✅ NEW (500+ lines)
 │   ├── STEP2_ENCODER_SUMMARY.md      # ✅ NEW (325 lines)
+│   ├── CAPTION_GENERATION_GUIDE.md   # ✅ NEW (400+ lines)
 │   └── REPO_RESTRUCTURING.md         # ✅ UPDATED
 │
-└── sample_data.py          # ✅ NEW: CLI tool for sampling
+├── sample_data.py          # ✅ NEW: CLI tool for sampling
+└── generate_captions.py    # ✅ NEW: CLI tool for captions
 ```
 
 ### 🔧 Integration Status
 
 **Ready for Integration**:
 - ✅ Step 1 → Step 2: Can load sampled JSON and encode
+- ✅ Step 1 → Step 3: Can load sampled JSON and generate captions ✨ NEW
 - ✅ Step 2 → Step 5: Encoder supports CLIP training
 - ✅ Step 2 → MLM: Encoder supports MLM training
 
 **Pending Integration**:
-- ⏳ Step 1 → Step 3: Need caption generation
-- ⏳ Step 2 + 4 → Step 5: Need text encoders
+- ⏳ Step 3 → Step 4: Need text encoders for captions
+- ⏳ Step 2 + 4 → Step 5: Need to integrate for alignment training
 - ⏳ All steps → Unified pipeline
 
 ### 📝 Next Immediate Steps
 
-1. **Continue to Step 3**: Caption generation refactoring
-2. **Test integration**: Load Step 1 data → encode with Step 2
-3. **Adapt training code**: Update train_clip.py to use new encoders
+1. **Continue to Step 4**: Text encoder refactoring
+2. **Test integration**: Load Step 1 data → generate captions (Step 3) → encode text (Step 4)
+3. **Continue to Step 5**: Adapt train_clip.py to use new encoders and text encoders
 4. **Benchmark**: Compare new vs old implementations
 
 ---
