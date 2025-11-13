@@ -1,0 +1,21 @@
+# GTE-base text encoder configuration
+# thenlper/gte-base - General Text Embeddings
+# This is the default text encoder used in the original implementation
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: gte
+model_name: thenlper/gte-base
+embedding_dim: 768
+max_length: 512
+batch_size: 32
+normalize: true
+cache_dir: null
+
+# Optional projection head (for CLIP compatibility)
+use_projection: false
+projection_dim: 512
+
+# Output path template (optional - will use default if not specified)
+# Template variables: {dataset}, {strategy}, {split}, {style}, {encoder}
+# output_path_template: "data/embeddings/text/{dataset}/{strategy}/{split}_{style}_{encoder}.npz"
+

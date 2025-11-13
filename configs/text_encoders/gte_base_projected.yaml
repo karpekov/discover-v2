@@ -1,0 +1,16 @@
+# GTE-base text encoder with projection head
+# Projects 768-d embeddings to 512-d (for CLIP training compatibility)
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: gte
+model_name: thenlper/gte-base
+embedding_dim: 768
+max_length: 512
+batch_size: 32
+normalize: true
+cache_dir: null
+
+# Projection head for CLIP compatibility
+use_projection: true
+projection_dim: 512
+

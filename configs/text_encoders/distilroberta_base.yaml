@@ -1,0 +1,16 @@
+# DistilRoBERTa-base text encoder configuration
+# Distilled version of RoBERTa with similar performance
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: distilroberta
+model_name: distilroberta-base
+embedding_dim: 768
+max_length: 512
+batch_size: 32
+normalize: true
+cache_dir: null
+
+# Optional projection head
+use_projection: false
+projection_dim: 512
+

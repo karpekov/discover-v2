@@ -1,0 +1,17 @@
+# MiniLM-L6 text encoder configuration
+# Lightweight sentence-transformers model (384-d embeddings)
+# Faster but smaller than GTE
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: llama
+model_name: sentence-transformers/all-MiniLM-L6-v2
+embedding_dim: 384
+max_length: 512
+batch_size: 64  # Can use larger batches due to smaller model
+normalize: true
+cache_dir: null
+
+# Optional projection head
+use_projection: true
+projection_dim: 512
+

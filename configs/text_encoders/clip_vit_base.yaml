@@ -1,0 +1,16 @@
+# CLIP ViT-Base text encoder configuration
+# OpenAI CLIP text encoder (512-d embeddings)
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: clip
+model_name: openai/clip-vit-base-patch32
+embedding_dim: 512
+max_length: 77  # CLIP uses 77 tokens max
+batch_size: 32
+normalize: true
+cache_dir: null
+
+# CLIP already has internal projection, so additional projection is optional
+use_projection: false
+projection_dim: 512
+

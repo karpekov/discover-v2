@@ -1,0 +1,16 @@
+# SigLIP text encoder configuration
+# Google SigLIP (Sigmoid Loss for Language Image Pre-training)
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: siglip
+model_name: google/siglip-base-patch16-224
+embedding_dim: 768
+max_length: 64
+batch_size: 32
+normalize: true
+cache_dir: null
+
+# Optional projection head
+use_projection: true
+projection_dim: 512
+

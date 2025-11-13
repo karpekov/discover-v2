@@ -138,13 +138,44 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - **Integration Status**: ✅ Ready to use with Step 1 sampled data
 - ⏳ **TODO**: Mixed strategy, LLM API integration
 
+#### **Step 4: Text Encoders** - ✅ COMPLETE
+- **Status**: Fully implemented and documented
+- **What works**:
+  - ✅ Modular text encoder framework with base classes
+  - ✅ 5 frozen encoder implementations (GTE, DistilRoBERTa, LLAMA, CLIP, SigLIP)
+  - ✅ Automatic device detection (mps → cuda → cpu)
+  - ✅ Automatic output path generation from caption file structure
+  - ✅ Optional projection heads for dimension matching
+  - ✅ Pre-computation and caching for efficient training
+  - ✅ YAML configuration system
+  - ✅ Command-line tool (`encode_captions.py`)
+  - ✅ Compressed NPZ format for embeddings storage
+  - ✅ Comprehensive documentation and examples
+- **Output**: Compressed embedding files `.npz`
+  - Format: `data/embeddings/text/{dataset}/{strategy}/{split}_{style}_{encoder}.npz`
+  - Contains: embeddings, sample_ids, metadata
+- **Documentation**:
+  - `docs/TEXT_ENCODER_GUIDE.md` - Complete usage guide (450 lines)
+  - `docs/STEP4_TEXT_ENCODER_SUMMARY.md` - Implementation summary (400+ lines)
+  - `src/text_encoders/example_usage.py` - 6 working examples
+- **Files**: 9 core files + 6 config files + 3 doc/script files (~2,000 lines)
+- **Encoders**:
+  - GTE-base: 768-d, default choice (CLS pooling)
+  - DistilRoBERTa: 768-d, alternative (mean pooling)
+  - MiniLM-L6: 384-d, lightweight (mean pooling)
+  - CLIP: 512-d, vision-compatible (pooled output)
+  - SigLIP: 768-d, improved CLIP (pooled output)
+- **Key Features** (Nov 13, 2025):
+  - ✅ Auto device detection (no manual configuration needed)
+  - ✅ Auto output path generation (smart path inference)
+  - ✅ Batch encoding for memory efficiency
+  - ✅ L2 normalization support
+  - ✅ Projection heads with near-identity initialization
+  - ✅ Save/load with metadata preservation
+- **Integration Status**: ✅ Ready for Step 5 (CLIP training)
+- ⏳ **TODO**: Test on real caption data once generated
+
 ### ⏳ Pending Steps
-
-#### **Step 4: Text Encoders** - NOT STARTED
-- Refactor existing text encoders
-- Support multiple encoder types (GTE, DistilRoBERTa, etc.)
-- Efficient storage strategy for embeddings
-
 #### **Step 5: Alignment Training** - NOT STARTED
 - Refactor train_clip.py to use new encoders
 - Configurable projection heads
@@ -171,25 +202,27 @@ Given this implementation pipeline, please plan necessary changes to current rep
 Step 1: Data Sampling        ████████████████████ 100% ✅
 Step 2: Sensor Encoders       ████████████████████ 100% ✅
 Step 3: Caption Generation    ████████████████████ 100% ✅
-Step 4: Text Encoders         ░░░░░░░░░░░░░░░░░░░░   0% ⏳
+Step 4: Text Encoders         ████████████████████ 100% ✅
 Step 5: Alignment Training    ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Step 6: Retrieval             ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Step 7: Clustering            ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Pipeline Orchestration        ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 
-Overall Progress:             ███████░░░░░░░░░░░░░  37.5% (3/8)
+Overall Progress:             ██████████░░░░░░░░░░  50% (4/8)
 ```
 
 ### 🎉 Key Achievements So Far
 
-1. **Modular Architecture**: Clean separation between sampling, encoding, and captions
+1. **Modular Architecture**: Clean separation between sampling, encoding, captions, and text encoding
 2. **Config-Driven Design**: All components use YAML configs
 3. **Variable-Length Support**: Proper padding handling throughout
 4. **Backward Compatible**: Old code still works in `src/models/`, `src/data/`
-5. **Well-Documented**: 5 comprehensive guides + working examples
-6. **Production-Ready**: Steps 1, 2, & 3 fully tested on real data
-7. **Multi-Style Support**: Generate and compare multiple caption styles simultaneously
-8. **Robust Data Handling**: Automatic column normalization and format detection
+5. **Well-Documented**: 7 comprehensive guides + working examples
+6. **Production-Ready**: Steps 1, 2, 3, & 4 fully implemented
+7. **Multi-Style Support**: Generate and compare multiple caption styles and text encoders
+8. **Robust Data Handling**: Automatic column normalization, device detection, and path generation
+9. **Efficient Training**: Pre-computed text embeddings eliminate redundant encoding
+10. **Smart Defaults**: Auto device detection (mps/cuda/cpu) and path inference
 
 ### 📁 New Directory Structure Created
 
@@ -220,22 +253,36 @@ discover-v2/
 │   │   └── llm_based/
 │   │       └── base.py     # Placeholder
 │   │
+│   ├── text_encoders/     # ✅ Step 4: NEW
+│   │   ├── base.py
+│   │   ├── frozen/
+│   │   │   ├── gte.py
+│   │   │   ├── distilroberta.py
+│   │   │   ├── llama.py
+│   │   │   ├── clip.py
+│   │   │   └── siglip.py
+│   │   └── example_usage.py
+│   │
 │   └── [legacy code remains in src/data/, src/models/, etc.]
 │
 ├── configs/
 │   ├── sampling/           # ✅ NEW: 20+ YAML files
 │   ├── encoders/           # ✅ NEW: 4 YAML files
-│   └── captions/           # ✅ NEW: 4 YAML files
+│   ├── captions/           # ✅ NEW: 4 YAML files
+│   └── text_encoders/      # ✅ NEW: 6 YAML files
 │
 ├── docs/
 │   ├── ENCODER_GUIDE.md              # ✅ NEW (500+ lines)
 │   ├── STEP2_ENCODER_SUMMARY.md      # ✅ NEW (325 lines)
 │   ├── CAPTION_GENERATION_GUIDE.md   # ✅ NEW (384 lines)
 │   ├── STEP3_CAPTION_SUMMARY.md      # ✅ NEW (400+ lines)
+│   ├── TEXT_ENCODER_GUIDE.md         # ✅ NEW (450 lines)
+│   ├── STEP4_TEXT_ENCODER_SUMMARY.md # ✅ NEW (400+ lines)
 │   └── REPO_RESTRUCTURING.md         # ✅ UPDATED
 │
 ├── sample_data.py          # ✅ NEW: CLI tool for sampling
-└── generate_captions.py    # ✅ NEW: CLI tool for captions (with style suffixes)
+├── generate_captions.py    # ✅ NEW: CLI tool for captions (with style suffixes)
+└── encode_captions.py      # ✅ NEW: CLI tool for text encoding
 ```
 
 ### 🔧 Integration Status
@@ -243,12 +290,14 @@ discover-v2/
 **Ready for Integration**:
 - ✅ Step 1 → Step 2: Can load sampled JSON and encode
 - ✅ Step 1 → Step 3: Can load sampled JSON and generate captions ✨ TESTED
+- ✅ Step 3 → Step 4: Can load captions and generate text embeddings ✨ NEW
 - ✅ Step 2 → Step 5: Encoder supports CLIP training
 - ✅ Step 2 → MLM: Encoder supports MLM training
+- ✅ Step 4 → Step 5: Pre-computed embeddings ready for CLIP training ✨ NEW
 - ✅ Step 3 outputs: Multiple caption styles with style-specific filenames
+- ✅ Step 4 outputs: Multiple encoders with auto-generated paths ✨ NEW
 
 **Pending Integration**:
-- ⏳ Step 3 → Step 4: Need text encoders for captions
 - ⏳ Step 2 + 4 → Step 5: Need to integrate for alignment training
 - ⏳ All steps → Unified pipeline
 
@@ -256,13 +305,14 @@ discover-v2/
 - ✅ Step 1 → Step 3: Milan dataset (34,842 samples) successfully processed
   - Fixed-length sampling (20 events) → baseline captions
   - Output: `train_captions_baseline.json`, `test_captions_baseline.json`
+- ⏳ Step 1 → Step 3 → Step 4: Ready to test once captions are generated
 
 ### 📝 Next Immediate Steps
 
-1. **Continue to Step 4**: Text encoder refactoring
-2. **Test integration**: Load Step 1 data → generate captions (Step 3) → encode text (Step 4)
-3. **Continue to Step 5**: Adapt train_clip.py to use new encoders and text encoders
-4. **Benchmark**: Compare new vs old implementations
+1. **Continue to Step 5**: Adapt train_clip.py to use new encoders and text encoders
+2. **Test full pipeline**: Load Step 1 data → generate captions (Step 3) → encode text (Step 4) → train CLIP (Step 5)
+3. **Benchmark**: Compare new vs old implementations
+4. **Document**: Update training guides for new architecture
 
 ---
 
