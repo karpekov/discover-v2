@@ -63,7 +63,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
 
 ## 🎯 COMPLETION STATUS SUMMARY
 
-**Last Updated**: November 14, 2025
+**Last Updated**: November 14, 2025 (Evening - Image-Based Encoders Complete!)
 
 ### ✅ Completed Steps
 
@@ -84,6 +84,8 @@ Given this implementation pipeline, please plan necessary changes to current rep
 
 #### **Step 2: Sensor Encoders** - ✅ COMPLETE
 - **Status**: Fully implemented, tested, and documented
+
+##### **2a: Sequence-Based Encoders** - ✅ COMPLETE
 - **What works**:
   - ✅ Modular encoder framework with base classes
   - ✅ TransformerSensorEncoder (improved version of original)
@@ -102,7 +104,44 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - **Testing**: 5 examples verified (basic, CLIP, MLM, minimal, variable-length)
 - **Files**: 7 core files + 4 config files + 3 doc files (~1,550 lines)
 - **Parameters**: 3.3M (tiny) to 43.7M (base)
-- ⏳ **TODO**: Image-based encoders (2b) - placeholder created
+
+##### **2b: Image-Based Encoders** - ✅ COMPLETE ✨ NEW (Nov 14, 2025)
+- **Status**: Fully implemented and tested
+- **What works**:
+  - ✅ **Image Generation** (`src/encoders/sensor/image/generate_images.py`)
+    - Loads floor plans from `metadata/floor_plans_augmented/{dataset}.png`
+    - Generates colored sensor activation images on floor plan backgrounds
+    - Color-coded by sensor type and state (motion: green/red, door: brown/gray, temp: gold/gray)
+    - Large visible circles (radius: 200 pixels, no black outlines)
+    - Resizes to target dimensions with padding (224×224 for CLIP, 512×512, etc.)
+    - Saves to dimension-specific folders: `dim224/`, `dim512/`, etc.
+    - Command-line interface with flexible options
+  - ✅ **Image Embedding** (`src/encoders/sensor/image/embed_images.py`)
+    - Uses Hugging Face transformers (openai/clip-vit-base-patch32)
+    - CLIP ViT-B/32 vision encoder (512-dim embeddings)
+    - SigLIP support (768-dim embeddings)
+    - Batch processing with MPS/CUDA/CPU auto-detection
+    - L2-normalized embeddings ready for similarity search
+    - Tracks sensor_ids, states, and image_keys in output
+    - Saves compressed .npz files with full metadata
+  - ✅ **Visualization** (`src/utils/visualize_image_embeddings.py`)
+    - 3-panel t-SNE/UMAP/PCA visualization
+    - Color by: sensor type, state, and room location
+    - Statistics: distances, clustering, room grouping
+    - Saves alongside embeddings for easy access
+- **Output**:
+  - Images: `data/processed/{dataset_type}/{dataset}/layout_embeddings/images/dim{size}/`
+  - Embeddings: `data/processed/{dataset_type}/{dataset}/layout_embeddings/embeddings/{model}/dim{size}/embeddings.npz`
+  - Visualizations: Saved in same folder as embeddings
+- **Documentation**:
+  - `docs/IMAGE_GENERATION_GUIDE.md` - Complete usage guide
+  - Command-line examples and programmatic usage
+- **Testing**: ✅ Successfully tested on Milan dataset
+  - 66 images generated (30 sensors × 2 states + 3 doors × 2 states)
+  - CLIP embeddings: 66 × 512 dimensions
+  - Visualizations show clear clustering by sensor type and room location
+- **Files**: 3 core files + 1 visualization script (~2,000 lines)
+- **Environment**: Fixed PyTorch 2.8 from conda-forge (resolved OpenMP conflicts)
 
 #### **Step 3: Caption Generation** - ✅ COMPLETE
 - **Status**: Fully implemented, tested on real data, and documented
@@ -237,8 +276,9 @@ Given this implementation pipeline, please plan necessary changes to current rep
 ### 📊 Implementation Progress
 
 ```
-Step 1: Data Sampling        ████████████████████ 100% ✅
-Step 2: Sensor Encoders       ████████████████████ 100% ✅
+Step 1: Data Sampling         ████████████████████ 100% ✅
+Step 2a: Sequence Encoders    ████████████████████ 100% ✅
+Step 2b: Image Encoders       ████████████████████ 100% ✅ NEW!
 Step 3: Caption Generation    ████████████████████ 100% ✅
 Step 4: Text Encoders         ████████████████████ 100% ✅
 Step 5: Alignment Training    ████████████████████ 100% ✅
@@ -246,7 +286,7 @@ Step 6: Retrieval             ░░░░░░░░░░░░░░░░�
 Step 7: Clustering            ░░░░░░░░░░░░░░░░░░░░   0% ⏳
 Pipeline Orchestration        ██████████████░░░░░░  70% 🔄
 
-Overall Progress:             ██████████████░░░░░░  70% (5.7/8)
+Overall Progress:             ███████████████░░░░░  75% (6/8)
 ```
 
 ### 🎉 Key Achievements So Far
@@ -269,6 +309,11 @@ Overall Progress:             ██████████████░░�
 16. **CLIP + MLM Training**: Configurable loss weighting for contrastive and reconstruction
 17. **Data Alignment**: Preserved during shuffling with explicit validation
 18. **Factory Functions**: Easy encoder and text encoder instantiation from configs
+19. **Image-Based Encoders**: ✨ **NEW** Floor plan visualization with CLIP embeddings
+20. **Multi-Resolution Support**: ✨ **NEW** Generate images at 224×224, 512×512, or custom sizes
+21. **Vision Model Integration**: ✨ **NEW** CLIP and SigLIP for visual sensor representations
+22. **Spatial Visualizations**: ✨ **NEW** 3-panel plots showing sensor type, state, and room clustering
+23. **Dimension-Organized Storage**: ✨ **NEW** Clean folder structure by image dimensions
 
 ### 📁 New Directory Structure Created
 
@@ -290,7 +335,10 @@ discover-v2/
 │   │       ├── sequence/
 │   │       │   ├── transformer.py
 │   │       │   └── projection.py
-│   │       └── image/      # Placeholder
+│   │       └── image/      # ✅ NEW (Nov 14)
+│   │           ├── generate_images.py    # Generate sensor activation images
+│   │           ├── embed_images.py       # Embed using CLIP/SigLIP
+│   │           └── encoder.py            # Image sequence encoder (future)
 │   │
 │   ├── captions/           # ✅ Step 3: NEW
 │   │   ├── base.py
@@ -333,6 +381,7 @@ discover-v2/
 ├── docs/
 │   ├── ENCODER_GUIDE.md              # ✅ NEW (500+ lines)
 │   ├── STEP2_ENCODER_SUMMARY.md      # ✅ NEW (325 lines)
+│   ├── IMAGE_GENERATION_GUIDE.md     # ✅ NEW (350+ lines, Nov 14)
 │   ├── CAPTION_GENERATION_GUIDE.md   # ✅ NEW (384 lines)
 │   ├── STEP3_CAPTION_SUMMARY.md      # ✅ NEW (400+ lines)
 │   ├── TEXT_ENCODER_GUIDE.md         # ✅ NEW (450 lines)
@@ -345,7 +394,8 @@ discover-v2/
 ├── generate_captions.py    # ✅ NEW: CLI tool for captions (with style suffixes)
 ├── encode_captions.py      # ✅ NEW: CLI tool for text encoding
 └── src/utils/
-    └── visualize_text_embeddings.py  # ✅ NEW: t-SNE visualization tool
+    ├── visualize_text_embeddings.py   # ✅ NEW: t-SNE visualization for text
+    └── visualize_image_embeddings.py  # ✅ NEW: t-SNE visualization for images (Nov 14)
 ```
 
 ### 🔧 Integration Status
@@ -373,14 +423,55 @@ discover-v2/
 - ✅ Step 1 → Step 3 → Step 4: Successfully encoded embeddings for Milan presegmented data
 - ⏳ Step 1 → Step 3 → Step 4 → Step 5: Ready to test full alignment training
 
+### 📝 Quick Command Reference (Image-Based Encoders)
+
+**Generate Sensor Images:**
+```bash
+# 224×224 images (CLIP default)
+python -m src.encoders.sensor.image.generate_images --dataset milan
+
+# 512×512 images (larger models)
+python -m src.encoders.sensor.image.generate_images --dataset milan --output-width 512 --output-height 512
+
+# With labels
+python -m src.encoders.sensor.image.generate_images --dataset milan --show-labels
+```
+
+**Embed Images with CLIP:**
+```bash
+# Embed 224×224 images
+python -m src.encoders.sensor.image.embed_images --dataset milan --model clip
+
+# Embed 512×512 images with SigLIP
+python -m src.encoders.sensor.image.embed_images --dataset milan --model siglip --output-width 512 --output-height 512
+```
+
+**Visualize Embeddings:**
+```bash
+# t-SNE visualization (3 plots: type, state, room)
+python -m src.utils.visualize_image_embeddings --dataset milan
+
+# UMAP visualization
+python -m src.utils.visualize_image_embeddings --dataset milan --method umap
+```
+
+### 🛠️ Environment Notes (Nov 14, 2025)
+
+**PyTorch Installation Fix:**
+- Updated `env.yaml` to use `pytorch=2.8` from conda-forge channel
+- Resolved OpenMP library conflicts (pip-installed torch was conflicting with conda's libomp)
+- CLIP now uses Hugging Face transformers (openai/clip-vit-base-patch32) instead of OpenAI's package
+- All packages now properly installed from conda channels for compatibility
+
 ### 📝 Next Immediate Steps
 
-1. **Test Step 5**: Run full alignment training on Milan dataset
-2. **Benchmark**: Compare new alignment framework vs old train_clip.py
-3. **Continue to Step 6**: Refactor retrieval code to use new alignment models
-4. **Continue to Step 7**: Refactor SCAN clustering for new framework
-5. **Create evaluate.py**: Top-level evaluation script
-6. **Advanced features**: Multi-GPU training, gradient checkpointing, data augmentation
+1. **Test Image-Based Alignment**: Train alignment model using image embeddings instead of sequence embeddings
+2. **Compare**: Sequence-based vs image-based sensor representations
+3. **Image Sequence Encoder**: Create encoder that processes sequences of image embeddings
+4. **Continue to Step 6**: Refactor retrieval code to use new alignment models
+5. **Continue to Step 7**: Refactor SCAN clustering for new framework
+6. **Create evaluate.py**: Top-level evaluation script
+7. **Advanced features**: Multi-GPU training, gradient checkpointing, data augmentation
 
 ---
 
