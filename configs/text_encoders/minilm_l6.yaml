@@ -3,7 +3,7 @@
 # Faster but smaller than GTE
 # Device is auto-detected (checks mps, cuda, cpu in order)
 
-encoder_type: llama
+encoder_type: minilm
 model_name: sentence-transformers/all-MiniLM-L6-v2
 embedding_dim: 384
 max_length: 512
@@ -12,6 +12,6 @@ normalize: true
 cache_dir: null
 
 # Optional projection head
-use_projection: true
+use_projection: false
 projection_dim: 512
 

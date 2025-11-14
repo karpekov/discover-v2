@@ -139,41 +139,49 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - ⏳ **TODO**: Mixed strategy, LLM API integration
 
 #### **Step 4: Text Encoders** - ✅ COMPLETE
-- **Status**: Fully implemented and documented
+- **Status**: Fully implemented, tested, and documented
 - **What works**:
   - ✅ Modular text encoder framework with base classes
-  - ✅ 5 frozen encoder implementations (GTE, DistilRoBERTa, LLAMA, CLIP, SigLIP)
+  - ✅ 7 frozen encoder implementations (GTE, DistilRoBERTa, MiniLM, EmbeddingGemma, LLAMA, CLIP, SigLIP)
   - ✅ Automatic device detection (mps → cuda → cpu)
   - ✅ Automatic output path generation from caption file structure
+  - ✅ Metadata extraction from paths (dataset, split, presegmented, caption style, encoder)
   - ✅ Optional projection heads for dimension matching
   - ✅ Pre-computation and caching for efficient training
   - ✅ YAML configuration system
   - ✅ Command-line tool (`encode_captions.py`)
   - ✅ Compressed NPZ format for embeddings storage
+  - ✅ t-SNE visualization with proper titles and label coloring
   - ✅ Comprehensive documentation and examples
-- **Output**: Compressed embedding files `.npz`
-  - Format: `data/embeddings/text/{dataset}/{strategy}/{split}_{style}_{encoder}.npz`
-  - Contains: embeddings, sample_ids, metadata
+- **Output**: Compressed embedding files `.npz` saved alongside captions
+  - Format: `data/processed/{dataset_type}/{dataset}/{strategy}/{split}_embeddings_{style}_{encoder}.npz`
+  - Contains: embeddings, sample_ids, encoder_metadata
 - **Documentation**:
   - `docs/TEXT_ENCODER_GUIDE.md` - Complete usage guide (450 lines)
   - `docs/STEP4_TEXT_ENCODER_SUMMARY.md` - Implementation summary (400+ lines)
   - `src/text_encoders/example_usage.py` - 6 working examples
-- **Files**: 9 core files + 6 config files + 3 doc/script files (~2,000 lines)
+  - `src/utils/visualize_text_embeddings.py` - Visualization tool with auto metadata extraction
+- **Files**: 12 core files + 8 config files + 4 doc/script files (~2,500 lines)
 - **Encoders**:
   - GTE-base: 768-d, default choice (CLS pooling)
   - DistilRoBERTa: 768-d, alternative (mean pooling)
-  - MiniLM-L6: 384-d, lightweight (mean pooling)
+  - MiniLM-L6: 384-d, lightweight sentence-transformer (mean pooling)
+  - EmbeddingGemma: 768-d, Google's 300M SOTA model (mean pooling)
+  - LLAMA Embed: 4096-d, NVIDIA's 8B multilingual model (mean pooling)
   - CLIP: 512-d, vision-compatible (pooled output)
-  - SigLIP: 768-d, improved CLIP (pooled output)
-- **Key Features** (Nov 13, 2025):
+  - SigLIP: 512-d, improved CLIP (pooled output)
+- **Key Features** (Nov 14, 2025):
   - ✅ Auto device detection (no manual configuration needed)
   - ✅ Auto output path generation (smart path inference)
+  - ✅ Metadata extraction from paths for visualization titles
   - ✅ Batch encoding for memory efficiency
   - ✅ L2 normalization support
   - ✅ Projection heads with near-identity initialization
   - ✅ Save/load with metadata preservation
-- **Integration Status**: ✅ Ready for Step 5 (CLIP training)
-- ⏳ **TODO**: Test on real caption data once generated
+  - ✅ t-SNE visualization with L1/L2 label coloring
+  - ✅ Within-class similarity statistics
+- **Integration Status**: ✅ Fully tested on Milan dataset (22K samples, multiple encoders)
+- ✅ **Tested**: Successfully encoded and visualized embeddings for Milan presegmented data
 
 ### ⏳ Pending Steps
 #### **Step 5: Alignment Training** - NOT STARTED
@@ -218,11 +226,14 @@ Overall Progress:             ██████████░░░░░░�
 3. **Variable-Length Support**: Proper padding handling throughout
 4. **Backward Compatible**: Old code still works in `src/models/`, `src/data/`
 5. **Well-Documented**: 7 comprehensive guides + working examples
-6. **Production-Ready**: Steps 1, 2, 3, & 4 fully implemented
+6. **Production-Ready**: Steps 1, 2, 3, & 4 fully implemented and tested
 7. **Multi-Style Support**: Generate and compare multiple caption styles and text encoders
 8. **Robust Data Handling**: Automatic column normalization, device detection, and path generation
 9. **Efficient Training**: Pre-computed text embeddings eliminate redundant encoding
 10. **Smart Defaults**: Auto device detection (mps/cuda/cpu) and path inference
+11. **7 Text Encoders**: GTE, DistilRoBERTa, MiniLM, EmbeddingGemma, LLAMA, CLIP, SigLIP
+12. **Visualization Tools**: t-SNE plots with L1/L2 label coloring and similarity statistics
+13. **Metadata Extraction**: Automatic extraction of dataset info from file paths for titles
 
 ### 📁 New Directory Structure Created
 
@@ -258,6 +269,8 @@ discover-v2/
 │   │   ├── frozen/
 │   │   │   ├── gte.py
 │   │   │   ├── distilroberta.py
+│   │   │   ├── minilm.py
+│   │   │   ├── embeddinggemma.py
 │   │   │   ├── llama.py
 │   │   │   ├── clip.py
 │   │   │   └── siglip.py
@@ -269,7 +282,7 @@ discover-v2/
 │   ├── sampling/           # ✅ NEW: 20+ YAML files
 │   ├── encoders/           # ✅ NEW: 4 YAML files
 │   ├── captions/           # ✅ NEW: 4 YAML files
-│   └── text_encoders/      # ✅ NEW: 6 YAML files
+│   └── text_encoders/      # ✅ NEW: 8 YAML files
 │
 ├── docs/
 │   ├── ENCODER_GUIDE.md              # ✅ NEW (500+ lines)
@@ -282,7 +295,9 @@ discover-v2/
 │
 ├── sample_data.py          # ✅ NEW: CLI tool for sampling
 ├── generate_captions.py    # ✅ NEW: CLI tool for captions (with style suffixes)
-└── encode_captions.py      # ✅ NEW: CLI tool for text encoding
+├── encode_captions.py      # ✅ NEW: CLI tool for text encoding
+└── src/utils/
+    └── visualize_text_embeddings.py  # ✅ NEW: t-SNE visualization tool
 ```
 
 ### 🔧 Integration Status

@@ -1,7 +1,6 @@
-"""LLAMA embedding text encoder.
+"""MiniLM text encoder.
 
-Uses LLAMA-based embedding models (e.g., nvidia/llama-embed-nemotron-8b).
-Reference: https://huggingface.co/nvidia/llama-embed-nemotron-8b
+Uses sentence-transformers MiniLM models (e.g., all-MiniLM-L6-v2).
 """
 
 import torch
@@ -13,15 +12,15 @@ import numpy as np
 from ..base import BaseTextEncoder, TextEncoderConfig, TextEncoderOutput
 
 
-class LLAMATextEncoder(BaseTextEncoder):
-    """Frozen LLAMA-based text encoder.
+class MiniLMTextEncoder(BaseTextEncoder):
+    """Frozen MiniLM text encoder.
 
-    Can use various LLAMA-based embedding models.
+    Uses sentence-transformers MiniLM models for text embeddings.
     Embeddings are extracted via mean pooling and L2-normalized.
     """
 
     def __init__(self, config: TextEncoderConfig):
-        """Initialize LLAMA encoder.
+        """Initialize MiniLM encoder.
 
         Args:
             config: Text encoder configuration
@@ -29,16 +28,13 @@ class LLAMATextEncoder(BaseTextEncoder):
         super().__init__(config)
 
         # Load model and tokenizer
-        # LLAMA embedding models require trust_remote_code=True
         self.tokenizer = AutoTokenizer.from_pretrained(
             config.model_name,
-            cache_dir=config.cache_dir,
-            trust_remote_code=True
+            cache_dir=config.cache_dir
         )
         self.model = AutoModel.from_pretrained(
             config.model_name,
-            cache_dir=config.cache_dir,
-            trust_remote_code=True
+            cache_dir=config.cache_dir
         )
 
         # Device is auto-detected in parent class

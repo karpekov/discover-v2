@@ -79,15 +79,22 @@ class SigLIPTextEncoder(BaseTextEncoder):
         )
         
         input_ids = encoded["input_ids"].to(self.device)
-        attention_mask = encoded["attention_mask"].to(self.device)
+        
+        # SigLIP tokenizer may not return attention_mask
+        attention_mask = None
+        if "attention_mask" in encoded:
+            attention_mask = encoded["attention_mask"].to(self.device)
         
         # Encode
         with torch.no_grad():
             # Get text embeddings from the model
-            outputs = self.model.get_text_features(
-                input_ids=input_ids,
-                attention_mask=attention_mask
-            )
+            if attention_mask is not None:
+                outputs = self.model.get_text_features(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask
+                )
+            else:
+                outputs = self.model.get_text_features(input_ids=input_ids)
             
             embeddings = outputs  # [batch_size, embedding_dim]
             

@@ -1,0 +1,18 @@
+# LLAMA Embed Nemotron 8B text encoder configuration
+# NVIDIA's state-of-the-art multilingual embedding model
+# Embedding dimension: 4096, supports up to 32K tokens
+# Reference: https://huggingface.co/nvidia/llama-embed-nemotron-8b
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: llama
+model_name: nvidia/llama-embed-nemotron-8b
+embedding_dim: 4096
+max_length: 4096  # Can go up to 32768 but using 4096 for efficiency
+batch_size: 8  # Smaller batch size due to large model
+normalize: true
+cache_dir: null
+
+# Optional projection head
+use_projection: false
+projection_dim: 512
+

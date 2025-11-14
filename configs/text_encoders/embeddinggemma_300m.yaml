@@ -1,0 +1,21 @@
+# EmbeddingGemma 300M text encoder configuration
+# Google's state-of-the-art 300M parameter embedding model
+# Embedding dimension: 768 (supports Matryoshka: 512, 256, 128)
+# Reference: https://huggingface.co/google/embeddinggemma-300m
+# Device is auto-detected (checks mps, cuda, cpu in order)
+
+encoder_type: embeddinggemma
+model_name: google/embeddinggemma-300m
+embedding_dim: 768
+max_length: 2048  # Maximum context length
+batch_size: 32  # Moderate batch size for 300M model
+normalize: true
+cache_dir: null
+
+# Optional projection head
+use_projection: false
+projection_dim: 512
+
+# Note: EmbeddingGemma activations do not support float16
+# Use float32 or bfloat16 as appropriate for your hardware
+

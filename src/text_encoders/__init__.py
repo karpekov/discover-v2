@@ -7,16 +7,18 @@ frozen during training.
 Available encoders:
     - GTETextEncoder: thenlper/gte-base (768-d)
     - DistilRoBERTaTextEncoder: distilroberta-base (768-d)
-    - LLAMATextEncoder: LLAMA embedding models
-    - CLIPTextEncoder: OpenAI CLIP text encoder
-    - SigLIPTextEncoder: Google SigLIP text encoder
+    - LLAMATextEncoder: nvidia/llama-embed-nemotron-8b (4096-d)
+    - MiniLMTextEncoder: sentence-transformers/all-MiniLM-L6-v2 (384-d)
+    - EmbeddingGemmaTextEncoder: google/embeddinggemma-300m (768-d)
+    - CLIPTextEncoder: OpenAI CLIP text encoder (512-d)
+    - SigLIPTextEncoder: Google SigLIP text encoder (512-d)
 
 Usage:
     >>> from text_encoders import GTETextEncoder, TextEncoderConfig
-    >>> 
+    >>>
     >>> config = TextEncoderConfig.from_yaml('configs/text_encoders/gte_base.yaml')
     >>> encoder = GTETextEncoder(config)
-    >>> 
+    >>>
     >>> captions = ["Person moves from kitchen to living room", "Activity in bedroom"]
     >>> embeddings = encoder.encode(captions)  # [2, 768]
 """
@@ -26,6 +28,8 @@ from .frozen import (
     GTETextEncoder,
     DistilRoBERTaTextEncoder,
     LLAMATextEncoder,
+    MiniLMTextEncoder,
+    EmbeddingGemmaTextEncoder,
     CLIPTextEncoder,
     SigLIPTextEncoder
 )
@@ -40,6 +44,8 @@ __all__ = [
     'GTETextEncoder',
     'DistilRoBERTaTextEncoder',
     'LLAMATextEncoder',
+    'MiniLMTextEncoder',
+    'EmbeddingGemmaTextEncoder',
     'CLIPTextEncoder',
     'SigLIPTextEncoder',
 ]

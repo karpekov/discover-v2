@@ -31,6 +31,61 @@ from sklearn.metrics.pairwise import cosine_similarity
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+def extract_metadata_from_paths(embeddings_path: str) -> Dict[str, str]:
+    """Extract metadata from file paths.
+
+    Args:
+        embeddings_path: Path to embeddings file
+
+    Returns:
+        Dictionary with dataset, split, is_presegmented, caption_style, encoder_name
+    """
+    path = Path(embeddings_path)
+
+    # Extract dataset name from path (e.g., milan, aruba)
+    parts = path.parts
+    dataset_name = 'unknown'
+    for i, part in enumerate(parts):
+        if part == 'casas' and i + 1 < len(parts):
+            dataset_name = parts[i + 1]
+            break
+
+    # Check if presegmented
+    is_presegmented = 'presegmented' in str(path)
+
+    # Extract from filename: {split}_embeddings_{style}_{encoder}.npz
+    filename = path.stem  # Remove .npz
+    parts = filename.split('_')
+
+    # First part is split (train/test)
+    split = parts[0] if parts else 'train'
+
+    # Extract caption style and encoder
+    # Format: train_embeddings_baseline_gte
+    caption_style = 'baseline'
+    encoder_name = 'gte'
+
+    if 'embeddings' in parts:
+        emb_idx = parts.index('embeddings')
+        # Everything between 'embeddings' and last part is caption style
+        if emb_idx + 1 < len(parts):
+            # Last part is encoder
+            encoder_name = parts[-1]
+            # Middle parts are caption style
+            if emb_idx + 2 < len(parts):
+                caption_style = '_'.join(parts[emb_idx + 1:-1])
+            elif emb_idx + 1 < len(parts) - 1:
+                caption_style = parts[emb_idx + 1]
+
+    return {
+        'dataset_name': dataset_name,
+        'split': split,
+        'is_presegmented': is_presegmented,
+        'caption_style': caption_style,
+        'encoder_name': encoder_name
+    }
+
+
 def load_label_colors(dataset='milan') -> Tuple[Dict, Dict]:
     """Load label colors from metadata."""
     try:
@@ -297,7 +352,11 @@ def create_visualization(
     label_colors: Dict[str, str],
     label_colors_l2: Dict[str, str],
     save_path: str,
-    dataset_name: str = 'milan'
+    dataset_name: str = 'milan',
+    split: str = 'train',
+    is_presegmented: bool = False,
+    caption_style: str = 'baseline',
+    encoder_name: str = 'gte'
 ):
     """Create t-SNE visualization with L1 and L2 labels."""
     print(f"\n🎨 Creating visualization...")
@@ -331,7 +390,13 @@ def create_visualization(
 
     ax1.set_xlabel('t-SNE 1', fontsize=12)
     ax1.set_ylabel('t-SNE 2', fontsize=12)
-    ax1.set_title(f't-SNE Visualization - Primary Activities (L1)\n{dataset_name} - {len(labels_l1)} samples',
+
+    # Format titles
+    preseg_text = "presegmented" if is_presegmented else "standard"
+    title_l1 = f'Caption Emb, {dataset_name.capitalize()} ({split} - {preseg_text}), L1 labels'
+    subtitle_l1 = f'{caption_style.capitalize()} Captions, {encoder_name.upper()} Encoder'
+
+    ax1.set_title(f'{title_l1}\n{subtitle_l1}',
                   fontsize=14, fontweight='bold')
     ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
     ax1.grid(True, alpha=0.3)
@@ -361,7 +426,12 @@ def create_visualization(
 
     ax2.set_xlabel('t-SNE 1', fontsize=12)
     ax2.set_ylabel('t-SNE 2', fontsize=12)
-    ax2.set_title(f't-SNE Visualization - Secondary Activities (L2)\n{dataset_name} - {len(labels_l2)} samples',
+
+    # Format titles for L2
+    title_l2 = f'Caption Emb, {dataset_name.capitalize()} ({split} - {preseg_text}), L2 labels'
+    subtitle_l2 = f'{caption_style.capitalize()} Captions, {encoder_name.upper()} Encoder'
+
+    ax2.set_title(f'{title_l2}\n{subtitle_l2}',
                   fontsize=14, fontweight='bold')
     ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
     ax2.grid(True, alpha=0.3)
@@ -371,7 +441,7 @@ def create_visualization(
     # Save
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
     print(f"💾 Visualization saved to: {save_path}")
 
     plt.close()
@@ -385,6 +455,197 @@ def save_statistics(stats: Dict, output_path: str):
     print(f"💾 Statistics saved to: {stats_path}")
 
 
+def create_comparison_grid(
+    embeddings_dir: str,
+    captions_path: str,
+    data_path: str,
+    output_prefix: str,
+    max_samples: int = 10000,
+    perplexity: int = 30
+):
+    """Create comparison grids for all embeddings in a directory.
+
+    Args:
+        embeddings_dir: Directory containing embedding files
+        captions_path: Path to captions file
+        data_path: Path to data file with labels
+        output_prefix: Prefix for output files
+        max_samples: Maximum samples to visualize
+        perplexity: t-SNE perplexity
+    """
+    from glob import glob
+    import math
+
+    print("\n" + "="*80)
+    print("CREATING COMPARISON GRID FOR ALL EMBEDDINGS")
+    print("="*80)
+
+    # Find all embedding files
+    embeddings_dir = Path(embeddings_dir)
+    embedding_files = sorted(embeddings_dir.glob("*_embeddings_*.npz"))
+
+    if not embedding_files:
+        print(f"❌ No embedding files found in {embeddings_dir}")
+        return
+
+    print(f"\n📂 Found {len(embedding_files)} embedding files:")
+    for f in embedding_files:
+        print(f"   - {f.name}")
+
+    # Extract metadata from first file to get dataset info
+    first_metadata = extract_metadata_from_paths(str(embedding_files[0]))
+    dataset_name = first_metadata['dataset_name']
+
+    # Load label colors
+    label_colors, label_colors_l2 = load_label_colors(dataset_name)
+
+    # Load data and captions once (without sampling)
+    print(f"\n📖 Loading captions and labels...")
+    _, sample_ids, labels_l1_all, labels_l2_all, captions = load_embeddings_and_labels(
+        str(embedding_files[0]),  # Use first file to get labels
+        captions_path,
+        data_path=data_path,
+        max_samples=None  # Don't sample yet
+    )
+
+    # Sample indices once for consistency across all embeddings
+    if max_samples and len(labels_l1_all) > max_samples:
+        print(f"\n🎲 Sampling {max_samples} from {len(labels_l1_all)} samples (seed=42)")
+        np.random.seed(42)
+        sample_indices = np.random.choice(len(labels_l1_all), max_samples, replace=False)
+        labels_l1 = [labels_l1_all[i] for i in sample_indices]
+        labels_l2 = [labels_l2_all[i] for i in sample_indices]
+    else:
+        sample_indices = None
+        labels_l1 = labels_l1_all
+        labels_l2 = labels_l2_all
+
+    # Calculate grid dimensions
+    n_encoders = len(embedding_files)
+    n_cols = min(3, n_encoders)  # Max 3 columns
+    n_rows = math.ceil(n_encoders / n_cols)
+
+    # Create figures for L1 and L2
+    fig_l1, axes_l1 = plt.subplots(n_rows, n_cols, figsize=(8*n_cols, 7*n_rows))
+    fig_l2, axes_l2 = plt.subplots(n_rows, n_cols, figsize=(8*n_cols, 7*n_rows))
+
+    # Flatten axes for easier indexing
+    if n_encoders == 1:
+        axes_l1 = [axes_l1]
+        axes_l2 = [axes_l2]
+    else:
+        axes_l1 = axes_l1.flatten() if n_encoders > 1 else [axes_l1]
+        axes_l2 = axes_l2.flatten() if n_encoders > 1 else [axes_l2]
+
+    # Process each embedding file
+    for idx, emb_file in enumerate(embedding_files):
+        print(f"\n🔄 Processing {emb_file.name}...")
+
+        # Extract metadata
+        metadata = extract_metadata_from_paths(str(emb_file))
+        encoder_name = metadata['encoder_name'].upper()
+
+        # Load embeddings
+        data = np.load(emb_file)
+        embeddings = data['embeddings']
+
+        # Apply same sampling
+        if sample_indices is not None:
+            embeddings = embeddings[sample_indices]
+
+        # Run t-SNE
+        print(f"   Running t-SNE...")
+        tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42, verbose=0)
+        projection = tsne.fit_transform(embeddings)
+
+        # Plot L1
+        ax_l1 = axes_l1[idx]
+        unique_labels_l1 = sorted(set(labels_l1))
+        for label in unique_labels_l1:
+            mask = np.array(labels_l1) == label
+            color = label_colors.get(label, plt.cm.tab20(len([l for l in unique_labels_l1 if l < label]) % 20))
+            ax_l1.scatter(
+                projection[mask, 0],
+                projection[mask, 1],
+                c=[color],
+                label=label.replace('_', ' '),
+                alpha=0.6,
+                s=20,
+                edgecolors='white',
+                linewidth=0.3
+            )
+        ax_l1.set_title(f'{encoder_name}', fontsize=12, fontweight='bold')
+        ax_l1.set_xlabel('t-SNE 1', fontsize=10)
+        ax_l1.set_ylabel('t-SNE 2', fontsize=10)
+        ax_l1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
+        ax_l1.grid(True, alpha=0.3)
+
+        # Plot L2
+        ax_l2 = axes_l2[idx]
+        unique_labels_l2 = sorted(set(labels_l2))
+        for label in unique_labels_l2:
+            mask = np.array(labels_l2) == label
+            color = label_colors_l2.get(label, plt.cm.tab10(len([l for l in unique_labels_l2 if l < label]) % 10))
+            ax_l2.scatter(
+                projection[mask, 0],
+                projection[mask, 1],
+                c=[color],
+                label=label.replace('_', ' '),
+                alpha=0.6,
+                s=20,
+                edgecolors='white',
+                linewidth=0.3
+            )
+        ax_l2.set_title(f'{encoder_name}', fontsize=12, fontweight='bold')
+        ax_l2.set_xlabel('t-SNE 1', fontsize=10)
+        ax_l2.set_ylabel('t-SNE 2', fontsize=10)
+        ax_l2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
+        ax_l2.grid(True, alpha=0.3)
+
+    # Hide unused subplots
+    for idx in range(n_encoders, len(axes_l1)):
+        axes_l1[idx].set_visible(False)
+        axes_l2[idx].set_visible(False)
+
+    # Add overall titles
+    preseg_text = "presegmented" if first_metadata['is_presegmented'] else "standard"
+    split = first_metadata['split']
+    caption_style = first_metadata['caption_style']
+
+    fig_l1.suptitle(
+        f'Embedding Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L1 Labels\n'
+        f'{caption_style.capitalize()} Captions - All Encoders',
+        fontsize=16,
+        fontweight='bold',
+        y=0.995
+    )
+
+    fig_l2.suptitle(
+        f'Embedding Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L2 Labels\n'
+        f'{caption_style.capitalize()} Captions - All Encoders',
+        fontsize=16,
+        fontweight='bold',
+        y=0.995
+    )
+
+    # Adjust layout
+    fig_l1.tight_layout()
+    fig_l2.tight_layout()
+
+    # Save with lower DPI for smaller file size
+    output_l1 = f"{output_prefix}_comparison_l1.png"
+    output_l2 = f"{output_prefix}_comparison_l2.png"
+
+    fig_l1.savefig(output_l1, dpi=150, bbox_inches='tight')
+    fig_l2.savefig(output_l2, dpi=150, bbox_inches='tight')
+
+    print(f"\n💾 Saved L1 comparison to: {output_l1}")
+    print(f"💾 Saved L2 comparison to: {output_l2}")
+
+    plt.close(fig_l1)
+    plt.close(fig_l2)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Visualize pre-computed text embeddings with t-SNE'
@@ -393,8 +654,13 @@ def main():
     parser.add_argument(
         '--embeddings',
         type=str,
-        required=True,
-        help='Path to embeddings .npz file'
+        help='Path to embeddings .npz file (for single visualization)'
+    )
+
+    parser.add_argument(
+        '--embeddings-dir',
+        type=str,
+        help='Directory containing multiple embedding files (for comparison grid)'
     )
 
     parser.add_argument(
@@ -414,7 +680,7 @@ def main():
         '--output',
         type=str,
         required=True,
-        help='Path to save visualization PNG'
+        help='Path to save visualization PNG (or prefix for comparison grid)'
     )
 
     parser.add_argument(
@@ -431,53 +697,79 @@ def main():
         help='t-SNE perplexity parameter (default: 30)'
     )
 
-    parser.add_argument(
-        '--dataset',
-        type=str,
-        default='milan',
-        help='Dataset name for label colors (default: milan)'
-    )
-
     args = parser.parse_args()
 
-    print("="*80)
-    print("TEXT EMBEDDING VISUALIZATION")
-    print("="*80)
+    # Check if we're doing comparison or single visualization
+    if args.embeddings_dir:
+        # Comparison mode
+        create_comparison_grid(
+            embeddings_dir=args.embeddings_dir,
+            captions_path=args.captions,
+            data_path=args.data,
+            output_prefix=args.output,
+            max_samples=args.max_samples,
+            perplexity=args.perplexity
+        )
+        print("\n" + "="*80)
+        print("✨ Comparison grid complete!")
+        print("="*80 + "\n")
 
-    # Load label colors
-    label_colors, label_colors_l2 = load_label_colors(args.dataset)
+    elif args.embeddings:
+        # Single visualization mode
+        print("="*80)
+        print("TEXT EMBEDDING VISUALIZATION")
+        print("="*80)
 
-    # Load embeddings and labels
-    embeddings, sample_ids, labels_l1, labels_l2, captions = load_embeddings_and_labels(
-        args.embeddings,
-        args.captions,
-        data_path=args.data,
-        max_samples=args.max_samples
-    )
+        # Extract metadata from paths
+        metadata = extract_metadata_from_paths(args.embeddings)
+        print(f"\n📋 Extracted metadata:")
+        print(f"   Dataset: {metadata['dataset_name']}")
+        print(f"   Split: {metadata['split']}")
+        print(f"   Presegmented: {metadata['is_presegmented']}")
+        print(f"   Caption style: {metadata['caption_style']}")
+        print(f"   Encoder: {metadata['encoder_name']}")
 
-    # Compute similarity statistics
-    stats = compute_within_class_similarity(embeddings, labels_l1)
+        # Load label colors
+        label_colors, label_colors_l2 = load_label_colors(metadata['dataset_name'])
 
-    # Run t-SNE
-    projection = run_tsne(embeddings, perplexity=args.perplexity)
+        # Load embeddings and labels
+        embeddings, sample_ids, labels_l1, labels_l2, captions = load_embeddings_and_labels(
+            args.embeddings,
+            args.captions,
+            data_path=args.data,
+            max_samples=args.max_samples
+        )
 
-    # Create visualization
-    create_visualization(
-        projection,
-        labels_l1,
-        labels_l2,
-        label_colors,
-        label_colors_l2,
-        args.output,
-        dataset_name=args.dataset
-    )
+        # Compute similarity statistics
+        stats = compute_within_class_similarity(embeddings, labels_l1)
 
-    # Save statistics
-    save_statistics(stats, args.output)
+        # Run t-SNE
+        projection = run_tsne(embeddings, perplexity=args.perplexity)
 
-    print("\n" + "="*80)
-    print("✨ Visualization complete!")
-    print("="*80 + "\n")
+        # Create visualization
+        create_visualization(
+            projection,
+            labels_l1,
+            labels_l2,
+            label_colors,
+            label_colors_l2,
+            args.output,
+            dataset_name=metadata['dataset_name'],
+            split=metadata['split'],
+            is_presegmented=metadata['is_presegmented'],
+            caption_style=metadata['caption_style'],
+            encoder_name=metadata['encoder_name']
+        )
+
+        # Save statistics
+        save_statistics(stats, args.output)
+
+        print("\n" + "="*80)
+        print("✨ Visualization complete!")
+        print("="*80 + "\n")
+
+    else:
+        parser.error("Either --embeddings or --embeddings-dir must be provided")
 
 
 if __name__ == '__main__':
