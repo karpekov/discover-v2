@@ -1,0 +1,76 @@
+# Alignment with MLP projection for Milan dataset
+# Uses 2-layer MLP projections for better representation learning
+
+experiment_name: milan_alignment_mlp
+output_dir: trained_models/milan/alignment_mlp
+
+# Data paths (sensor data from Step 1)
+train_data_path: data/processed/casas/milan/fixed_duration_60s/train.json
+val_data_path: data/processed/casas/milan/fixed_duration_60s/test.json
+vocab_path: data/processed/casas/milan/fixed_duration_60s/vocab.json
+
+# Text embeddings (pre-computed from Step 4)
+train_text_embeddings_path: data/processed/casas/milan/fixed_duration_60s/train_embeddings_baseline_gte_base.npz
+val_text_embeddings_path: data/processed/casas/milan/fixed_duration_60s/test_embeddings_baseline_gte_base.npz
+
+# Encoder configuration
+encoder_config_path: configs/encoders/transformer_base.yaml
+encoder_type: transformer
+
+# Projection heads - MLP for sensor embeddings
+sensor_projection:
+  type: mlp  # 2-layer MLP projection
+  dim: 512
+  hidden_dim: 2048
+  num_layers: 2
+  dropout: 0.1
+  use_bn: false
+
+# Optional: MLP projection for text embeddings too
+# text_projection:
+#   type: mlp
+#   dim: 512
+#   hidden_dim: 2048
+#   num_layers: 2
+#   dropout: 0.1
+#   use_bn: false
+
+text_projection: null
+
+# Loss configuration
+loss:
+  clip_weight: 1.0
+  temperature_init: 0.02
+  learnable_temperature: true
+  mlm_weight: 0.0
+  use_hard_negatives: false
+
+# Optimizer configuration
+optimizer:
+  type: adamw
+  learning_rate: 3.0e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+
+# Training configuration
+training:
+  batch_size: 128
+  max_steps: 10000
+  device: auto
+  use_amp: true
+  log_interval: 50
+  val_interval: 500
+  save_interval: 2000
+  num_workers: 4
+
+# WandB logging
+use_wandb: true
+wandb_project: discover-v2
+wandb_entity: null  # Set to your W&B username/team
+wandb_name: null  # Auto-generated: milan_fixdur60s_tf-base_baseline_gte_mlp2
+wandb_tags: []  # Auto-generated based on config
+wandb_notes: "Alignment with MLP projection (SimCLR/MoCo style)"
+wandb_group: null  # Auto-generated: milan_fixdur60s_tf-base
+

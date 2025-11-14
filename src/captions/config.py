@@ -40,7 +40,7 @@ class RuleBasedCaptionConfig(CaptionConfig):
 
     # Caption generation options
     generate_long_captions: bool = True  # Generate long detailed captions
-    generate_short_captions: bool = True  # Generate short creative captions
+    generate_short_captions: bool = False  # Generate short creative captions (disabled by default)
 
     # For baseline style
     include_temporal_context: bool = True  # Include time of day, day of week

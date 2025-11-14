@@ -11,6 +11,7 @@ All encoders follow a common interface defined in base.py.
 
 from src.encoders.base import BaseEncoder, EncoderOutput
 from src.encoders.config import EncoderConfig, TransformerEncoderConfig, MetadataConfig
+from src.encoders.factory import build_encoder, load_encoder_config
 
 __all__ = [
     'BaseEncoder',
@@ -18,5 +19,7 @@ __all__ = [
     'EncoderConfig',
     'TransformerEncoderConfig',
     'MetadataConfig',
+    'build_encoder',
+    'load_encoder_config',
 ]
 

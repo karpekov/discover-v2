@@ -69,11 +69,11 @@ class BaseSampler(ABC):
         self.config = config
         self._sample_id_counter = 0
 
-    def sample_dataset(self) -> Tuple[SamplingResult, SamplingResult]:
+    def sample_dataset(self) -> Tuple[SamplingResult, SamplingResult, SamplingResult]:
         """Main entry point for sampling a dataset.
 
         Returns:
-            Tuple of (train_result, test_result)
+            Tuple of (train_result, val_result, test_result)
         """
         print(f"\n{'='*60}")
         print(f"Starting {self.config.strategy.value} sampling")
@@ -85,16 +85,21 @@ class BaseSampler(ABC):
         df = self._load_raw_data()
         print(f"  Loaded {len(df)} events")
 
-        # Step 2: Train/test split by days
-        print("\nStep 2: Splitting into train/test...")
-        train_df, test_df = self._split_by_days(df)
+        # Step 2: Train/val/test split by days (70/10/20)
+        print("\nStep 2: Splitting into train/val/test...")
+        train_df, val_df, test_df = self._split_by_days(df)
         print(f"  Train: {len(train_df)} events")
+        print(f"  Val: {len(val_df)} events")
         print(f"  Test: {len(test_df)} events")
 
         # Step 3: Apply sampling strategy
         print("\nStep 3: Creating windows...")
         train_samples = self._create_samples(train_df, split='train')
         print(f"  Created {len(train_samples)} train samples")
+
+        self._sample_id_counter = 0  # Reset for val set
+        val_samples = self._create_samples(val_df, split='val')
+        print(f"  Created {len(val_samples)} val samples")
 
         self._sample_id_counter = 0  # Reset for test set
         test_samples = self._create_samples(test_df, split='test')
@@ -103,6 +108,7 @@ class BaseSampler(ABC):
         # Step 4: Compute statistics
         print("\nStep 4: Computing statistics...")
         train_stats = self._compute_statistics(train_samples)
+        val_stats = self._compute_statistics(val_samples)
         test_stats = self._compute_statistics(test_samples)
 
         # Step 5: Create results
@@ -115,6 +121,15 @@ class BaseSampler(ABC):
             split='train',
             samples=train_samples,
             statistics=train_stats
+        )
+
+        val_result = SamplingResult(
+            dataset_name=self.config.dataset_name,
+            sampling_strategy=self.config.strategy.value,
+            sampling_params=sampling_params,
+            split='val',
+            samples=val_samples,
+            statistics=val_stats
         )
 
         test_result = SamplingResult(
@@ -130,7 +145,7 @@ class BaseSampler(ABC):
         print("Sampling complete!")
         print(f"{'='*60}\n")
 
-        return train_result, test_result
+        return train_result, val_result, test_result
 
     @abstractmethod
     def _create_windows_for_dataframe(self, df: pd.DataFrame, split: str) -> List[Dict[str, Any]]:
@@ -195,8 +210,8 @@ class BaseSampler(ABC):
 
         return df
 
-    def _split_by_days(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Split dataframe into train/test by days."""
+    def _split_by_days(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """Split dataframe into train/val/test by days (70/10/20)."""
         from .config import SplitStrategy
 
         # Get unique dates (timestamp column is now standardized)
@@ -204,24 +219,33 @@ class BaseSampler(ABC):
         unique_dates = sorted(df['date'].unique())
 
         n_dates = len(unique_dates)
-        n_train = int(n_dates * self.config.train_ratio)
+        n_train = int(n_dates * 0.7)  # 70% for training
+        n_val = int(n_dates * 0.1)    # 10% for validation
+        # Remaining ~20% for test
 
         if self.config.split_strategy == SplitStrategy.RANDOM:
             # Random split
             np.random.seed(self.config.random_seed)
-            train_dates = np.random.choice(unique_dates, size=n_train, replace=False)
+            shuffled_dates = np.random.choice(unique_dates, size=n_dates, replace=False)
+            train_dates = shuffled_dates[:n_train]
+            val_dates = shuffled_dates[n_train:n_train+n_val]
+            test_dates = shuffled_dates[n_train+n_val:]
         else:
-            # Temporal split (first N days for train)
+            # Temporal split (first 70% for train, next 10% for val, last 20% for test)
             train_dates = unique_dates[:n_train]
+            val_dates = unique_dates[n_train:n_train+n_val]
+            test_dates = unique_dates[n_train+n_val:]
 
         train_df = df[df['date'].isin(train_dates)].copy()
-        test_df = df[~df['date'].isin(train_dates)].copy()
+        val_df = df[df['date'].isin(val_dates)].copy()
+        test_df = df[df['date'].isin(test_dates)].copy()
 
         # Remove temporary date column
         train_df = train_df.drop('date', axis=1)
+        val_df = val_df.drop('date', axis=1)
         test_df = test_df.drop('date', axis=1)
 
-        return train_df, test_df
+        return train_df, val_df, test_df
 
     def _create_samples(self, df: pd.DataFrame, split: str) -> List[Sample]:
         """Create samples from dataframe using the specific windowing strategy."""
@@ -301,4 +325,62 @@ class BaseSampler(ABC):
                     event[field] = row[field]
 
         return event
+
+    def _generate_vocabulary(self, samples: List[Sample]) -> Dict[str, Dict[str, int]]:
+        """
+        Generate vocabulary from samples.
+
+        Extracts unique values for each categorical field and creates index mappings.
+        Index 0 is reserved for UNK (unknown/padding).
+
+        Args:
+            samples: List of Sample objects
+
+        Returns:
+            Dictionary mapping field names to {value: index} dictionaries
+        """
+        from collections import defaultdict
+
+        # Collect unique values for each field
+        vocab_sets = defaultdict(set)
+
+        for sample in samples:
+            sensor_sequence = sample.sensor_sequence
+
+            for event in sensor_sequence:
+                for key, value in event.items():
+                    # Skip non-categorical fields
+                    if key in ['x', 'y', 'z', 'timestamp', 'datetime', 'time_delta']:
+                        continue
+
+                    # Normalize field names and collect values
+                    if key in ['sensor', 'sensor_id']:
+                        vocab_sets['sensor'].add(str(value))
+                    elif key in ['state', 'event_type', 'message']:
+                        vocab_sets['state'].add(str(value))
+                    elif key in ['room', 'room_id', 'location']:
+                        vocab_sets['room_id'].add(str(value))
+                    elif key in ['activity', 'first_activity', 'activity_l1']:
+                        vocab_sets['activity'].add(str(value))
+                    elif key in ['activity_l2', 'first_activity_l2']:
+                        vocab_sets['activity_l2'].add(str(value))
+                    elif key in ['sensor_type', 'type']:
+                        vocab_sets['sensor_type'].add(str(value))
+                    else:
+                        # Generic field
+                        vocab_sets[key].add(str(value))
+
+        # Convert sets to sorted lists and create index mappings
+        vocab_dict = {}
+        for field, values in vocab_sets.items():
+            # Sort values for consistency
+            sorted_values = sorted(list(values))
+
+            # Create index mapping (0 is reserved for UNK)
+            vocab_dict[field] = {value: idx + 1 for idx, value in enumerate(sorted_values)}
+
+            # Add UNK token at index 0
+            vocab_dict[field]['UNK'] = 0
+
+        return vocab_dict
 

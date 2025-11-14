@@ -349,7 +349,8 @@ class SpanMasker(nn.Module):
     categorical_features: Dict[str, torch.Tensor],
     vocab_sizes: Dict[str, int],
     activity_labels: Optional[torch.Tensor] = None,
-    room_labels: Optional[torch.Tensor] = None
+    room_labels: Optional[torch.Tensor] = None,
+    attention_mask: Optional[torch.Tensor] = None
   ) -> tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
     """
     Apply enhanced span masking to categorical features.
@@ -359,6 +360,7 @@ class SpanMasker(nn.Module):
       vocab_sizes: Dict mapping field names to vocabulary sizes
       activity_labels: Optional [batch_size, seq_len] activity labels for transition detection
       room_labels: Optional [batch_size, seq_len] room labels for transition detection
+      attention_mask: Optional [batch_size, seq_len] attention mask (True = valid, False = padding)
 
     Returns:
       masked_features: Dict of [batch_size, seq_len] masked input features
@@ -369,24 +371,32 @@ class SpanMasker(nn.Module):
     batch_size, seq_len = next(iter(categorical_features.values())).shape
     device = next(iter(categorical_features.values())).device
 
+    # Create attention mask if not provided (assume all positions are valid)
+    if attention_mask is None:
+      attention_mask = torch.ones(batch_size, seq_len, device=device, dtype=torch.bool)
+
     # 1. Transition-span masking: seed masks at activity/room transitions
     transition_mask = self._detect_transitions(activity_labels, room_labels, device) if (activity_labels is not None or room_labels is not None) else torch.zeros(batch_size, seq_len, device=device, dtype=torch.bool)
 
     # Sample which positions to mask (base probability + transition seeding)
-    base_mask_decisions = torch.rand(batch_size, seq_len, device=device) < self.mask_prob
-    transition_seed_decisions = torch.rand(batch_size, seq_len, device=device) < self.p_transition_seed
+    # Only consider valid (non-padded) positions
+    base_mask_decisions = (torch.rand(batch_size, seq_len, device=device) < self.mask_prob) & attention_mask
+    transition_seed_decisions = (torch.rand(batch_size, seq_len, device=device) < self.p_transition_seed) & attention_mask
     mask_decisions = base_mask_decisions | (transition_mask & transition_seed_decisions)
 
     # Sample span lengths
     span_lengths = self._sample_span_lengths(batch_size, seq_len, device)
 
-    # Apply span masking
+    # Apply span masking (only to valid positions)
     final_mask = torch.zeros_like(mask_decisions)
     for b in range(batch_size):
       for s in range(seq_len):
         if mask_decisions[b, s]:
           span_len = min(span_lengths[b, s].item(), seq_len - s)
-          final_mask[b, s:s+span_len] = True
+          # Only mask positions within attention mask
+          for i in range(span_len):
+            if s + i < seq_len and attention_mask[b, s + i]:
+              final_mask[b, s + i] = True
 
     # 2. Compute independent field masks with adaptive multipliers
     independent_field_masks = {}

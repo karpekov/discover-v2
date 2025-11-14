@@ -33,13 +33,14 @@ from .frozen import (
     CLIPTextEncoder,
     SigLIPTextEncoder
 )
+from .factory import build_text_encoder
 
 __all__ = [
     # Base classes
     'BaseTextEncoder',
     'TextEncoderConfig',
     'TextEncoderOutput',
-    
+
     # Frozen encoders
     'GTETextEncoder',
     'DistilRoBERTaTextEncoder',
@@ -48,5 +49,8 @@ __all__ = [
     'EmbeddingGemmaTextEncoder',
     'CLIPTextEncoder',
     'SigLIPTextEncoder',
+
+    # Factory
+    'build_text_encoder',
 ]
 

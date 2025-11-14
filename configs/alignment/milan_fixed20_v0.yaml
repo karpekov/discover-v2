@@ -1,0 +1,116 @@
+# Milan Fixed-Length 20 - Version 0 (Baseline Training Run)
+#
+# Configuration based on learnings from test runs:
+# - Reduced MLM weight to prevent early saturation
+# - Increased MLM difficulty (higher mask_prob, longer spans)
+# - Proper training duration for convergence
+# - Linear projections for both sensor and text embeddings
+
+experiment_name: milan_fixed20_v0
+output_dir: trained_models/milan/fixed20_v0
+
+# Data paths - using fixed_length_20 with 70/10/20 split
+train_data_path: data/processed/casas/milan/fixed_length_20/train.json
+val_data_path: data/processed/casas/milan/fixed_length_20/val.json
+vocab_path: data/processed/casas/milan/fixed_length_20/vocab.json
+
+# Text embeddings (pre-computed) - CLIP baseline captions (2 long captions per sample)
+train_text_embeddings_path: data/processed/casas/milan/fixed_length_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/fixed_length_20/val_embeddings_baseline_clip.npz
+
+# Encoder configuration - Small transformer for faster iteration
+encoder_config_path: configs/encoders/transformer_small.yaml
+encoder_type: transformer
+
+# Projection heads - Linear projections to 512-d shared space
+sensor_projection:
+  type: linear
+  dim: 512
+
+text_projection:
+  type: linear
+  dim: 512
+
+# Loss configuration - CLIP primary, MLM auxiliary
+loss:
+  # CLIP loss (primary objective)
+  clip_weight: 1.0
+  temperature_init: 0.02
+  learnable_temperature: true
+
+  # MLM loss (auxiliary objective) - REDUCED weight to prevent saturation
+  mlm_weight: 0.2  # Reduced from 1.0 to 0.2 based on test run
+  mask_prob: 0.35  # Increased from 0.25 to make MLM harder
+  mean_span_length: 8.0  # Increased from 5.0 for longer, more challenging spans
+
+  # Hard negative sampling (disabled for baseline)
+  use_hard_negatives: false
+  hard_negative_memory_size: 4096
+  hard_negative_ratio: 0.5
+  hard_negative_strategy: mixed
+  hard_negative_sampling_temperature: 0.1
+
+# Optimizer configuration
+optimizer:
+  type: adamw
+  learning_rate: 3.0e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+
+# Training configuration - Full training run
+training:
+  batch_size: 128  # Larger batch for better contrastive learning
+  max_epochs: 10   # ~9,430 steps with 943 steps/epoch
+  max_steps: null  # Let epochs control duration
+
+  device: auto
+  use_amp: true
+
+  log_interval: 50
+  val_interval: 500
+  save_interval: 2000
+  metrics_interval: 500
+
+  num_workers: 0  # Must be 0 for MPS device (Apple Silicon)
+  shuffle: true
+  pin_memory: false  # Not supported on MPS
+
+# WandB logging - ENABLED
+use_wandb: true
+wandb_project: discover-v2
+wandb_entity: null  # Set to your W&B username if you have one
+wandb_name: null  # Auto-generated
+wandb_tags: []  # Auto-generated
+wandb_notes: "Milan v0: Baseline training with reduced MLM weight (0.2) and harder masking (35%, span=8). Linear projections, CLIP embeddings, 10 epochs."
+wandb_group: null  # Auto-generated
+
+# Training Strategy Notes:
+#
+# 1. MLM Weight Reduction (1.0 → 0.2):
+#    - Test run showed MLM converges too quickly (loss < 0.01 by step 50)
+#    - MLM should be auxiliary, not competing equally with CLIP
+#    - 0.2 weight keeps MLM active but lets CLIP dominate gradients
+#
+# 2. Increased MLM Difficulty:
+#    - mask_prob: 0.35 (was 0.25) - Mask 35% of tokens instead of 25%
+#    - mean_span_length: 8.0 (was 5.0) - Longer masked spans are harder
+#    - This should prevent early saturation and keep MLM useful longer
+#
+# 3. Batch Size & Duration:
+#    - Batch 128 for better contrastive learning (more negatives per batch)
+#    - 10 epochs ≈ 9,430 steps for proper convergence
+#    - Test run showed CLIP needed more steps (accuracy still low at 400 steps)
+#
+# 4. Expected Behavior:
+#    - MLM loss should stay higher initially (0.1-0.3 range)
+#    - CLIP loss should decrease steadily over training
+#    - S2T/T2S accuracy should reach 20-40% by end (good alignment)
+#    - Validation loss should improve consistently
+#
+# 5. Model Size:
+#    - Using transformer_small for reasonable training time
+#    - ~8-12M parameters (vs 4M in tiny)
+#    - Better capacity for learning complex alignments
+

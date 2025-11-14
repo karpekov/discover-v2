@@ -181,9 +181,9 @@ def main():
     parser.add_argument(
         '--split',
         type=str,
-        choices=['train', 'test', 'both'],
-        default='both',
-        help='Which split to process'
+        choices=['train', 'val', 'test', 'all'],
+        default='all',
+        help='Which split to process (all = train + val + test)'
     )
 
     parser.add_argument(
@@ -220,7 +220,7 @@ def main():
         dataset_name=args.dataset_name,
         sensor_details_path=args.sensor_details,
         generate_long_captions=True,
-        generate_short_captions=True
+        generate_short_captions=False  # Only generate long captions
     )
 
     # Determine style suffix for filenames
@@ -251,10 +251,10 @@ def main():
 
     # Process splits
     splits_to_process = []
-    if args.split in ['train', 'both']:
-        splits_to_process.append('train')
-    if args.split in ['test', 'both']:
-        splits_to_process.append('test')
+    if args.split == 'all':
+        splits_to_process = ['train', 'val', 'test']
+    else:
+        splits_to_process = [args.split]
 
     all_outputs = {}
     for split in splits_to_process:

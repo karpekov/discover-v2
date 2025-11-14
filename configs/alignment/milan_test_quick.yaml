@@ -1,0 +1,74 @@
+# Quick test configuration for Milan dataset
+# Uses existing presegmented data with minimal steps for testing
+
+experiment_name: milan_test_alignment
+output_dir: trained_models/milan/test_alignment
+
+# Data paths - using fixed_length_20 with proper 70/10/20 split
+train_data_path: data/processed/casas/milan/fixed_length_20/train.json
+val_data_path: data/processed/casas/milan/fixed_length_20/val.json
+vocab_path: data/processed/casas/milan/fixed_length_20/vocab.json
+
+# Text embeddings (pre-computed) - using CLIP, baseline captions (2 long captions per sample)
+train_text_embeddings_path: data/processed/casas/milan/fixed_length_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/fixed_length_20/val_embeddings_baseline_clip.npz
+
+# Encoder configuration
+encoder_config_path: configs/encoders/transformer_tiny.yaml  # Using tiny for faster testing
+encoder_type: transformer
+
+# Projection heads
+sensor_projection:
+  type: linear
+  dim: 512
+
+text_projection:
+  type: linear
+  dim: 512
+
+# Loss configuration - CLIP + MLM
+loss:
+  clip_weight: 1.0
+  temperature_init: 0.02
+  learnable_temperature: true
+  mlm_weight: 1.0  # Enable MLM (50-50 weighting with CLIP)
+  mask_prob: 0.25
+  mean_span_length: 5.0
+  use_hard_negatives: false
+
+# Optimizer configuration
+optimizer:
+  type: adamw
+  learning_rate: 3.0e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+
+# Training configuration - QUICK TEST
+training:
+  batch_size: 32  # Smaller batch for testing
+  max_epochs: null
+  max_steps: 1000  # Just 1000 steps for testing!
+
+  device: auto
+  use_amp: true
+
+  log_interval: 10  # Log more frequently
+  val_interval: 50
+  save_interval: 50
+  metrics_interval: 50
+
+  num_workers: 0  # Must be 0 for MPS device (Apple Silicon)
+  shuffle: true
+  pin_memory: false  # Not supported on MPS
+
+# WandB logging - ENABLED
+use_wandb: true  # Enable WandB logging
+wandb_project: discover-v2
+wandb_entity: null  # Set to your W&B username if you have one
+wandb_name: null  # Auto-generated: milan_fixlen20_preseg_tf-tiny_baseline_clip_linear__clip+mlm
+wandb_tags: []  # Auto-generated
+wandb_notes: "Test run: Milan fixed-length 20 presegmented, CLIP embeddings, CLIP+MLM loss, 100 steps"
+wandb_group: null  # Auto-generated: milan_fixlen20_preseg_tf-tiny
+

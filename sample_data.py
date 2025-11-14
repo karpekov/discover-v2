@@ -211,18 +211,34 @@ Examples:
     print(f"\nStarting sampling at {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
-        train_result, test_result = sampler.sample_dataset()
+        train_result, val_result, test_result = sampler.sample_dataset()
 
         # Save results
         output_dir = Path(config_dict['output_dir'])
         output_dir.mkdir(parents=True, exist_ok=True)
 
         train_path = output_dir / 'train.json'
+        val_path = output_dir / 'val.json'
         test_path = output_dir / 'test.json'
 
         print("\nSaving results...")
         train_result.save_json(train_path)
+        val_result.save_json(val_path)
         test_result.save_json(test_path)
+
+        # Generate and save vocabulary from training data
+        print("\nGenerating vocabulary from training data...")
+        vocab = sampler._generate_vocabulary(train_result.samples)
+        vocab_path = output_dir / 'vocab.json'
+
+        import json
+        with open(vocab_path, 'w') as f:
+            json.dump(vocab, f, indent=2)
+
+        print(f"✅ Saved vocabulary to: {vocab_path}")
+        print(f"   Vocabulary statistics:")
+        for field, mapping in vocab.items():
+            print(f"     - {field}: {len(mapping)} unique values")
 
         # Save config for reference
         config_save_path = output_dir / 'sampling_config.yaml'
@@ -231,7 +247,6 @@ Examples:
         print(f"Saved config to {config_save_path}")
 
         # Save statistics to separate file
-        import json
         stats_path = output_dir / 'statistics.json'
 
         # Convert strategy to string if it's an enum
@@ -252,18 +267,22 @@ Examples:
             'output_directory': str(output_dir),
             'output_files': {
                 'train': str(train_path.name),
+                'val': str(val_path.name),
                 'test': str(test_path.name),
+                'vocab': str(vocab_path.name),
                 'config': str(config_save_path.name),
                 'statistics': str(stats_path.name)
             },
             'split_strategy': split_strategy_value,
-            'train_ratio': config_dict.get('train_ratio'),
+            'split_ratio': '70/10/20',  # train/val/test
             'random_seed': config_dict.get('random_seed'),
             'processing_duration_seconds': None,  # Will be updated below
             'train_statistics': train_result.statistics,
+            'val_statistics': val_result.statistics,
             'test_statistics': test_result.statistics,
-            'total_samples': len(train_result.samples) + len(test_result.samples),
+            'total_samples': len(train_result.samples) + len(val_result.samples) + len(test_result.samples),
             'train_samples_count': len(train_result.samples),
+            'val_samples_count': len(val_result.samples),
             'test_samples_count': len(test_result.samples),
         }
 
@@ -288,6 +307,9 @@ Examples:
         print(f"\nTrain samples: {len(train_result.samples)}")
         print(f"  Avg sequence length: {train_result.statistics.get('avg_sequence_length', 0):.1f}")
         print(f"  Avg duration: {train_result.statistics.get('avg_duration_seconds', 0):.1f}s")
+        print(f"\nVal samples: {len(val_result.samples)}")
+        print(f"  Avg sequence length: {val_result.statistics.get('avg_sequence_length', 0):.1f}")
+        print(f"  Avg duration: {val_result.statistics.get('avg_duration_seconds', 0):.1f}s")
         print(f"\nTest samples: {len(test_result.samples)}")
         print(f"  Avg sequence length: {test_result.statistics.get('avg_sequence_length', 0):.1f}")
         print(f"  Avg duration: {test_result.statistics.get('avg_duration_seconds', 0):.1f}s")

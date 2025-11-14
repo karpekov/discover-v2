@@ -79,6 +79,20 @@ class TransformerEncoderConfig(EncoderConfig):
     pooling: str = 'cls_mean'  # 'cls', 'mean', 'cls_mean'
     pooling_cls_weight: float = 0.5  # Weight for CLS in cls_mean pooling
 
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, any]):
+        """Create config from dictionary."""
+        # Handle nested metadata config
+        if 'metadata' in config_dict and isinstance(config_dict['metadata'], dict):
+            config_dict = config_dict.copy()
+            config_dict['metadata'] = MetadataConfig(**config_dict['metadata'])
+
+        # Filter to only valid fields for this dataclass
+        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_dict = {k: v for k, v in config_dict.items() if k in valid_fields}
+
+        return cls(**filtered_dict)
+
     # Model size presets
     @staticmethod
     def tiny():

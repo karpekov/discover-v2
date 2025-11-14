@@ -256,6 +256,27 @@ def main():
     )
 
     parser.add_argument(
+        '--data-dir',
+        type=str,
+        help='Directory containing caption files (alternative to --captions). Use with --split to process multiple files.'
+    )
+
+    parser.add_argument(
+        '--caption-style',
+        type=str,
+        default='baseline',
+        help='Caption style suffix (baseline, sourish, etc.) - used with --data-dir'
+    )
+
+    parser.add_argument(
+        '--split',
+        type=str,
+        choices=['train', 'val', 'test', 'all'],
+        default='all',
+        help='Which split to process (all = train + val + test) - used with --data-dir'
+    )
+
+    parser.add_argument(
         '--output',
         type=str,
         help='Explicit output path for embeddings file (.npz). If not provided, path will be auto-generated from caption file path.'
@@ -294,23 +315,67 @@ def main():
         return
 
     # Validate required arguments
-    if not args.captions:
-        parser.error("--captions is required (or use --list-configs)")
+    if not args.captions and not args.data_dir:
+        parser.error("Either --captions or --data-dir is required (or use --list-configs)")
 
-    # Run encoding
-    try:
-        encode_captions(
-            captions_path=args.captions,
-            config_path=args.config,
-            output_path=args.output,
-            output_dir=args.output_dir,
-            batch_size=args.batch_size
-        )
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    # Process multiple splits if data_dir is provided
+    if args.data_dir:
+        data_dir = Path(args.data_dir)
+        if not data_dir.exists():
+            print(f"❌ Error: Data directory not found: {data_dir}")
+            sys.exit(1)
+
+        # Determine splits to process
+        if args.split == 'all':
+            splits_to_process = ['train', 'val', 'test']
+        else:
+            splits_to_process = [args.split]
+
+        # Process each split
+        for split in splits_to_process:
+            caption_file = data_dir / f'{split}_captions_{args.caption_style}.json'
+
+            if not caption_file.exists():
+                print(f"⚠️  Warning: {caption_file} not found, skipping {split}")
+                continue
+
+            print(f"\n{'=' * 80}")
+            print(f"Processing {split.upper()} split")
+            print(f"{'=' * 80}")
+
+            try:
+                encode_captions(
+                    captions_path=str(caption_file),
+                    config_path=args.config,
+                    output_path=args.output if args.output and args.split != 'all' else None,
+                    output_dir=args.output_dir,
+                    batch_size=args.batch_size
+                )
+            except Exception as e:
+                print(f"\n❌ Error processing {split}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+
+        print(f"\n{'=' * 80}")
+        print("✨ All splits processed successfully!")
+        print(f"{'=' * 80}\n")
+
+    else:
+        # Single file processing
+        try:
+            encode_captions(
+                captions_path=args.captions,
+                config_path=args.config,
+                output_path=args.output,
+                output_dir=args.output_dir,
+                batch_size=args.batch_size
+            )
+        except Exception as e:
+            print(f"\n❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
 
 
 if __name__ == '__main__':
