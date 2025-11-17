@@ -41,11 +41,30 @@ def load_embeddings(
     project_root = get_project_root()
     dim_folder = f"dim{output_size[0]}"
 
-    # Normalize model name
-    if model_name.lower() == "clip":
-        clean_name = "clip_openai_clip_vit_base_patch32"
+    # Normalize model name for directory lookup (must match naming in embed_images.py)
+    if model_name.lower() == "clip" or model_name == "openai/clip-vit-base-patch32":
+        clean_name = "clip_base"
+    elif model_name == "openai/clip-vit-large-patch14":
+        clean_name = "clip_large"
+    elif model_name.lower() in ["dinov2", "dino"] or model_name == "facebook/dinov2-base":
+        clean_name = "dinov2"
+    elif model_name == "facebook/dinov2-large":
+        clean_name = "dinov2_large"
+    elif model_name == "facebook/dinov2-giant":
+        clean_name = "dinov2_giant"
+    elif model_name.lower() == "siglip" or model_name == "google/siglip-base-patch16-224":
+        clean_name = "siglip_base_patch16_224"
     elif "/" in model_name:
-        clean_name = f"clip_{model_name.replace('/', '_').replace('-', '_')}"
+        # For custom Hugging Face models, use last part of path
+        model_lower = model_name.lower()
+        if "clip" in model_lower:
+            clean_name = f"clip_{model_name.split('/')[-1].replace('-', '_')}"
+        elif "dinov2" in model_lower or "dino" in model_lower:
+            clean_name = f"dinov2_{model_name.split('/')[-1].replace('-', '_')}"
+        elif "siglip" in model_lower:
+            clean_name = f"siglip_{model_name.split('/')[-1].replace('-', '_')}"
+        else:
+            clean_name = model_name.split('/')[-1].replace('-', '_')
     else:
         clean_name = model_name.replace("/", "_").replace("-", "_")
 
@@ -129,7 +148,9 @@ def create_visualization(
     metadata: Dict,
     method: str = "tsne",
     show_labels: bool = False,
-    output_path: Optional[Path] = None
+    output_path: Optional[Path] = None,
+    model_name: str = "unknown",
+    embedding_dim: int = 0
 ):
     """
     Create visualization of image embeddings.
@@ -142,6 +163,8 @@ def create_visualization(
         method: Dimensionality reduction method used
         show_labels: Whether to show point labels
         output_path: Path to save figure
+        model_name: Name of the vision model used
+        embedding_dim: Dimension of the embeddings
     """
     # Get sensor types and rooms
     sensor_types = [get_sensor_type_from_metadata(sid, metadata) for sid in sensor_ids]
@@ -197,7 +220,7 @@ def create_visualization(
 
     ax1.set_xlabel(f"{method.upper()} Dimension 1", fontsize=12)
     ax1.set_ylabel(f"{method.upper()} Dimension 2", fontsize=12)
-    ax1.set_title("Image Embeddings by Sensor Type and State", fontsize=14, fontweight='bold')
+    ax1.set_title(f"By Sensor Type and State\n({model_name}, {embedding_dim}D)", fontsize=14, fontweight='bold')
     ax1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
     ax1.grid(alpha=0.3)
 
@@ -223,7 +246,7 @@ def create_visualization(
 
     ax2.set_xlabel(f"{method.upper()} Dimension 1", fontsize=12)
     ax2.set_ylabel(f"{method.upper()} Dimension 2", fontsize=12)
-    ax2.set_title("Image Embeddings by State", fontsize=14, fontweight='bold')
+    ax2.set_title(f"By State\n({model_name}, {embedding_dim}D)", fontsize=14, fontweight='bold')
     ax2.legend(fontsize=10)
     ax2.grid(alpha=0.3)
 
@@ -249,7 +272,7 @@ def create_visualization(
 
     ax3.set_xlabel(f"{method.upper()} Dimension 1", fontsize=12)
     ax3.set_ylabel(f"{method.upper()} Dimension 2", fontsize=12)
-    ax3.set_title("Image Embeddings by Room Location", fontsize=14, fontweight='bold')
+    ax3.set_title(f"By Room Location\n({model_name}, {embedding_dim}D)", fontsize=14, fontweight='bold')
     ax3.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
     ax3.grid(alpha=0.3)
 
@@ -301,11 +324,29 @@ def visualize_image_embeddings(
 
     # Set output path - save in same folder as embeddings
     if output_dir is None:
-        # Normalize model name for directory lookup
-        if model_name.lower() == "clip":
-            clean_name = "clip_openai_clip_vit_base_patch32"
+        # Normalize model name for directory lookup (must match naming in embed_images.py)
+        if model_name.lower() == "clip" or model_name == "openai/clip-vit-base-patch32":
+            clean_name = "clip_base"
+        elif model_name == "openai/clip-vit-large-patch14":
+            clean_name = "clip_large"
+        elif model_name.lower() in ["dinov2", "dino"] or model_name == "facebook/dinov2-base":
+            clean_name = "dinov2"
+        elif model_name == "facebook/dinov2-large":
+            clean_name = "dinov2_large"
+        elif model_name == "facebook/dinov2-giant":
+            clean_name = "dinov2_giant"
+        elif model_name.lower() == "siglip" or model_name == "google/siglip-base-patch16-224":
+            clean_name = "siglip_base_patch16_224"
         elif "/" in model_name:
-            clean_name = f"clip_{model_name.replace('/', '_').replace('-', '_')}"
+            model_lower = model_name.lower()
+            if "clip" in model_lower:
+                clean_name = f"clip_{model_name.split('/')[-1].replace('-', '_')}"
+            elif "dinov2" in model_lower or "dino" in model_lower:
+                clean_name = f"dinov2_{model_name.split('/')[-1].replace('-', '_')}"
+            elif "siglip" in model_lower:
+                clean_name = f"siglip_{model_name.split('/')[-1].replace('-', '_')}"
+            else:
+                clean_name = model_name.split('/')[-1].replace('-', '_')
         else:
             clean_name = model_name.replace("/", "_").replace("-", "_")
 
@@ -316,7 +357,7 @@ def visualize_image_embeddings(
         )
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    output_path = output_dir / f"visualization_{method}.png"
+    output_path = output_dir / f"visualization_{method}_{data['model_name']}.png"
 
     # Create visualization
     create_visualization(
@@ -326,7 +367,9 @@ def visualize_image_embeddings(
         metadata,
         method=method,
         show_labels=show_labels,
-        output_path=output_path
+        output_path=output_path,
+        model_name=data['model_name'],
+        embedding_dim=data['embedding_dim']
     )
 
     # Print statistics
@@ -392,7 +435,7 @@ if __name__ == "__main__":
         "--model",
         type=str,
         default="clip",
-        help="Model name (default: clip)"
+        help="Model name: 'clip', 'dinov2', 'siglip', or HF model path (default: clip)"
     )
     parser.add_argument(
         "--dataset-type",

@@ -2,8 +2,13 @@
 Embed sensor activation images using vision models.
 
 This module loads generated sensor images and processes them through
-vision models (CLIP, DINO, SigLIP) to create embeddings that can be
+vision models (CLIP, DINOv2, SigLIP) to create embeddings that can be
 used by image-based sequence encoders.
+
+Supported Models:
+    - CLIP (openai/clip-vit-base-patch32): 512-dim contrastive vision-language embeddings
+    - DINOv2 (facebook/dinov2-base): 768-dim self-supervised vision embeddings
+    - SigLIP (google/siglip-base-patch16-224): 768-dim signature loss embeddings
 
 Output format:
     data/processed/{dataset_type}/{dataset}/layout_embeddings/embeddings/
@@ -92,9 +97,16 @@ class CLIPImageEmbedder(ImageEmbedder):
     """CLIP vision encoder using Hugging Face transformers."""
 
     def __init__(self, model_name: str = "openai/clip-vit-base-patch32", device: str = None):
-        # Clean model name for file naming
-        clean_name = model_name.replace("/", "_").replace("-", "_")
-        super().__init__(f"clip_{clean_name}", device)
+        # Simple naming for common models
+        if model_name == "openai/clip-vit-base-patch32":
+            simple_name = "clip_base"
+        elif model_name == "openai/clip-vit-large-patch14":
+            simple_name = "clip_large"
+        else:
+            # For custom models, use a cleaned version
+            simple_name = f"clip_{model_name.split('/')[-1].replace('-', '_')}"
+        
+        super().__init__(simple_name, device)
         self.hf_model_name = model_name
         self.load_model()
 
@@ -197,12 +209,84 @@ class SigLIPImageEmbedder(ImageEmbedder):
         return np.vstack(embeddings)
 
 
+class DINOv2ImageEmbedder(ImageEmbedder):
+    """DINOv2 vision encoder (facebook/dinov2-base)."""
+
+    def __init__(self, model_name: str = "facebook/dinov2-base", device: str = None):
+        # Simple naming for common models
+        if model_name == "facebook/dinov2-base":
+            simple_name = "dinov2"
+        elif model_name == "facebook/dinov2-large":
+            simple_name = "dinov2_large"
+        elif model_name == "facebook/dinov2-giant":
+            simple_name = "dinov2_giant"
+        else:
+            # For custom models, use a cleaned version
+            simple_name = f"dinov2_{model_name.split('/')[-1].replace('-', '_')}"
+        
+        super().__init__(simple_name, device)
+        self.hf_model_name = model_name
+        self.load_model()
+
+    def load_model(self):
+        """Load DINOv2 model from HuggingFace."""
+        try:
+            from transformers import AutoImageProcessor, AutoModel
+        except ImportError:
+            raise ImportError("Please install transformers: pip install transformers")
+
+        logger.info(f"Loading DINOv2 model: {self.hf_model_name}")
+        self.processor = AutoImageProcessor.from_pretrained(self.hf_model_name)
+        self.model = AutoModel.from_pretrained(self.hf_model_name).to(self.device)
+        self.model.eval()
+
+        # Get embedding dimension from config
+        self.embedding_dim = self.model.config.hidden_size
+        logger.info(f"DINOv2 embedding dimension: {self.embedding_dim}")
+
+    def embed_image(self, image: Image.Image) -> np.ndarray:
+        """
+        Embed a single image with DINOv2.
+
+        Uses the [CLS] token from the last hidden state as the image embedding.
+        """
+        inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            # Take the [CLS] token (first token) from last_hidden_state
+            cls_embedding = outputs.last_hidden_state[:, 0]
+            # Normalize
+            embedding = F.normalize(cls_embedding, p=2, dim=-1)
+
+        return embedding.cpu().numpy()[0]
+
+    def embed_batch(self, images: List[Image.Image], batch_size: int = 32) -> np.ndarray:
+        """Embed a batch of images with DINOv2."""
+        embeddings = []
+
+        for i in range(0, len(images), batch_size):
+            batch = images[i:i + batch_size]
+            inputs = self.processor(images=batch, return_tensors="pt").to(self.device)
+
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                # Take the [CLS] token (first token) from last_hidden_state
+                cls_embeddings = outputs.last_hidden_state[:, 0]
+                # Normalize
+                batch_embeddings = F.normalize(cls_embeddings, p=2, dim=-1)
+
+            embeddings.append(batch_embeddings.cpu().numpy())
+
+        return np.vstack(embeddings)
+
+
 def get_embedder(model_name: str, device: str = None) -> ImageEmbedder:
     """
     Factory function to get the appropriate embedder.
 
     Args:
-        model_name: Name of the model ("clip", "siglip", or Hugging Face model path)
+        model_name: Name of the model ("clip", "siglip", "dinov2", or Hugging Face model path)
         device: Device to run on
 
     Returns:
@@ -212,6 +296,8 @@ def get_embedder(model_name: str, device: str = None) -> ImageEmbedder:
         get_embedder("clip")  # Uses openai/clip-vit-base-patch32
         get_embedder("openai/clip-vit-large-patch14")  # Specific CLIP variant
         get_embedder("siglip")  # Uses google/siglip-base-patch16-224
+        get_embedder("dinov2")  # Uses facebook/dinov2-base
+        get_embedder("facebook/dinov2-large")  # Specific DINOv2 variant
     """
     model_name_lower = model_name.lower()
 
@@ -231,11 +317,19 @@ def get_embedder(model_name: str, device: str = None) -> ImageEmbedder:
         else:
             return SigLIPImageEmbedder(model_name=model_name, device=device)
 
+    elif "dinov2" in model_name_lower or "dino" in model_name_lower:
+        # If just "dinov2" or "dino", use default
+        if model_name.lower() in ["dinov2", "dino"]:
+            return DINOv2ImageEmbedder(model_name="facebook/dinov2-base", device=device)
+        # Otherwise use the provided model name
+        else:
+            return DINOv2ImageEmbedder(model_name=model_name, device=device)
+
     else:
         raise ValueError(
             f"Unknown model: {model_name}. "
-            f"Supported: 'clip', 'siglip', or Hugging Face model paths like "
-            f"'openai/clip-vit-base-patch32'"
+            f"Supported: 'clip', 'siglip', 'dinov2', or Hugging Face model paths like "
+            f"'openai/clip-vit-base-patch32', 'facebook/dinov2-base'"
         )
 
 
@@ -411,13 +505,30 @@ def load_embeddings(
     project_root = get_project_root()
     dim_folder = f"dim{output_size[0]}"
 
-    # Normalize model name for directory lookup
-    if model_name.lower() == "clip":
-        # Default CLIP uses this naming
-        clean_name = "clip_openai_clip_vit_base_patch32"
+    # Normalize model name for directory lookup (must match naming in embedder classes)
+    if model_name.lower() == "clip" or model_name == "openai/clip-vit-base-patch32":
+        clean_name = "clip_base"
+    elif model_name == "openai/clip-vit-large-patch14":
+        clean_name = "clip_large"
+    elif model_name.lower() in ["dinov2", "dino"] or model_name == "facebook/dinov2-base":
+        clean_name = "dinov2"
+    elif model_name == "facebook/dinov2-large":
+        clean_name = "dinov2_large"
+    elif model_name == "facebook/dinov2-giant":
+        clean_name = "dinov2_giant"
+    elif model_name.lower() == "siglip" or model_name == "google/siglip-base-patch16-224":
+        clean_name = "siglip_base_patch16_224"
     elif "/" in model_name:
-        # Hugging Face model path - convert to safe directory name
-        clean_name = f"clip_{model_name.replace('/', '_').replace('-', '_')}"
+        # For custom Hugging Face models, use last part of path
+        model_lower = model_name.lower()
+        if "clip" in model_lower:
+            clean_name = f"clip_{model_name.split('/')[-1].replace('-', '_')}"
+        elif "dinov2" in model_lower or "dino" in model_lower:
+            clean_name = f"dinov2_{model_name.split('/')[-1].replace('-', '_')}"
+        elif "siglip" in model_lower:
+            clean_name = f"siglip_{model_name.split('/')[-1].replace('-', '_')}"
+        else:
+            clean_name = model_name.split('/')[-1].replace('-', '_')
     else:
         clean_name = model_name.replace("/", "_").replace("-", "_")
 
@@ -495,11 +606,14 @@ Examples:
   # Embed Milan images with CLIP (224×224)
   python -m src.encoders.sensor.image.embed_images --dataset milan --model clip
 
+  # Embed with DINOv2 (224×224)
+  python -m src.encoders.sensor.image.embed_images --dataset milan --model dinov2
+
   # Embed with SigLIP (512×512)
   python -m src.encoders.sensor.image.embed_images --dataset milan --model siglip --output-width 512 --output-height 512
 
-  # Use specific CLIP variant from Hugging Face
-  python -m src.encoders.sensor.image.embed_images --dataset milan --model "openai/clip-vit-large-patch14"
+  # Use specific model variant from Hugging Face
+  python -m src.encoders.sensor.image.embed_images --dataset milan --model "facebook/dinov2-large"
 
   # Specify device
   python -m src.encoders.sensor.image.embed_images --dataset milan --model clip --device cuda
@@ -516,7 +630,7 @@ Examples:
         "--model",
         type=str,
         default="clip",
-        help="Vision model: 'clip', 'siglip', or Hugging Face model path (default: clip uses openai/clip-vit-base-patch32)"
+        help="Vision model: 'clip', 'dinov2', 'siglip', or Hugging Face model path (default: clip)"
     )
     parser.add_argument(
         "--dataset-type",

@@ -105,7 +105,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - **Files**: 7 core files + 4 config files + 3 doc files (~1,550 lines)
 - **Parameters**: 3.3M (tiny) to 43.7M (base)
 
-##### **2b: Image-Based Encoders** - ✅ COMPLETE ✨ NEW (Nov 14, 2025)
+##### **2b: Image-Based Encoders** - ✅ COMPLETE ✨ NEW (Nov 14-17, 2025)
 - **Status**: Fully implemented and tested
 - **What works**:
   - ✅ **Image Generation** (`src/encoders/sensor/image/generate_images.py`)
@@ -117,9 +117,10 @@ Given this implementation pipeline, please plan necessary changes to current rep
     - Saves to dimension-specific folders: `dim224/`, `dim512/`, etc.
     - Command-line interface with flexible options
   - ✅ **Image Embedding** (`src/encoders/sensor/image/embed_images.py`)
-    - Uses Hugging Face transformers (openai/clip-vit-base-patch32)
-    - CLIP ViT-B/32 vision encoder (512-dim embeddings)
-    - SigLIP support (768-dim embeddings)
+    - **CLIP** (openai/clip-vit-base-patch32): 512-dim embeddings → folder: `clip_base`
+    - **DINOv2** (facebook/dinov2-base): 768-dim embeddings → folder: `dinov2` ✨ NEW
+    - **SigLIP** (google/siglip-base-patch16-224): 768-dim embeddings → folder: `siglip_base_patch16_224`
+    - Simplified folder naming for common models
     - Batch processing with MPS/CUDA/CPU auto-detection
     - L2-normalized embeddings ready for similarity search
     - Tracks sensor_ids, states, and image_keys in output
@@ -127,19 +128,23 @@ Given this implementation pipeline, please plan necessary changes to current rep
   - ✅ **Visualization** (`src/utils/visualize_image_embeddings.py`)
     - 3-panel t-SNE/UMAP/PCA visualization
     - Color by: sensor type, state, and room location
+    - Subplot titles include model name and embedding dimension
     - Statistics: distances, clustering, room grouping
+    - Filename includes model name: `visualization_{method}_{model}.png`
     - Saves alongside embeddings for easy access
 - **Output**:
   - Images: `data/processed/{dataset_type}/{dataset}/layout_embeddings/images/dim{size}/`
   - Embeddings: `data/processed/{dataset_type}/{dataset}/layout_embeddings/embeddings/{model}/dim{size}/embeddings.npz`
-  - Visualizations: Saved in same folder as embeddings
+  - Visualizations: `visualization_tsne_{model_name}.png` in same folder
 - **Documentation**:
-  - `docs/IMAGE_GENERATION_GUIDE.md` - Complete usage guide
+  - `docs/IMAGE_GENERATION_GUIDE.md` - Complete usage guide with DINOv2 examples
   - Command-line examples and programmatic usage
 - **Testing**: ✅ Successfully tested on Milan dataset
   - 66 images generated (30 sensors × 2 states + 3 doors × 2 states)
   - CLIP embeddings: 66 × 512 dimensions
+  - DINOv2 embeddings: 66 × 768 dimensions ✨ NEW
   - Visualizations show clear clustering by sensor type and room location
+  - DINOv2 shows tighter same-sensor clustering (0.0025 vs 0.0107 for CLIP)
 - **Files**: 3 core files + 1 visualization script (~2,000 lines)
 - **Environment**: Fixed PyTorch 2.8 from conda-forge (resolved OpenMP conflicts)
 
@@ -309,11 +314,11 @@ Overall Progress:             ███████████████░�
 16. **CLIP + MLM Training**: Configurable loss weighting for contrastive and reconstruction
 17. **Data Alignment**: Preserved during shuffling with explicit validation
 18. **Factory Functions**: Easy encoder and text encoder instantiation from configs
-19. **Image-Based Encoders**: ✨ **NEW** Floor plan visualization with CLIP embeddings
+19. **Image-Based Encoders**: ✨ **NEW** Floor plan visualization with CLIP/DINOv2/SigLIP embeddings
 20. **Multi-Resolution Support**: ✨ **NEW** Generate images at 224×224, 512×512, or custom sizes
-21. **Vision Model Integration**: ✨ **NEW** CLIP and SigLIP for visual sensor representations
+21. **Vision Model Integration**: ✨ **NEW** CLIP, DINOv2, and SigLIP for visual sensor representations
 22. **Spatial Visualizations**: ✨ **NEW** 3-panel plots showing sensor type, state, and room clustering
-23. **Dimension-Organized Storage**: ✨ **NEW** Clean folder structure by image dimensions
+23. **Simplified Folder Naming**: ✨ **NEW** `clip_base`, `dinov2`, `siglip_base_patch16_224`
 
 ### 📁 New Directory Structure Created
 
@@ -437,22 +442,26 @@ python -m src.encoders.sensor.image.generate_images --dataset milan --output-wid
 python -m src.encoders.sensor.image.generate_images --dataset milan --show-labels
 ```
 
-**Embed Images with CLIP:**
+**Embed Images with Vision Models:**
 ```bash
-# Embed 224×224 images
+# CLIP embeddings (512D) → clip_base/
 python -m src.encoders.sensor.image.embed_images --dataset milan --model clip
 
-# Embed 512×512 images with SigLIP
-python -m src.encoders.sensor.image.embed_images --dataset milan --model siglip --output-width 512 --output-height 512
+# DINOv2 embeddings (768D) → dinov2/
+python -m src.encoders.sensor.image.embed_images --dataset milan --model dinov2
+
+# SigLIP embeddings (768D) → siglip_base_patch16_224/
+python -m src.encoders.sensor.image.embed_images --dataset milan --model siglip
 ```
 
 **Visualize Embeddings:**
 ```bash
 # t-SNE visualization (3 plots: type, state, room)
-python -m src.utils.visualize_image_embeddings --dataset milan
+python -m src.utils.visualize_image_embeddings --dataset milan --model clip
+python -m src.utils.visualize_image_embeddings --dataset milan --model dinov2
 
 # UMAP visualization
-python -m src.utils.visualize_image_embeddings --dataset milan --method umap
+python -m src.utils.visualize_image_embeddings --dataset milan --model dinov2 --method umap
 ```
 
 ### 🛠️ Environment Notes (Nov 14, 2025)

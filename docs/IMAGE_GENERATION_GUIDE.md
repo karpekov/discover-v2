@@ -9,25 +9,35 @@ The image generation module creates visual representations of individual sensor 
 - A colored circle at the sensor's location
 - Color coding based on sensor type and state
 
-These images can then be embedded using vision models (CLIP, DINO, SigLIP, etc.) and used for image-based sequence encoding.
+These images can then be embedded using vision models (CLIP, DINOv2, SigLIP, etc.) and used for image-based sequence encoding.
 
 ## Directory Structure
 
 ```
 data/processed/{dataset_type}/{dataset}/layout_embeddings/
 ├── images/
-│   ├── M001_ON.png
-│   ├── M001_OFF.png
-│   ├── D001_OPEN.png
-│   ├── D001_CLOSE.png
-│   └── image_metadata.json
+│   └── dim224/                    # Images at 224×224 resolution
+│       ├── M001_ON.png
+│       ├── M001_OFF.png
+│       ├── D001_OPEN.png
+│       ├── D001_CLOSE.png
+│       └── image_metadata.json
 └── embeddings/
-    ├── clip/
-    │   └── embeddings.npz
-    ├── dino/
-    │   └── embeddings.npz
-    └── siglip/
-        └── embeddings.npz
+    ├── clip_base/                 # CLIP ViT-B/32 (512D)
+    │   └── dim224/
+    │       ├── embeddings.npz
+    │       ├── embedding_metadata.json
+    │       └── visualization_tsne_clip_base.png
+    ├── dinov2/                    # DINOv2 base (768D)
+    │   └── dim224/
+    │       ├── embeddings.npz
+    │       ├── embedding_metadata.json
+    │       └── visualization_tsne_dinov2.png
+    └── siglip_base_patch16_224/   # SigLIP (768D)
+        └── dim224/
+            ├── embeddings.npz
+            ├── embedding_metadata.json
+            └── visualization_tsne_siglip_base_patch16_224.png
 ```
 
 ## Color Coding
@@ -243,15 +253,47 @@ For reference, here are approximate image counts for common datasets:
 
 Once images are generated, the next step is to:
 
-1. **Embed images** using vision models (CLIP, DINO, etc.)
-   - See `src/encoders/sensor/image/embed_images.py` (coming soon)
+1. **Embed images** using vision models ✅ IMPLEMENTED
+   ```bash
+   # CLIP embeddings (512D)
+   python -m src.encoders.sensor.image.embed_images --dataset milan --model clip
 
-2. **Use in image-based encoder**
+   # DINOv2 embeddings (768D)
+   python -m src.encoders.sensor.image.embed_images --dataset milan --model dinov2
+
+   # SigLIP embeddings (768D)
+   python -m src.encoders.sensor.image.embed_images --dataset milan --model siglip
+   ```
+
+   Supported models:
+   - `clip` → openai/clip-vit-base-patch32 (folder: `clip_base`)
+   - `dinov2` → facebook/dinov2-base (folder: `dinov2`)
+   - `siglip` → google/siglip-base-patch16-224 (folder: `siglip_base_patch16_224`)
+   - Custom Hugging Face paths also supported
+
+2. **Visualize embeddings** ✅ IMPLEMENTED
+   ```bash
+   # t-SNE visualization with 3 plots (type, state, room)
+   python -m src.utils.visualize_image_embeddings --dataset milan --model clip
+   python -m src.utils.visualize_image_embeddings --dataset milan --model dinov2
+
+   # UMAP or PCA
+   python -m src.utils.visualize_image_embeddings --dataset milan --model dinov2 --method umap
+   ```
+
+   Visualization includes:
+   - Plot 1: Color by sensor type, marker by state
+   - Plot 2: Color by state
+   - Plot 3: Color by room location
+   - Statistics: distances, clustering, room grouping
+   - Saved as: `visualization_{method}_{model_name}.png`
+
+3. **Use in image-based encoder** (TODO)
    - The encoder will look up pre-computed embeddings for each sensor activation
    - Feed embeddings into a transformer for sequence processing
    - See `src/encoders/sensor/image/encoder.py` (coming soon)
 
-3. **Train alignment model**
+4. **Train alignment model** (TODO)
    - Use the image-based encoder in place of the sequence encoder
    - Follow the same alignment training process as Step 5
 
