@@ -63,7 +63,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
 
 ## 🎯 COMPLETION STATUS SUMMARY
 
-**Last Updated**: November 14, 2025 (Evening - Image-Based Encoders Complete!)
+**Last Updated**: November 17, 2025 (Image-Based Encoder TRAINING Complete!)
 
 ### ✅ Completed Steps
 
@@ -105,8 +105,8 @@ Given this implementation pipeline, please plan necessary changes to current rep
 - **Files**: 7 core files + 4 config files + 3 doc files (~1,550 lines)
 - **Parameters**: 3.3M (tiny) to 43.7M (base)
 
-##### **2b: Image-Based Encoders** - ✅ COMPLETE ✨ NEW (Nov 14-17, 2025)
-- **Status**: Fully implemented and tested
+##### **2b: Image-Based Encoders** - ✅ COMPLETE ✨ (Nov 14-17, 2025)
+- **Status**: Fully implemented, tested, and integrated with training pipeline
 - **What works**:
   - ✅ **Image Generation** (`src/encoders/sensor/image/generate_images.py`)
     - Loads floor plans from `metadata/floor_plans_augmented/{dataset}.png`
@@ -118,7 +118,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
     - Command-line interface with flexible options
   - ✅ **Image Embedding** (`src/encoders/sensor/image/embed_images.py`)
     - **CLIP** (openai/clip-vit-base-patch32): 512-dim embeddings → folder: `clip_base`
-    - **DINOv2** (facebook/dinov2-base): 768-dim embeddings → folder: `dinov2` ✨ NEW
+    - **DINOv2** (facebook/dinov2-base): 768-dim embeddings → folder: `dinov2`
     - **SigLIP** (google/siglip-base-patch16-224): 768-dim embeddings → folder: `siglip_base_patch16_224`
     - Simplified folder naming for common models
     - Batch processing with MPS/CUDA/CPU auto-detection
@@ -132,20 +132,51 @@ Given this implementation pipeline, please plan necessary changes to current rep
     - Statistics: distances, clustering, room grouping
     - Filename includes model name: `visualization_{method}_{model}.png`
     - Saves alongside embeddings for easy access
+  - ✅ **Image-Based Encoder Training** (`src/encoders/sensor/sequence/image_transformer.py`) ✨ NEW (Nov 17)
+    - `ImageTransformerSensorEncoder` class that uses frozen vision embeddings
+    - Loads pre-computed image embeddings from NPZ files
+    - Fast lookup: sensor_id + state → frozen embedding
+    - Frozen or trainable input projection layer
+    - Trainable transformer processes frozen embeddings
+    - Supports MLM (on transformer outputs) and CLIP alignment
+    - Optional metadata features (coordinates, time deltas)
+    - Compatible with existing alignment training pipeline
+    - Factory function integration with dataset/vocab parameters
 - **Output**:
   - Images: `data/processed/{dataset_type}/{dataset}/layout_embeddings/images/dim{size}/`
   - Embeddings: `data/processed/{dataset_type}/{dataset}/layout_embeddings/embeddings/{model}/dim{size}/embeddings.npz`
   - Visualizations: `visualization_tsne_{model_name}.png` in same folder
+  - Trained models: `trained_models/{dataset}/alignment_image_{model}/`
 - **Documentation**:
-  - `docs/IMAGE_GENERATION_GUIDE.md` - Complete usage guide with DINOv2 examples
+  - `docs/IMAGE_GENERATION_GUIDE.md` - Image generation guide with DINOv2 examples
+  - `docs/IMAGE_ENCODER_TRAINING_GUIDE.md` - Complete training guide (800+ lines) ✨ NEW
+  - `docs/IMAGE_ENCODER_IMPLEMENTATION_SUMMARY.md` - Implementation summary ✨ NEW
   - Command-line examples and programmatic usage
+- **Configuration**:
+  - `configs/encoders/transformer_image_clip.yaml` - CLIP-based encoder ✨ NEW
+  - `configs/encoders/transformer_image_dinov2.yaml` - DINOv2-based encoder ✨ NEW
+  - `configs/encoders/transformer_image_siglip.yaml` - SigLIP-based encoder ✨ NEW
+  - `configs/alignment/milan_image_clip.yaml` - Full training config ✨ NEW
+  - `configs/alignment/milan_image_dinov2.yaml` - Full training config ✨ NEW
 - **Testing**: ✅ Successfully tested on Milan dataset
   - 66 images generated (30 sensors × 2 states + 3 doors × 2 states)
   - CLIP embeddings: 66 × 512 dimensions
-  - DINOv2 embeddings: 66 × 768 dimensions ✨ NEW
+  - DINOv2 embeddings: 66 × 768 dimensions
+  - SigLIP embeddings: 66 × 768 dimensions
   - Visualizations show clear clustering by sensor type and room location
   - DINOv2 shows tighter same-sensor clustering (0.0025 vs 0.0107 for CLIP)
-- **Files**: 3 core files + 1 visualization script (~2,000 lines)
+  - Example script with 3 working examples ✨ NEW
+- **Files**:
+  - Core: 4 files (~2,700 lines)
+  - Configs: 5 files
+  - Docs: 3 files (~1,600 lines)
+  - Examples: 1 file (~350 lines)
+- **Integration**: ✅ Fully integrated with alignment training
+  - Updated `build_encoder()` factory to support image-based mode
+  - Updated `AlignmentConfig` with dataset metadata
+  - Updated `AlignmentModel` to pass vocab to encoder factory
+  - Updated `AlignmentTrainer` to load and pass vocab
+  - Zero breaking changes to existing code
 - **Environment**: Fixed PyTorch 2.8 from conda-forge (resolved OpenMP conflicts)
 
 #### **Step 3: Caption Generation** - ✅ COMPLETE
@@ -319,6 +350,11 @@ Overall Progress:             ███████████████░�
 21. **Vision Model Integration**: ✨ **NEW** CLIP, DINOv2, and SigLIP for visual sensor representations
 22. **Spatial Visualizations**: ✨ **NEW** 3-panel plots showing sensor type, state, and room clustering
 23. **Simplified Folder Naming**: ✨ **NEW** `clip_base`, `dinov2`, `siglip_base_patch16_224`
+24. **Image-Based Encoder Training**: ✨ **NEW** Train transformers using frozen vision embeddings
+25. **Frozen Embedding Pipeline**: ✨ **NEW** Pre-compute and cache image embeddings for fast training
+26. **Vision Model Comparison**: ✨ **NEW** Easy comparison of CLIP vs DINOv2 vs SigLIP
+27. **Hybrid Features**: ✨ **NEW** Combine image embeddings with spatial/temporal metadata
+28. **Zero Breaking Changes**: ✨ **NEW** Image-based mode fully backward compatible
 
 ### 📁 New Directory Structure Created
 

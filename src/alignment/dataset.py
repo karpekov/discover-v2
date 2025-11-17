@@ -53,15 +53,27 @@ class AlignmentDataset(Dataset):
         self.span_masker = span_masker
         self.vocab_sizes = vocab_sizes
 
-        # Load sensor data
-        self.sensor_data = self._load_sensor_data()
+        # Load sensor data (with filtering)
+        all_sensor_data, kept_indices = self._load_sensor_data()
+        self.sensor_data = all_sensor_data
 
-        # Load text embeddings (pre-computed or on-the-fly)
+        # Load text embeddings (pre-computed or on-the-fly) and filter to match sensor data
         if text_embeddings_path:
-            self.text_embeddings = self._load_text_embeddings()
+            all_text_embeddings = self._load_text_embeddings()
+            # Filter text embeddings to match filtered sensor data
+            if kept_indices is not None:
+                import numpy as np
+                self.text_embeddings = all_text_embeddings[np.array(kept_indices)]
+            else:
+                self.text_embeddings = all_text_embeddings
             self.text_encoder = None
         elif captions_path and text_encoder_config_path:
-            self.captions = self._load_captions()
+            all_captions = self._load_captions()
+            # Filter captions to match filtered sensor data
+            if kept_indices is not None:
+                self.captions = [all_captions[i] for i in kept_indices]
+            else:
+                self.captions = all_captions
             self.text_encoder = self._load_text_encoder()
             self.text_embeddings = None
         else:
@@ -70,8 +82,12 @@ class AlignmentDataset(Dataset):
         # Validate data alignment
         self._validate_data()
 
-    def _load_sensor_data(self) -> List[Dict[str, Any]]:
-        """Load sensor data from JSON."""
+    def _load_sensor_data(self):
+        """Load sensor data from JSON and filter out samples with UNK sensors.
+        
+        Returns:
+            Tuple of (filtered_samples, kept_indices)
+        """
         with open(self.data_path, 'r') as f:
             data = json.load(f)
 
@@ -81,7 +97,47 @@ class AlignmentDataset(Dataset):
         else:
             samples = data
 
-        return samples
+        # Filter out samples with UNK sensors
+        filtered_samples = []
+        kept_indices = []
+        num_filtered = 0
+        
+        for idx, sample in enumerate(samples):
+            sensor_sequence = sample.get('sensor_sequence', [])
+            has_unk = False
+            for event in sensor_sequence:
+                # Use the same field mapping as in __getitem__
+                # The vocab uses 'sensor' but data may have 'sensor_id' or 'sensor'
+                sensor_id = event.get('sensor_id') or event.get('sensor')
+                
+                # If sensor_id is None or missing, this will become UNK during encoding
+                if sensor_id is None:
+                    has_unk = True
+                    break
+                
+                # Explicitly reject UNK sensors (even if they're in vocab)
+                if sensor_id == 'UNK' or (isinstance(sensor_id, str) and sensor_id.startswith('UNK_')):
+                    has_unk = True
+                    break
+                
+                # Also check if sensor_id is not in vocab (will become UNK during encoding)
+                if self.vocab and 'sensor' in self.vocab:
+                    # Sensor not in vocab (excluding 'UNK' which we already handled)
+                    if sensor_id not in self.vocab['sensor']:
+                        has_unk = True
+                        break
+            
+            if not has_unk:
+                filtered_samples.append(sample)
+                kept_indices.append(idx)
+            else:
+                num_filtered += 1
+        
+        if num_filtered > 0:
+            print(f"Filtered out {num_filtered} samples with UNK sensors ({num_filtered/len(samples)*100:.2f}%)")
+            print(f"Kept {len(filtered_samples)} clean samples")
+        
+        return filtered_samples, (kept_indices if num_filtered > 0 else None)
 
     def _load_text_embeddings(self) -> np.ndarray:
         """Load pre-computed text embeddings from NPZ."""
@@ -166,13 +222,14 @@ class AlignmentDataset(Dataset):
         for i, event in enumerate(sensor_sequence):
             # Encode categorical features - one list per field
             for field in self.vocab.keys():
-                # Map field names to event keys
+                # Map vocab field names to event data keys
+                # The vocab uses 'sensor' but data has 'sensor_id'
                 field_mapping = {
-                    'sensor': 'sensor',
+                    'sensor': 'sensor_id',  # FIXED: vocab 'sensor' -> data 'sensor_id'
                     'sensor_id': 'sensor_id',
-                    'state': 'state',
+                    'state': 'event_type',  # vocab 'state' -> data 'event_type'
                     'event_type': 'event_type',
-                    'room_id': 'room_id',
+                    'room_id': 'room',  # vocab 'room_id' -> data 'room'
                     'room': 'room',
                 }
 

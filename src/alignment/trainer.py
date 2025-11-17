@@ -59,13 +59,13 @@ class AlignmentTrainer:
         self._save_config()
 
         # Setup data
-        self.train_loader, self.val_loader, self.vocab_sizes = self._setup_data()
+        self.train_loader, self.val_loader, self.vocab_sizes, self.vocab = self._setup_data()
 
         # Compute training schedule
         self._compute_training_schedule()
 
-        # Setup model
-        self.model = AlignmentModel(config, self.vocab_sizes)
+        # Setup model (pass vocab for image-based encoders)
+        self.model = AlignmentModel(config, self.vocab_sizes, vocab=self.vocab)
         self.model.to(self.device)
 
         self.logger.info(f"Model initialized with {sum(p.numel() for p in self.model.parameters()):,} total parameters")
@@ -189,7 +189,7 @@ class AlignmentTrainer:
         if val_loader:
             self.logger.info(f"Validation dataset: {len(val_dataset)} samples")
 
-        return train_loader, val_loader, vocab_sizes
+        return train_loader, val_loader, vocab_sizes, vocab
 
     def _compute_training_schedule(self):
         """Compute training schedule (epochs/steps)."""

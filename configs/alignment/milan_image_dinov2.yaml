@@ -1,0 +1,81 @@
+# Alignment training with Image-based DINOv2 encoder
+# Uses frozen DINOv2 vision embeddings with spatial/temporal features
+
+# Experiment metadata
+experiment_name: milan_image_dinov2
+output_dir: trained_models/milan/alignment_image_dinov2
+
+# Dataset metadata (REQUIRED for image-based encoders)
+dataset: milan
+dataset_type: casas
+
+# Data paths
+train_data_path: data/processed/casas/milan/fixed_length_20_presegmented/train.json
+val_data_path: data/processed/casas/milan/fixed_length_20_presegmented/test.json
+vocab_path: data/processed/casas/milan/fixed_length_20_presegmented/vocab.json
+
+# Text embeddings (pre-computed)
+train_text_embeddings_path: data/processed/casas/milan/fixed_length_20_presegmented/train_embeddings_baseline_gte_base.npz
+val_text_embeddings_path: data/processed/casas/milan/fixed_length_20_presegmented/test_embeddings_baseline_gte_base.npz
+
+# Encoder config (image-based DINOv2)
+encoder_config_path: configs/encoders/transformer_image_dinov2.yaml
+encoder_type: transformer
+
+# Sensor projection head
+sensor_projection:
+  type: mlp
+  dim: 512
+  hidden_dim: 2048
+  num_layers: 2
+  dropout: 0.1
+  use_bn: false
+
+# Text projection head (optional - none means frozen)
+text_projection: null
+
+# Loss configuration
+loss:
+  clip_weight: 1.0
+  mlm_weight: 0.0  # No MLM for image-based
+  temperature_init: 0.07
+  learnable_temperature: true
+  use_hard_negatives: false
+
+# Optimizer
+optimizer:
+  type: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.01
+  betas: [0.9, 0.98]
+  warmup_ratio: 0.05
+  grad_clip_norm: 1.0
+
+# Training
+training:
+  max_epochs: 50
+  max_steps: null
+  batch_size: 128
+  use_amp: true
+  device: auto
+  log_interval: 50
+  val_interval: 500
+  save_interval: 2000
+  metrics_interval: 1000
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+
+# Logging
+use_wandb: true
+wandb_project: discover-v2
+wandb_entity: null
+wandb_name: milan_image_dinov2
+wandb_tags:
+  - image-based
+  - dinov2
+  - milan
+  - alignment
+wandb_notes: "Image-based encoder using frozen DINOv2 embeddings (768D) with spatial features"
+wandb_group: image_encoders
+

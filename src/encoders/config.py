@@ -79,6 +79,12 @@ class TransformerEncoderConfig(EncoderConfig):
     pooling: str = 'cls_mean'  # 'cls', 'mean', 'cls_mean'
     pooling_cls_weight: float = 0.5  # Weight for CLS in cls_mean pooling
 
+    # Image-based encoder settings (NEW)
+    use_image_embeddings: bool = False  # Use frozen vision model embeddings
+    image_model_name: Optional[str] = None  # e.g., 'clip', 'dinov2', 'siglip'
+    image_size: int = 224  # Image dimension used for embeddings
+    freeze_input_projection: bool = True  # Freeze the image -> d_model projection
+
     @classmethod
     def from_dict(cls, config_dict: Dict[str, any]):
         """Create config from dictionary."""

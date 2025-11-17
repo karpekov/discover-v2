@@ -1,0 +1,46 @@
+# Image-based Transformer Encoder with DINOv2 embeddings
+# Uses frozen DINOv2 vision embeddings (768D) as input features
+
+type: transformer
+encoder_type: transformer
+
+# Image-based settings
+use_image_embeddings: true
+image_model_name: dinov2  # DINOv2 provides richer spatial features
+image_size: 224  # Must match the size used when generating embeddings
+freeze_input_projection: true  # Keep input projection frozen (recommended)
+
+# Architecture (d_model=768 matches DINOv2 output dimension)
+d_model: 768
+n_layers: 6
+n_heads: 8
+d_ff: 3072
+max_seq_len: 512
+dropout: 0.1
+
+# Projection for CLIP alignment
+projection_dim: 512
+projection_type: linear  # 'linear' or 'mlp'
+projection_hidden_dim: 2048
+projection_num_layers: 2
+
+# Positional encoding
+use_alibi: true
+use_learned_pe: false
+
+# Metadata features (adding spatial info can help)
+metadata:
+  categorical_fields: []  # Empty - using only image embeddings
+  use_coordinates: true   # Enable for richer spatial understanding
+  use_time_deltas: true   # Enable for temporal dynamics
+  coord_norm_x_max: 10.0
+  coord_norm_y_max: 10.0
+  time_delta_max_seconds: 3600.0
+  time_delta_bins: 100
+
+# Pooling strategy
+pooling: cls_mean
+pooling_cls_weight: 0.5
+
+# Note: vocab_sizes will be set at runtime from data
+

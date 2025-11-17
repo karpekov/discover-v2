@@ -2,20 +2,32 @@
 Factory functions for building encoders.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import yaml
 from pathlib import Path
+import logging
 
 from src.encoders.config import TransformerEncoderConfig
 from src.encoders.sensor.sequence import TransformerSensorEncoder
+from src.encoders.sensor.sequence.image_transformer import ImageTransformerSensorEncoder
+
+logger = logging.getLogger(__name__)
 
 
-def build_encoder(config: Dict[str, Any] or str):
+def build_encoder(
+    config: Dict[str, Any] or str,
+    dataset: Optional[str] = None,
+    dataset_type: str = "casas",
+    vocab: Optional[Dict[str, Dict[str, int]]] = None
+):
     """
     Build an encoder from config dictionary or YAML path.
 
     Args:
         config: Either a dictionary with encoder config or path to YAML file
+        dataset: Dataset name (required for image-based encoders, e.g., "milan")
+        dataset_type: Dataset type (default: "casas")
+        vocab: Vocabulary mapping (required for image-based encoders)
 
     Returns:
         Encoder instance
@@ -31,13 +43,47 @@ def build_encoder(config: Dict[str, Any] or str):
     if encoder_type == 'transformer':
         # Build transformer encoder
         encoder_config = TransformerEncoderConfig.from_dict(config)
-        encoder = TransformerSensorEncoder(encoder_config)
+
+        # Check if using image embeddings
+        if encoder_config.use_image_embeddings:
+            # Build image-based transformer encoder
+            if dataset is None:
+                raise ValueError(
+                    "dataset parameter is required for image-based encoders. "
+                    "Please provide the dataset name (e.g., 'milan')"
+                )
+            if vocab is None:
+                raise ValueError(
+                    "vocab parameter is required for image-based encoders. "
+                    "Vocabulary is needed to map sensor/state indices to strings."
+                )
+            if encoder_config.image_model_name is None:
+                raise ValueError(
+                    "image_model_name must be specified in config when use_image_embeddings=True. "
+                    "Options: 'clip', 'dinov2', 'siglip'"
+                )
+
+            logger.info(
+                f"Building ImageTransformerSensorEncoder with {encoder_config.image_model_name} embeddings"
+            )
+
+            encoder = ImageTransformerSensorEncoder(
+                config=encoder_config,
+                dataset=dataset,
+                image_model_name=encoder_config.image_model_name,
+                dataset_type=dataset_type,
+                image_size=encoder_config.image_size,
+                vocab=vocab,
+                freeze_input_projection=encoder_config.freeze_input_projection
+            )
+        else:
+            # Build standard sequence-based transformer encoder
+            logger.info("Building TransformerSensorEncoder (sequence-based)")
+            encoder = TransformerSensorEncoder(encoder_config)
+
     elif encoder_type == 'chronos':
         # TODO: Implement Chronos encoder
         raise NotImplementedError("Chronos encoder not yet implemented in new framework")
-    elif encoder_type == 'image':
-        # TODO: Implement image-based encoder
-        raise NotImplementedError("Image-based encoder not yet implemented")
     else:
         raise ValueError(f"Unknown encoder type: {encoder_type}")
 

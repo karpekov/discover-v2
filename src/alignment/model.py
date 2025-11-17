@@ -30,10 +30,16 @@ class AlignmentModel(nn.Module):
     The text encoder itself is frozen and uses pre-computed embeddings.
     """
 
-    def __init__(self, config: AlignmentConfig, vocab_sizes: Dict[str, int]):
+    def __init__(
+        self,
+        config: AlignmentConfig,
+        vocab_sizes: Dict[str, int],
+        vocab: Optional[Dict[str, Dict[str, int]]] = None
+    ):
         super().__init__()
         self.config = config
         self.vocab_sizes = vocab_sizes
+        self.vocab = vocab  # Full vocabulary (needed for image-based encoders)
 
         # Build sensor encoder
         self.sensor_encoder = self._build_sensor_encoder()
@@ -80,7 +86,13 @@ class AlignmentModel(nn.Module):
         encoder_config_dict['vocab_sizes'] = self.vocab_sizes
 
         # Build encoder using the factory function
-        encoder = build_encoder(encoder_config_dict)
+        # Pass dataset and vocab for image-based encoders
+        encoder = build_encoder(
+            encoder_config_dict,
+            dataset=self.config.dataset,
+            dataset_type=self.config.dataset_type,
+            vocab=self.vocab
+        )
 
         return encoder
 

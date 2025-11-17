@@ -105,7 +105,7 @@ class CLIPImageEmbedder(ImageEmbedder):
         else:
             # For custom models, use a cleaned version
             simple_name = f"clip_{model_name.split('/')[-1].replace('-', '_')}"
-        
+
         super().__init__(simple_name, device)
         self.hf_model_name = model_name
         self.load_model()
@@ -223,7 +223,7 @@ class DINOv2ImageEmbedder(ImageEmbedder):
         else:
             # For custom models, use a cleaned version
             simple_name = f"dinov2_{model_name.split('/')[-1].replace('-', '_')}"
-        
+
         super().__init__(simple_name, device)
         self.hf_model_name = model_name
         self.load_model()
