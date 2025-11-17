@@ -43,7 +43,7 @@ python sample_data.py --config configs/sampling/milan_fixed_length_20.yaml --deb
 ### Generating Vocab from Existing Data
 If you need to generate vocab for existing sampled data:
 ```bash
-python scripts/generate_vocab_from_data.py --data data/processed/casas/milan/fixed_length_20/train.json
+python -m src.utils.generate_vocab_from_data --data data/processed/casas/milan/fixed_length_20/train.json
 ```
 
 ## Benefits
