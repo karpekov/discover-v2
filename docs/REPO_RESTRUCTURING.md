@@ -187,7 +187,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
   - ✅ SourishCaptionGenerator (structured template-based)
   - ✅ LLM-based caption placeholder (future integration)
   - ✅ YAML configuration system
-  - ✅ Command-line tool (`generate_captions.py`)
+  - ✅ Command-line tool (`src/captions/generate_captions.py`)
   - ✅ Style-specific filename suffixes (`train_captions_{style}.json`)
   - ✅ Compatible with Step 1 sampled data format
   - ✅ Comprehensive documentation
@@ -224,7 +224,7 @@ Given this implementation pipeline, please plan necessary changes to current rep
   - ✅ Optional projection heads for dimension matching
   - ✅ Pre-computation and caching for efficient training
   - ✅ YAML configuration system
-  - ✅ Command-line tool (`encode_captions.py`)
+  - ✅ Command-line tool (`src/text_encoders/encode_captions.py`)
   - ✅ Compressed NPZ format for embeddings storage
   - ✅ t-SNE visualization with proper titles and label coloring
   - ✅ Comprehensive documentation and examples
@@ -432,9 +432,12 @@ discover-v2/
 │
 ├── train.py                # ✅ NEW: Unified training script (Nov 14)
 ├── sample_data.py          # ✅ NEW: CLI tool for sampling
-├── generate_captions.py    # ✅ NEW: CLI tool for captions (with style suffixes)
-├── encode_captions.py      # ✅ NEW: CLI tool for text encoding
-└── src/utils/
+└── src/
+    ├── captions/
+    │   └── generate_captions.py    # ✅ MOVED: CLI tool for captions (with style suffixes)
+    ├── text_encoders/
+    │   └── encode_captions.py      # ✅ MOVED: CLI tool for text encoding
+    └── utils/
     ├── visualize_text_embeddings.py   # ✅ NEW: t-SNE visualization for text
     └── visualize_image_embeddings.py  # ✅ NEW: t-SNE visualization for images (Nov 14)
 ```

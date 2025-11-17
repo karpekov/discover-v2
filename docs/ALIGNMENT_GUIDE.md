@@ -531,12 +531,12 @@ python train.py --config configs/alignment/milan_baseline.yaml
 
 ```bash
 # 1. Generate captions
-python generate_captions.py \
+python src/captions/generate_captions.py \
   --data data/processed/casas/milan/fixed_duration_60s/train.json \
   --config configs/captions/baseline_milan.yaml
 
 # 2. Encode captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
   --captions data/processed/casas/milan/fixed_duration_60s/train_captions_baseline.json \
   --encoder configs/text_encoders/gte_base.yaml
 

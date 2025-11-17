@@ -78,35 +78,35 @@ Future support for LLM-generated captions using GPT-4, Claude, Gemini, or local 
 ```bash
 # Generate baseline captions for Milan data
 # Output: train_captions_baseline.json, test_captions_baseline.json
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style baseline \
     --dataset-name milan
 
 # Generate Sourish captions
 # Output: train_captions_sourish.json, test_captions_sourish.json
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style sourish \
     --dataset-name milan
 
 # Generate LLM captions (placeholder)
 # Output: train_captions_llm_gpt4.json, test_captions_llm_gpt4.json
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style llm \
     --llm-model gpt4 \
     --dataset-name milan
 
 # Generate captions only for training set
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_duration_60 \
     --caption-style baseline \
     --dataset-name milan \
     --split train
 
 # Customize number of captions per sample
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style baseline \
     --dataset-name milan \
@@ -333,7 +333,7 @@ from .my_custom import MyCustomCaptionGenerator
 __all__ = [..., 'MyCustomCaptionGenerator']
 ```
 
-3. **Update `generate_captions.py`** to include new style in choices.
+3. **Update `src/captions/generate_captions.py`** to include new style in choices.
 
 ## Integration with Training Pipeline
 
@@ -353,10 +353,10 @@ You can generate multiple caption styles and compare them during training:
 
 ```bash
 # Generate both baseline and sourish captions
-python generate_captions.py --data-dir data/processed/casas/milan/fixed_length_50 \
+python src/captions/generate_captions.py --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style baseline --dataset-name milan
 
-python generate_captions.py --data-dir data/processed/casas/milan/fixed_length_50 \
+python src/captions/generate_captions.py --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style sourish --dataset-name milan
 
 # Now you have:

@@ -15,18 +15,18 @@ Text encoders convert textual captions into fixed-dimensional vector embeddings.
 
 ```bash
 # Basic usage with default GTE encoder
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz
 
 # Use a different encoder
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --config configs/text_encoders/distilroberta_base.yaml \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_distilroberta.npz
 
 # Use GPU for faster encoding
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz \
     --device cuda
@@ -35,7 +35,7 @@ python encode_captions.py \
 ### 2. List Available Encoders
 
 ```bash
-python encode_captions.py --list-configs
+python src/text_encoders/encode_captions.py --list-configs
 ```
 
 ## Available Encoders
@@ -210,15 +210,15 @@ Text embeddings will be loaded in the CLIP training collate function:
 def collate_fn(batch, text_embeddings_cache):
     # Get sample IDs from batch
     sample_ids = [sample['sample_id'] for sample in batch]
-    
+
     # Look up pre-computed text embeddings
     text_embeddings = []
     for sample_id in sample_ids:
         embedding = text_embeddings_cache[sample_id]
         text_embeddings.append(embedding)
-    
+
     text_embeddings = torch.tensor(np.stack(text_embeddings))
-    
+
     # ... rest of collate function
 ```
 
@@ -228,12 +228,12 @@ def collate_fn(batch, text_embeddings_cache):
 
 ```bash
 # Baseline captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz
 
 # Sourish captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_sourish.json \
     --output data/embeddings/text/milan/fixed_length_20/train_sourish_gte.npz
 ```
@@ -242,19 +242,19 @@ python encode_captions.py \
 
 ```bash
 # GTE
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --config configs/text_encoders/gte_base.yaml \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz
 
 # DistilRoBERTa
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --config configs/text_encoders/distilroberta_base.yaml \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_distilroberta.npz
 
 # CLIP
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --config configs/text_encoders/clip_vit_base.yaml \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_clip.npz
@@ -264,12 +264,12 @@ python encode_captions.py \
 
 ```bash
 # Encode training captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz
 
 # Encode test captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/test_captions_baseline.json \
     --output data/embeddings/text/milan/fixed_length_20/test_baseline_gte.npz
 ```
@@ -324,7 +324,7 @@ data/embeddings/text/
 
 Reduce batch size:
 ```bash
-python encode_captions.py --batch-size 16 ...
+python src/text_encoders/encode_captions.py --batch-size 16 ...
 ```
 
 ### Model Download Issues

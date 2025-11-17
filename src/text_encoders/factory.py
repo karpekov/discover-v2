@@ -5,8 +5,8 @@ Factory functions for building text encoders.
 from typing import Dict, Any
 import yaml
 
-from src.text_encoders.base import TextEncoderConfig
-from src.text_encoders.frozen import (
+from .base import TextEncoderConfig
+from .frozen import (
     GTETextEncoder,
     DistilRoBERTaTextEncoder,
     LLAMATextEncoder,

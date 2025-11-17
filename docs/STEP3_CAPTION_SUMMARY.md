@@ -103,21 +103,21 @@ configs/captions/
 ```bash
 # Generate baseline captions
 # Output: train_captions_baseline.json, test_captions_baseline.json
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style baseline \
     --dataset-name milan
 
 # Generate Sourish captions
 # Output: train_captions_sourish.json, test_captions_sourish.json
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style sourish \
     --dataset-name milan
 
 # Generate LLM captions (placeholder)
 # Output: train_captions_llm_gpt4.json, test_captions_llm_gpt4.json
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style llm \
     --llm-model gpt4 \
@@ -348,7 +348,7 @@ for sample in sensor_data['samples']:
 - `configs/captions/sourish_aruba.yaml`
 
 ### CLI Tool (1 file)
-- `generate_captions.py` (220 lines)
+- `src/captions/generate_captions.py` (220 lines)
 
 ### Documentation (2 files, ~800 lines)
 - `docs/CAPTION_GENERATION_GUIDE.md` (400+ lines)

@@ -46,8 +46,8 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 from tqdm import tqdm
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add src to path (we're in src/text_encoders, go up one level to src)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from text_encoders import (
     GTETextEncoder,
@@ -63,7 +63,8 @@ from text_encoders import (
 
 def list_available_configs():
     """List all available text encoder configs."""
-    configs_dir = Path(__file__).parent / 'configs' / 'text_encoders'
+    # Script is now in src/text_encoders/, so go up to project root
+    configs_dir = Path(__file__).parent.parent.parent / 'configs' / 'text_encoders'
 
     if not configs_dir.exists():
         print("No configs directory found!")

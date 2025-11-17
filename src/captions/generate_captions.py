@@ -42,8 +42,8 @@ from pathlib import Path
 from typing import Dict, List, Any
 from tqdm import tqdm
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+# Add src to path (we're in src/captions, go up one level to src)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from captions import (
     BaselineCaptionGenerator,

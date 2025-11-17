@@ -236,20 +236,20 @@ python -m src.encoders.sensor.image.embed_images \
     --batch-size 32
 
 # 4. Generate captions
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --config configs/captions/baseline_milan.yaml \
     --data-path data/processed/casas/milan/fixed_length_20_presegmented/train.json
 
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --config configs/captions/baseline_milan.yaml \
     --data-path data/processed/casas/milan/fixed_length_20_presegmented/test.json
 
 # 5. Encode captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --config configs/text_encoders/gte_base.yaml \
     --captions-path data/processed/casas/milan/fixed_length_20_presegmented/train_captions_baseline.json
 
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --config configs/text_encoders/gte_base.yaml \
     --captions-path data/processed/casas/milan/fixed_length_20_presegmented/test_captions_baseline.json
 

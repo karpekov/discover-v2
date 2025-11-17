@@ -1,6 +1,6 @@
 # Step 4: Text Encoder Implementation Summary
 
-**Date**: November 13, 2025  
+**Date**: November 13, 2025
 **Status**: ✅ Fully Implemented
 
 ## Overview
@@ -32,8 +32,8 @@ configs/text_encoders/
 ├── clip_vit_base.yaml             # CLIP config
 └── siglip_base.yaml               # SigLIP config
 
-encode_captions.py                 # CLI tool for batch encoding
-docs/TEXT_ENCODER_GUIDE.md         # Complete usage guide
+src/text_encoders/encode_captions.py  # CLI tool for batch encoding
+docs/TEXT_ENCODER_GUIDE.md            # Complete usage guide
 ```
 
 ## Key Components
@@ -112,11 +112,11 @@ All encoders support an optional projection head:
 - Useful for matching sensor encoder output dimension
 - Enable with `use_projection: true` in config
 
-### 4. CLI Tool (`encode_captions.py`)
+### 4. CLI Tool (`src/text_encoders/encode_captions.py`)
 
 Command-line tool for batch encoding:
 ```bash
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions path/to/captions.json \
     --output path/to/embeddings.npz \
     --config configs/text_encoders/gte_base.yaml \
@@ -252,12 +252,12 @@ embeddings, metadata = encoder.load_embeddings('embeddings.npz')
 ### With Step 3 (Caption Generation)
 ```bash
 # Step 3: Generate captions
-python generate_captions.py \
+python src/captions/generate_captions.py \
     --input data/processed/casas/milan/fixed_length_20/train.json \
     --output data/processed/casas/milan/fixed_length_20/train_captions_baseline.json
 
 # Step 4: Encode captions
-python encode_captions.py \
+python src/text_encoders/encode_captions.py \
     --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
     --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz
 ```
@@ -269,9 +269,9 @@ def collate_fn(batch):
     # Load pre-computed text embeddings
     sample_ids = [sample['sample_id'] for sample in batch]
     text_embeddings = text_embedding_cache[sample_ids]
-    
+
     # ... process sensor data ...
-    
+
     return {
         'sensor_embeddings': sensor_embeddings,
         'text_embeddings': text_embeddings  # Pre-computed!
@@ -336,7 +336,7 @@ python src/text_encoders/example_usage.py
 - `configs/text_encoders/siglip_base.yaml`
 
 ### Scripts and Documentation
-- `encode_captions.py` - 320 lines (CLI tool)
+- `src/text_encoders/encode_captions.py` - 320 lines (CLI tool)
 - `docs/TEXT_ENCODER_GUIDE.md` - 450 lines
 - `docs/STEP4_TEXT_ENCODER_SUMMARY.md` - This file
 
