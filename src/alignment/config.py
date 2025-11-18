@@ -66,7 +66,11 @@ class TrainingConfig:
     log_interval: int = 50
     val_interval: int = 500
     save_interval: int = 2000
-    metrics_interval: int = 1000
+    metrics_interval: int = 1000  # Interval for comprehensive retrieval metrics
+
+    # Metrics configuration
+    metrics_sample_batches: int = 10  # Number of batches to sample for comprehensive metrics
+    metrics_sample_size: int = 1000  # Target sample size for expensive metrics
 
     # Data settings
     num_workers: int = 4
@@ -106,7 +110,8 @@ class AlignmentConfig:
     text_encoder_config_path: Optional[str] = None
 
     # Encoder config (data encoder)
-    encoder_config_path: Optional[str] = None
+    encoder_config_path: Optional[str] = None  # Path to encoder YAML (old way)
+    encoder: Optional[dict] = None  # Inline encoder config (new way)
     encoder_type: Literal['transformer', 'chronos', 'image'] = 'transformer'
 
     # Projection heads
@@ -190,8 +195,9 @@ class AlignmentConfig:
             errors.append("Either train_text_embeddings_path OR (train_captions_path + text_encoder_config_path) is required")
 
         # Check encoder config
-        if self.encoder_config_path is None:
-            errors.append("encoder_config_path is required")
+        # Must have either encoder_config_path or inline encoder config
+        if self.encoder_config_path is None and self.encoder is None:
+            errors.append("Either encoder_config_path or inline encoder config is required")
 
         # Check training steps/epochs
         if self.training.max_steps is None and self.training.max_epochs is None:

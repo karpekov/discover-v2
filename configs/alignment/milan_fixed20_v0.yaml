@@ -18,9 +18,52 @@ vocab_path: data/processed/casas/milan/fixed_length_20/vocab.json
 train_text_embeddings_path: data/processed/casas/milan/fixed_length_20/train_embeddings_baseline_clip.npz
 val_text_embeddings_path: data/processed/casas/milan/fixed_length_20/val_embeddings_baseline_clip.npz
 
-# Encoder configuration - Small transformer for faster iteration
-encoder_config_path: configs/encoders/transformer_small.yaml
+# Encoder configuration - Inline for clarity
 encoder_type: transformer
+
+# Encoder architecture (small transformer)
+encoder:
+  d_model: 512
+  n_layers: 6
+  n_heads: 8
+  d_ff: 2048
+  max_seq_len: 512
+  dropout: 0.1
+
+  # Projection for CLIP alignment
+  projection_dim: 512
+
+  # Positional encoding
+  use_alibi: true
+  use_learned_pe: false
+
+  # Feature encoding
+  fourier_bands: 12
+
+  # Metadata - CATEGORICAL FIELDS ONLY
+  metadata:
+    # Which categorical fields to use
+    categorical_fields:
+      - sensor
+      - state
+      - room_id
+
+    # Continuous features - ALL DISABLED for pure categorical baseline
+    use_coordinates: false  # Disabled: sensor→coordinates is deterministic lookup
+    use_time_deltas: false  # Disabled: for pure event sequence baseline
+    use_time_of_day: true
+
+    # Coordinate normalization (unused)
+    coord_norm_x_max: 10.0
+    coord_norm_y_max: 10.0
+
+    # Time bucketing (unused)
+    time_delta_max_seconds: 3600.0
+    time_delta_bins: 100
+
+  # Pooling strategy
+  pooling: cls_mean
+  pooling_cls_weight: 0.5
 
 # Projection heads - Linear projections to 512-d shared space
 sensor_projection:
@@ -35,7 +78,7 @@ text_projection:
 loss:
   # CLIP loss (primary objective)
   clip_weight: 1.0
-  temperature_init: 0.02
+  temperature_init: 0.07  # Standard CLIP value
   learnable_temperature: true
 
   # MLM loss (auxiliary objective) - REDUCED weight to prevent saturation
@@ -68,10 +111,15 @@ training:
   device: auto
   use_amp: true
 
-  log_interval: 50
-  val_interval: 500
-  save_interval: 2000
-  metrics_interval: 500
+  # Logging intervals
+  log_interval: 50          # Log basic training metrics (loss, acc, temp, lr)
+  val_interval: 500         # Validation: loss, acc, alignment health, MLM accuracy (~2 min)
+  save_interval: 2000       # Save checkpoints
+  metrics_interval: 1000     # Comprehensive metrics: Recall@K, nDCG@K (retrieval) (~5 min)
+
+  # Metrics sampling configuration
+  metrics_sample_batches: 10  # Sample 10 batches (~1280 samples) for retrieval metrics
+  metrics_sample_size: 1000   # Target sample size for expensive metrics
 
   num_workers: 0  # Must be 0 for MPS device (Apple Silicon)
   shuffle: true
@@ -88,29 +136,45 @@ wandb_group: null  # Auto-generated
 
 # Training Strategy Notes:
 #
-# 1. MLM Weight Reduction (1.0 → 0.2):
+# 1. Temperature Selection (0.07):
+#    - Standard CLIP value (original paper uses ~0.07)
+#    - 0.02 was too low → caused prediction collapse (all predicting same label)
+#    - Learnable temperature can adjust during training
+#    - Lower temp = sharper softmax, higher temp = softer (more exploration)
+#
+# 2. MLM Weight Reduction (1.0 → 0.2):
 #    - Test run showed MLM converges too quickly (loss < 0.01 by step 50)
 #    - MLM should be auxiliary, not competing equally with CLIP
 #    - 0.2 weight keeps MLM active but lets CLIP dominate gradients
 #
-# 2. Increased MLM Difficulty:
+# 3. Increased MLM Difficulty:
 #    - mask_prob: 0.35 (was 0.25) - Mask 35% of tokens instead of 25%
 #    - mean_span_length: 8.0 (was 5.0) - Longer masked spans are harder
+#    - Strict correlation (95%): sensor+room_id masked together to prevent memorization
+#      (sensor↔room is deterministic, so must predict from temporal context)
+#    - Transition seeding (30%): preferentially mask at room/activity transitions
 #    - This should prevent early saturation and keep MLM useful longer
 #
-# 3. Batch Size & Duration:
+# 4. Batch Size & Duration:
 #    - Batch 128 for better contrastive learning (more negatives per batch)
 #    - 10 epochs ≈ 9,430 steps for proper convergence
 #    - Test run showed CLIP needed more steps (accuracy still low at 400 steps)
 #
-# 4. Expected Behavior:
+# 5. Expected Behavior:
 #    - MLM loss should stay higher initially (0.1-0.3 range)
 #    - CLIP loss should decrease steadily over training
 #    - S2T/T2S accuracy should reach 20-40% by end (good alignment)
 #    - Validation loss should improve consistently
 #
-# 5. Model Size:
+# 6. Model Size:
 #    - Using transformer_small for reasonable training time
 #    - ~8-12M parameters (vs 4M in tiny)
 #    - Better capacity for learning complex alignments
+#
+# 7. Feature Selection (Categorical Only):
+#    - Using ONLY categorical fields: sensor, state, room_id
+#    - Coordinates DISABLED: sensor→coordinates is deterministic (trivial lookup)
+#    - Time deltas DISABLED: for pure event sequence baseline
+#    - Field blackout ENABLED: zeros coordinates/time when sensor/room masked
+#    - ALiBi positional encoding provides implicit temporal context
 

@@ -29,6 +29,7 @@ from src.alignment.wandb_utils import (
     generate_wandb_tags
 )
 from src.utils.device_utils import get_optimal_device
+from src.utils.training_metrics import TrainingMetrics
 
 
 class AlignmentTrainer:
@@ -75,12 +76,12 @@ class AlignmentTrainer:
         self.span_masker = self._setup_span_masker() if config.loss.mlm_weight > 0 else None
         if self.span_masker is not None:
             self.logger.info(f"MLM enabled with mask_prob={config.loss.mask_prob}, mean_span_length={config.loss.mean_span_length}")
-            # Update datasets with span_masker and vocab_sizes
+            # Update datasets with span_masker and vocab_sizes (filtered to exclude activity labels)
             self.train_loader.dataset.span_masker = self.span_masker
-            self.train_loader.dataset.vocab_sizes = self.vocab_sizes
+            self.train_loader.dataset.vocab_sizes = self.vocab_sizes  # Already filtered to sensor fields only
             if self.val_loader is not None:
                 self.val_loader.dataset.span_masker = self.span_masker
-                self.val_loader.dataset.vocab_sizes = self.vocab_sizes
+                self.val_loader.dataset.vocab_sizes = self.vocab_sizes  # Already filtered to sensor fields only
 
         # Setup optimizer and scheduler
         self.optimizer, self.scheduler = self._setup_optimizer()
@@ -89,6 +90,13 @@ class AlignmentTrainer:
         self.scaler = GradScaler() if config.training.use_amp and self.device.type == 'cuda' else None
         self.global_step = 0
         self.best_val_loss = float('inf')
+
+        # Setup metrics tracker
+        self.metrics_tracker = TrainingMetrics(
+            vocab_sizes=self.vocab_sizes,
+            sample_size=config.training.metrics_sample_size if hasattr(config.training, 'metrics_sample_size') else 1000,
+            text_encoder=None  # We don't need text encoder for non-F1 metrics
+        )
 
         # Setup WandB
         if config.use_wandb and WANDB_AVAILABLE:
@@ -140,10 +148,33 @@ class AlignmentTrainer:
         """Setup datasets and data loaders."""
         # Load vocabulary
         import json
+        import yaml
         with open(self.config.vocab_path, 'r') as f:
             vocab = json.load(f)
 
         vocab_sizes = {field: len(field_vocab) + 1 for field, field_vocab in vocab.items()}
+
+        # IMPORTANT: Filter vocab_sizes to only include fields used by encoder
+        # Activity labels should NOT be used for self-supervised MLM training!
+        # Get encoder config (either inline or from file)
+        if self.config.encoder is not None:
+            encoder_config = self.config.encoder
+        else:
+            with open(self.config.encoder_config_path, 'r') as f:
+                encoder_config = yaml.safe_load(f)
+
+        categorical_fields = encoder_config.get('metadata', {}).get('categorical_fields', [])
+
+        # Filter vocab_sizes to only fields that are actually embedded by the encoder
+        # This prevents activity labels from being used as MLM prediction targets
+        mlm_vocab_sizes = {
+            field: size for field, size in vocab_sizes.items()
+            if field in categorical_fields
+        }
+
+        self.logger.info(f"Loaded vocabulary with {len(vocab_sizes)} fields")
+        self.logger.info(f"Using {len(mlm_vocab_sizes)} fields for MLM: {list(mlm_vocab_sizes.keys())}")
+        self.logger.info(f"Excluded fields (for evaluation only): {[f for f in vocab_sizes if f not in mlm_vocab_sizes]}")
 
         # Create training dataset
         train_dataset = AlignmentDataset(
@@ -189,7 +220,8 @@ class AlignmentTrainer:
         if val_loader:
             self.logger.info(f"Validation dataset: {len(val_dataset)} samples")
 
-        return train_loader, val_loader, vocab_sizes, vocab
+        # Return mlm_vocab_sizes (filtered) for model, but keep full vocab for reference
+        return train_loader, val_loader, mlm_vocab_sizes, vocab
 
     def _compute_training_schedule(self):
         """Compute training schedule (epochs/steps)."""
@@ -267,15 +299,48 @@ class AlignmentTrainer:
         """Setup span masker for MLM."""
         from src.models.mlm_heads import SpanMasker
 
+        # Define field-specific masking probabilities for our data
+        # Note on correlations:
+        #   - sensor ↔ room_id: PERFECTLY correlated (deterministic, sensor→room is fixed)
+        #   - sensor ↔ state: Can vary (same sensor can have different states over time)
+        #   - state is the only truly independent temporal signal
+        field_priors = {
+            'sensor': 0.20,    # Lower - will be masked via correlation with room_id anyway
+            'room_id': 0.20,   # Lower - will be masked via correlation with sensor anyway
+            'state': 0.35,     # Higher - only independent temporal field, most informative
+        }
+
         span_masker = SpanMasker(
             mask_prob=self.config.loss.mask_prob,
             mean_span_length=self.config.loss.mean_span_length,
-            # Use defaults for other advanced features
-            enable_field_blackout=False,  # Disabled for now
-            p_transition_seed=0.0,  # Disabled for now
-            strict_corr_mask=False,  # Disabled for now
+            field_priors=field_priors,  # Custom field names for our data
+            # Strict correlation to prevent memorization of deterministic field relationships
+            # (e.g., sensor ↔ room_id ↔ coordinates are fixed)
+            strict_corr_mask=True,  # Mask correlated fields together
+            correlated_field_prob=0.95,  # 95% of the time, mask all together; 5% independent
+            # Field blackout: zero out continuous features when correlated fields masked
+            # This prevents "cheating" via deterministic sensor→coordinates mapping
+            enable_field_blackout=True,  # Zero coordinates/time when sensor/room masked
+            p_transition_seed=0.3,  # Seed masks at activity/room transitions (harder task)
             adaptive_mask=False  # Disabled for now
         )
+
+        # Override correlated groups to match actual field names in the data
+        # Rationale:
+        #   - sensor ↔ room_id are PERFECTLY correlated (M014 always in kitchen)
+        #     → Mask together 95% of time to force temporal reasoning
+        #   - state is INDEPENDENT (M014 can be ON or OFF over time)
+        #     → Keep separate to learn temporal state transitions
+        span_masker.correlated_groups = [
+            ['sensor', 'room_id'],  # Perfectly correlated → mask together
+            # 'state' is intentionally separate (varies over time for same sensor)
+        ]
+
+        # Update blackout mapping if field_blackout is enabled
+        span_masker.blackout_mapping = {
+            'room_id': ['sensor', 'coordinates'],
+            'sensor': ['room_id', 'coordinates'],
+        }
 
         return span_masker
 
@@ -394,12 +459,21 @@ class AlignmentTrainer:
 
     @torch.no_grad()
     def validate(self) -> Dict[str, float]:
-        """Validation step."""
+        """
+        Validation step with comprehensive metrics.
+
+        Computes:
+        - Basic losses (total, CLIP, MLM)
+        - Basic accuracies (S2T, T2S)
+        - Alignment health (pos/neg cosine similarities, gap)
+        - MLM accuracy (per-field and overall)
+        """
         if self.val_loader is None:
             return {}
 
         self.model.eval()
 
+        # Basic loss tracking
         total_loss = 0.0
         total_clip_loss = 0.0
         total_s2t_acc = 0.0
@@ -408,33 +482,64 @@ class AlignmentTrainer:
         num_batches = 0
         has_mlm = False
 
-        for batch in self.val_loader:
-            outputs = self.model(
-                sensor_data=batch['sensor_data'],
-                text_embeddings=batch['text_embeddings'],
-                attention_mask=batch.get('attention_mask'),
-                return_encoder_output=True
-            )
+        # Collect embeddings and outputs for comprehensive metrics
+        all_sensor_embeddings = []
+        all_text_embeddings = []
+        all_mlm_predictions = {}
+        all_mlm_labels = {}
+        all_mlm_mask_positions = {}
 
-            loss, loss_dict = self.model.compute_loss(
-                sensor_embeddings_projected=outputs['sensor_embeddings_projected'],
-                text_embeddings_projected=outputs['text_embeddings_projected'],
-                mlm_predictions=outputs.get('mlm_predictions'),  # From forward pass, not batch
-                mlm_labels=batch.get('mlm_labels'),
-                mlm_mask_positions=batch.get('mlm_mask_positions')
-            )
+        with torch.no_grad():
+            for batch in self.val_loader:
+                outputs = self.model(
+                    sensor_data=batch['sensor_data'],
+                    text_embeddings=batch['text_embeddings'],
+                    attention_mask=batch.get('attention_mask'),
+                    return_encoder_output=True
+                )
 
-            total_loss += loss_dict['total_loss']
-            total_clip_loss += loss_dict['clip_loss']
-            total_s2t_acc += loss_dict['sensor_to_text_acc']
-            total_t2s_acc += loss_dict['text_to_sensor_acc']
+                loss, loss_dict = self.model.compute_loss(
+                    sensor_embeddings_projected=outputs['sensor_embeddings_projected'],
+                    text_embeddings_projected=outputs['text_embeddings_projected'],
+                    mlm_predictions=outputs.get('mlm_predictions'),
+                    mlm_labels=batch.get('mlm_labels'),
+                    mlm_mask_positions=batch.get('mlm_mask_positions')
+                )
 
-            if 'mlm_loss' in loss_dict:
-                total_mlm_loss += loss_dict['mlm_loss']
-                has_mlm = True
+                # Accumulate basic metrics
+                total_loss += loss_dict['total_loss']
+                total_clip_loss += loss_dict['clip_loss']
+                total_s2t_acc += loss_dict['sensor_to_text_acc']
+                total_t2s_acc += loss_dict['text_to_sensor_acc']
 
-            num_batches += 1
+                if 'mlm_loss' in loss_dict:
+                    total_mlm_loss += loss_dict['mlm_loss']
+                    has_mlm = True
 
+                # Collect embeddings for alignment health
+                all_sensor_embeddings.append(outputs['sensor_embeddings_projected'])
+                all_text_embeddings.append(outputs['text_embeddings_projected'])
+
+                # Collect MLM outputs
+                if outputs.get('mlm_predictions') is not None:
+                    for field, preds in outputs['mlm_predictions'].items():
+                        if field not in all_mlm_predictions:
+                            all_mlm_predictions[field] = []
+                        all_mlm_predictions[field].append(preds)
+
+                    for field, labels in batch.get('mlm_labels', {}).items():
+                        if field not in all_mlm_labels:
+                            all_mlm_labels[field] = []
+                        all_mlm_labels[field].append(labels)
+
+                    for field, mask_pos in batch.get('mlm_mask_positions', {}).items():
+                        if field not in all_mlm_mask_positions:
+                            all_mlm_mask_positions[field] = []
+                        all_mlm_mask_positions[field].append(mask_pos)
+
+                num_batches += 1
+
+        # Basic metrics
         metrics = {
             'val_loss': total_loss / num_batches,
             'val_clip_loss': total_clip_loss / num_batches,
@@ -445,7 +550,169 @@ class AlignmentTrainer:
         if has_mlm:
             metrics['val_mlm_loss'] = total_mlm_loss / num_batches
 
+        # Compute alignment health metrics
+        if all_sensor_embeddings:
+            combined_sensor_emb = torch.cat(all_sensor_embeddings, dim=0)
+            combined_text_emb = torch.cat(all_text_embeddings, dim=0)
+
+            try:
+                alignment_metrics = self.metrics_tracker.compute_alignment_health(
+                    combined_sensor_emb,
+                    combined_text_emb,
+                    captions=None  # Skip per-activity breakdown for speed
+                )
+                # Add 'val_' prefix to alignment metrics
+                for key, value in alignment_metrics.items():
+                    metrics[f'val_{key}'] = value
+            except Exception as e:
+                self.logger.warning(f"Error computing alignment health: {e}")
+
+        # Compute MLM accuracy metrics
+        if all_mlm_predictions and all_mlm_labels and all_mlm_mask_positions:
+            try:
+                # Concatenate MLM outputs
+                combined_mlm_preds = {}
+                for field, pred_list in all_mlm_predictions.items():
+                    combined_mlm_preds[field] = torch.cat(pred_list, dim=0)
+
+                combined_mlm_labels = {}
+                for field, label_list in all_mlm_labels.items():
+                    combined_mlm_labels[field] = torch.cat(label_list, dim=0)
+
+                combined_mlm_masks = {}
+                for field, mask_list in all_mlm_mask_positions.items():
+                    combined_mlm_masks[field] = torch.cat(mask_list, dim=0)
+
+                mlm_metrics = self.metrics_tracker.compute_mlm_accuracy(
+                    combined_mlm_preds,
+                    combined_mlm_labels,
+                    combined_mlm_masks
+                )
+                # Add 'val_' prefix to MLM metrics
+                for key, value in mlm_metrics.items():
+                    metrics[f'val_{key}'] = value
+            except Exception as e:
+                self.logger.warning(f"Error computing MLM accuracy: {e}")
+
+        self.model.train()
         return metrics
+
+    @torch.no_grad()
+    def compute_comprehensive_metrics(
+        self,
+        data_loader: DataLoader,
+        split_name: str = "train",
+        max_batches: int = 10
+    ) -> Dict[str, float]:
+        """
+        Compute comprehensive retrieval metrics on a subset of data.
+
+        Computes:
+        - Recall@1, 5, 10 (overall for both sensor→text and text→sensor)
+        - nDCG@1, 5, 10 (overall for both directions)
+        - Recall@5 per-class breakdown
+
+        Args:
+            data_loader: DataLoader to evaluate
+            split_name: Name of split ('train' or 'val')
+            max_batches: Maximum number of batches to evaluate
+
+        Returns:
+            Dictionary of computed metrics with split prefix
+        """
+        self.model.eval()
+
+        # Collect embeddings and labels from multiple batches
+        all_sensor_embeddings = []
+        all_text_embeddings = []
+        all_ground_truth_labels = []
+
+        batch_count = 0
+        for batch in data_loader:
+            if batch_count >= max_batches:
+                break
+
+            outputs = self.model(
+                sensor_data=batch['sensor_data'],
+                text_embeddings=batch['text_embeddings'],
+                attention_mask=batch.get('attention_mask'),
+                return_encoder_output=True
+            )
+
+            # Collect projected embeddings
+            all_sensor_embeddings.append(outputs['sensor_embeddings_projected'])
+            all_text_embeddings.append(outputs['text_embeddings_projected'])
+
+            # Collect ground truth labels if available (for per-class metrics)
+            if 'activity_label' in batch:
+                all_ground_truth_labels.extend(batch['activity_label'])
+
+            batch_count += 1
+
+        if not all_sensor_embeddings:
+            self.logger.warning(f"No data collected for {split_name} comprehensive metrics")
+            return {}
+
+        # Concatenate all embeddings
+        combined_sensor_emb = torch.cat(all_sensor_embeddings, dim=0)
+        combined_text_emb = torch.cat(all_text_embeddings, dim=0)
+
+        metrics = {}
+
+        # Compute Recall@K (overall)
+        try:
+            recall_metrics = self.metrics_tracker.compute_recall_at_k(
+                combined_sensor_emb,
+                combined_text_emb,
+                k_values=[1, 5, 10],
+                ground_truth_labels=all_ground_truth_labels if all_ground_truth_labels else None
+            )
+
+            # Filter to keep only overall metrics and per-class Recall@5
+            for key, value in recall_metrics.items():
+                # Keep overall metrics for all k values
+                if any(x in key for x in ['/sensor_to_text', '/text_to_sensor', '/average']) and 'class_' not in key:
+                    metrics[key] = value
+                # Keep per-class metrics only for k=5
+                elif 'recall@5/class_' in key:
+                    metrics[key] = value
+
+        except Exception as e:
+            self.logger.warning(f"Error computing Recall@K metrics: {e}")
+
+        # Compute nDCG@K (overall only, no per-class)
+        try:
+            ndcg_metrics = self.metrics_tracker.compute_ndcg_at_k(
+                combined_sensor_emb,
+                combined_text_emb,
+                k_values=[1, 5, 10],
+                ground_truth_labels=None  # Skip per-class for nDCG
+            )
+
+            # Keep only overall metrics (no per-class)
+            for key, value in ndcg_metrics.items():
+                if 'class_' not in key:
+                    metrics[key] = value
+
+        except Exception as e:
+            self.logger.warning(f"Error computing nDCG@K metrics: {e}")
+
+        # Add split prefix to all metrics
+        prefixed_metrics = {}
+        for key, value in metrics.items():
+            prefixed_metrics[f'{split_name}/{key}'] = value
+
+        # Log sample size
+        total_samples = combined_sensor_emb.size(0)
+        prefixed_metrics[f'{split_name}/num_samples'] = total_samples
+
+        self.logger.info(
+            f"Comprehensive metrics for {split_name}: "
+            f"collected {total_samples} samples from {batch_count} batches"
+        )
+
+        self.model.train()
+        return prefixed_metrics
 
     def save_checkpoint(self, path: str, is_best: bool = False):
         """Save checkpoint."""
@@ -543,6 +810,7 @@ class AlignmentTrainer:
                     val_metrics = self.validate()
 
                     if val_metrics:
+                        # Basic metrics
                         val_msg = (
                             f"Validation | "
                             f"Loss: {val_metrics['val_loss']:.4f} | "
@@ -554,24 +822,81 @@ class AlignmentTrainer:
                         if 'val_mlm_loss' in val_metrics:
                             val_msg += f" | MLM: {val_metrics['val_mlm_loss']:.4f}"
 
+                        # Add alignment health (pos_neg_gap is the key metric)
+                        if 'val_alignment/pos_neg_gap' in val_metrics:
+                            val_msg += f" | Gap: {val_metrics['val_alignment/pos_neg_gap']:.3f}"
+
+                        # Add overall MLM accuracy
+                        if 'val_mlm_accuracy/overall' in val_metrics:
+                            val_msg += f" | MLM Acc: {val_metrics['val_mlm_accuracy/overall']:.3f}"
+
                         self.logger.info(val_msg)
 
                         # WandB logging
                         if self.config.use_wandb and WANDB_AVAILABLE:
                             wandb.log(val_metrics, step=self.global_step)
 
-                        # Save best model
+                        # Track best validation loss (but don't save yet - wait for save_interval)
                         if val_metrics['val_loss'] < self.best_val_loss:
                             self.best_val_loss = val_metrics['val_loss']
-                            self.save_checkpoint(
-                                str(Path(self.config.output_dir) / 'best_model.pt'),
-                                is_best=True
-                            )
+                            self.logger.info(f"New best validation loss: {self.best_val_loss:.4f}")
 
-                # Save checkpoint
+                # Comprehensive metrics (retrieval metrics)
+                if self.global_step % self.config.training.metrics_interval == 0 and self.global_step > 0:
+                    self.logger.info(f"Computing comprehensive retrieval metrics at step {self.global_step}...")
+
+                    # Determine how many batches to sample
+                    metrics_sample_batches = getattr(self.config.training, 'metrics_sample_batches', 10)
+
+                    # Compute metrics on training data
+                    train_metrics = self.compute_comprehensive_metrics(
+                        self.train_loader,
+                        split_name='train',
+                        max_batches=metrics_sample_batches
+                    )
+
+                    # Compute metrics on validation data if available
+                    val_comprehensive_metrics = {}
+                    if self.val_loader is not None:
+                        val_comprehensive_metrics = self.compute_comprehensive_metrics(
+                            self.val_loader,
+                            split_name='val',
+                            max_batches=metrics_sample_batches
+                        )
+
+                    # Combine all metrics
+                    all_comprehensive_metrics = {**train_metrics, **val_comprehensive_metrics}
+
+                    # Log key metrics to console (simplified)
+                    if train_metrics:
+                        key_metrics = []
+                        for key in ['train/recall@1/average', 'train/recall@5/average',
+                                   'val/recall@1/average', 'val/recall@5/average']:
+                            if key in all_comprehensive_metrics:
+                                short_key = key.split('/')[-1]  # Just get 'average'
+                                split = key.split('/')[0]  # Get 'train' or 'val'
+                                k_val = key.split('/')[1].replace('recall@', 'R@')  # Get 'R@1'
+                                key_metrics.append(f"{split}/{k_val}: {all_comprehensive_metrics[key]:.3f}")
+
+                        if key_metrics:
+                            self.logger.info(f"Retrieval Metrics | {' | '.join(key_metrics)}")
+
+                    # WandB logging
+                    if self.config.use_wandb and WANDB_AVAILABLE and all_comprehensive_metrics:
+                        wandb.log(all_comprehensive_metrics, step=self.global_step)
+
+                # Save checkpoint (including best model if applicable)
                 if self.global_step % self.config.training.save_interval == 0:
+                    # Save regular checkpoint
                     checkpoint_path = Path(self.config.output_dir) / f'checkpoint_step_{self.global_step}.pt'
                     self.save_checkpoint(str(checkpoint_path))
+
+                    # Also save best model checkpoint if this is the best so far
+                    # Check if we have a recent validation run
+                    if hasattr(self, 'best_val_loss') and self.best_val_loss != float('inf'):
+                        best_path = Path(self.config.output_dir) / 'best_model.pt'
+                        self.save_checkpoint(str(best_path), is_best=True)
+                        self.logger.info(f"Saved best model (val_loss: {self.best_val_loss:.4f})")
 
                 # Check max steps
                 if self.global_step >= self.config.training.max_steps:
@@ -587,6 +912,12 @@ class AlignmentTrainer:
         # Save final checkpoint
         final_path = Path(self.config.output_dir) / 'final_model.pt'
         self.save_checkpoint(str(final_path))
+
+        # Also save best model one final time
+        if hasattr(self, 'best_val_loss') and self.best_val_loss != float('inf'):
+            best_path = Path(self.config.output_dir) / 'best_model.pt'
+            self.save_checkpoint(str(best_path), is_best=True)
+            self.logger.info(f"Final best model saved (val_loss: {self.best_val_loss:.4f})")
 
         self.logger.info("Training completed!")
 

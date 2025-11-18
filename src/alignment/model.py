@@ -14,7 +14,6 @@ from src.encoders import build_encoder
 from src.encoders.base import EncoderOutput
 from src.encoders.sensor.sequence.projection import create_projection_head
 from src.losses.clip import CLIPLoss
-from src.text_encoders import build_text_encoder
 
 
 class AlignmentModel(nn.Module):
@@ -22,12 +21,12 @@ class AlignmentModel(nn.Module):
     Model for aligning sensor encoder outputs with text embeddings.
 
     Components:
-    - Sensor encoder (trainable)
-    - Sensor projection head (trainable)
+    - Sensor encoder (trainable, includes internal projection to CLIP space)
     - Text projection head (optional, trainable if specified)
     - CLIP loss function (with learnable temperature)
 
     The text encoder itself is frozen and uses pre-computed embeddings.
+    The sensor encoder's internal projection head (forward_clip) is used for alignment.
     """
 
     def __init__(
@@ -41,11 +40,8 @@ class AlignmentModel(nn.Module):
         self.vocab_sizes = vocab_sizes
         self.vocab = vocab  # Full vocabulary (needed for image-based encoders)
 
-        # Build sensor encoder
+        # Build sensor encoder (includes internal projection head)
         self.sensor_encoder = self._build_sensor_encoder()
-
-        # Build sensor projection head
-        self.sensor_projection = self._build_sensor_projection()
 
         # Build text projection head (optional)
         self.text_projection = self._build_text_projection()
@@ -75,12 +71,16 @@ class AlignmentModel(nn.Module):
 
     def _build_sensor_encoder(self):
         """Build sensor encoder from config."""
-        if self.config.encoder_config_path is None:
-            raise ValueError("encoder_config_path is required")
-
-        # Load encoder config
-        with open(self.config.encoder_config_path, 'r') as f:
-            encoder_config_dict = yaml.safe_load(f)
+        # Get encoder config - either from path or inline
+        if self.config.encoder is not None:
+            # Use inline encoder config
+            encoder_config_dict = self.config.encoder.copy()
+        elif self.config.encoder_config_path is not None:
+            # Load encoder config from file
+            with open(self.config.encoder_config_path, 'r') as f:
+                encoder_config_dict = yaml.safe_load(f)
+        else:
+            raise ValueError("Either encoder_config_path or inline encoder config is required")
 
         # Add vocab sizes to encoder config
         encoder_config_dict['vocab_sizes'] = self.vocab_sizes
@@ -95,21 +95,6 @@ class AlignmentModel(nn.Module):
         )
 
         return encoder
-
-    def _build_sensor_projection(self):
-        """Build projection head for sensor embeddings."""
-        proj_config = self.config.sensor_projection
-        d_model = self.sensor_encoder.config.d_model
-
-        return create_projection_head(
-            projection_type=proj_config.type,
-            d_model=d_model,
-            projection_dim=proj_config.dim,
-            hidden_dim=proj_config.hidden_dim,
-            num_layers=proj_config.num_layers,
-            dropout=proj_config.dropout,
-            use_bn=proj_config.use_bn
-        )
 
     def _build_text_projection(self):
         """Build projection head for text embeddings (optional)."""
@@ -144,13 +129,10 @@ class AlignmentModel(nn.Module):
                 - sensor_embeddings_projected: [batch, proj_dim]
                 - text_embeddings_projected: [batch, proj_dim]
                 - encoder_output: EncoderOutput (if return_encoder_output=True)
+                - mlm_predictions: Dict[field, logits] (if MLM is enabled)
         """
-        # Encode sensor data
-        encoder_output = self.sensor_encoder(sensor_data, attention_mask)
-
-        # Project sensor embeddings
-        sensor_embeddings_projected = self.sensor_projection(encoder_output.embeddings)
-        sensor_embeddings_projected = F.normalize(sensor_embeddings_projected, p=2, dim=-1)
+        # Use encoder's forward_clip() for projected embeddings (already normalized)
+        sensor_embeddings_projected = self.sensor_encoder.forward_clip(sensor_data, attention_mask)
 
         # Initialize text projection on first forward pass if needed
         if self.config.text_projection is not None and self.text_projection is None:
@@ -180,8 +162,13 @@ class AlignmentModel(nn.Module):
         }
 
         # Generate MLM predictions if MLM heads exist
+        # Note: We need to run regular forward() to get sequence features for MLM
+        encoder_output = None
+        if self.mlm_heads is not None or return_encoder_output:
+            encoder_output = self.sensor_encoder(sensor_data, attention_mask)
+
         if self.mlm_heads is not None:
-            # Get token-level embeddings from encoder output
+                # Get token-level embeddings for MLM
             token_embeddings = encoder_output.sequence_features  # [batch, seq_len, d_model]
             mlm_predictions = self.mlm_heads(token_embeddings)  # Dict[field, [batch, seq_len, vocab_size]]
             result['mlm_predictions'] = mlm_predictions
@@ -288,11 +275,8 @@ class AlignmentModel(nn.Module):
         """Get all trainable parameters for optimizer."""
         params = []
 
-        # Sensor encoder parameters
+        # Sensor encoder parameters (includes internal projection head)
         params.extend(list(self.sensor_encoder.parameters()))
-
-        # Sensor projection parameters
-        params.extend(list(self.sensor_projection.parameters()))
 
         # Text projection parameters (if exists)
         if self.text_projection is not None:
@@ -315,7 +299,6 @@ class AlignmentModel(nn.Module):
             'config': self.config,
             'vocab_sizes': self.vocab_sizes,
             'sensor_encoder_state_dict': self.sensor_encoder.state_dict(),
-            'sensor_projection_state_dict': self.sensor_projection.state_dict(),
             'clip_loss_state_dict': self.clip_loss.state_dict(),
         }
 
@@ -340,8 +323,17 @@ class AlignmentModel(nn.Module):
 
         # Load state dicts
         model.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
-        model.sensor_projection.load_state_dict(checkpoint['sensor_projection_state_dict'])
         model.clip_loss.load_state_dict(checkpoint['clip_loss_state_dict'])
+
+        # Backward compatibility: ignore old sensor_projection_state_dict if present
+        # (The projection is now inside the sensor_encoder)
+        if 'sensor_projection_state_dict' in checkpoint:
+            import warnings
+            warnings.warn(
+                "Loading checkpoint with deprecated sensor_projection_state_dict. "
+                "This will be ignored. The projection is now part of the encoder.",
+                DeprecationWarning
+            )
 
         if 'text_projection_state_dict' in checkpoint:
             model.text_projection.load_state_dict(checkpoint['text_projection_state_dict'])
