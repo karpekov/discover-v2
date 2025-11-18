@@ -6,7 +6,9 @@ Computes detailed metrics on how well sensor and text embeddings are aligned.
 
 import sys
 import os
+# Add both src directory and project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import torch
 import numpy as np
@@ -46,50 +48,71 @@ class EmbeddingAlignmentAnalyzer:
         """Load trained models."""
         print(f"🔄 Loading models from {self.config['checkpoint_path']}")
 
-        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device)
+        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
 
-        # Text encoder - use config from checkpoint
-        model_config = checkpoint.get('config', {})
-        text_model_name = model_config.get('text_model_name', 'thenlper/gte-base')
-        # Use text encoder factory to handle different encoder types
+        # Get config from checkpoint and handle dataclass/dict
+        raw_config = checkpoint.get('config', {})
+        # Handle both dict and dataclass config objects
+        if hasattr(raw_config, '__dataclass_fields__'):
+            # It's an AlignmentConfig dataclass - get encoder config from it
+            model_config = getattr(raw_config, 'encoder', {}) or {}
+        else:
+            # It's a plain dict
+            model_config = raw_config
 
-        eval_config = model_config.copy() if "model_config" in locals() else {"text_model_name": text_model_name}
-
-        eval_config["use_cached_embeddings"] = False  # Compute embeddings on-the-fly for eval
-
-        self.text_encoder = build_text_encoder(eval_config)
+        # Text encoder - use robust 3-tier fallback to detect correct encoder
+        from evals.eval_utils import create_text_encoder_from_checkpoint
+        self.text_encoder = create_text_encoder_from_checkpoint(
+            checkpoint=checkpoint,
+            device=self.device,
+            data_path=self.config.get('data_path')  # For .npz fallback
+        )
+        if self.text_encoder is None:
+            # Fallback to standard text encoder
+            text_model_name = model_config.get('text_model_name', 'sentence-transformers/all-MiniLM-L6-v2')
+            eval_config = {"text_model_name": text_model_name, "use_cached_embeddings": False}
+            self.text_encoder = build_text_encoder(eval_config)
         self.text_encoder.to(self.device)
 
         # Sensor encoder - check if it's ChronosEncoder or SensorEncoder
         self.vocab_sizes = checkpoint.get('vocab_sizes', {})
 
-        # Check if this is a Chronos checkpoint
-        if 'chronos_encoder_state_dict' in checkpoint:
-            from models.chronos_encoder import ChronosEncoder
-            self.sensor_encoder = ChronosEncoder(
-                vocab_sizes=self.vocab_sizes,
-                chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
-                projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
-                projection_dropout=model_config.get('projection_dropout', 0.1),
-                output_dim=model_config.get('output_dim', 512),
-                sequence_length=model_config.get('sequence_length', 50)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+        # Check checkpoint format - AlignmentTrainer uses 'model_state_dict', AlignmentModel uses individual dicts
+        if 'model_state_dict' in checkpoint:
+            # Load from AlignmentModel - need to extract sensor_encoder weights
+            from alignment.model import AlignmentModel
+            full_model = AlignmentModel.load(self.config['checkpoint_path'], device=self.device)
+            self.sensor_encoder = full_model.sensor_encoder
+        elif 'chronos_encoder_state_dict' in checkpoint or 'sensor_encoder_state_dict' in checkpoint:
+            # Old format - individual state dicts
+            if 'chronos_encoder_state_dict' in checkpoint:
+                from models.chronos_encoder import ChronosEncoder
+                self.sensor_encoder = ChronosEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
+                    projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
+                    projection_dropout=model_config.get('projection_dropout', 0.1),
+                    output_dim=model_config.get('output_dim', 512),
+                    sequence_length=model_config.get('sequence_length', 50)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+            else:
+                # Standard SensorEncoder
+                self.sensor_encoder = SensorEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    d_model=model_config.get('d_model', 768),
+                    n_layers=model_config.get('n_layers', 6),
+                    n_heads=model_config.get('n_heads', 8),
+                    d_ff=model_config.get('d_ff', 3072),
+                    max_seq_len=model_config.get('max_seq_len', 512),
+                    dropout=model_config.get('dropout', 0.1),
+                    fourier_bands=model_config.get('fourier_bands', 12),
+                    use_rope_time=model_config.get('use_rope_time', False),
+                    use_rope_2d=model_config.get('use_rope_2d', False)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
         else:
-            # Standard SensorEncoder
-            self.sensor_encoder = SensorEncoder(
-                vocab_sizes=self.vocab_sizes,
-                d_model=model_config.get('d_model', 768),
-                n_layers=model_config.get('n_layers', 6),
-                n_heads=model_config.get('n_heads', 8),
-                d_ff=model_config.get('d_ff', 3072),
-                max_seq_len=model_config.get('max_seq_len', 512),
-                dropout=model_config.get('dropout', 0.1),
-                fourier_bands=model_config.get('fourier_bands', 12),
-                use_rope_time=model_config.get('use_rope_time', False),
-                use_rope_2d=model_config.get('use_rope_2d', False)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+            raise ValueError("Checkpoint format not recognized - missing both 'model_state_dict' and 'sensor_encoder_state_dict'")
 
         self.sensor_encoder.to(self.device)
         self.sensor_encoder.eval()
@@ -134,31 +157,36 @@ class EmbeddingAlignmentAnalyzer:
                     break
 
                 # Extract CLIP-projected sensor embeddings
+                # Pack data for new encoder interface
+                input_data = {
+                    'categorical_features': batch['categorical_features'],
+                    'coordinates': batch['coordinates'],
+                    'time_deltas': batch['time_deltas']
+                }
                 sensor_emb = self.sensor_encoder.forward_clip(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=input_data,
+                    attention_mask=batch['mask']
                 )
 
                 sensor_embeddings.append(sensor_emb.cpu().numpy())
 
-                # Extract labels
+                # Extract labels from batch (properly extracted by dataset)
                 batch_size_actual = sensor_emb.shape[0]
+
+                # Get labels from batch (correctly extracted by SmartHomeDataset)
+                batch_labels_l1 = batch.get('activity_labels', ['Unknown'] * batch_size_actual)
+                batch_labels_l2 = batch.get('activity_labels_l2', ['Unknown'] * batch_size_actual)
+
                 for i in range(batch_size_actual):
                     if samples_processed >= max_samples:
                         break
 
-                    sample_idx = batch_idx * 64 + i
-                    if sample_idx < len(self.dataset):
-                        original_sample = self.dataset.data[sample_idx]
+                    label_l1 = batch_labels_l1[i] if i < len(batch_labels_l1) else 'Unknown'
+                    label_l2 = batch_labels_l2[i] if i < len(batch_labels_l2) else 'Unknown'
 
-                        label_l1 = original_sample.get('first_activity', 'Unknown')
-                        label_l2 = original_sample.get('first_activity_l2', 'Unknown')
-
-                        labels_l1.append(label_l1)
-                        labels_l2.append(label_l2)
-                        samples_processed += 1
+                    labels_l1.append(label_l1)
+                    labels_l2.append(label_l2)
+                    samples_processed += 1
 
         # Concatenate sensor embeddings
         sensor_embeddings = np.vstack(sensor_embeddings)[:samples_processed]

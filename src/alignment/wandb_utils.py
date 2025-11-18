@@ -36,9 +36,9 @@ def extract_sampling_strategy(data_path: str, config: Any) -> str:
     Extract sampling strategy abbreviation.
 
     Examples:
-        fixed_duration_60s → fixdur60s
-        fixed_length_50 → fixlen50
-        fixed_duration_120s_presegmented → fixdur120s_preseg
+        FD_60 → fd60
+        FL_50 → fl50
+        FD_120_p → fd120_p
     """
     path_str = str(data_path)
 
@@ -343,8 +343,8 @@ if __name__ == '__main__':
 
     class MockConfig:
         def __init__(self):
-            self.train_data_path = "data/processed/casas/milan/fixed_duration_60s/train.json"
-            self.train_text_embeddings_path = "data/processed/casas/milan/fixed_duration_60s/train_embeddings_baseline_gte_base.npz"
+            self.train_data_path = "data/processed/casas/milan/FD_60/train.json"
+            self.train_text_embeddings_path = "data/processed/casas/milan/FD_60/train_embeddings_baseline_gte_base.npz"
             self.train_captions_path = None
             self.text_encoder_config_path = "configs/text_encoders/gte_base.yaml"
             self.encoder_config_path = "configs/encoders/transformer_base.yaml"

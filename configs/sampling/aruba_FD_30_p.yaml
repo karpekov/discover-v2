@@ -1,14 +1,16 @@
-# Fixed-length sampling config for Aruba dataset - window size 50, presegmented
+# Fixed-duration sampling config for Aruba dataset - duration 30 seconds, presegmented
 
 dataset_name: "aruba"
 raw_data_path: "data/raw/casas/aruba"
-output_dir: "data/processed/casas/aruba/fixed_length_50_presegmented"
+output_dir: "data/processed/casas/aruba/FD_30_p"
 
-strategy: "fixed_length"
+strategy: "fixed_duration"
 
-# Window sizes to generate
-window_sizes: [50]
-min_events_per_window: 8
+# Duration windows to generate (in seconds)
+duration_seconds: [30]
+min_events_per_window: 1
+max_events_per_window: null
+max_sequence_length: 256
 
 # Train/test split
 split_strategy: "random"
@@ -21,12 +23,12 @@ overlap_factor: 0.5
 # Presegmentation
 use_presegmentation: true
 presegment_label_level: "l1"
-min_segment_events: 8
+min_segment_events: 1
 exclude_no_activity: true
 
 # Filtering
 filter_numeric_sensors: true
-max_gap_minutes: 30
+max_gap_minutes: null
 
 # Metadata preservation
 preserve_full_metadata: true

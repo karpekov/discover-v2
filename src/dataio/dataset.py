@@ -48,17 +48,14 @@ class SmartHomeDataset(Dataset):
     # Load data
     self.data = self._load_data(data_path)
 
-    # Categorical field names
-    self.categorical_fields = [
-      'sensor_id', 'room_id', 'event_type', 'sensor_type',
-      'tod_bucket', 'delta_t_bucket'
+    # Categorical field names - use only fields that exist in vocab
+    # Common categorical fields across different data formats
+    possible_fields = [
+      'sensor_id', 'sensor', 'room_id', 'event_type', 'state', 'sensor_type',
+      'tod_bucket', 'delta_t_bucket', 'floor_id', 'dow'
     ]
-
-    # Optional fields
-    if 'floor_id' in self.vocab:
-      self.categorical_fields.append('floor_id')
-    if 'dow' in self.vocab:
-      self.categorical_fields.append('dow')
+    
+    self.categorical_fields = [field for field in possible_fields if field in self.vocab]
 
     # Get vocabulary sizes
     self.vocab_sizes = {field: len(self.vocab[field]) for field in self.categorical_fields}
@@ -71,7 +68,14 @@ class SmartHomeDataset(Dataset):
     """Load dataset from file."""
     if data_path.endswith('.json'):
       with open(data_path, 'r') as f:
-        return json.load(f)
+        data = json.load(f)
+        # Handle both formats: direct list or dict with 'samples' key
+        if isinstance(data, dict) and 'samples' in data:
+          return data['samples']
+        elif isinstance(data, list):
+          return data
+        else:
+          raise ValueError(f"Unexpected data format in {data_path}")
     elif data_path.endswith('.parquet'):
       df = pd.read_parquet(data_path)
       return df.to_dict('records')
@@ -83,10 +87,27 @@ class SmartHomeDataset(Dataset):
     all_x, all_y = [], []
 
     for sample in self.data:
-      events = sample['events']
-      for event in events:
-        all_x.append(event['x'])
-        all_y.append(event['y'])
+      # Handle both old format (events) and new format (sensor_sequence)
+      if 'events' in sample:
+        events = sample['events']
+        for event in events:
+          all_x.append(event['x'])
+          all_y.append(event['y'])
+      elif 'sensor_sequence' in sample:
+        # New format - coordinates might be in sensor_sequence
+        for event in sample['sensor_sequence']:
+          if 'x' in event and 'y' in event:
+            all_x.append(event['x'])
+            all_y.append(event['y'])
+      # If no coordinate data found, skip normalization
+      
+    if not all_x or not all_y:
+      # No coordinates found - disable normalization
+      self.normalize_coords = False
+      self.x_min, self.x_max = 0, 1
+      self.y_min, self.y_max = 0, 1
+      self.x_range, self.y_range = 1, 1
+      return
 
     self.x_min, self.x_max = min(all_x), max(all_x)
     self.y_min, self.y_max = min(all_y), max(all_y)
@@ -162,10 +183,24 @@ class SmartHomeDataset(Dataset):
       elif 'timestamp' in events[i] and 'timestamp' in events[i-1]:
         curr_time = events[i]['timestamp']
         prev_time = events[i-1]['timestamp']
-        delta_t = max(0.0, curr_time - prev_time)
-        # If timestamps are in milliseconds (Unix time), convert to seconds
-        if curr_time > 10000:  # Heuristic: Unix timestamps are large
-          delta_t = delta_t / 1000.0
+        
+        # Handle different timestamp formats
+        if isinstance(curr_time, str):
+          # String timestamp - parse it
+          from dateutil import parser as date_parser
+          try:
+            curr_dt = date_parser.parse(curr_time)
+            prev_dt = date_parser.parse(prev_time)
+            delta_t = max(0.0, (curr_dt - prev_dt).total_seconds())
+          except Exception:
+            # Fallback if parsing fails
+            delta_t = 1.0
+        else:
+          # Numeric timestamp
+          delta_t = max(0.0, curr_time - prev_time)
+          # If timestamps are in milliseconds (Unix time), convert to seconds
+          if curr_time > 10000:  # Heuristic: Unix timestamps are large
+            delta_t = delta_t / 1000.0
       else:
         # Fallback to default
         delta_t = 1.0
@@ -191,8 +226,33 @@ class SmartHomeDataset(Dataset):
     """
     sample_data = self.data[idx]
 
-    # Get events and captions based on caption_types setting
-    events = sample_data['events']
+    # Get events - handle both old format (events) and new format (sensor_sequence)
+    if 'sensor_sequence' in sample_data:
+      events = sample_data['sensor_sequence']
+    elif 'events' in sample_data:
+      events = sample_data['events']
+    else:
+      raise KeyError(f"Sample {idx} has neither 'events' nor 'sensor_sequence' key. Keys: {list(sample_data.keys())}")
+    
+    # Normalize field names to match vocab expectations
+    # New format uses: sensor_id, event_type, room
+    # Old format uses: sensor, state, room_id
+    # We need to map to whatever is in the vocab
+    normalized_events = []
+    for event in events:
+      norm_event = event.copy()
+      # Map sensor_id → sensor if vocab has 'sensor'
+      if 'sensor' in self.categorical_fields and 'sensor_id' in event:
+        norm_event['sensor'] = event['sensor_id']
+      # Map event_type → state if vocab has 'state'
+      if 'state' in self.categorical_fields and 'event_type' in event:
+        norm_event['state'] = event['event_type']
+      # Map room → room_id if vocab has 'room_id'
+      if 'room_id' in self.categorical_fields and 'room' in event:
+        norm_event['room_id'] = event['room']
+      normalized_events.append(norm_event)
+    
+    events = normalized_events
 
     # Select appropriate caption type
     if self.caption_types == 'long' and 'long_captions' in sample_data:
@@ -230,7 +290,14 @@ class SmartHomeDataset(Dataset):
     time_deltas = self._compute_delta_times(events)
 
     # Create mask (True for valid events, False for padding)
-    original_length = min(len(sample_data['events']), self.sequence_length)
+    # Use the original events list (before padding/truncation)
+    if 'sensor_sequence' in sample_data:
+      original_events = sample_data['sensor_sequence']
+    elif 'events' in sample_data:
+      original_events = sample_data['events']
+    else:
+      original_events = []
+    original_length = min(len(original_events), self.sequence_length)
     mask = [True] * original_length + [False] * (self.sequence_length - original_length)
 
     # Process categorical features
@@ -267,10 +334,20 @@ class SmartHomeDataset(Dataset):
     }
 
     # Add ground truth labels if present
-    if 'first_activity' in sample_data:
-      result['first_activity'] = sample_data['first_activity']
-    if 'first_activity_l2' in sample_data:
-      result['first_activity_l2'] = sample_data['first_activity_l2']
+    # New format: labels are in metadata.ground_truth_labels
+    # Old format: labels are directly in sample_data
+    if 'metadata' in sample_data and 'ground_truth_labels' in sample_data['metadata']:
+      gt_labels = sample_data['metadata']['ground_truth_labels']
+      if 'primary_l1' in gt_labels:
+        result['first_activity'] = gt_labels['primary_l1']
+      if 'primary_l2' in gt_labels:
+        result['first_activity_l2'] = gt_labels['primary_l2']
+    else:
+      # Old format fallback
+      if 'first_activity' in sample_data:
+        result['first_activity'] = sample_data['first_activity']
+      if 'first_activity_l2' in sample_data:
+        result['first_activity_l2'] = sample_data['first_activity_l2']
 
     return result
 

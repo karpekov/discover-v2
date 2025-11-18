@@ -51,7 +51,7 @@ class RetrievalEvaluator:
     checkpoint_path = self.config['checkpoint_path']
     self.logger.info(f"Loading checkpoint from {checkpoint_path}")
 
-    checkpoint = torch.load(checkpoint_path, map_location=self.device)
+    checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
 
     # Initialize text encoder
     # Use text encoder factory to handle different encoder types

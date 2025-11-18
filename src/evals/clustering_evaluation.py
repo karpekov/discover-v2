@@ -48,7 +48,9 @@ warnings.filterwarnings('ignore', category=UserWarning)
 # Import project modules
 import sys
 import os
+# Add both src directory and project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from dataio.dataset import SmartHomeDataset
 from dataio.collate import create_data_loader
 from models.text_encoder import TextEncoder, build_text_encoder
@@ -133,39 +135,57 @@ class ClusteringEvaluator:
         """Load trained models from checkpoint."""
         print(f"🔄 Loading models from {self.config['checkpoint_path']}")
 
-        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device)
+        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
+
+        # Get config from checkpoint and handle dataclass/dict
+        raw_config = checkpoint.get('config', {})
+        # Handle both dict and dataclass config objects
+        if hasattr(raw_config, '__dataclass_fields__'):
+            # It's an AlignmentConfig dataclass - get encoder config from it
+            model_config = getattr(raw_config, 'encoder', {}) or {}
+        else:
+            # It's a plain dict
+            model_config = raw_config
 
         # Sensor encoder - check if it's ChronosEncoder or SensorEncoder
         self.vocab_sizes = checkpoint.get('vocab_sizes', {})
-        model_config = checkpoint.get('config', {})
 
-        # Check if this is a Chronos checkpoint
-        if 'chronos_encoder_state_dict' in checkpoint:
-            from models.chronos_encoder import ChronosEncoder
-            self.sensor_encoder = ChronosEncoder(
-                vocab_sizes=self.vocab_sizes,
-                chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
-                projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
-                projection_dropout=model_config.get('projection_dropout', 0.1),
-                output_dim=model_config.get('output_dim', 512),
-                sequence_length=model_config.get('sequence_length', 50)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+        # Check checkpoint format - AlignmentTrainer uses 'model_state_dict', AlignmentModel uses individual dicts
+        if 'model_state_dict' in checkpoint:
+            # Load from AlignmentModel - need to extract sensor_encoder weights
+            from alignment.model import AlignmentModel
+            full_model = AlignmentModel.load(self.config['checkpoint_path'], device=self.device)
+            self.sensor_encoder = full_model.sensor_encoder
+        elif 'chronos_encoder_state_dict' in checkpoint or 'sensor_encoder_state_dict' in checkpoint:
+            # Old format - individual state dicts
+            if 'chronos_encoder_state_dict' in checkpoint:
+                from models.chronos_encoder import ChronosEncoder
+                self.sensor_encoder = ChronosEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
+                    projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
+                    projection_dropout=model_config.get('projection_dropout', 0.1),
+                    output_dim=model_config.get('output_dim', 512),
+                    sequence_length=model_config.get('sequence_length', 50)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+            else:
+                # Standard SensorEncoder
+                self.sensor_encoder = SensorEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    d_model=model_config.get('d_model', 768),
+                    n_layers=model_config.get('n_layers', 6),
+                    n_heads=model_config.get('n_heads', 8),
+                    d_ff=model_config.get('d_ff', 3072),
+                    max_seq_len=model_config.get('max_seq_len', 512),
+                    dropout=model_config.get('dropout', 0.1),
+                    fourier_bands=model_config.get('fourier_bands', 12),
+                    use_rope_time=model_config.get('use_rope_time', False),
+                    use_rope_2d=model_config.get('use_rope_2d', False)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
         else:
-            # Standard SensorEncoder
-            self.sensor_encoder = SensorEncoder(
-                vocab_sizes=self.vocab_sizes,
-                d_model=model_config.get('d_model', 768),
-                n_layers=model_config.get('n_layers', 6),
-                n_heads=model_config.get('n_heads', 8),
-                d_ff=model_config.get('d_ff', 3072),
-                max_seq_len=model_config.get('max_seq_len', 512),
-                dropout=model_config.get('dropout', 0.1),
-                fourier_bands=model_config.get('fourier_bands', 12),
-                use_rope_time=model_config.get('use_rope_time', False),
-                use_rope_2d=model_config.get('use_rope_2d', False)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+            raise ValueError("Checkpoint format not recognized - missing both 'model_state_dict' and 'sensor_encoder_state_dict'")
 
         self.sensor_encoder.to(self.device)
         self.sensor_encoder.eval()
@@ -281,11 +301,15 @@ class ClusteringEvaluator:
                     break
 
                 # Extract CLIP projected embeddings (512-dim)
+                # Pack data for new encoder interface
+                input_data = {
+                    'categorical_features': batch['categorical_features'],
+                    'coordinates': batch['coordinates'],
+                    'time_deltas': batch['time_deltas']
+                }
                 sensor_emb = self.sensor_encoder.forward_clip(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=input_data,
+                    attention_mask=batch['mask']
                 )
 
                 embeddings.append(sensor_emb.cpu().numpy())

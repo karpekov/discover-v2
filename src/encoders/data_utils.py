@@ -16,7 +16,7 @@ def load_sampled_data(data_path: str, split: str = 'train', max_samples: Optiona
     Load sampled data from Step 1 output.
 
     Args:
-        data_path: Path to processed data directory (e.g., 'data/processed/casas/milan/fixed_duration_60sec')
+        data_path: Path to processed data directory (e.g., 'data/processed/casas/milan/FD_60')
         split: 'train' or 'test'
         max_samples: Maximum number of samples to load (None = all)
 
@@ -205,7 +205,7 @@ def get_vocab_sizes(vocab: Dict[str, Dict[str, int]]) -> Dict[str, int]:
 
 
 def load_and_prepare_milan_data(
-    data_dir: str = 'data/processed/casas/milan/fixed_duration_60sec_presegmented',
+    data_dir: str = 'data/processed/casas/milan/FD_60_p',
     split: str = 'train',
     batch_size: int = 8,
     max_samples: Optional[int] = None,

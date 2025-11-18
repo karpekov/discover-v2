@@ -261,7 +261,7 @@ class BaseTextEncoder(ABC):
                 processed_idx = parts.index('processed')
                 dataset_type = parts[processed_idx + 1]  # e.g., 'casas'
                 dataset = parts[processed_idx + 2]        # e.g., 'milan'
-                strategy = parts[processed_idx + 3]       # e.g., 'fixed_length_20'
+                strategy = parts[processed_idx + 3]       # e.g., 'FL_20'
             except (ValueError, IndexError):
                 dataset = 'unknown'
                 strategy = 'unknown'

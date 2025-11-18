@@ -6,8 +6,8 @@
 # - Proper training duration for convergence
 # - Linear projections for both sensor and text embeddings
 
-experiment_name: milan_fixed20_v0
-output_dir: trained_models/milan/fixed20_v0
+experiment_name: milan_fixed20_v0.1
+output_dir: trained_models/milan/fixed20_v0.1
 
 # Data paths - using FL_20 with 70/10/20 split
 train_data_path: data/processed/casas/milan/FL_20/train.json
@@ -79,12 +79,12 @@ loss:
   # CLIP loss (primary objective)
   clip_weight: 1.0
   temperature_init: 0.07  # Standard CLIP value
-  learnable_temperature: true
+  learnable_temperature: false
 
   # MLM loss (auxiliary objective) - REDUCED weight to prevent saturation
-  mlm_weight: 0.2  # Reduced from 1.0 to 0.2 based on test run
-  mask_prob: 0.35  # Increased from 0.25 to make MLM harder
-  mean_span_length: 8.0  # Increased from 5.0 for longer, more challenging spans
+  mlm_weight: 0.5
+  mask_prob: 0.4
+  mean_span_length: 8.0
 
   # Hard negative sampling (disabled for baseline)
   use_hard_negatives: false
@@ -104,8 +104,8 @@ optimizer:
 
 # Training configuration - Full training run
 training:
-  batch_size: 128  # Larger batch for better contrastive learning
-  max_epochs: 10   # ~2,000 steps with ~200 steps/epoch (25,600 training samples)
+  batch_size: 128
+  max_epochs: 20
   max_steps: null  # Let epochs control duration
 
   device: auto

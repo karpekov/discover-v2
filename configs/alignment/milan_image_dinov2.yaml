@@ -10,13 +10,13 @@ dataset: milan
 dataset_type: casas
 
 # Data paths
-train_data_path: data/processed/casas/milan/fixed_length_20_presegmented/train.json
-val_data_path: data/processed/casas/milan/fixed_length_20_presegmented/test.json
-vocab_path: data/processed/casas/milan/fixed_length_20_presegmented/vocab.json
+train_data_path: data/processed/casas/milan/FL_20_p/train.json
+val_data_path: data/processed/casas/milan/FL_20_p/test.json
+vocab_path: data/processed/casas/milan/FL_20_p/vocab.json
 
 # Text embeddings (pre-computed)
-train_text_embeddings_path: data/processed/casas/milan/fixed_length_20_presegmented/train_embeddings_baseline_gte_base.npz
-val_text_embeddings_path: data/processed/casas/milan/fixed_length_20_presegmented/test_embeddings_baseline_gte_base.npz
+train_text_embeddings_path: data/processed/casas/milan/FL_20_p/train_embeddings_baseline_gte_base.npz
+val_text_embeddings_path: data/processed/casas/milan/FL_20_p/test_embeddings_baseline_gte_base.npz
 
 # Encoder config (image-based DINOv2)
 encoder_config_path: configs/encoders/transformer_image_dinov2.yaml

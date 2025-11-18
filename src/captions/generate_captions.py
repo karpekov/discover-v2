@@ -12,19 +12,19 @@ Output Format: {split}_captions_{style}.json
 Usage:
     # Generate baseline captions for Milan data
     python generate_captions.py \\
-        --data-dir data/processed/casas/milan/fixed_length_50 \\
+        --data-dir data/processed/casas/milan/FL_50 \\
         --caption-style baseline \\
         --dataset-name milan
 
     # Generate Sourish captions
     python generate_captions.py \\
-        --data-dir data/processed/casas/milan/fixed_length_50 \\
+        --data-dir data/processed/casas/milan/FL_50 \\
         --caption-style sourish \\
         --dataset-name milan
 
     # Generate LLM captions (placeholder)
     python generate_captions.py \\
-        --data-dir data/processed/casas/milan/fixed_length_50 \\
+        --data-dir data/processed/casas/milan/FL_50 \\
         --caption-style llm \\
         --llm-model gpt4 \\
         --dataset-name milan

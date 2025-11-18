@@ -553,18 +553,18 @@ def analyze_sampling_statistics(
         strategy = row['sampling_strategy']
 
         # Extract numeric value for sorting
-        if 'duration' in folder:
-            # Extract duration number (e.g., "30" from "fixed_duration_30sec")
+        if 'duration' in folder or 'FD_' in folder:
+            # Extract duration number (e.g., "30" from "FD_30")
             import re
-            match = re.search(r'duration_(\d+)', folder)
+            match = re.search(r'(?:duration_|FD_)(\d+)', folder)
             duration_val = int(match.group(1)) if match else 0
             # Sort: fixed_duration first, then by duration value, then presegmented last
             preseg = 1 if 'preseg' in folder else 0
             return (0, duration_val, preseg)
-        elif 'length' in folder:
-            # Extract length number (e.g., "20" from "fixed_length_20")
+        elif 'length' in folder or 'FL_' in folder:
+            # Extract length number (e.g., "20" from "FL_20")
             import re
-            match = re.search(r'length_(\d+)', folder)
+            match = re.search(r'(?:length_|FL_)(\d+)', folder)
             length_val = int(match.group(1)) if match else 0
             # Sort: fixed_length second, then by length value, then presegmented last
             preseg = 1 if 'preseg' in folder else 0

@@ -5,13 +5,13 @@ experiment_name: milan_alignment_mlp
 output_dir: trained_models/milan/alignment_mlp
 
 # Data paths (sensor data from Step 1)
-train_data_path: data/processed/casas/milan/fixed_duration_60s/train.json
-val_data_path: data/processed/casas/milan/fixed_duration_60s/test.json
-vocab_path: data/processed/casas/milan/fixed_duration_60s/vocab.json
+train_data_path: data/processed/casas/milan/FD_60/train.json
+val_data_path: data/processed/casas/milan/FD_60/test.json
+vocab_path: data/processed/casas/milan/FD_60/vocab.json
 
 # Text embeddings (pre-computed from Step 4)
-train_text_embeddings_path: data/processed/casas/milan/fixed_duration_60s/train_embeddings_baseline_gte_base.npz
-val_text_embeddings_path: data/processed/casas/milan/fixed_duration_60s/test_embeddings_baseline_gte_base.npz
+train_text_embeddings_path: data/processed/casas/milan/FD_60/train_embeddings_baseline_gte_base.npz
+val_text_embeddings_path: data/processed/casas/milan/FD_60/test_embeddings_baseline_gte_base.npz
 
 # Encoder configuration
 encoder_config_path: configs/encoders/transformer_base.yaml

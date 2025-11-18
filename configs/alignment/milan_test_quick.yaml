@@ -4,14 +4,14 @@
 experiment_name: milan_test_alignment
 output_dir: trained_models/milan/test_alignment
 
-# Data paths - using fixed_length_20 with proper 70/10/20 split
-train_data_path: data/processed/casas/milan/fixed_length_20/train.json
-val_data_path: data/processed/casas/milan/fixed_length_20/val.json
-vocab_path: data/processed/casas/milan/fixed_length_20/vocab.json
+# Data paths - using FL_20 with proper 70/10/20 split
+train_data_path: data/processed/casas/milan/FL_20/train.json
+val_data_path: data/processed/casas/milan/FL_20/val.json
+vocab_path: data/processed/casas/milan/FL_20/vocab.json
 
 # Text embeddings (pre-computed) - using CLIP, baseline captions (2 long captions per sample)
-train_text_embeddings_path: data/processed/casas/milan/fixed_length_20/train_embeddings_baseline_clip.npz
-val_text_embeddings_path: data/processed/casas/milan/fixed_length_20/val_embeddings_baseline_clip.npz
+train_text_embeddings_path: data/processed/casas/milan/FL_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FL_20/val_embeddings_baseline_clip.npz
 
 # Encoder configuration
 encoder_config_path: configs/encoders/transformer_tiny.yaml  # Using tiny for faster testing

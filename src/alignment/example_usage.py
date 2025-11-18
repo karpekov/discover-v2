@@ -60,9 +60,9 @@ def example_2_create_config_programmatically():
         config = AlignmentConfig(
             experiment_name="my_experiment",
             output_dir="trained_models/my_experiment",
-            train_data_path="data/processed/casas/milan/fixed_duration_60s/train.json",
-            vocab_path="data/processed/casas/milan/fixed_duration_60s/vocab.json",
-            train_text_embeddings_path="data/processed/casas/milan/fixed_duration_60s/train_embeddings_baseline_gte_base.npz",
+            train_data_path="data/processed/casas/milan/FD_60/train.json",
+            vocab_path="data/processed/casas/milan/FD_60/vocab.json",
+            train_text_embeddings_path="data/processed/casas/milan/FD_60/train_embeddings_baseline_gte_base.npz",
             encoder_config_path="configs/encoders/transformer_base.yaml",
             sensor_projection=ProjectionConfig(
                 type='mlp',

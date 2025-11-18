@@ -7,9 +7,9 @@ and creates visualizations colored by activity labels.
 
 Usage:
     python src/utils/visualize_text_embeddings.py \
-        --embeddings data/processed/casas/milan/fixed_length_20/train_embeddings_baseline_gte.npz \
-        --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \
-        --output results/evals/milan/fixed_length_20/train_embeddings_baseline_gte_tsne.png \
+        --embeddings data/processed/casas/milan/FL_20/train_embeddings_baseline_gte.npz \
+        --captions data/processed/casas/milan/FL_20/train_captions_baseline.json \
+        --output results/evals/milan/FL_20/train_embeddings_baseline_gte_tsne.png \
         --max_samples 10000
 """
 

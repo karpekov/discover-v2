@@ -98,6 +98,10 @@ class AlignmentTrainer:
             text_encoder=None  # We don't need text encoder for non-F1 metrics
         )
 
+        # Extract text encoder metadata for checkpoint (critical for evaluation!)
+        self.text_encoder_metadata = self._extract_text_encoder_metadata()
+        self.logger.info(f"Text encoder metadata: {self.text_encoder_metadata}")
+
         # Setup WandB
         if config.use_wandb and WANDB_AVAILABLE:
             self._setup_wandb()
@@ -244,6 +248,46 @@ class AlignmentTrainer:
 
         self.logger.info(f"Training schedule: {self.config.training.max_epochs} epochs, {self.config.training.max_steps} steps")
         self.logger.info(f"Steps per epoch: {steps_per_epoch}")
+
+    def _extract_text_encoder_metadata(self) -> Dict[str, Any]:
+        """
+        Extract text encoder metadata from .npz embeddings file.
+
+        This is critical for evaluation - we need to know which text encoder
+        was used during training so evaluation can use the same one.
+
+        Returns:
+            Dict with: encoder_type, model_name, embedding_dim, projection_dim
+        """
+        import numpy as np
+
+        # Try to load from training embeddings path
+        if hasattr(self.config, 'train_text_embeddings_path') and self.config.train_text_embeddings_path:
+            try:
+                data = np.load(self.config.train_text_embeddings_path)
+                metadata = {
+                    'encoder_type': str(data['encoder_type'].item()) if 'encoder_type' in data else 'unknown',
+                    'model_name': str(data['model_name'].item()) if 'model_name' in data else 'unknown',
+                    'embedding_dim': int(data['embedding_dim'].item()) if 'embedding_dim' in data else data['embeddings'].shape[1],
+                    'projection_dim': int(data['projection_dim'].item()) if 'projection_dim' in data else 0,
+                    'normalize': bool(data['normalize'].item()) if 'normalize' in data else True,
+                    'source': 'npz_file'
+                }
+                self.logger.info(f"Extracted text encoder metadata from {self.config.train_text_embeddings_path}")
+                return metadata
+            except Exception as e:
+                self.logger.warning(f"Could not extract text encoder metadata from .npz file: {e}")
+
+        # Fallback: Return unknown (evaluation will use CLIP by default)
+        self.logger.warning("No text encoder metadata found - evaluation will default to CLIP")
+        return {
+            'encoder_type': 'unknown',
+            'model_name': 'unknown',
+            'embedding_dim': 512,
+            'projection_dim': 0,
+            'normalize': True,
+            'source': 'default'
+        }
 
     def _setup_optimizer(self):
         """Setup optimizer and scheduler."""
@@ -723,6 +767,7 @@ class AlignmentTrainer:
             'scheduler_state_dict': self.scheduler.state_dict(),
             'best_val_loss': self.best_val_loss,
             'config': self.config,
+            'text_encoder_metadata': self.text_encoder_metadata,  # CRITICAL for evaluation!
         }
 
         if self.scaler:
@@ -740,7 +785,7 @@ class AlignmentTrainer:
 
     def load_checkpoint(self, path: str):
         """Load checkpoint."""
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
 
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

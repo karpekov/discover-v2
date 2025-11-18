@@ -129,7 +129,7 @@ class CheckpointEvaluator:
         """Load models from a specific checkpoint."""
         print(f"🔄 Loading models from {checkpoint_path.name}")
 
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
 
         # Text encoder - use config from checkpoint
         model_config = checkpoint.get('config', {})
@@ -205,11 +205,15 @@ class CheckpointEvaluator:
                     break
 
                 # Extract CLIP projected embeddings (512-dim)
+                # Pack data for new encoder interface
+                input_data = {
+                    'categorical_features': batch['categorical_features'],
+                    'coordinates': batch['coordinates'],
+                    'time_deltas': batch['time_deltas']
+                }
                 sensor_emb = sensor_encoder.forward_clip(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=input_data,
+                    attention_mask=batch['mask']
                 )
 
                 embeddings.append(sensor_emb.cpu().numpy())

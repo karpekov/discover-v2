@@ -2,7 +2,9 @@
 
 import sys
 import os
+# Add both src directory and project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 """
 Embedding visualization script for evaluating learned representations.
 Creates 2D projections (t-SNE/UMAP) of sensor sequence embeddings colored by CASAS ground truth labels.
@@ -133,51 +135,71 @@ class EmbeddingVisualizer:
         """Load trained models from checkpoint."""
         print(f"🔄 Loading models from {self.config['checkpoint_path']}")
 
-        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device)
+        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
 
-        # Text encoder - use config from checkpoint
-        model_config = checkpoint.get('config', {})
-        text_model_name = model_config.get('text_model_name', 'thenlper/gte-base')
-        # Use text encoder factory to handle different encoder types
+        # Get config from checkpoint and handle dataclass/dict
+        raw_config = checkpoint.get('config', {})
+        # Handle both dict and dataclass config objects
+        if hasattr(raw_config, '__dataclass_fields__'):
+            # It's an AlignmentConfig dataclass - get encoder config from it
+            model_config = getattr(raw_config, 'encoder', {}) or {}
+        else:
+            # It's a plain dict
+            model_config = raw_config
 
-        eval_config = model_config.copy() if "model_config" in locals() else {"text_model_name": text_model_name}
-
-        eval_config["use_cached_embeddings"] = False  # Compute embeddings on-the-fly for eval
-
-        self.text_encoder = build_text_encoder(eval_config)
+        # Text encoder - use robust 3-tier fallback to detect correct encoder
+        from evals.eval_utils import create_text_encoder_from_checkpoint
+        self.text_encoder = create_text_encoder_from_checkpoint(
+            checkpoint=checkpoint,
+            device=self.device,
+            data_path=self.config.get('train_data_path')  # For .npz fallback
+        )
+        if self.text_encoder is None:
+            # Fallback to standard text encoder
+            text_model_name = model_config.get('text_model_name', 'sentence-transformers/all-MiniLM-L6-v2')
+            eval_config = {"text_model_name": text_model_name, "use_cached_embeddings": False}
+            self.text_encoder = build_text_encoder(eval_config)
         self.text_encoder.to(self.device)
 
         # Sensor encoder - check if it's ChronosEncoder or SensorEncoder
         self.vocab_sizes = checkpoint.get('vocab_sizes', {})
-        model_config = checkpoint.get('config', {})
 
-        # Check if this is a Chronos checkpoint
-        if 'chronos_encoder_state_dict' in checkpoint:
-            from models.chronos_encoder import ChronosEncoder
-            self.sensor_encoder = ChronosEncoder(
-                vocab_sizes=self.vocab_sizes,
-                chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
-                projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
-                projection_dropout=model_config.get('projection_dropout', 0.1),
-                output_dim=model_config.get('output_dim', 512),
-                sequence_length=model_config.get('sequence_length', 50)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+        # Check checkpoint format - AlignmentTrainer uses 'model_state_dict', AlignmentModel uses individual dicts
+        if 'model_state_dict' in checkpoint:
+            # Load from AlignmentModel - need to extract sensor_encoder weights
+            from alignment.model import AlignmentModel
+            full_model = AlignmentModel.load(self.config['checkpoint_path'], device=self.device)
+            self.sensor_encoder = full_model.sensor_encoder
+        elif 'chronos_encoder_state_dict' in checkpoint or 'sensor_encoder_state_dict' in checkpoint:
+            # Old format - individual state dicts
+            if 'chronos_encoder_state_dict' in checkpoint:
+                from models.chronos_encoder import ChronosEncoder
+                self.sensor_encoder = ChronosEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
+                    projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
+                    projection_dropout=model_config.get('projection_dropout', 0.1),
+                    output_dim=model_config.get('output_dim', 512),
+                    sequence_length=model_config.get('sequence_length', 50)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+            else:
+                # Standard SensorEncoder
+                self.sensor_encoder = SensorEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    d_model=model_config.get('d_model', 768),
+                    n_layers=model_config.get('n_layers', 6),
+                    n_heads=model_config.get('n_heads', 8),
+                    d_ff=model_config.get('d_ff', 3072),
+                    max_seq_len=model_config.get('max_seq_len', 512),
+                    dropout=model_config.get('dropout', 0.1),
+                    fourier_bands=model_config.get('fourier_bands', 12),
+                    use_rope_time=model_config.get('use_rope_time', False),
+                    use_rope_2d=model_config.get('use_rope_2d', False)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
         else:
-            # Standard SensorEncoder
-            self.sensor_encoder = SensorEncoder(
-                vocab_sizes=self.vocab_sizes,
-                d_model=model_config.get('d_model', 768),
-                n_layers=model_config.get('n_layers', 6),
-                n_heads=model_config.get('n_heads', 8),
-                d_ff=model_config.get('d_ff', 3072),
-                max_seq_len=model_config.get('max_seq_len', 512),
-                dropout=model_config.get('dropout', 0.1),
-                fourier_bands=model_config.get('fourier_bands', 12),
-                use_rope_time=model_config.get('use_rope_time', False),
-                use_rope_2d=model_config.get('use_rope_2d', False)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+            raise ValueError("Checkpoint format not recognized - missing both 'model_state_dict' and 'sensor_encoder_state_dict'")
 
         self.sensor_encoder.to(self.device)
 
@@ -217,25 +239,34 @@ class EmbeddingVisualizer:
             with open(metadata_path, 'r') as f:
                 city_metadata = json.load(f)
 
-            # Get Milan metadata (assuming we're working with Milan dataset)
-            milan_metadata = city_metadata.get('milan', {})
+            # Detect which dataset we're using from the data path
+            dataset_name = 'milan'  # default
+            if 'train_data_path' in self.config:
+                data_path = str(self.config['train_data_path'])
+                for name in ['milan', 'cairo', 'aruba', 'tulum', 'kyoto', 'aware_home']:
+                    if name in data_path.lower():
+                        dataset_name = name
+                        break
 
-            # Load L1 colors - try both 'label_color' and 'lable' (typo in the original file)
-            self.label_colors = milan_metadata.get('label_color', milan_metadata.get('lable', {}))
+            dataset_metadata = city_metadata.get(dataset_name, {})
+
+            # Load L1 colors - different keys for different datasets
+            # Milan uses 'label', others use 'label_color'
+            self.label_colors = dataset_metadata.get('label', dataset_metadata.get('label_color', {}))
 
             # Load L2 colors from label_deepcasas_color
-            self.label_colors_l2 = milan_metadata.get('label_deepcasas_color', {})
+            self.label_colors_l2 = dataset_metadata.get('label_deepcasas_color', {})
 
             if self.label_colors:
-                print(f"🎨 Loaded {len(self.label_colors)} L1 label colors from metadata")
+                print(f"🎨 Loaded {len(self.label_colors)} L1 label colors from {dataset_name} metadata")
             else:
-                print("⚠️  No L1 label colors found in metadata, using default colors")
+                print(f"⚠️  No L1 label colors found in {dataset_name} metadata, using default colors")
                 self.label_colors = {}
 
             if self.label_colors_l2:
-                print(f"🎨 Loaded {len(self.label_colors_l2)} L2 label colors from metadata")
+                print(f"🎨 Loaded {len(self.label_colors_l2)} L2 label colors from {dataset_name} metadata")
             else:
-                print("⚠️  No L2 label colors found in metadata, using default colors")
+                print(f"⚠️  No L2 label colors found in {dataset_name} metadata, using default colors")
                 self.label_colors_l2 = {}
 
         except Exception as e:
@@ -325,11 +356,15 @@ class EmbeddingVisualizer:
                     break
 
                 # Extract CLIP projected embeddings (512-dim)
+                # Pack data for new encoder interface
+                input_data = {
+                    'categorical_features': batch['categorical_features'],
+                    'coordinates': batch['coordinates'],
+                    'time_deltas': batch['time_deltas']
+                }
                 sensor_emb = self.sensor_encoder.forward_clip(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=input_data,
+                    attention_mask=batch['mask']
                 )
 
                 embeddings.append(sensor_emb.cpu().numpy())

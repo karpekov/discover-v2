@@ -7,13 +7,16 @@ stratified by activity labels to understand real-world alignment performance.
 
 import sys
 import os
+# Add both src directory and project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import json
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
 from collections import Counter, defaultdict
@@ -21,7 +24,7 @@ import argparse
 
 from models.text_encoder import TextEncoder, build_text_encoder
 from models.sensor_encoder import SensorEncoder
-from dataio.dataset import SmartHomeDataset
+from alignment.dataset import AlignmentDataset
 from dataio.collate import create_data_loader
 from utils.device_utils import get_optimal_device, log_device_info
 
@@ -46,51 +49,71 @@ class CaptionAlignmentAnalyzer:
         """Load trained models."""
         print(f"🔄 Loading models from {self.config['checkpoint_path']}")
 
-        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device)
+        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
 
-        # Text encoder - use config from checkpoint
-        model_config = checkpoint.get('config', {})
-        text_model_name = model_config.get('text_model_name', 'thenlper/gte-base')
-        # Use text encoder factory to handle different encoder types
+        # Get config from checkpoint and handle dataclass/dict
+        raw_config = checkpoint.get('config', {})
+        # Handle both dict and dataclass config objects
+        if hasattr(raw_config, '__dataclass_fields__'):
+            # It's an AlignmentConfig dataclass - get encoder config from it
+            model_config = getattr(raw_config, 'encoder', {}) or {}
+        else:
+            # It's a plain dict
+            model_config = raw_config
 
-        eval_config = model_config.copy() if "model_config" in locals() else {"text_model_name": text_model_name}
-
-        eval_config["use_cached_embeddings"] = False  # Compute embeddings on-the-fly for eval
-
-        self.text_encoder = build_text_encoder(eval_config)
+        # Text encoder - use robust 3-tier fallback to detect correct encoder
+        from evals.eval_utils import create_text_encoder_from_checkpoint
+        self.text_encoder = create_text_encoder_from_checkpoint(
+            checkpoint=checkpoint,
+            device=self.device,
+            data_path=self.config.get('data_path')  # For .npz fallback
+        )
+        if self.text_encoder is None:
+            # Fallback to standard text encoder
+            text_model_name = model_config.get('text_model_name', 'sentence-transformers/all-MiniLM-L6-v2')
+            eval_config = {"text_model_name": text_model_name, "use_cached_embeddings": False}
+            self.text_encoder = build_text_encoder(eval_config)
         self.text_encoder.to(self.device)
 
         # Sensor encoder - check if it's ChronosEncoder or SensorEncoder
         self.vocab_sizes = checkpoint.get('vocab_sizes', {})
-        model_config = checkpoint.get('config', {})
 
-        # Check if this is a Chronos checkpoint
-        if 'chronos_encoder_state_dict' in checkpoint:
-            from models.chronos_encoder import ChronosEncoder
-            self.sensor_encoder = ChronosEncoder(
-                vocab_sizes=self.vocab_sizes,
-                chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
-                projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
-                projection_dropout=model_config.get('projection_dropout', 0.1),
-                output_dim=model_config.get('output_dim', 512),
-                sequence_length=model_config.get('sequence_length', 50)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+        # Check checkpoint format - AlignmentTrainer uses 'model_state_dict', AlignmentModel uses individual dicts
+        if 'model_state_dict' in checkpoint:
+            # Load from AlignmentModel - need to extract sensor_encoder weights
+            from alignment.model import AlignmentModel
+            full_model = AlignmentModel.load(self.config['checkpoint_path'], device=self.device)
+            self.sensor_encoder = full_model.sensor_encoder
+        elif 'chronos_encoder_state_dict' in checkpoint or 'sensor_encoder_state_dict' in checkpoint:
+            # Old format - individual state dicts
+            if 'chronos_encoder_state_dict' in checkpoint:
+                from models.chronos_encoder import ChronosEncoder
+                self.sensor_encoder = ChronosEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    chronos_model_name=model_config.get('chronos_model_name', 'amazon/chronos-2'),
+                    projection_hidden_dim=model_config.get('projection_hidden_dim', 256),
+                    projection_dropout=model_config.get('projection_dropout', 0.1),
+                    output_dim=model_config.get('output_dim', 512),
+                    sequence_length=model_config.get('sequence_length', 50)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['chronos_encoder_state_dict'])
+            else:
+                # Standard SensorEncoder
+                self.sensor_encoder = SensorEncoder(
+                    vocab_sizes=self.vocab_sizes,
+                    d_model=model_config.get('d_model', 768),
+                    n_layers=model_config.get('n_layers', 6),
+                    n_heads=model_config.get('n_heads', 8),
+                    d_ff=model_config.get('d_ff', 3072),
+                    max_seq_len=model_config.get('max_seq_len', 512),
+                    dropout=model_config.get('dropout', 0.1),
+                    fourier_bands=model_config.get('fourier_bands', 12),
+                    use_rope_time=model_config.get('use_rope_time', False),
+                    use_rope_2d=model_config.get('use_rope_2d', False)
+                )
+                self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
         else:
-            # Standard SensorEncoder
-            self.sensor_encoder = SensorEncoder(
-                vocab_sizes=self.vocab_sizes,
-                d_model=model_config.get('d_model', 768),
-                n_layers=model_config.get('n_layers', 6),
-                n_heads=model_config.get('n_heads', 8),
-                d_ff=model_config.get('d_ff', 3072),
-                max_seq_len=model_config.get('max_seq_len', 512),
-                dropout=model_config.get('dropout', 0.1),
-                fourier_bands=model_config.get('fourier_bands', 12),
-                use_rope_time=model_config.get('use_rope_time', False),
-                use_rope_2d=model_config.get('use_rope_2d', False)
-            )
-            self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+            raise ValueError("Checkpoint format not recognized - missing both 'model_state_dict' and 'sensor_encoder_state_dict'")
 
         self.sensor_encoder.to(self.device)
         self.sensor_encoder.eval()
@@ -99,11 +122,43 @@ class CaptionAlignmentAnalyzer:
 
     def _load_data(self):
         """Load test dataset."""
-        self.dataset = SmartHomeDataset(
+        # Try to find pre-computed text embeddings in the same directory
+        data_path = Path(self.config['data_path'])
+        data_dir = data_path.parent
+        data_split = data_path.stem  # 'test', 'train', or 'val'
+
+        # Look for matching text embeddings file
+        text_embeddings_path = None
+        npz_pattern = f"{data_split}_embeddings_*.npz"
+        npz_files = list(data_dir.glob(npz_pattern))
+
+        if npz_files:
+            # Prefer CLIP embeddings if available (matches checkpoint dimension)
+            for npz_file in npz_files:
+                if 'clip' in npz_file.name.lower():
+                    text_embeddings_path = str(npz_file)
+                    print(f"📝 Found pre-computed text embeddings: {npz_file.name}")
+                    break
+
+            # Fallback to first available
+            if not text_embeddings_path and npz_files:
+                text_embeddings_path = str(npz_files[0])
+                print(f"📝 Found pre-computed text embeddings: {npz_files[0].name}")
+        else:
+            print(f"⚠️  No pre-computed text embeddings found matching pattern: {npz_pattern}")
+            print(f"   Text embeddings will be computed on-the-fly (slower)")
+
+        # Load vocabulary
+        with open(self.config['vocab_path'], 'r') as f:
+            vocab = json.load(f)
+
+        self.dataset = AlignmentDataset(
             data_path=self.config['data_path'],
-            vocab_path=self.config['vocab_path'],
-            sequence_length=20,
-            max_captions=1
+            text_embeddings_path=text_embeddings_path,
+            captions_path=None,  # We don't need captions file, just embeddings
+            text_encoder_config_path=None,
+            vocab=vocab,
+            device=self.device
         )
 
         print(f"📊 Dataset loaded: {len(self.dataset)} samples")
@@ -112,17 +167,14 @@ class CaptionAlignmentAnalyzer:
         """Extract sensor embeddings and their corresponding caption embeddings."""
         print(f"🔄 Extracting caption alignments from {min(max_samples, len(self.dataset))} samples...")
 
-        # Create data loader manually to get both sensor and text embeddings
-        data_loader = create_data_loader(
+        # Create data loader using AlignmentDataset's collate function
+        from torch.utils.data import DataLoader
+        data_loader = DataLoader(
             dataset=self.dataset,
-            text_encoder=self.text_encoder,
-            span_masker=None,
-            vocab_sizes=self.vocab_sizes,
-            device=self.device,
             batch_size=64,
             shuffle=False,
             num_workers=0,
-            apply_mlm=False
+            collate_fn=self.dataset.collate_fn
         )
 
         sensor_embeddings = []
@@ -139,11 +191,11 @@ class CaptionAlignmentAnalyzer:
                     break
 
                 # Extract CLIP-projected embeddings
+                # AlignmentDataset returns sensor_data as a nested dict
+                sensor_data = batch['sensor_data']
                 sensor_emb = self.sensor_encoder.forward_clip(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=sensor_data,
+                    attention_mask=batch['attention_mask']
                 )
 
                 # Text embeddings are already CLIP-projected in the batch
@@ -156,24 +208,44 @@ class CaptionAlignmentAnalyzer:
                 text_embeddings.append(text_emb.cpu().numpy())
                 similarities.extend(batch_similarities)
 
-                # Extract labels and captions
+                # Extract labels and captions from batch
                 batch_size_actual = sensor_emb.shape[0]
-                for i in range(batch_size_actual):
+
+                # Get sample IDs and look up labels from original data
+                sample_ids = batch.get('sample_ids', [])
+
+                # For AlignmentDataset, we need to get labels from the original data
+                batch_labels_l1 = []
+                batch_labels_l2 = []
+                batch_captions = []
+
+                for sample_id in sample_ids:
+                    # Find sample in dataset by ID
+                    sample_data = None
+                    for sample in self.dataset.sensor_data:
+                        if sample.get('sample_id') == sample_id:
+                            sample_data = sample
+                            break
+
+                    if sample_data and 'metadata' in sample_data and 'ground_truth_labels' in sample_data['metadata']:
+                        gt_labels = sample_data['metadata']['ground_truth_labels']
+                        batch_labels_l1.append(gt_labels.get('primary_l1', 'Unknown'))
+                        batch_labels_l2.append(gt_labels.get('primary_l2', 'Unknown'))
+                    else:
+                        batch_labels_l1.append('Unknown')
+                        batch_labels_l2.append('Unknown')
+
+                    batch_captions.append('')  # Captions not needed for visualization
+
+                # Add all labels from this batch
+                for i in range(min(batch_size_actual, len(batch_labels_l1))):
                     if samples_processed >= max_samples:
                         break
 
-                    sample_idx = batch_idx * 64 + i
-                    if sample_idx < len(self.dataset):
-                        original_sample = self.dataset.data[sample_idx]
-
-                        label_l1 = original_sample.get('first_activity', 'Unknown')
-                        label_l2 = original_sample.get('first_activity_l2', 'Unknown')
-                        caption = original_sample.get('captions', [''])[0] if original_sample.get('captions') else ''
-
-                        labels_l1.append(label_l1)
-                        labels_l2.append(label_l2)
-                        captions.append(caption)
-                        samples_processed += 1
+                    labels_l1.append(batch_labels_l1[i])
+                    labels_l2.append(batch_labels_l2[i])
+                    captions.append(batch_captions[i])
+                    samples_processed += 1
 
                 if batch_idx % 20 == 0:
                     print(f"  Processed {samples_processed}/{min(max_samples, len(self.dataset))} samples...")

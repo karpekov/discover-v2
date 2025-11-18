@@ -1,13 +1,13 @@
-# Fixed-duration sampling config for Milan dataset - duration 30 seconds, presegmented
+# Fixed-duration sampling config for Aruba dataset - duration 60 seconds
 
-dataset_name: "milan"
-raw_data_path: "data/raw/casas/milan"
-output_dir: "data/processed/casas/milan/fixed_duration_30sec_presegmented"
+dataset_name: "aruba"
+raw_data_path: "data/raw/casas/aruba"
+output_dir: "data/processed/casas/aruba/FD_60"
 
 strategy: "fixed_duration"
 
 # Duration windows to generate (in seconds)
-duration_seconds: [30]
+duration_seconds: [60]
 min_events_per_window: 1
 max_events_per_window: null
 max_sequence_length: 256
@@ -21,10 +21,10 @@ random_seed: 42
 overlap_factor: 0.5
 
 # Presegmentation
-use_presegmentation: trues
+use_presegmentation: false
 presegment_label_level: "l1"
 min_segment_events: 1
-exclude_no_activity: true
+exclude_no_activity: false
 
 # Filtering
 filter_numeric_sensors: true

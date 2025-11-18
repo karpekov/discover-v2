@@ -313,33 +313,71 @@ class AlignmentModel(nn.Module):
     @classmethod
     def load(cls, path: str, device: Optional[torch.device] = None):
         """Load model from checkpoint."""
-        checkpoint = torch.load(path, map_location=device or 'cpu')
+        checkpoint = torch.load(path, map_location=device or 'cpu', weights_only=False)
 
         config = checkpoint['config']
-        vocab_sizes = checkpoint['vocab_sizes']
 
-        # Create model
-        model = cls(config, vocab_sizes)
+        # Handle two checkpoint formats:
+        # 1. AlignmentTrainer format: has 'model_state_dict' (full model) - need to extract vocab_sizes
+        # 2. AlignmentModel format: has 'vocab_sizes' and individual state dicts
 
-        # Load state dicts
-        model.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
-        model.clip_loss.load_state_dict(checkpoint['clip_loss_state_dict'])
+        if 'model_state_dict' in checkpoint:
+            # AlignmentTrainer checkpoint format - need to infer vocab_sizes from the state dict
+            # Extract vocab_sizes from embedding layers in the model state dict
+            model_state = checkpoint['model_state_dict']
+            vocab_sizes = {}
 
-        # Backward compatibility: ignore old sensor_projection_state_dict if present
-        # (The projection is now inside the sensor_encoder)
-        if 'sensor_projection_state_dict' in checkpoint:
-            import warnings
-            warnings.warn(
-                "Loading checkpoint with deprecated sensor_projection_state_dict. "
-                "This will be ignored. The projection is now part of the encoder.",
-                DeprecationWarning
-            )
+            # Extract vocab sizes from the sensor encoder embedding layers
+            for key in model_state.keys():
+                if key.startswith('sensor_encoder.embeddings.'):
+                    field_name = key.split('.')[2]  # e.g., 'sensor', 'state', etc.
+                    if 'weight' in key:
+                        vocab_sizes[field_name] = model_state[key].shape[0]
 
-        if 'text_projection_state_dict' in checkpoint:
-            model.text_projection.load_state_dict(checkpoint['text_projection_state_dict'])
+            # Check if text_projection exists in the checkpoint
+            has_text_projection = any(k.startswith('text_projection.') for k in model_state.keys())
 
-        if 'mlm_heads_state_dict' in checkpoint:
-            model.mlm_heads.load_state_dict(checkpoint['mlm_heads_state_dict'])
+            # If config has text_projection=None but checkpoint has it, we need to handle this
+            # For evaluation, we don't actually need the text_projection since we use pre-computed embeddings
+            # So we can safely ignore it by using strict=False
+
+            # Create model
+            model = cls(config, vocab_sizes)
+
+            # Load the full model state dict (with strict=False to ignore text_projection if not in model)
+            missing_keys, unexpected_keys = model.load_state_dict(model_state, strict=False)
+
+            if unexpected_keys:
+                print(f"⚠️  Warning: Ignored unexpected keys in checkpoint: {unexpected_keys[:5]}...")  # Show first 5
+            if missing_keys:
+                print(f"⚠️  Warning: Missing keys in checkpoint: {missing_keys[:5]}...")  # Show first 5
+
+        else:
+            # AlignmentModel checkpoint format
+            vocab_sizes = checkpoint['vocab_sizes']
+
+            # Create model
+            model = cls(config, vocab_sizes)
+
+            # Load state dicts
+            model.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
+            model.clip_loss.load_state_dict(checkpoint['clip_loss_state_dict'])
+
+            # Backward compatibility: ignore old sensor_projection_state_dict if present
+            # (The projection is now inside the sensor_encoder)
+            if 'sensor_projection_state_dict' in checkpoint:
+                import warnings
+                warnings.warn(
+                    "Loading checkpoint with deprecated sensor_projection_state_dict. "
+                    "This will be ignored. The projection is now part of the encoder.",
+                    DeprecationWarning
+                )
+
+            if 'text_projection_state_dict' in checkpoint:
+                model.text_projection.load_state_dict(checkpoint['text_projection_state_dict'])
+
+            if 'mlm_heads_state_dict' in checkpoint:
+                model.mlm_heads.load_state_dict(checkpoint['mlm_heads_state_dict'])
 
         if device is not None:
             model = model.to(device)

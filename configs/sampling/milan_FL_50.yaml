@@ -1,8 +1,8 @@
-# Fixed-length sampling config for Aruba dataset - window size 50
+# Fixed-length sampling config for Milan dataset - window size 50
 
-dataset_name: "aruba"
-raw_data_path: "data/raw/casas/aruba"
-output_dir: "data/processed/casas/aruba/fixed_length_50"
+dataset_name: "milan"
+raw_data_path: "data/raw/casas/milan"
+output_dir: "data/processed/casas/milan/FL_50"
 
 strategy: "fixed_length"
 

@@ -44,10 +44,10 @@ python sample_data.py --list-configs
 ### Run Fixed-Length Sampling
 ```bash
 # 50-event windows
-python sample_data.py --config configs/sampling/milan_fixed_length_50.yaml
+python sample_data.py --config configs/sampling/milan_FL_50.yaml
 
 # Multiple window sizes (20 and 50 events)
-python sample_data.py --config configs/sampling/milan_fixed_length_20_50.yaml
+python sample_data.py --config configs/sampling/milan_FL_20_50.yaml
 
 # With presegmentation (activity-based)
 python sample_data.py --config configs/sampling/milan_fixed_length_presegmented.yaml
@@ -56,15 +56,15 @@ python sample_data.py --config configs/sampling/milan_fixed_length_presegmented.
 ### Run Fixed-Duration Sampling
 ```bash
 # 60-second windows
-python sample_data.py --config configs/sampling/milan_fixed_duration_60.yaml
+python sample_data.py --config configs/sampling/milan_FD_60.yaml
 
 # Multiple durations (30s, 60s, 120s)
-python sample_data.py --config configs/sampling/milan_fixed_duration_30_60_120.yaml
+python sample_data.py --config configs/sampling/milan_FD_30_60_120.yaml
 ```
 
 ### Debug Mode (Test with Limited Data)
 ```bash
-python sample_data.py --config configs/sampling/milan_fixed_length_50.yaml --debug
+python sample_data.py --config configs/sampling/milan_FL_50.yaml --debug
 ```
 
 ## Module Structure
@@ -132,11 +132,11 @@ max_sequence_length: 256                 # For padding during training
 
 ```
 data/processed/casas/milan/
-├── fixed_length_50/
+├── FL_50/
 │   ├── train.json
 │   ├── test.json
 │   └── sampling_config.yaml
-├── fixed_duration_60s/
+├── FD_60/
 │   ├── train.json
 │   ├── test.json
 │   └── sampling_config.yaml

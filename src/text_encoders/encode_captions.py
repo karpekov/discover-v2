@@ -10,21 +10,21 @@ CLIP training.
 Usage:
     # Encode captions using GTE-base (default, auto-generated output path)
     python encode_captions.py \\
-        --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json
+        --captions data/processed/casas/milan/FL_20/train_captions_baseline.json
 
     # Encode using a different encoder
     python encode_captions.py \\
-        --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \\
+        --captions data/processed/casas/milan/FL_20/train_captions_baseline.json \\
         --config configs/text_encoders/distilroberta_base.yaml
 
     # Override output path explicitly
     python encode_captions.py \\
-        --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \\
-        --output data/embeddings/text/milan/fixed_length_20/train_baseline_gte.npz
+        --captions data/processed/casas/milan/FL_20/train_captions_baseline.json \\
+        --output data/embeddings/text/milan/FL_20/train_baseline_gte.npz
 
     # Override output directory only (filename auto-generated)
     python encode_captions.py \\
-        --captions data/processed/casas/milan/fixed_length_20/train_captions_baseline.json \\
+        --captions data/processed/casas/milan/FL_20/train_captions_baseline.json \\
         --output-dir my_embeddings/
 
     # List available configs

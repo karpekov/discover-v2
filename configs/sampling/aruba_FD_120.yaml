@@ -1,8 +1,8 @@
-# Fixed-duration sampling config for Aruba dataset - duration 120 seconds, presegmented
+# Fixed-duration sampling config for Aruba dataset - duration 120 seconds
 
 dataset_name: "aruba"
 raw_data_path: "data/raw/casas/aruba"
-output_dir: "data/processed/casas/aruba/fixed_duration_120sec_presegmented"
+output_dir: "data/processed/casas/aruba/FD_120"
 
 strategy: "fixed_duration"
 
@@ -21,10 +21,10 @@ random_seed: 42
 overlap_factor: 0.5
 
 # Presegmentation
-use_presegmentation: true
+use_presegmentation: false
 presegment_label_level: "l1"
 min_segment_events: 1
-exclude_no_activity: true
+exclude_no_activity: false
 
 # Filtering
 filter_numeric_sensors: true

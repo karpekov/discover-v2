@@ -10,14 +10,14 @@ dataset: milan
 dataset_type: casas
 
 # Data paths
-train_data_path: data/processed/casas/milan/fixed_length_20/train.json
-val_data_path: data/processed/casas/milan/fixed_length_20/val.json
-vocab_path: data/processed/casas/milan/fixed_length_20/vocab.json
+train_data_path: data/processed/casas/milan/FL_20/train.json
+val_data_path: data/processed/casas/milan/FL_20/val.json
+vocab_path: data/processed/casas/milan/FL_20/vocab.json
 
 # Text embeddings (pre-computed - these are caption embeddings, NOT image embeddings)
 # Image embeddings are loaded separately from layout_embeddings/ folder
-train_text_embeddings_path: data/processed/casas/milan/fixed_length_20/train_embeddings_baseline_clip.npz
-val_text_embeddings_path: data/processed/casas/milan/fixed_length_20/val_embeddings_baseline_clip.npz
+train_text_embeddings_path: data/processed/casas/milan/FL_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FL_20/val_embeddings_baseline_clip.npz
 
 # Encoder config (image-based CLIP)
 encoder_config_path: configs/encoders/transformer_image_clip.yaml

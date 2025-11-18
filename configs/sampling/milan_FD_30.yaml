@@ -2,7 +2,7 @@
 
 dataset_name: "milan"
 raw_data_path: "data/raw/casas/milan"
-output_dir: "data/processed/casas/milan/fixed_duration_30sec"
+output_dir: "data/processed/casas/milan/FD_30"
 
 strategy: "fixed_duration"
 

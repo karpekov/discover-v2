@@ -42,7 +42,7 @@ class SmartHomeRetrieval:
         """Load trained models from checkpoint."""
         print(f"🔄 Loading models from {self.checkpoint_path}")
 
-        checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
 
         # Get config from checkpoint
         config = checkpoint['config']
@@ -126,11 +126,15 @@ class SmartHomeRetrieval:
                 if samples_processed >= self.max_samples:
                     break
 
+                # Pack data for new encoder interface
+                input_data = {
+                    'categorical_features': batch['categorical_features'],
+                    'coordinates': batch['coordinates'],
+                    'time_deltas': batch['time_deltas']
+                }
                 sensor_emb = self.sensor_encoder.forward_clip(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=input_data,
+                    attention_mask=batch['mask']
                 )
 
                 text_emb = batch['text_embeddings']

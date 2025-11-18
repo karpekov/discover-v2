@@ -37,7 +37,7 @@ def example_basic_usage(use_real_data: bool = True):
         print("\n--- Loading Real Milan Data ---")
         try:
             data, vocab, vocab_sizes = load_and_prepare_milan_data(
-                data_dir='data/processed/casas/milan/fixed_duration_60sec_presegmented',
+                data_dir='data/processed/casas/milan/FD_60_p',
                 split='train',
                 max_samples=8,  # Load 8 samples for batch
                 categorical_fields=['sensor_id', 'event_type', 'room', 'sensor_type'],
