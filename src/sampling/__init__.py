@@ -8,6 +8,8 @@ into training/testing samples:
 - Variable-duration sampling (1c): Variable time durations per window (future)
 
 Each sampler is self-sufficient and produces standardized JSON output.
+
+Also includes automatic data preparation utility for training pipeline.
 """
 
 from .base import BaseSampler, SamplingResult
@@ -22,6 +24,7 @@ from .config import (
 from .fixed_length import FixedLengthSampler
 from .fixed_duration import FixedDurationSampler
 from .utils import standardize_column_names, get_column_name, print_column_info
+from .data_prep import DataPreparer, prepare_data_for_config  # Can also be run as script
 
 __all__ = [
     # Base classes
@@ -44,5 +47,9 @@ __all__ = [
     'standardize_column_names',
     'get_column_name',
     'print_column_info',
+
+    # Data preparation
+    'DataPreparer',
+    'prepare_data_for_config',
 ]
 

@@ -78,6 +78,24 @@
     },
 
     {
+        "name": "Debug: Train with milan_fixed20_v0.1_image_debug",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/train.py",
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}"
+        },
+        "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python",
+        "justMyCode": false,
+        "args": [
+            "--config",
+            "configs/alignment/milan_fixed20_v0.1_image_debug.yaml"
+        ]
+    },
+
+    {
         "name": "Debug: Evaluate Text Encoder (milan FL_20_p baseline)",
         "type": "debugpy",
         "request": "launch",

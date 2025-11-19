@@ -1,4 +1,4 @@
-# Milan Fixed-Length 20 - Version 0 (Baseline Training Run)
+# Milan Fixed-Length 20 - Version 0.1
 #
 # Configuration based on learnings from test runs:
 # - Reduced MLM weight to prevent early saturation
@@ -131,7 +131,7 @@ wandb_project: discover-v2
 wandb_entity: null  # Set to your W&B username if you have one
 wandb_name: null  # Auto-generated
 wandb_tags: []  # Auto-generated
-wandb_notes: "Milan v0: Baseline training with reduced MLM weight (0.2) and harder masking (35%, span=8). Linear projections, CLIP embeddings, 10 epochs."
+wandb_notes: "Milan FL_20 v0.1: Baseline training with reduced MLM weight (0.5) and harder masking (40%, span=8). Linear projections, CLIP embeddings, 20 epochs."
 wandb_group: null  # Auto-generated
 
 # Training Strategy Notes:

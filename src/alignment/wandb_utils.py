@@ -36,94 +36,103 @@ def extract_sampling_strategy(data_path: str, config: Any) -> str:
     Extract sampling strategy abbreviation.
 
     Examples:
+        FL_20 → fl20
         FD_60 → fd60
-        FL_50 → fl50
-        FD_120_p → fd120_p
+        FD_120_p → fd120p
     """
     path_str = str(data_path)
 
-    # Check for presegmentation
-    preseg_suffix = '_preseg' if 'presegmented' in path_str else ''
+    # Look for FL_XX or FL_XX_p patterns (Fixed Length)
+    match = re.search(r'/FL_(\d+)(_p)?/', path_str)
+    if match:
+        length = match.group(1)
+        preseg = 'p' if match.group(2) else ''
+        return f'fl{length}{preseg}'
 
-    # Extract strategy from path
+    # Look for FD_XX or FD_XX_p patterns (Fixed Duration)
+    match = re.search(r'/FD_(\d+)(_p)?/', path_str)
+    if match:
+        duration = match.group(1)
+        preseg = 'p' if match.group(2) else ''
+        return f'fd{duration}{preseg}'
+
+    # Legacy: full name patterns
     if 'fixed_duration' in path_str:
-        # Extract duration number
         match = re.search(r'fixed_duration[_-]?(\d+)[s]?', path_str)
         if match:
             duration = match.group(1)
-            return f'fixdur{duration}s{preseg_suffix}'
-        return f'fixdur{preseg_suffix}'
+            return f'fd{duration}'
+        return 'fd'
 
     elif 'fixed_length' in path_str:
-        # Extract length number
         match = re.search(r'fixed_length[_-]?(\d+)', path_str)
         if match:
             length = match.group(1)
-            return f'fixlen{length}{preseg_suffix}'
-        return f'fixlen{preseg_suffix}'
+            return f'fl{length}'
+        return 'fl'
 
     elif 'variable_duration' in path_str:
-        return f'vardur{preseg_suffix}'
+        return 'vd'
 
     # Fallback
     return 'unknown'
 
 
-def extract_encoder_name(encoder_config_path: str) -> str:
+def extract_encoder_name(config: Any) -> str:
     """
-    Extract encoder model name abbreviation.
+    Extract encoder type: seq (sequence-based) or img (image-based).
 
     Examples:
-        configs/encoders/transformer_base.yaml → tf-base
-        configs/encoders/transformer_tiny.yaml → tf-tiny
-        configs/encoders/transformer_small.yaml → tf-small
+        transformer_base.yaml → seq
+        transformer_image_clip.yaml → img
+        encoder_type: 'image' → img
     """
-    if not encoder_config_path:
-        return 'unknown'
+    # Check encoder_type field first
+    if hasattr(config, 'encoder_type'):
+        if config.encoder_type == 'image':
+            return 'img'
 
-    path = Path(encoder_config_path)
-    stem = path.stem  # e.g., 'transformer_base'
+    # Check encoder_config_path for image indicators
+    if hasattr(config, 'encoder_config_path') and config.encoder_config_path:
+        path_str = str(config.encoder_config_path).lower()
+        if 'image' in path_str:
+            return 'img'
 
-    # Map common names
-    name_map = {
-        'transformer_base': 'tf-base',
-        'transformer_tiny': 'tf-tiny',
-        'transformer_small': 'tf-small',
-        'transformer_minimal': 'tf-min',
-        'transformer_base_mlp': 'tf-base-mlp',
-        'transformer_base_mlp3': 'tf-base-mlp3',
-        'chronos': 'chronos',
-        'image': 'img',
-    }
+    # Check if inline encoder config has image settings
+    if hasattr(config, 'encoder') and config.encoder:
+        if isinstance(config.encoder, dict):
+            if config.encoder.get('use_image_embeddings', False):
+                return 'img'
 
-    return name_map.get(stem, stem.replace('transformer_', 'tf-'))
+    # Default to sequence-based
+    return 'seq'
 
 
 def extract_caption_style(embeddings_path: Optional[str] = None, captions_path: Optional[str] = None) -> str:
     """
-    Extract caption style from embeddings or captions path.
+    Extract caption style: rb0 (baseline rule-based), rb (other rule-based), or llm.
 
     Examples:
-        train_embeddings_baseline_gte_base.npz → baseline
-        train_captions_sourish.json → sourish
-        train_embeddings_adl-llm_distilroberta.npz → adl-llm
+        train_embeddings_baseline_clip.npz → rb0
+        train_captions_sourish.json → rb
+        train_embeddings_llm_gte.npz → llm
     """
     path_str = embeddings_path or captions_path or ''
 
-    # Check for common caption styles
+    # Check for baseline (rb0)
     if 'baseline' in path_str:
-        return 'baseline'
-    elif 'sourish' in path_str:
-        return 'sourish'
-    elif 'adl-llm' in path_str or 'adl_llm' in path_str:
-        return 'adl-llm'
-    elif 'llm' in path_str:
+        return 'rb0'
+
+    # Check for LLM-generated
+    elif 'llm' in path_str or 'gpt' in path_str or 'claude' in path_str:
         return 'llm'
-    elif 'mixed' in path_str:
-        return 'mixed'
+
+    # Check for other rule-based styles (sourish, mixed, etc.)
+    elif 'sourish' in path_str or 'mixed' in path_str:
+        return 'rb'
 
     # Fallback
-    return 'unknown'
+    return 'rb'
 
 
 def extract_text_encoder_name(embeddings_path: Optional[str] = None, text_encoder_config: Optional[str] = None) -> str:
@@ -159,22 +168,20 @@ def extract_text_encoder_name(embeddings_path: Optional[str] = None, text_encode
 
 def extract_projection_type(config: Any) -> str:
     """
-    Extract projection type abbreviation.
+    Extract projection type: lin or mlp.
 
     Examples:
-        linear → linear
-        mlp (2-layer) → mlp2
-        mlp (3-layer) → mlp3
+        linear → lin
+        mlp (2 or 3 layers) → mlp
     """
     proj_config = config.sensor_projection
 
     if proj_config.type == 'linear':
-        return 'linear'
+        return 'lin'
     elif proj_config.type == 'mlp':
-        num_layers = proj_config.num_layers
-        return f'mlp{num_layers}'
+        return 'mlp'
 
-    return proj_config.type
+    return 'lin'  # fallback
 
 
 def extract_loss_config(config: Any) -> str:
@@ -204,13 +211,11 @@ def generate_wandb_run_name(config: Any) -> str:
     """
     Generate intuitive WandB run name from configuration.
 
-    Format: {dataset}_{sampling}_{encoder}_{caption-style}_{text-encoder}_{projection}
+    Format: {dataset}_{sampling_short}_{seq/img}_{rb/llm}_text{encoder}_proj{lin/mlp}
 
-    Example: milan_fixdur60s_tf-base_baseline_gte_linear
-
-    Optional suffixes for non-default configs:
-        - Loss config if not CLIP-only
-        - Other important hyperparams
+    Examples:
+        milan_fd20_seq_rb0_textclip_projlin
+        milan_fl30_img_llm_textminilm_projmlp
 
     Args:
         config: AlignmentConfig instance
@@ -221,50 +226,24 @@ def generate_wandb_run_name(config: Any) -> str:
     # Extract components
     dataset = extract_dataset_name(config.train_data_path)
     sampling = extract_sampling_strategy(config.train_data_path, config)
-    encoder = extract_encoder_name(config.encoder_config_path)
+    encoder_type = extract_encoder_name(config)  # seq or img
     caption_style = extract_caption_style(config.train_text_embeddings_path, config.train_captions_path)
     text_encoder = extract_text_encoder_name(config.train_text_embeddings_path, config.text_encoder_config_path)
     projection = extract_projection_type(config)
 
-    # Base name
-    base_components = [
-        dataset,
-        sampling,
-        encoder,
-        caption_style,
-        text_encoder,
-        projection,
-    ]
+    # Build name: {dataset}_{sampling}_{seq/img}_{rb/llm}_text{encoder}_proj{lin/mlp}
+    name = f"{dataset}_{sampling}_{encoder_type}_{caption_style}_text{text_encoder}_proj{projection}"
 
-    base_name = '_'.join(base_components)
-
-    # Optional suffixes for non-default configurations
-    suffixes = []
-
-    # Loss configuration (if not default CLIP-only)
-    loss_config = extract_loss_config(config)
-    if loss_config != 'clip':
-        suffixes.append(loss_config)
-
-    # Add temperature info if fixed (non-learnable)
-    if not config.loss.learnable_temperature:
-        temp = config.loss.temperature_init
-        suffixes.append(f'temp{temp:.3f}'.replace('.', ''))
-
-    # Combine
-    if suffixes:
-        return f"{base_name}__{'-'.join(suffixes)}"
-    else:
-        return base_name
+    return name
 
 
 def generate_wandb_group(config: Any) -> str:
     """
     Generate WandB group name for organizing related runs.
 
-    Groups runs by: {dataset}_{sampling}_{encoder}
+    Groups runs by: {dataset}_{sampling}_{seq/img}
 
-    Example: milan_fixdur60s_tf-base
+    Example: milan_fd20_seq
 
     This groups together runs that differ only in caption/text encoder/projection.
 
@@ -276,14 +255,16 @@ def generate_wandb_group(config: Any) -> str:
     """
     dataset = extract_dataset_name(config.train_data_path)
     sampling = extract_sampling_strategy(config.train_data_path, config)
-    encoder = extract_encoder_name(config.encoder_config_path)
+    encoder_type = extract_encoder_name(config)
 
-    return f"{dataset}_{sampling}_{encoder}"
+    return f"{dataset}_{sampling}_{encoder_type}"
 
 
 def generate_wandb_tags(config: Any) -> list:
     """
     Generate WandB tags for filtering and organization.
+
+    All detailed metadata goes in tags now (not in run name).
 
     Args:
         config: AlignmentConfig instance
@@ -299,20 +280,35 @@ def generate_wandb_tags(config: Any) -> list:
 
     # Sampling strategy
     sampling = extract_sampling_strategy(config.train_data_path, config)
-    if 'fixdur' in sampling:
+    if 'fd' in sampling:
         tags.append('fixed-duration')
-    elif 'fixlen' in sampling:
+    elif 'fl' in sampling:
         tags.append('fixed-length')
-    if 'preseg' in sampling:
+    elif 'vd' in sampling:
+        tags.append('variable-duration')
+    if sampling.endswith('p'):
         tags.append('presegmented')
 
+    # Add full sampling tag (e.g., 'fd20', 'fl30p')
+    tags.append(sampling)
+
     # Encoder type
-    encoder = extract_encoder_name(config.encoder_config_path)
-    tags.append(encoder)
+    encoder_type = extract_encoder_name(config)
+    tags.append(encoder_type)  # 'seq' or 'img'
+
+    # If image-based, try to detect which image model
+    if encoder_type == 'img' and hasattr(config, 'encoder_config_path') and config.encoder_config_path:
+        path_str = str(config.encoder_config_path).lower()
+        if 'clip' in path_str:
+            tags.append('img-clip')
+        elif 'dinov2' in path_str:
+            tags.append('img-dinov2')
+        elif 'siglip' in path_str:
+            tags.append('img-siglip')
 
     # Caption style
     caption_style = extract_caption_style(config.train_text_embeddings_path, config.train_captions_path)
-    tags.append(f'caption-{caption_style}')
+    tags.append(caption_style)  # 'rb0', 'rb', or 'llm'
 
     # Text encoder
     text_encoder = extract_text_encoder_name(config.train_text_embeddings_path, config.text_encoder_config_path)
@@ -322,9 +318,16 @@ def generate_wandb_tags(config: Any) -> list:
     projection = extract_projection_type(config)
     tags.append(f'proj-{projection}')
 
+    # If MLP, add num layers
+    if projection == 'mlp' and hasattr(config, 'sensor_projection'):
+        if hasattr(config.sensor_projection, 'num_layers'):
+            tags.append(f'mlp-{config.sensor_projection.num_layers}layer')
+
     # Loss components
     if config.loss.mlm_weight > 0:
         tags.append('mlm')
+        tags.append(f'mlm-weight-{config.loss.mlm_weight}')
+
     if config.loss.use_hard_negatives:
         tags.append('hard-negatives')
 
@@ -333,6 +336,17 @@ def generate_wandb_tags(config: Any) -> list:
         tags.append('learnable-temp')
     else:
         tags.append('fixed-temp')
+        temp = config.loss.temperature_init
+        tags.append(f'temp-{temp:.3f}'.replace('.', ''))
+
+    # Optimizer
+    if hasattr(config, 'optimizer') and hasattr(config.optimizer, 'type'):
+        tags.append(f'opt-{config.optimizer.type}')
+
+    # Learning rate
+    if hasattr(config, 'optimizer') and hasattr(config.optimizer, 'lr'):
+        lr = config.optimizer.lr
+        tags.append(f'lr-{lr:.0e}')
 
     return tags
 
@@ -343,34 +357,57 @@ if __name__ == '__main__':
 
     class MockConfig:
         def __init__(self):
-            self.train_data_path = "data/processed/casas/milan/FD_60/train.json"
-            self.train_text_embeddings_path = "data/processed/casas/milan/FD_60/train_embeddings_baseline_gte_base.npz"
+            self.train_data_path = "data/processed/casas/milan/FD_20/train.json"
+            self.train_text_embeddings_path = "data/processed/casas/milan/FD_20/train_embeddings_baseline_clip.npz"
             self.train_captions_path = None
-            self.text_encoder_config_path = "configs/text_encoders/gte_base.yaml"
-            self.encoder_config_path = "configs/encoders/transformer_base.yaml"
+            self.text_encoder_config_path = "configs/text_encoders/clip_vit_base.yaml"
+            self.encoder_config_path = None
+            self.encoder_type = 'transformer'
+
+            class Optimizer:
+                type = 'adamw'
+                lr = 3e-4
 
             class SensorProjection:
                 type = 'linear'
                 num_layers = 2
 
             class Loss:
-                mlm_weight = 0.0
+                mlm_weight = 0.5
                 use_hard_negatives = False
-                learnable_temperature = True
-                temperature_init = 0.02
+                learnable_temperature = False
+                temperature_init = 0.07
 
             self.sensor_projection = SensorProjection()
             self.loss = Loss()
+            self.optimizer = Optimizer()
 
+    # Test 1: Sequence-based with baseline captions
+    print("\n=== Test 1: Sequence + Baseline + CLIP ===")
     config = MockConfig()
+    print(f"Expected: milan_fd20_seq_rb0_textclip_projlin")
+    print(f"Got:      {generate_wandb_run_name(config)}")
+    print(f"Group:    {generate_wandb_group(config)}")
+    print(f"Tags:     {generate_wandb_tags(config)}")
 
-    print(f"\nRun name: {generate_wandb_run_name(config)}")
-    print(f"Group: {generate_wandb_group(config)}")
-    print(f"Tags: {generate_wandb_tags(config)}")
+    # Test 2: Image-based with LLM captions
+    print("\n=== Test 2: Image + LLM + MiniLM ===")
+    config.train_data_path = "data/processed/casas/milan/FL_30/train.json"
+    config.train_text_embeddings_path = "data/processed/casas/milan/FL_30/train_embeddings_llm_minilm.npz"
+    config.encoder_config_path = "configs/encoders/transformer_image_clip.yaml"
+    config.sensor_projection.type = 'mlp'
+    config.sensor_projection.num_layers = 2
+    print(f"Expected: milan_fl30_img_llm_textminilm_projmlp")
+    print(f"Got:      {generate_wandb_run_name(config)}")
+    print(f"Group:    {generate_wandb_group(config)}")
 
-    # Test with MLM
-    config.loss.mlm_weight = 1.0
-    print(f"\nWith MLM:")
-    print(f"Run name: {generate_wandb_run_name(config)}")
-    print(f"Tags: {generate_wandb_tags(config)}")
+    # Test 3: Presegmented
+    print("\n=== Test 3: Presegmented ===")
+    config.train_data_path = "data/processed/casas/aruba/FD_60_p/train.json"
+    config.train_text_embeddings_path = "data/processed/casas/aruba/FD_60_p/train_embeddings_baseline_gte.npz"
+    config.encoder_config_path = None
+    config.encoder_type = 'transformer'
+    config.sensor_projection.type = 'linear'
+    print(f"Expected: aruba_fd60p_seq_rb0_textgte_projlin")
+    print(f"Got:      {generate_wandb_run_name(config)}")
 

@@ -1,0 +1,141 @@
+# Milan Fixed-Length 20 - Image Embeddings Version 0.1
+#
+# This config is identical to milan_fixed20_v0.1.yaml but uses:
+# - Image embeddings (CLIP vision encoder) instead of raw sensor sequences
+# - CLIP loss only (no MLM since we can't mask image embeddings)
+# - Everything else remains the same for direct comparison
+#
+# Comparison setup:
+# - Same data (FL_20)
+# - Same text embeddings (CLIP)
+# - Same training hyperparameters
+# - Only difference: sensor encoder (transformer on raw data vs. frozen CLIP on images)
+
+experiment_name: milan_fixed20_image_v0.1
+output_dir: trained_models/milan/fixed20_v0.1_image
+
+# Dataset metadata (REQUIRED for image-based encoders)
+dataset: milan
+dataset_type: casas
+
+# Data paths - using FL_20 with 70/10/20 split
+train_data_path: data/processed/casas/milan/FL_20/train.json
+val_data_path: data/processed/casas/milan/FL_20/val.json
+vocab_path: data/processed/casas/milan/FL_20/vocab.json
+
+# Text embeddings (pre-computed) - CLIP baseline captions (2 long captions per sample)
+# NOTE: These are caption embeddings (text), NOT image embeddings
+train_text_embeddings_path: data/processed/casas/milan/FL_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FL_20/val_embeddings_baseline_clip.npz
+
+# Encoder configuration - Image-based CLIP
+encoder_type: transformer
+encoder_config_path: configs/encoders/transformer_image_clip.yaml
+
+# Note: encoder_config_path points to transformer_image_clip.yaml which:
+# - Uses frozen CLIP vision embeddings (512D) as input
+# - Adds a transformer encoder on top (6 layers, 768-d)
+# - Projects to 512-d for CLIP alignment
+# - Image size: 224x224 (standard CLIP)
+
+# Projection heads - Linear projections to 512-d shared space
+sensor_projection:
+  type: linear
+  dim: 512
+
+text_projection:
+  type: linear
+  dim: 512
+
+# Loss configuration - CLIP ONLY (no MLM for images)
+loss:
+  # CLIP loss (primary and only objective)
+  clip_weight: 1.0
+  temperature_init: 0.07  # Standard CLIP value
+  learnable_temperature: false
+
+  # MLM loss (DISABLED for image-based training)
+  mlm_weight: 0.0
+  # Note: Can't mask image embeddings meaningfully
+
+  # Hard negative sampling (disabled for baseline)
+  use_hard_negatives: false
+  hard_negative_memory_size: 4096
+  hard_negative_ratio: 0.5
+  hard_negative_strategy: mixed
+  hard_negative_sampling_temperature: 0.1
+
+# Optimizer configuration (same as base model)
+optimizer:
+  type: adamw
+  learning_rate: 3.0e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+
+# Training configuration (same as base model)
+training:
+  batch_size: 128
+  max_epochs: 20
+  max_steps: null  # Let epochs control duration
+
+  device: auto
+  use_amp: true
+
+  # Logging intervals
+  log_interval: 1          # Log basic training metrics (loss, acc, temp, lr)
+  val_interval: 1         # Validation: loss, acc, alignment health
+  save_interval: 2000       # Save checkpoints
+  metrics_interval: 1     # Comprehensive metrics: Recall@K, nDCG@K (retrieval)
+
+  # Metrics sampling configuration
+  metrics_sample_batches: 10  # Sample 10 batches (~1280 samples) for retrieval metrics
+  metrics_sample_size: 1000   # Target sample size for expensive metrics
+
+  num_workers: 0  # Must be 0 for MPS device (Apple Silicon)
+  shuffle: true
+  pin_memory: false  # Not supported on MPS
+
+# WandB logging - ENABLED
+use_wandb: false
+
+# Comparison Notes:
+#
+# This config enables direct comparison between:
+# 1. Transformer on raw sensor data (milan_fixed20_v0.1.yaml)
+# 2. CLIP vision encoder on floor plan images (this config)
+#
+# Key Differences from milan_fixed20_v0.1.yaml:
+# - encoder_type: transformer → image_clip
+# - MLM disabled (mlm_weight: 0.5 → 0.0)
+# - Uses frozen CLIP vision encoder + trainable projection
+# - Images generated from sensor layout coordinates
+#
+# Everything else is identical:
+# - Same data (FL_20)
+# - Same text embeddings (CLIP baseline captions)
+# - Same batch size (128)
+# - Same learning rate (3e-4)
+# - Same training duration (20 epochs)
+# - Same projection architecture (linear 512-d)
+#
+# Expected Behavior:
+# - CLIP loss should decrease steadily
+# - S2T/T2S accuracy should reach 20-40% by end
+# - Validation loss should improve consistently
+# - No MLM metrics (disabled for image-based)
+#
+# Advantages of Image-Based:
+# - Leverages pretrained vision knowledge from CLIP
+# - Spatial layout directly encoded in image
+# - No need for complex tokenization/embedding
+# - Faster forward pass (single image embedding vs. sequence)
+#
+# Disadvantages of Image-Based:
+# - Loses temporal sequence information
+# - Loses event-level details (ON/OFF states)
+# - Fixed to spatial layout only
+# - Can't capture fine-grained sensor activations
+#
+
