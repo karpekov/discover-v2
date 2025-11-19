@@ -511,17 +511,20 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
     def _generate_room_description(self, unique_rooms: List[str]) -> str:
         """Generate natural room transition description."""
-        if len(unique_rooms) == 1:
-            return f"in {unique_rooms[0]}"
-        elif len(unique_rooms) == 2:
+        # Clean room names: replace underscores with spaces
+        clean_rooms = [room.replace('_', ' ') for room in unique_rooms]
+
+        if len(clean_rooms) == 1:
+            return f"in {clean_rooms[0]}"
+        elif len(clean_rooms) == 2:
             transition_words = ['movement from', 'transition from', 'activity from']
-            return f"{self.random.choice(transition_words)} {unique_rooms[0]} to {unique_rooms[1]}"
+            return f"{self.random.choice(transition_words)} {clean_rooms[0]} to {clean_rooms[1]}"
         else:
             # Check for back movements
-            if len(unique_rooms) == 3 and unique_rooms[0] == unique_rooms[2]:
-                return f"movement from {unique_rooms[0]} to {unique_rooms[1]} and back to {unique_rooms[0]}"
+            if len(clean_rooms) == 3 and clean_rooms[0] == clean_rooms[2]:
+                return f"movement from {clean_rooms[0]} to {clean_rooms[1]} and back to {clean_rooms[0]}"
             else:
-                return f"movement from {unique_rooms[0]} to {unique_rooms[1]} then to {unique_rooms[2]}"
+                return f"movement from {clean_rooms[0]} to {clean_rooms[1]} then to {clean_rooms[2]}"
 
     def _generate_sensor_description(self, salient: List[str]) -> str:
         """Generate sensor activity description."""
@@ -615,7 +618,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Generate first short caption (location-focused)
         if len(unique_rooms) == 1:
-            room = unique_rooms[0]
+            room = unique_rooms[0].replace('_', ' ')
             if 'kitchen' in room.lower():
                 options = ["kitchen activity night" if is_night else "kitchen activity day",
                           "late kitchen motion" if is_night else "daytime kitchen use"]
@@ -638,7 +641,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Generate second short caption (activity-focused)
         if len(unique_rooms) == 1:
-            room = unique_rooms[0]
+            room = unique_rooms[0].replace('_', ' ')
             if 'kitchen' in room.lower():
                 options2 = ["food preparation", "culinary activity"]
             elif 'bedroom' in room.lower():

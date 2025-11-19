@@ -14,38 +14,40 @@ from ..base import BaseTextEncoder, TextEncoderConfig, TextEncoderOutput
 
 class CLIPTextEncoder(BaseTextEncoder):
     """Frozen CLIP text encoder.
-    
+
     Uses OpenAI CLIP text encoder (e.g., openai/clip-vit-base-patch32).
     Embeddings are extracted from the pooled output and L2-normalized.
     """
-    
+
     def __init__(self, config: TextEncoderConfig):
         """Initialize CLIP text encoder.
-        
+
         Args:
             config: Text encoder configuration
         """
         super().__init__(config)
-        
+
         # Load CLIP text model and tokenizer
         self.tokenizer = CLIPTokenizer.from_pretrained(
             config.model_name,
-            cache_dir=config.cache_dir
+            cache_dir=config.cache_dir,
+            trust_remote_code=True
         )
         self.model = CLIPTextModel.from_pretrained(
             config.model_name,
-            cache_dir=config.cache_dir
+            cache_dir=config.cache_dir,
+            trust_remote_code=True
         )
-        
+
         # Device is auto-detected in parent class
         self.model.to(self.device)
-        
+
         # Freeze all parameters
         for param in self.model.parameters():
             param.requires_grad = False
-        
+
         self.model.eval()
-        
+
         # Optional projection head (though CLIP already has internal projection)
         self.projection = None
         if config.use_projection:
@@ -57,15 +59,15 @@ class CLIPTextEncoder(BaseTextEncoder):
             with torch.no_grad():
                 identity_init = torch.eye(config.embedding_dim)[:config.projection_dim]
                 self.projection.weight.copy_(identity_init)
-            
+
             self.projection.to(self.device)
-    
+
     def encode(self, texts: List[str]) -> TextEncoderOutput:
         """Encode texts into embeddings.
-        
+
         Args:
             texts: List of text strings
-            
+
         Returns:
             TextEncoderOutput with embeddings [len(texts), embedding_dim]
         """
@@ -77,30 +79,30 @@ class CLIPTextEncoder(BaseTextEncoder):
             max_length=self.config.max_length,
             return_tensors="pt"
         )
-        
+
         input_ids = encoded["input_ids"].to(self.device)
         attention_mask = encoded["attention_mask"].to(self.device)
-        
+
         # Encode
         with torch.no_grad():
             outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
-            
+
             # Use pooled output (already includes internal projection in CLIP)
             embeddings = outputs.pooler_output  # [batch_size, embedding_dim]
-            
+
             # L2 normalize if requested
             if self.config.normalize:
                 embeddings = F.normalize(embeddings, p=2, dim=-1)
-            
+
             # Apply additional projection if present
             if self.projection is not None:
                 embeddings = self.projection(embeddings)
                 if self.config.normalize:
                     embeddings = F.normalize(embeddings, p=2, dim=-1)
-        
+
         # Convert to numpy
         embeddings_np = embeddings.cpu().numpy()
-        
+
         return TextEncoderOutput(
             embeddings=embeddings_np,
             metadata={

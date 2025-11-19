@@ -16,8 +16,8 @@ class TextEncoder(nn.Module):
 
   def __init__(self, model_name: str = "thenlper/gte-base"):
     super().__init__()
-    self.model = AutoModel.from_pretrained(model_name)
-    self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+    self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+    self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
     # Freeze all parameters
     for param in self.model.parameters():
@@ -127,10 +127,10 @@ class TextEncoder(nn.Module):
 def get_text_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
     """
     Safe config loader for text encoder settings with backward-compatible defaults.
-    
+
     Args:
         cfg: Full training configuration dictionary
-        
+
     Returns:
         Dictionary with text encoder specific settings
     """
@@ -143,43 +143,43 @@ def get_text_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "use_cached_embeddings": cfg.get("use_cached_embeddings", False),
         "text_embeddings_cache_path": cfg.get("text_embeddings_cache_path", None),
     }
-    
+
     # Force GTE-compatible settings when using GTE models
     model_name = text_cfg["text_model_name"]
-    
+
     # Check if this is a GTE model (by name, not backend)
     is_gte_model = "gte" in model_name.lower() or "thenlper" in model_name.lower()
-    
+
     if is_gte_model:
         # Force settings to match current GTE+proj behavior
         text_cfg["text_backend"] = "hf"  # Force HF backend for GTE
         text_cfg["use_text_proj_head"] = True
         text_cfg["text_output_dim"] = 512
         # text_prompt_mode is ignored for GTE models
-    
+
     return text_cfg
 
 
 def build_text_encoder(cfg: Dict[str, Any]) -> Union[TextEncoder, 'EmbeddingGemmaEncoder', 'CachedTextEncoder']:
     """
     Factory function to build appropriate text encoder based on configuration.
-    
+
     Args:
         cfg: Training configuration dictionary
-        
+
     Returns:
         Text encoder instance (TextEncoder, EmbeddingGemmaEncoder, or CachedTextEncoder)
     """
     tcfg = get_text_cfg(cfg)
     name = tcfg["text_model_name"]
     backend = tcfg["text_backend"]
-    
+
     # Check if we should use cached embeddings
     if tcfg["use_cached_embeddings"] and tcfg["text_embeddings_cache_path"]:
         try:
             from models.text_encoders.cached_text_encoder import CachedTextEncoder
             cache_path = tcfg["text_embeddings_cache_path"]
-            
+
             # Create fallback encoder if needed (for cache misses)
             fallback_encoder = None
             if tcfg.get("use_fallback_encoder", True):
@@ -187,7 +187,7 @@ def build_text_encoder(cfg: Dict[str, Any]) -> Union[TextEncoder, 'EmbeddingGemm
                 fallback_cfg = tcfg.copy()
                 fallback_cfg["use_cached_embeddings"] = False  # Avoid recursion
                 fallback_encoder = build_text_encoder({**cfg, **fallback_cfg})
-            
+
             return CachedTextEncoder(
                 cache_path=cache_path,
                 fallback_encoder=fallback_encoder
@@ -196,7 +196,7 @@ def build_text_encoder(cfg: Dict[str, Any]) -> Union[TextEncoder, 'EmbeddingGemm
             print(f"Warning: Could not load CachedTextEncoder: {e}")
             print("Falling back to regular text encoder")
             # Fall through to regular encoder selection
-    
+
     # Check if we should use EmbeddingGemma
     if "embeddinggemma" in name.lower() or backend == "sentence_transformers":
         try:
@@ -211,7 +211,7 @@ def build_text_encoder(cfg: Dict[str, Any]) -> Union[TextEncoder, 'EmbeddingGemm
             print(f"Warning: Could not load EmbeddingGemmaEncoder: {e}")
             print("Falling back to default TextEncoder (GTE)")
             # Fall through to default TextEncoder
-    
+
     # Default: existing GTE encoder (unchanged behavior)
     return TextEncoder(model_name=name)
 
@@ -219,31 +219,31 @@ def build_text_encoder(cfg: Dict[str, Any]) -> Union[TextEncoder, 'EmbeddingGemm
 def log_text_encoder_config(cfg: Dict[str, Any], logger=None):
     """
     Log the resolved text encoder configuration at startup.
-    
+
     Args:
         cfg: Training configuration dictionary
         logger: Optional logger instance
     """
     tcfg = get_text_cfg(cfg)
-    
+
     log_func = logger.info if logger else print
-    
+
     log_func("Text Encoder Configuration:")
     log_func(f"  Model: {tcfg['text_model_name']}")
     log_func(f"  Backend: {tcfg['text_backend']}")
     log_func(f"  Output Dimension: {tcfg['text_output_dim']}")
     log_func(f"  Use Projection Head: {tcfg['use_text_proj_head']}")
-    
+
     # Note when settings are ignored
     model_name = tcfg["text_model_name"]
     backend = tcfg["text_backend"]
     is_gte_model = "gte" in model_name.lower() or "thenlper" in model_name.lower()
-    
+
     if is_gte_model:
         log_func(f"  Prompt Mode: {tcfg['text_prompt_mode']} (ignored for GTE)")
     else:
         log_func(f"  Prompt Mode: {tcfg['text_prompt_mode']}")
-    
+
     # Log which encoder will be used
     if tcfg["use_cached_embeddings"]:
         cache_path = tcfg.get("text_embeddings_cache_path", "None")

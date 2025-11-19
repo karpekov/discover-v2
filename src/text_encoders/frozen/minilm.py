@@ -30,11 +30,13 @@ class MiniLMTextEncoder(BaseTextEncoder):
         # Load model and tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             config.model_name,
-            cache_dir=config.cache_dir
+            cache_dir=config.cache_dir,
+            trust_remote_code=True
         )
         self.model = AutoModel.from_pretrained(
             config.model_name,
-            cache_dir=config.cache_dir
+            cache_dir=config.cache_dir,
+            trust_remote_code=True
         )
 
         # Device is auto-detected in parent class

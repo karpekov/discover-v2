@@ -75,6 +75,37 @@
             "--config",
             "configs/alignment/milan_fixed20_v0.yaml"
         ]
+    },
+
+    {
+        "name": "Debug: Evaluate Text Encoder (milan FL_20_p baseline)",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/evals/evaluate_text_encoder_only.py",
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}"
+        },
+        "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python",
+        "justMyCode": false,
+        "args": [
+            "--embeddings_dir",
+            "data/processed/casas/milan/FL_20_p",
+            "--captions",
+            "data/processed/casas/milan/FL_20_p/train_captions_baseline.json",
+            "--data",
+            "data/processed/casas/milan/FL_20_p/train.json",
+            "--output_dir",
+            "results/evals/milan/FL_20_p",
+            "--split",
+            "train",
+            "--description_style",
+            "baseline",
+            "--max_samples",
+            "10000",
+            "--filter_noisy_labels"
+        ]
     }
 
   ]
