@@ -446,14 +446,17 @@ class AlignmentTrainer:
         batch['text_embeddings'] = batch['text_embeddings'].to(self.device)
         batch['attention_mask'] = batch['attention_mask'].to(self.device)
 
-        # Move MLM data if present
+        # Move MLM data if present (both are dicts of tensors)
         if 'mlm_labels' in batch:
             batch['mlm_labels'] = {
                 field: tensor.to(self.device)
                 for field, tensor in batch['mlm_labels'].items()
             }
         if 'mlm_mask_positions' in batch:
-            batch['mlm_mask_positions'] = batch['mlm_mask_positions'].to(self.device)
+            batch['mlm_mask_positions'] = {
+                field: tensor.to(self.device)
+                for field, tensor in batch['mlm_mask_positions'].items()
+            }
 
         return batch
 
