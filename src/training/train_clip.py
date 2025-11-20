@@ -242,7 +242,14 @@ class SmartHomeTrainer:
       vocab = json.load(f)
 
     # Get vocabulary sizes (add 1 for mask token)
-    vocab_sizes = {field: len(field_vocab) + 1 for field, field_vocab in vocab.items()}
+    # Vocab size must be max_index + 1 to accommodate all indices
+    vocab_sizes = {}
+    for field, field_vocab in vocab.items():
+        if field_vocab:
+            max_idx = max(field_vocab.values())
+            vocab_sizes[field] = max_idx + 1
+        else:
+            vocab_sizes[field] = 0
 
     # Sensor encoder
     self.sensor_encoder = SensorEncoder(

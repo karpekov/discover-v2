@@ -240,7 +240,8 @@ class AlignmentDataset(Dataset):
                 if value in self.vocab[field]:
                     idx_val = self.vocab[field][value]
                 else:
-                    idx_val = self.vocab[field].get('UNK', 0)
+                    # Use UNK token index
+                    idx_val = self.vocab[field].get('<UNK>', self.vocab[field].get('UNK', 0))
 
                 categorical_features[field].append(idx_val)
 
@@ -333,9 +334,7 @@ class AlignmentDataset(Dataset):
             with torch.no_grad():
                 text_embeddings = self.text_encoder.encode_batch(captions, device='cpu')
 
-        # Keep tensors on CPU - training loop will move to device
-        # This avoids CUDA forking issues with DataLoader workers
-
+        # Tensors stay on CPU - training loop moves to device (avoids CUDA forking issues)
         result = {
             'sensor_data': {
                 'categorical_features': categorical_features,

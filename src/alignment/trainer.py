@@ -77,11 +77,13 @@ class AlignmentTrainer:
         if self.span_masker is not None:
             self.logger.info(f"MLM enabled with mask_prob={config.loss.mask_prob}, mean_span_length={config.loss.mean_span_length}")
             # Update datasets with span_masker and vocab_sizes (filtered to exclude activity labels)
+            # IMPORTANT: Pass base vocab_sizes (without +1) to masker, since masker uses vocab_size as mask token ID
+            masker_vocab_sizes = {field: size - 1 for field, size in self.vocab_sizes.items()}
             self.train_loader.dataset.span_masker = self.span_masker
-            self.train_loader.dataset.vocab_sizes = self.vocab_sizes  # Already filtered to sensor fields only
+            self.train_loader.dataset.vocab_sizes = masker_vocab_sizes
             if self.val_loader is not None:
                 self.val_loader.dataset.span_masker = self.span_masker
-                self.val_loader.dataset.vocab_sizes = self.vocab_sizes  # Already filtered to sensor fields only
+                self.val_loader.dataset.vocab_sizes = masker_vocab_sizes
 
         # Setup optimizer and scheduler
         self.optimizer, self.scheduler = self._setup_optimizer()
@@ -156,7 +158,14 @@ class AlignmentTrainer:
         with open(self.config.vocab_path, 'r') as f:
             vocab = json.load(f)
 
-        vocab_sizes = {field: len(field_vocab) + 1 for field, field_vocab in vocab.items()}
+        # Vocab size must be max_index + 1 to accommodate all indices
+        vocab_sizes = {}
+        for field, field_vocab in vocab.items():
+            if field_vocab:
+                max_idx = max(field_vocab.values())
+                vocab_sizes[field] = max_idx + 1
+            else:
+                vocab_sizes[field] = 0
 
         # IMPORTANT: Filter vocab_sizes to only include fields used by encoder
         # Activity labels should NOT be used for self-supervised MLM training!
@@ -171,10 +180,17 @@ class AlignmentTrainer:
 
         # Filter vocab_sizes to only fields that are actually embedded by the encoder
         # This prevents activity labels from being used as MLM prediction targets
-        mlm_vocab_sizes = {
+        mlm_vocab_sizes_base = {
             field: size for field, size in vocab_sizes.items()
             if field in categorical_fields
         }
+
+        # IMPORTANT: If MLM is enabled, add 1 to vocab_sizes for embeddings to accommodate [MASK] token
+        # The SpanMasker uses vocab_size as the mask token ID, so we need vocab_size+1 embeddings
+        if self.config.loss.mlm_weight > 0:
+            mlm_vocab_sizes = {field: size + 1 for field, size in mlm_vocab_sizes_base.items()}
+        else:
+            mlm_vocab_sizes = mlm_vocab_sizes_base
 
         self.logger.info(f"Loaded vocabulary with {len(vocab_sizes)} fields")
         self.logger.info(f"Using {len(mlm_vocab_sizes)} fields for MLM: {list(mlm_vocab_sizes.keys())}")
