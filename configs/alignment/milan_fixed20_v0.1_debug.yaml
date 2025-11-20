@@ -1,0 +1,180 @@
+# Milan Fixed-Length 20 - Version 0.1
+#
+# Configuration based on learnings from test runs:
+# - Reduced MLM weight to prevent early saturation
+# - Increased MLM difficulty (higher mask_prob, longer spans)
+# - Proper training duration for convergence
+# - Linear projections for both sensor and text embeddings
+
+experiment_name: milan_fixed20_v0.1
+output_dir: trained_models/milan/fixed20_v0.1
+
+# Data paths - using FL_20 with 70/10/20 split
+train_data_path: data/processed/casas/milan/FL_20/train.json
+val_data_path: data/processed/casas/milan/FL_20/val.json
+vocab_path: data/processed/casas/milan/FL_20/vocab.json
+
+# Text embeddings (pre-computed) - CLIP baseline captions (2 long captions per sample)
+train_text_embeddings_path: data/processed/casas/milan/FL_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FL_20/val_embeddings_baseline_clip.npz
+
+# Encoder configuration - Inline for clarity
+encoder_type: transformer
+
+# Encoder architecture (small transformer)
+encoder:
+  d_model: 512
+  n_layers: 6
+  n_heads: 8
+  d_ff: 2048
+  max_seq_len: 512
+  dropout: 0.1
+
+  # Projection for CLIP alignment
+  projection_dim: 512
+
+  # Positional encoding
+  use_alibi: true
+  use_learned_pe: false
+
+  # Feature encoding
+  fourier_bands: 12
+
+  # Metadata - CATEGORICAL FIELDS ONLY
+  metadata:
+    # Which categorical fields to use
+    categorical_fields:
+      - sensor
+      - state
+      - room_id
+
+    # Continuous features - ALL DISABLED for pure categorical baseline
+    use_coordinates: false  # Disabled: sensor→coordinates is deterministic lookup
+    use_time_deltas: false  # Disabled: for pure event sequence baseline
+    use_time_of_day: true
+
+    # Coordinate normalization (unused)
+    coord_norm_x_max: 10.0
+    coord_norm_y_max: 10.0
+
+    # Time bucketing (unused)
+    time_delta_max_seconds: 3600.0
+    time_delta_bins: 100
+
+  # Pooling strategy
+  pooling: cls_mean
+  pooling_cls_weight: 0.5
+
+# Projection heads - Linear projections to 512-d shared space
+sensor_projection:
+  type: linear
+  dim: 512
+
+text_projection:
+  type: linear
+  dim: 512
+
+# Loss configuration - CLIP primary, MLM auxiliary
+loss:
+  # CLIP loss (primary objective)
+  clip_weight: 1.0
+  temperature_init: 0.07  # Standard CLIP value
+  learnable_temperature: false
+
+  # MLM loss (auxiliary objective) - REDUCED weight to prevent saturation
+  mlm_weight: 0.5
+  mask_prob: 0.4
+  mean_span_length: 8.0
+
+  # Hard negative sampling (disabled for baseline)
+  use_hard_negatives: false
+  hard_negative_memory_size: 4096
+  hard_negative_ratio: 0.5
+  hard_negative_strategy: mixed
+  hard_negative_sampling_temperature: 0.1
+
+# Optimizer configuration
+optimizer:
+  type: adamw
+  learning_rate: 3.0e-4
+  betas: [0.9, 0.98]
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+
+# Training configuration - Full training run
+training:
+  batch_size: 128
+  max_epochs: 20
+  max_steps: null  # Let epochs control duration
+
+  device: auto
+  use_amp: true
+
+  # Logging intervals
+  log_interval: 50          # Log basic training metrics (loss, acc, temp, lr)
+  val_interval: 500         # Validation: loss, acc, alignment health, MLM accuracy (~2 min)
+  save_interval: 2000       # Save checkpoints
+  metrics_interval: 1000     # Comprehensive metrics: Recall@K, nDCG@K (retrieval) (~5 min)
+
+  # Metrics sampling configuration
+  metrics_sample_batches: 10  # Sample 10 batches (~1280 samples) for retrieval metrics
+  metrics_sample_size: 1000   # Target sample size for expensive metrics
+
+  num_workers: 0  # Must be 0 for MPS device (Apple Silicon)
+  shuffle: true
+  pin_memory: false  # Not supported on MPS
+
+# WandB logging - ENABLED
+use_wandb: false
+wandb_project: discover-v2
+wandb_entity: null  # Set to your W&B username if you have one
+wandb_name: null  # Auto-generated
+wandb_tags: []  # Auto-generated
+wandb_notes: "Milan FL_20 v0.1: Baseline training with reduced MLM weight (0.5) and harder masking (40%, span=8). Linear projections, CLIP embeddings, 20 epochs."
+wandb_group: null  # Auto-generated
+
+# Training Strategy Notes:
+#
+# 1. Temperature Selection (0.07):
+#    - Standard CLIP value (original paper uses ~0.07)
+#    - 0.02 was too low → caused prediction collapse (all predicting same label)
+#    - Learnable temperature can adjust during training
+#    - Lower temp = sharper softmax, higher temp = softer (more exploration)
+#
+# 2. MLM Weight Reduction (1.0 → 0.2):
+#    - Test run showed MLM converges too quickly (loss < 0.01 by step 50)
+#    - MLM should be auxiliary, not competing equally with CLIP
+#    - 0.2 weight keeps MLM active but lets CLIP dominate gradients
+#
+# 3. Increased MLM Difficulty:
+#    - mask_prob: 0.35 (was 0.25) - Mask 35% of tokens instead of 25%
+#    - mean_span_length: 8.0 (was 5.0) - Longer masked spans are harder
+#    - Strict correlation (95%): sensor+room_id masked together to prevent memorization
+#      (sensor↔room is deterministic, so must predict from temporal context)
+#    - Transition seeding (30%): preferentially mask at room/activity transitions
+#    - This should prevent early saturation and keep MLM useful longer
+#
+# 4. Batch Size & Duration:
+#    - Batch 128 for better contrastive learning (more negatives per batch)
+#    - 10 epochs ≈ 2,000 steps for proper convergence
+#    - Test run showed CLIP needed more steps (accuracy still low at 400 steps)
+#
+# 5. Expected Behavior:
+#    - MLM loss should stay higher initially (0.1-0.3 range)
+#    - CLIP loss should decrease steadily over training
+#    - S2T/T2S accuracy should reach 20-40% by end (good alignment)
+#    - Validation loss should improve consistently
+#
+# 6. Model Size:
+#    - Using transformer_small for reasonable training time
+#    - ~8-12M parameters (vs 4M in tiny)
+#    - Better capacity for learning complex alignments
+#
+# 7. Feature Selection (Categorical Only):
+#    - Using ONLY categorical fields: sensor, state, room_id
+#    - Coordinates DISABLED: sensor→coordinates is deterministic (trivial lookup)
+#    - Time deltas DISABLED: for pure event sequence baseline
+#    - Field blackout ENABLED: zeros coordinates/time when sensor/room masked
+#    - ALiBi positional encoding provides implicit temporal context
+

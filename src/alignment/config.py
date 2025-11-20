@@ -31,6 +31,9 @@ class LossConfig:
     mlm_weight: float = 0.0
     mask_prob: float = 0.25
     mean_span_length: float = 5.0
+    enable_field_blackout: bool = True
+    p_transition_seed: float = 0.3
+    strict_corr_mask: bool = True
 
     # Hard negative sampling (optional)
     use_hard_negatives: bool = False
@@ -148,6 +151,14 @@ class AlignmentConfig:
 
         if 'text_projection' in config_dict and config_dict['text_projection'] is not None:
             config_dict['text_projection'] = ProjectionConfig(**config_dict['text_projection'])
+
+        # Handle mlm section - merge into loss config
+        if 'mlm' in config_dict:
+            mlm_config = config_dict.pop('mlm')
+            if 'loss' not in config_dict:
+                config_dict['loss'] = {}
+            # Merge mlm params into loss config
+            config_dict['loss'].update(mlm_config)
 
         if 'loss' in config_dict:
             config_dict['loss'] = LossConfig(**config_dict['loss'])
