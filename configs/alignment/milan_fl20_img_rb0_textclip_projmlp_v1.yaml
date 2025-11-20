@@ -1,0 +1,68 @@
+# Milan Fixed-Length 20 - Image Encoder (CLIP Embeddings)
+# Projection: MLP
+# Loss: CLIP-only (no MLM for images)
+# Version: 1
+
+encoder_type: transformer
+dataset: milan
+dataset_type: casas
+optimizer:
+  type: adamw
+  learning_rate: 0.0003
+  betas:
+  - 0.9
+  - 0.98
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+training:
+  batch_size: 128
+  max_epochs: 30
+  log_interval: 50
+  val_interval: 200
+  save_interval: 1000
+  metrics_interval: 500
+  use_amp: false
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+use_wandb: true
+wandb_project: discover-v2
+wandb_entity: null
+wandb_name: null
+wandb_tags: []
+wandb_group: null
+wandb_notes: Milan Fixed-Length 20 - Image encoder (CLIP embeddings) with MLP projection
+  and CLIP-only loss
+experiment_name: milan_fl20_img_rb0_textclip_projmlp_v1
+output_dir: trained_models/milan/milan_fl20_img_rb0_textclip_projmlp_v1
+encoder_config_path: configs/encoders/transformer_image_clip.yaml
+train_data_path: data/processed/casas/milan/FL_20/train.json
+val_data_path: data/processed/casas/milan/FL_20/val.json
+vocab_path: data/processed/casas/milan/FL_20/vocab.json
+train_text_embeddings_path: data/processed/casas/milan/FL_20/train_embeddings_baseline_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FL_20/val_embeddings_baseline_clip.npz
+sensor_projection:
+  type: mlp
+  dim: 512
+  num_layers: 2
+  hidden_dim: 512
+  dropout: 0.1
+  use_bn: false
+text_projection:
+  type: mlp
+  dim: 512
+  num_layers: 2
+  hidden_dim: 512
+  dropout: 0.1
+  use_bn: false
+loss:
+  clip_weight: 1.0
+  temperature_init: 0.07
+  learnable_temperature: false
+  mlm_weight: 0.0
+  use_hard_negatives: false
+  hard_negative_memory_size: 4096
+  hard_negative_ratio: 0.5
+  hard_negative_strategy: mixed
+  hard_negative_sampling_temperature: 0.1
