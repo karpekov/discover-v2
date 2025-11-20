@@ -84,7 +84,7 @@ class AlignmentDataset(Dataset):
 
     def _load_sensor_data(self):
         """Load sensor data from JSON and filter out samples with UNK sensors.
-        
+
         Returns:
             Tuple of (filtered_samples, kept_indices)
         """
@@ -101,7 +101,7 @@ class AlignmentDataset(Dataset):
         filtered_samples = []
         kept_indices = []
         num_filtered = 0
-        
+
         for idx, sample in enumerate(samples):
             sensor_sequence = sample.get('sensor_sequence', [])
             has_unk = False
@@ -109,34 +109,34 @@ class AlignmentDataset(Dataset):
                 # Use the same field mapping as in __getitem__
                 # The vocab uses 'sensor' but data may have 'sensor_id' or 'sensor'
                 sensor_id = event.get('sensor_id') or event.get('sensor')
-                
+
                 # If sensor_id is None or missing, this will become UNK during encoding
                 if sensor_id is None:
                     has_unk = True
                     break
-                
+
                 # Explicitly reject UNK sensors (even if they're in vocab)
                 if sensor_id == 'UNK' or (isinstance(sensor_id, str) and sensor_id.startswith('UNK_')):
                     has_unk = True
                     break
-                
+
                 # Also check if sensor_id is not in vocab (will become UNK during encoding)
                 if self.vocab and 'sensor' in self.vocab:
                     # Sensor not in vocab (excluding 'UNK' which we already handled)
                     if sensor_id not in self.vocab['sensor']:
                         has_unk = True
                         break
-            
+
             if not has_unk:
                 filtered_samples.append(sample)
                 kept_indices.append(idx)
             else:
                 num_filtered += 1
-        
+
         if num_filtered > 0:
             print(f"Filtered out {num_filtered} samples with UNK sensors ({num_filtered/len(samples)*100:.2f}%)")
             print(f"Kept {len(filtered_samples)} clean samples")
-        
+
         return filtered_samples, (kept_indices if num_filtered > 0 else None)
 
     def _load_text_embeddings(self) -> np.ndarray:
@@ -331,17 +331,10 @@ class AlignmentDataset(Dataset):
             # On-the-fly encoding
             captions = [item['caption'] for item in batch]
             with torch.no_grad():
-                text_embeddings = self.text_encoder.encode_batch(captions, device=self.device)
+                text_embeddings = self.text_encoder.encode_batch(captions, device='cpu')
 
-        # Move to device
-        categorical_features = {
-            field: tensor.to(self.device)
-            for field, tensor in categorical_features.items()
-        }
-        coordinates = coordinates.to(self.device)
-        time_deltas = time_deltas.to(self.device)
-        attention_mask = attention_mask.to(self.device)
-        text_embeddings = text_embeddings.to(self.device)
+        # Keep tensors on CPU - training loop will move to device
+        # This avoids CUDA forking issues with DataLoader workers
 
         result = {
             'sensor_data': {

@@ -432,10 +432,38 @@ class AlignmentTrainer:
         self.logger.info(f"WandB logging to: {wandb_dir}")
         self.logger.info(f"WandB URL: https://wandb.ai/{self.config.wandb_entity or 'user'}/{self.config.wandb_project}/{wandb.run.id}")
 
+    def move_batch_to_device(self, batch: Dict) -> Dict:
+        """Move batch tensors to device."""
+        # Move sensor data
+        batch['sensor_data']['categorical_features'] = {
+            field: tensor.to(self.device)
+            for field, tensor in batch['sensor_data']['categorical_features'].items()
+        }
+        batch['sensor_data']['coordinates'] = batch['sensor_data']['coordinates'].to(self.device)
+        batch['sensor_data']['time_deltas'] = batch['sensor_data']['time_deltas'].to(self.device)
+
+        # Move text embeddings and masks
+        batch['text_embeddings'] = batch['text_embeddings'].to(self.device)
+        batch['attention_mask'] = batch['attention_mask'].to(self.device)
+
+        # Move MLM data if present
+        if 'mlm_labels' in batch:
+            batch['mlm_labels'] = {
+                field: tensor.to(self.device)
+                for field, tensor in batch['mlm_labels'].items()
+            }
+        if 'mlm_mask_positions' in batch:
+            batch['mlm_mask_positions'] = batch['mlm_mask_positions'].to(self.device)
+
+        return batch
+
     def train_step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, float]:
         """Single training step."""
         self.model.train()
         self.optimizer.zero_grad()
+
+        # Move batch to device
+        batch = self.move_batch_to_device(batch)
 
         # Forward pass
         if self.config.training.use_amp and self.device.type == 'cuda':
@@ -535,6 +563,9 @@ class AlignmentTrainer:
 
         with torch.no_grad():
             for batch in self.val_loader:
+                # Move batch to device
+                batch = self.move_batch_to_device(batch)
+
                 outputs = self.model(
                     sensor_data=batch['sensor_data'],
                     text_embeddings=batch['text_embeddings'],
@@ -675,6 +706,9 @@ class AlignmentTrainer:
         for batch in data_loader:
             if batch_count >= max_batches:
                 break
+
+            # Move batch to device
+            batch = self.move_batch_to_device(batch)
 
             outputs = self.model(
                 sensor_data=batch['sensor_data'],
