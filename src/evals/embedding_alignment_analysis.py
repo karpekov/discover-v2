@@ -81,7 +81,11 @@ class EmbeddingAlignmentAnalyzer:
         if 'model_state_dict' in checkpoint:
             # Load from AlignmentModel - need to extract sensor_encoder weights
             from alignment.model import AlignmentModel
-            full_model = AlignmentModel.load(self.config['checkpoint_path'], device=self.device)
+            full_model = AlignmentModel.load(
+                self.config['checkpoint_path'],
+                device=self.device,
+                vocab_path=self.config.get('vocab_path')
+            )
             self.sensor_encoder = full_model.sensor_encoder
         elif 'chronos_encoder_state_dict' in checkpoint or 'sensor_encoder_state_dict' in checkpoint:
             # Old format - individual state dicts

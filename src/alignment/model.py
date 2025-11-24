@@ -311,11 +311,25 @@ class AlignmentModel(nn.Module):
         torch.save(checkpoint, path)
 
     @classmethod
-    def load(cls, path: str, device: Optional[torch.device] = None):
-        """Load model from checkpoint."""
+    def load(cls, path: str, device: Optional[torch.device] = None, vocab_path: Optional[str] = None):
+        """
+        Load model from checkpoint.
+
+        Args:
+            path: Path to checkpoint file
+            device: Device to load model onto
+            vocab_path: Path to vocabulary JSON file (required for image-based encoders)
+        """
         checkpoint = torch.load(path, map_location=device or 'cpu', weights_only=False)
 
         config = checkpoint['config']
+
+        # Load vocabulary if provided (needed for image-based encoders)
+        vocab = None
+        if vocab_path is not None:
+            import json
+            with open(vocab_path, 'r') as f:
+                vocab = json.load(f)
 
         # Handle two checkpoint formats:
         # 1. AlignmentTrainer format: has 'model_state_dict' (full model) - need to extract vocab_sizes
@@ -342,7 +356,7 @@ class AlignmentModel(nn.Module):
             # So we can safely ignore it by using strict=False
 
             # Create model
-            model = cls(config, vocab_sizes)
+            model = cls(config, vocab_sizes, vocab=vocab)
 
             # Load the full model state dict (with strict=False to ignore text_projection if not in model)
             missing_keys, unexpected_keys = model.load_state_dict(model_state, strict=False)
@@ -357,7 +371,7 @@ class AlignmentModel(nn.Module):
             vocab_sizes = checkpoint['vocab_sizes']
 
             # Create model
-            model = cls(config, vocab_sizes)
+            model = cls(config, vocab_sizes, vocab=vocab)
 
             # Load state dicts
             model.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])

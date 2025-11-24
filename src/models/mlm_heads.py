@@ -435,14 +435,16 @@ class SpanMasker(nn.Module):
       masked_input = features.clone()
       vocab_size = vocab_sizes.get(field, features.max().item() + 1)
 
-      # 80% probability: replace with mask token (use vocab_size as mask token)
+      # 80% probability: replace with mask token (use vocab_size-1 as mask token)
+      # Note: vocab_size includes +1 for the mask token, so valid indices are 0 to vocab_size-1
       mask_token_positions = field_mask & (bert_decisions < self.bert_prob_mask)
-      masked_input[mask_token_positions] = vocab_size  # Mask token ID
+      masked_input[mask_token_positions] = vocab_size - 1  # Mask token ID (last valid index)
 
-      # 10% probability: replace with random token
+      # 10% probability: replace with random token (excluding mask token)
       random_positions = field_mask & (bert_decisions >= self.bert_prob_mask) & (bert_decisions < self.bert_prob_mask + self.bert_prob_random)
       if random_positions.sum() > 0:
-        random_tokens = torch.randint(0, vocab_size, size=(random_positions.sum().item(),), device=device)
+        # Generate random tokens from original vocabulary (0 to vocab_size-2), excluding mask token
+        random_tokens = torch.randint(0, vocab_size - 1, size=(random_positions.sum().item(),), device=device)
         masked_input[random_positions] = random_tokens
 
       # 10% probability: keep original (no change needed)

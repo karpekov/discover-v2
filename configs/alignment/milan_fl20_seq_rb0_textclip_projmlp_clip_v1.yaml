@@ -12,7 +12,7 @@ encoder:
   n_heads: 8
   d_ff: 2048
   max_seq_len: 512
-  dropout: 0.1
+  dropout: 0.2
   projection_dim: 512
   use_alibi: true
   use_learned_pe: false
@@ -41,18 +41,18 @@ optimizer:
   warmup_ratio: 0.1
   grad_clip_norm: 1.0
 training:
-  batch_size: 128
-  max_epochs: 30
+  batch_size: 256
+  max_epochs: 50
   log_interval: 50
   val_interval: 200
-  save_interval: 1000
+  save_interval: 5000
   metrics_interval: 500
-  use_amp: false
+  use_amp: true
   num_workers: 4
   pin_memory: true
   shuffle: true
 use_wandb: true
-wandb_project: discover-v2
+wandb_project: discover-v2-newpipeline
 wandb_entity: null
 wandb_name: null
 wandb_tags: []
@@ -83,7 +83,7 @@ text_projection:
 loss:
   clip_weight: 1.0
   temperature_init: 0.07
-  learnable_temperature: false
+  learnable_temperature: true
   mlm_weight: 0.0
   use_hard_negatives: false
   hard_negative_memory_size: 4096
