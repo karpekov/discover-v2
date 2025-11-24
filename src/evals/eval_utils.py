@@ -36,39 +36,44 @@ def create_text_encoder_from_checkpoint(
     proj_type = None
     base_dim = None
     proj_dim = None
-    
+
     if 'model_state_dict' in checkpoint:
         model_state = checkpoint['model_state_dict']
-        
+
         # Try linear projection first: text_projection.proj.weight
         if 'text_projection.proj.weight' in model_state:
             proj_type = 'linear'
             proj_weight = model_state['text_projection.proj.weight']
             proj_dim, base_dim = proj_weight.shape
-            proj_state_dict = {'proj.weight': proj_weight}
+            # nn.Linear expects 'weight' key, not 'proj.weight'
+            proj_state_dict = {'weight': proj_weight}
+            # Check for bias (optional)
+            if 'text_projection.proj.bias' in model_state:
+                proj_state_dict['bias'] = model_state['text_projection.proj.bias']
             print(f"📐 Detected linear projection: {base_dim} → {proj_dim}")
-            
+
         # Try MLP projection: text_projection.mlp.*
         elif any(k.startswith('text_projection.mlp.') for k in model_state.keys()):
             proj_type = 'mlp'
-            # Extract all MLP weights
+            # Extract all MLP weights and fix key names for Sequential module
             mlp_keys = [k for k in model_state.keys() if k.startswith('text_projection.mlp.')]
             for key in mlp_keys:
-                short_key = key.replace('text_projection.', '')
+                # Remove 'text_projection.mlp.' prefix to get '0.weight', '0.bias', '3.weight', etc.
+                short_key = key.replace('text_projection.mlp.', '')
                 proj_state_dict[short_key] = model_state[key]
-            
+
             # Get dimensions from first layer
             first_layer_weight = model_state['text_projection.mlp.0.weight']
             hidden_dim, base_dim = first_layer_weight.shape
-            
+
             # Get output dimension from last layer
             last_layer_keys = [k for k in mlp_keys if '.weight' in k]
             last_layer_key = sorted(last_layer_keys)[-1]
             proj_dim, _ = model_state[last_layer_key].shape
-            
+
             print(f"📐 Detected MLP projection: {base_dim} → {hidden_dim} → {proj_dim}")
             print(f"   Found {len(mlp_keys)} MLP parameters")
-            
+
         # Check if using pre-computed embeddings (no text projection needed)
         elif 'text_encoder_metadata' in checkpoint:
             # Get dimensions from metadata
@@ -112,7 +117,7 @@ def create_text_encoder_from_checkpoint(
 
         # Create encoder based on type
         text_encoder = _create_encoder_by_type(
-            encoder_type, model_name, base_dim, proj_dim, device, 
+            encoder_type, model_name, base_dim, proj_dim, device,
             proj_type=proj_type, proj_state_dict=proj_state_dict
         )
         return text_encoder
@@ -210,9 +215,9 @@ def _create_encoder_by_type(
 
 
 def _create_clip_encoder(
-    model_name: str, 
-    base_dim: int, 
-    proj_dim: int, 
+    model_name: str,
+    base_dim: int,
+    proj_dim: int,
     device: torch.device,
     proj_type: Optional[str] = None,
     proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
@@ -229,7 +234,7 @@ def _create_clip_encoder(
             self.model_name = model_name
             self._clip_model = None
             self._clip_tokenizer = None
-            
+
             # Create projection head based on type
             if proj_type == 'mlp':
                 # MLP projection: Linear -> GELU -> Dropout -> Linear
@@ -263,22 +268,28 @@ def _create_clip_encoder(
     print(f"   Creating CLIP encoder: {model_name}")
     print(f"   Projection type: {proj_type or 'linear'}")
     encoder = CLIPTextEncoder(model_name, base_dim, proj_dim, proj_type or 'linear')
-    
+
     # Load projection weights if provided
     if proj_state_dict:
         try:
-            encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
-            print(f"   ✅ Loaded projection weights from checkpoint")
+            missing_keys, unexpected_keys = encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
+            if not missing_keys and not unexpected_keys:
+                print(f"   ✅ Loaded {len(proj_state_dict)} projection weights from checkpoint")
+            else:
+                if missing_keys:
+                    print(f"   ⚠️  Missing keys in projection: {missing_keys}")
+                if unexpected_keys:
+                    print(f"   ⚠️  Unexpected keys in projection: {unexpected_keys}")
         except Exception as e:
             print(f"   ⚠️  Could not load projection weights: {e}")
-    
+
     return encoder
 
 
 def _create_llama_encoder(
-    model_name: str, 
-    base_dim: int, 
-    proj_dim: int, 
+    model_name: str,
+    base_dim: int,
+    proj_dim: int,
     device: torch.device,
     proj_type: Optional[str] = None,
     proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
@@ -295,7 +306,7 @@ def _create_llama_encoder(
             self.model_name = model_name
             self._model = None
             self._tokenizer = None
-            
+
             # Create projection head based on type
             if proj_type == 'mlp':
                 # MLP projection: Linear -> GELU -> Dropout -> Linear
@@ -330,22 +341,28 @@ def _create_llama_encoder(
     print(f"   Creating LLaMA encoder: {model_name}")
     print(f"   Projection type: {proj_type or 'linear'}")
     encoder = LLaMATextEncoder(model_name, base_dim, proj_dim, proj_type or 'linear')
-    
+
     # Load projection weights if provided
     if proj_state_dict:
         try:
-            encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
-            print(f"   ✅ Loaded projection weights from checkpoint")
+            missing_keys, unexpected_keys = encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
+            if not missing_keys and not unexpected_keys:
+                print(f"   ✅ Loaded {len(proj_state_dict)} projection weights from checkpoint")
+            else:
+                if missing_keys:
+                    print(f"   ⚠️  Missing keys in projection: {missing_keys}")
+                if unexpected_keys:
+                    print(f"   ⚠️  Unexpected keys in projection: {unexpected_keys}")
         except Exception as e:
             print(f"   ⚠️  Could not load projection weights: {e}")
-    
+
     return encoder
 
 
 def _create_sentence_transformer_encoder(
-    model_name: str, 
-    base_dim: int, 
-    proj_dim: int, 
+    model_name: str,
+    base_dim: int,
+    proj_dim: int,
     device: torch.device,
     proj_type: Optional[str] = None,
     proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
@@ -362,7 +379,7 @@ def _create_sentence_transformer_encoder(
             self.model_name = model_name
             self._model = None
             self._tokenizer = None
-            
+
             # Create projection head based on type
             if proj_type == 'mlp':
                 # MLP projection: Linear -> GELU -> Dropout -> Linear
@@ -397,14 +414,20 @@ def _create_sentence_transformer_encoder(
     print(f"   Creating Sentence-Transformer encoder: {model_name}")
     print(f"   Projection type: {proj_type or 'linear'}")
     encoder = SentenceTransformerEncoder(model_name, base_dim, proj_dim, proj_type or 'linear')
-    
+
     # Load projection weights if provided
     if proj_state_dict:
         try:
-            encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
-            print(f"   ✅ Loaded projection weights from checkpoint")
+            missing_keys, unexpected_keys = encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
+            if not missing_keys and not unexpected_keys:
+                print(f"   ✅ Loaded {len(proj_state_dict)} projection weights from checkpoint")
+            else:
+                if missing_keys:
+                    print(f"   ⚠️  Missing keys in projection: {missing_keys}")
+                if unexpected_keys:
+                    print(f"   ⚠️  Unexpected keys in projection: {unexpected_keys}")
         except Exception as e:
             print(f"   ⚠️  Could not load projection weights: {e}")
-    
+
     return encoder
 

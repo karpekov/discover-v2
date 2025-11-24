@@ -9,18 +9,36 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 Embedding-based evaluation script for CASAS activity recognition.
 Computes nearest neighbor predictions in embedding space and evaluates against ground truth labels.
 
-Sample Usage:
+Supports three evaluation modes:
+1. Sensor embedding evaluation (default): Evaluates sensor embeddings against text prototypes
+2. Text embedding evaluation (--eval_text_embeddings): Evaluates text embeddings with/without projection
+3. Comprehensive evaluation (--eval_all): All three in one - sensor + text (with/without projection)
+
+Sample Usage (Comprehensive - RECOMMENDED):
 python src/evals/evaluate_embeddings.py \
-    --checkpoint trained_models/milan/tiny_50/best_model.pt \
-    --train_data data/processed/casas/milan/training_50/train.json \
-    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
-    --vocab data/processed/casas/milan/training_50/vocab.json \
-    --output_dir results/evals/milan/tiny_50_TEST \
+    --checkpoint trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1/best_model.pt \
+    --train_data data/processed/casas/milan/FD_60_p/train.json \
+    --test_data data/processed/casas/milan/FD_60_p/test.json \
+    --vocab data/processed/casas/milan/FD_60_p/vocab.json \
+    --output_dir results/evals/milan/FD_60_p/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 \
+    --eval_all \
+    --train_text_embeddings data/processed/casas/milan/FD_60_p/train_embeddings_baseline_clip.npz \
+    --test_text_embeddings data/processed/casas/milan/FD_60_p/test_embeddings_baseline_clip.npz \
     --max_samples 10000 \
-    --compare_filtering
+    --filter_noisy_labels
+
+Output Files:
+- combined_tsne_l1.png - 3-subplot t-SNE (text no proj | text proj | sensor)
+- combined_confusion_matrix_l1.png - 3-subplot confusion (L1 labels)
+- combined_confusion_matrix_l2.png - 3-subplot confusion (L2 labels)
+- combined_f1_analysis.png - 2-subplot bar chart (L1 | L2)
+- perclass_f1_weighted_l1.png - Per-class F1 weighted (L1)
+- perclass_f1_weighted_l2.png - Per-class F1 weighted (L2)
+- comprehensive_results.json - All metrics in JSON format
 """
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 import json
@@ -150,11 +168,32 @@ class EmbeddingEvaluator:
         """Load datasets."""
         self.datasets = {}
 
+        # Get sequence length from checkpoint config
+        # This ensures we use the same sequence length as during training
+        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
+        raw_config = checkpoint.get('config', {})
+
+        # Try to extract sequence_length from config
+        if hasattr(raw_config, 'sequence_length'):
+            sequence_length = raw_config.sequence_length
+        elif hasattr(raw_config, 'data') and hasattr(raw_config.data, 'sequence_length'):
+            sequence_length = raw_config.data.sequence_length
+        elif isinstance(raw_config, dict) and 'sequence_length' in raw_config:
+            sequence_length = raw_config['sequence_length']
+        else:
+            # Fallback to reasonable default for FD_60 data
+            # Model supports up to max_seq_len=512, but 256 is good for 60-second windows
+            sequence_length = 256
+            print(f"⚠️  Could not find sequence_length in checkpoint, using default: {sequence_length}")
+            print(f"    (Model supports up to 512, but 256 is reasonable for FD_60 data)")
+
+        print(f"📏 Using sequence_length={sequence_length} from training config")
+
         if self.config['train_data_path'] and Path(self.config['train_data_path']).exists():
             self.datasets['train'] = SmartHomeDataset(
                 data_path=self.config['train_data_path'],
                 vocab_path=self.config['vocab_path'],
-                sequence_length=20,
+                sequence_length=sequence_length,
                 max_captions=1
             )
             print(f"📊 Train dataset: {len(self.datasets['train'])} samples")
@@ -163,7 +202,7 @@ class EmbeddingEvaluator:
             self.datasets['test'] = SmartHomeDataset(
                 data_path=self.config['test_data_path'],
                 vocab_path=self.config['vocab_path'],
-                sequence_length=20,
+                sequence_length=sequence_length,
                 max_captions=1
             )
             print(f"📊 Test dataset: {len(self.datasets['test'])} samples")
@@ -176,15 +215,15 @@ class EmbeddingEvaluator:
                 city_metadata = json.load(f)
 
             # Detect which dataset we're using from the data path
-            dataset_name = 'milan'  # default
+            self.dataset_name = 'milan'  # default
             if 'train_data_path' in self.config:
                 data_path = str(self.config['train_data_path'])
                 for name in ['milan', 'cairo', 'aruba', 'tulum', 'kyoto', 'aware_home']:
                     if name in data_path.lower():
-                        dataset_name = name
+                        self.dataset_name = name
                         break
 
-            dataset_metadata = city_metadata.get(dataset_name, {})
+            dataset_metadata = city_metadata.get(self.dataset_name, {})
 
             # Load L1 colors - different keys for different datasets
             # Milan uses 'label', others use 'label_color'
@@ -194,15 +233,15 @@ class EmbeddingEvaluator:
             self.label_colors_l2 = dataset_metadata.get('label_deepcasas_color', {})
 
             if self.label_colors:
-                print(f"🎨 Loaded {len(self.label_colors)} L1 label colors from {dataset_name} metadata")
+                print(f"🎨 Loaded {len(self.label_colors)} L1 label colors from {self.dataset_name} metadata")
             else:
-                print(f"⚠️  No L1 label colors found in {dataset_name} metadata, using default colors")
+                print(f"⚠️  No L1 label colors found in {self.dataset_name} metadata, using default colors")
                 self.label_colors = {}
 
             if self.label_colors_l2:
-                print(f"🎨 Loaded {len(self.label_colors_l2)} L2 label colors from {dataset_name} metadata")
+                print(f"🎨 Loaded {len(self.label_colors_l2)} L2 label colors from {self.dataset_name} metadata")
             else:
-                print(f"⚠️  No L2 label colors found in {dataset_name} metadata, using default colors")
+                print(f"⚠️  No L2 label colors found in {self.dataset_name} metadata, using default colors")
                 self.label_colors_l2 = {}
 
         except Exception as e:
@@ -242,16 +281,16 @@ class EmbeddingEvaluator:
         else:
             print(f"📊 Using all {len(dataset)} samples")
 
-        # Create data loader with shuffling
+        # Create data loader with larger batch size for faster inference
         data_loader = create_data_loader(
             dataset=dataset,
             text_encoder=self.text_encoder,
             span_masker=None,
             vocab_sizes=self.vocab_sizes,
             device=self.device,
-            batch_size=64,
+            batch_size=256,  # Much larger batch size for inference (was 64)
             shuffle=True,  # Always shuffle for good measure
-            num_workers=0,
+            num_workers=0,  # Must be 0 due to unpicklable objects
             apply_mlm=False
         )
 
@@ -260,13 +299,26 @@ class EmbeddingEvaluator:
         labels_l2 = []
         samples_processed = 0
 
+        import time
+        total_time = 0
+        data_load_time = 0
+        forward_time = 0
+        cpu_transfer_time = 0
+        label_extract_time = 0
+
+        batch_start = time.time()
+
         with torch.no_grad():
             for batch_idx, batch in enumerate(data_loader):
+                iter_start = time.time()
+                data_load_time += (iter_start - batch_start)
+
                 if samples_processed >= actual_samples:
                     break
 
                 # Extract CLIP projected embeddings (512-dim)
                 # Pack data for new encoder interface
+                forward_start = time.time()
                 input_data = {
                     'categorical_features': batch['categorical_features'],
                     'coordinates': batch['coordinates'],
@@ -276,10 +328,14 @@ class EmbeddingEvaluator:
                     input_data=input_data,
                     attention_mask=batch['mask']
                 )
+                forward_time += (time.time() - forward_start)
 
+                cpu_start = time.time()
                 embeddings.append(sensor_emb.cpu().numpy())
+                cpu_transfer_time += (time.time() - cpu_start)
 
                 # Extract labels for this batch
+                label_start = time.time()
                 batch_size_actual = sensor_emb.shape[0]
 
                 # Get ground truth labels directly from the batch (much more reliable!)
@@ -299,8 +355,25 @@ class EmbeddingEvaluator:
 
                     samples_processed += 1
 
-                if batch_idx % 20 == 0:
-                    print(f"  Processed {samples_processed}/{actual_samples} samples...")
+                label_extract_time += (time.time() - label_start)
+                total_time = time.time() - iter_start + data_load_time
+
+                if batch_idx % 5 == 0:
+                    avg_per_sample = total_time / max(samples_processed, 1)
+                    eta_seconds = avg_per_sample * (actual_samples - samples_processed)
+                    print(f"  Processed {samples_processed}/{actual_samples} samples... "
+                          f"[{avg_per_sample*1000:.1f}ms/sample, ETA: {eta_seconds:.1f}s]")
+                    print(f"    ⏱️  Data load: {data_load_time:.2f}s | Forward: {forward_time:.2f}s | "
+                          f"CPU transfer: {cpu_transfer_time:.2f}s | Labels: {label_extract_time:.2f}s")
+
+                batch_start = time.time()
+
+        print(f"\n⏱️  Total timing breakdown:")
+        print(f"   Data loading: {data_load_time:.2f}s ({data_load_time/total_time*100:.1f}%)")
+        print(f"   Forward pass: {forward_time:.2f}s ({forward_time/total_time*100:.1f}%)")
+        print(f"   CPU transfer: {cpu_transfer_time:.2f}s ({cpu_transfer_time/total_time*100:.1f}%)")
+        print(f"   Label extract: {label_extract_time:.2f}s ({label_extract_time/total_time*100:.1f}%)")
+        print(f"   Total: {total_time:.2f}s")
 
         # Concatenate embeddings
         embeddings = np.vstack(embeddings)[:actual_samples]
@@ -365,10 +438,60 @@ class EmbeddingEvaluator:
 
         return filtered_embeddings, filtered_labels_l1, filtered_labels_l2, valid_original_indices
 
-    def create_text_prototypes(self, labels: List[str]) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
-        """Create text-based prototypes using the text encoder with multiple captions per label."""
+    def get_labels_from_metadata(self, dataset_name: str) -> Tuple[List[str], List[str]]:
+        """
+        Extract all L1 and L2 labels from metadata file without loading training data.
 
-        print(f"🔄 Creating text-based label prototypes...")
+        Args:
+            dataset_name: Name of dataset (e.g., 'milan', 'aruba')
+
+        Returns:
+            Tuple of (l1_labels, l2_labels)
+        """
+        import json
+        from pathlib import Path
+
+        metadata_path = Path(__file__).parent.parent.parent / 'metadata' / 'casas_metadata.json'
+
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+
+        if dataset_name not in metadata:
+            raise ValueError(f"Dataset {dataset_name} not found in metadata. Available: {list(metadata.keys())}")
+
+        dataset_meta = metadata[dataset_name]
+
+        # Get L1 labels from label_l2 mapping keys
+        if 'label_l2' in dataset_meta:
+            l1_labels = list(dataset_meta['label_l2'].keys())
+            # Get unique L2 labels from values
+            l2_labels = list(set(dataset_meta['label_l2'].values()))
+        else:
+            # Fallback to label_to_text if label_l2 not available
+            if 'label_to_text' in dataset_meta:
+                l1_labels = list(dataset_meta['label_to_text'].keys())
+                l2_labels = []
+            else:
+                raise ValueError(f"No label information found for dataset {dataset_name}")
+
+        # Filter out empty strings
+        l1_labels = [label for label in l1_labels if label and label.strip()]
+        l2_labels = [label for label in l2_labels if label and label.strip()]
+
+        print(f"📋 Extracted from metadata: {len(l1_labels)} L1 labels, {len(l2_labels)} L2 labels")
+
+        return l1_labels, l2_labels
+
+    def create_text_prototypes(self, labels: List[str], apply_projection: bool = True) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
+        """Create text-based prototypes using the text encoder with multiple captions per label.
+
+        Args:
+            labels: List of label strings
+            apply_projection: If True, uses encode_texts_clip (with projection).
+                            If False, encodes without projection.
+        """
+
+        print(f"🔄 Creating text-based label prototypes (projection={'ON' if apply_projection else 'OFF'})...")
 
         # Get unique labels and their counts
         label_counts = Counter(labels)
@@ -387,8 +510,23 @@ class EmbeddingEvaluator:
             for i, label in enumerate(unique_labels):
                 descriptions = label_descriptions_lists[i]
 
-                # Encode all descriptions for this label
-                caption_embeddings = self.text_encoder.encode_texts_clip(descriptions, self.device).cpu().numpy()
+                if apply_projection:
+                    # Use encode_texts_clip which includes projection
+                    caption_embeddings = self.text_encoder.encode_texts_clip(descriptions, self.device).cpu().numpy()
+                else:
+                    # Encode WITHOUT projection (raw CLIP embeddings)
+                    # Load CLIP model if needed
+                    if not hasattr(self.text_encoder, '_clip_model') or self.text_encoder._clip_model is None:
+                        from transformers import CLIPTextModel, CLIPTokenizer
+                        self.text_encoder._clip_model = CLIPTextModel.from_pretrained(self.text_encoder.model_name).to(self.device)
+                        self.text_encoder._clip_tokenizer = CLIPTokenizer.from_pretrained(self.text_encoder.model_name)
+                        self.text_encoder._clip_model.eval()
+
+                    inputs = self.text_encoder._clip_tokenizer(descriptions, padding=True, truncation=True, return_tensors="pt").to(self.device)
+                    outputs = self.text_encoder._clip_model(**inputs)
+                    embeddings = outputs.pooler_output
+                    embeddings = F.normalize(embeddings, p=2, dim=-1)
+                    caption_embeddings = embeddings.cpu().numpy()
 
                 # Average the embeddings to create a single prototype
                 prototype_embedding = np.mean(caption_embeddings, axis=0)
@@ -1734,7 +1872,7 @@ class EmbeddingEvaluator:
                 if np.any(mask):
                     ax.scatter(embeddings_2d[mask, 0], embeddings_2d[mask, 1],
                              c=[label_to_color[label]], label=label.replace('_', ' '),
-                             alpha=0.7, s=20)
+                             alpha=0.6, s=20, edgecolors='white', linewidth=0.3)
 
             ax.set_title(title_text, fontweight='bold', fontsize=12)
             ax.set_xlabel('t-SNE Component 1')
@@ -2073,13 +2211,1017 @@ class EmbeddingEvaluator:
 
         return all_results
 
+    def load_text_embeddings_from_file(self, embeddings_path: str,
+                                       data_path: str,
+                                       max_samples: int = None) -> Tuple[np.ndarray, List[str], List[str], List[str]]:
+        """Load text embeddings from .npz file and match with labels.
+
+        Returns:
+            Tuple of (embeddings, sample_ids, labels_l1, labels_l2)
+        """
+        print(f"\n📖 Loading text embeddings from: {embeddings_path}")
+        data = np.load(embeddings_path)
+        embeddings = data['embeddings']
+        sample_ids_from_emb = data['sample_ids']
+
+        print(f"   Loaded {embeddings.shape[0]} embeddings of dimension {embeddings.shape[1]}")
+        if 'encoder_type' in data:
+            print(f"   Encoder: {data.get('encoder_type', ['unknown'])[0]}")
+        if 'model_name' in data:
+            print(f"   Model: {data.get('model_name', ['unknown'])[0]}")
+
+        # Load labels from data file
+        print(f"\n📖 Loading labels from: {data_path}")
+        with open(data_path, 'r') as f:
+            data_json = json.load(f)
+
+        samples_data = data_json.get('samples', data_json)
+
+        label_map = {}
+        for sample in samples_data:
+            sample_id = sample.get('sample_id')
+            if sample_id:
+                metadata = sample.get('metadata', {})
+                ground_truth = metadata.get('ground_truth_labels', {})
+                label_l1 = ground_truth.get('primary_l1', ground_truth.get('mode', 'Unknown'))
+                label_l2 = ground_truth.get('primary_l2', 'Unknown')
+                label_map[sample_id] = {'label_l1': label_l1, 'label_l2': label_l2}
+
+        print(f"   Loaded labels for {len(label_map)} samples")
+
+        # Match embeddings with labels
+        labels_l1 = []
+        labels_l2 = []
+        sample_ids = []
+        valid_indices = []
+
+        for i, sample_id in enumerate(sample_ids_from_emb):
+            sample_id_str = str(sample_id)
+            if sample_id_str in label_map:
+                labels_l1.append(label_map[sample_id_str]['label_l1'])
+                labels_l2.append(label_map[sample_id_str]['label_l2'])
+                sample_ids.append(sample_id_str)
+                valid_indices.append(i)
+
+        embeddings = embeddings[valid_indices]
+        print(f"   Matched {len(labels_l1)} samples with labels")
+
+        # Sample if needed
+        if max_samples and len(embeddings) > max_samples:
+            print(f"\n🎲 Sampling {max_samples} from {len(embeddings)} samples (seed=42)")
+            np.random.seed(42)
+            indices = np.random.choice(len(embeddings), max_samples, replace=False)
+            embeddings = embeddings[indices]
+            sample_ids = [sample_ids[i] for i in indices]
+            labels_l1 = [labels_l1[i] for i in indices]
+            labels_l2 = [labels_l2[i] for i in indices]
+
+        return embeddings, sample_ids, labels_l1, labels_l2
+
+    def apply_projection_to_embeddings(self, embeddings: np.ndarray,
+                                       normalize: bool = True) -> np.ndarray:
+        """Apply the projection head from the checkpoint to embeddings.
+
+        Args:
+            embeddings: Input embeddings (numpy array)
+            normalize: Whether to normalize after projection
+
+        Returns:
+            Projected embeddings (numpy array)
+        """
+        print(f"🔄 Applying projection head to {len(embeddings)} embeddings...")
+
+        # Convert to torch tensor
+        embeddings_torch = torch.from_numpy(embeddings).float().to(self.device)
+
+        # Apply projection using the text encoder's projection head
+        with torch.no_grad():
+            if normalize:
+                embeddings_torch = F.normalize(embeddings_torch, p=2, dim=-1)
+
+            # Apply the clip_proj from text_encoder
+            if hasattr(self.text_encoder, 'clip_proj'):
+                projected = self.text_encoder.clip_proj(embeddings_torch)
+            else:
+                print("   ⚠️  No projection head found, returning original embeddings")
+                projected = embeddings_torch
+
+            if normalize:
+                projected = F.normalize(projected, p=2, dim=-1)
+
+        # Convert back to numpy
+        projected_np = projected.cpu().numpy()
+        print(f"   Projected: {embeddings.shape[1]}-dim → {projected_np.shape[1]}-dim")
+
+        return projected_np
+
+    def run_text_embedding_evaluation(self,
+                                     train_embeddings_path: str,
+                                     test_embeddings_path: str,
+                                     train_data_path: str,
+                                     test_data_path: str,
+                                     max_samples: int = 10000,
+                                     k_neighbors: int = 1,
+                                     filter_noisy_labels: bool = False,
+                                     save_results: bool = True) -> Dict[str, Any]:
+        """Evaluate text embeddings with and without projection.
+
+        This loads pre-computed text embeddings and evaluates them against
+        label prototypes, both in the original space and after applying
+        the projection head from the trained model.
+
+        Args:
+            train_embeddings_path: Path to training text embeddings .npz file
+            test_embeddings_path: Path to test text embeddings .npz file
+            train_data_path: Path to training data JSON file (for labels)
+            test_data_path: Path to test data JSON file (for labels)
+        """
+        print("\n" + "="*80)
+        print("TEXT EMBEDDING EVALUATION (WITH AND WITHOUT PROJECTION)")
+        print("="*80)
+
+        # Load train embeddings to get label distribution
+        print("\n" + "="*60)
+        print("1. LOADING TRAINING TEXT EMBEDDINGS")
+        print("="*60)
+
+        train_embeddings, train_sample_ids, train_labels_l1, train_labels_l2 = \
+            self.load_text_embeddings_from_file(train_embeddings_path, train_data_path, max_samples)
+
+        # Filter noisy labels if requested
+        if filter_noisy_labels:
+            train_embeddings, train_labels_l1, train_labels_l2, _ = \
+                self.filter_noisy_labels(train_embeddings, train_labels_l1, train_labels_l2)
+
+        # Load test embeddings
+        print("\n" + "="*60)
+        print("2. LOADING TEST TEXT EMBEDDINGS")
+        print("="*60)
+
+        test_embeddings, test_sample_ids, test_labels_l1, test_labels_l2 = \
+            self.load_text_embeddings_from_file(test_embeddings_path, test_data_path, max_samples)
+
+        # Filter noisy labels if requested
+        if filter_noisy_labels:
+            test_embeddings, test_labels_l1, test_labels_l2, _ = \
+                self.filter_noisy_labels(test_embeddings, test_labels_l1, test_labels_l2)
+
+        # ===== EVALUATION WITHOUT PROJECTION =====
+        print("\n" + "="*60)
+        print("3. EVALUATION WITHOUT PROJECTION (Original Space)")
+        print("="*60)
+
+        # Create prototypes from training embeddings (without projection)
+        print("🔄 Creating prototypes from training text embeddings (no projection)...")
+        prototypes_l1_orig = self.create_prototypes_from_embeddings(train_embeddings, train_labels_l1)
+        prototypes_l2_orig = self.create_prototypes_from_embeddings(train_embeddings, train_labels_l2)
+
+        # Predict using original embeddings
+        pred_labels_l1_orig = self.predict_labels_knn(test_embeddings, prototypes_l1_orig, k_neighbors)
+        pred_labels_l2_orig = self.predict_labels_knn(test_embeddings, prototypes_l2_orig, k_neighbors)
+
+        # Evaluate
+        metrics_l1_orig = self.evaluate_predictions(test_labels_l1, pred_labels_l1_orig, "L1 (No Projection)")
+        metrics_l2_orig = self.evaluate_predictions(test_labels_l2, pred_labels_l2_orig, "L2 (No Projection)")
+
+        # ===== EVALUATION WITH PROJECTION =====
+        print("\n" + "="*60)
+        print("4. EVALUATION WITH PROJECTION (Aligned Space)")
+        print("="*60)
+
+        # Apply projection to train and test embeddings
+        train_embeddings_proj = self.apply_projection_to_embeddings(train_embeddings)
+        test_embeddings_proj = self.apply_projection_to_embeddings(test_embeddings)
+
+        # Create prototypes from projected training embeddings
+        print("🔄 Creating prototypes from projected text embeddings...")
+        prototypes_l1_proj = self.create_prototypes_from_embeddings(train_embeddings_proj, train_labels_l1)
+        prototypes_l2_proj = self.create_prototypes_from_embeddings(train_embeddings_proj, train_labels_l2)
+
+        # Predict using projected embeddings
+        pred_labels_l1_proj = self.predict_labels_knn(test_embeddings_proj, prototypes_l1_proj, k_neighbors)
+        pred_labels_l2_proj = self.predict_labels_knn(test_embeddings_proj, prototypes_l2_proj, k_neighbors)
+
+        # Evaluate
+        metrics_l1_proj = self.evaluate_predictions(test_labels_l1, pred_labels_l1_proj, "L1 (With Projection)")
+        metrics_l2_proj = self.evaluate_predictions(test_labels_l2, pred_labels_l2_proj, "L2 (With Projection)")
+
+        # ===== CREATE VISUALIZATIONS =====
+        if save_results:
+            print("\n" + "="*60)
+            print("5. CREATING VISUALIZATIONS")
+            print("="*60)
+
+            output_dir = Path(self.config.get('output_dir', './text_embedding_evaluation'))
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Confusion matrices - without projection
+            if 'confusion_matrix' in metrics_l1_orig:
+                self.create_confusion_matrix_plot(
+                    metrics_l1_orig['confusion_matrix'],
+                    metrics_l1_orig['unique_labels'],
+                    'L1 Primary Activities (No Projection)',
+                    str(output_dir / 'text_confusion_matrix_l1_noproj.png')
+                )
+
+            if 'confusion_matrix' in metrics_l2_orig:
+                self.create_confusion_matrix_plot(
+                    metrics_l2_orig['confusion_matrix'],
+                    metrics_l2_orig['unique_labels'],
+                    'L2 Secondary Activities (No Projection)',
+                    str(output_dir / 'text_confusion_matrix_l2_noproj.png')
+                )
+
+            # Confusion matrices - with projection
+            if 'confusion_matrix' in metrics_l1_proj:
+                self.create_confusion_matrix_plot(
+                    metrics_l1_proj['confusion_matrix'],
+                    metrics_l1_proj['unique_labels'],
+                    'L1 Primary Activities (With Projection)',
+                    str(output_dir / 'text_confusion_matrix_l1_proj.png')
+                )
+
+            if 'confusion_matrix' in metrics_l2_proj:
+                self.create_confusion_matrix_plot(
+                    metrics_l2_proj['confusion_matrix'],
+                    metrics_l2_proj['unique_labels'],
+                    'L2 Secondary Activities (With Projection)',
+                    str(output_dir / 'text_confusion_matrix_l2_proj.png')
+                )
+
+            # t-SNE plots - without projection
+            self.create_tsne_scatter_plots(
+                embeddings=test_embeddings,
+                true_labels_l1=test_labels_l1,
+                pred_labels_l1=pred_labels_l1_orig,
+                true_labels_l2=test_labels_l2,
+                pred_labels_l2=pred_labels_l2_orig,
+                title='Text Embeddings Evaluation (No Projection)',
+                subtitle=f'Original embedding space | {len(test_embeddings)} test samples',
+                save_path=str(output_dir / 'text_tsne_noproj.png')
+            )
+
+            # t-SNE plots - with projection
+            self.create_tsne_scatter_plots(
+                embeddings=test_embeddings_proj,
+                true_labels_l1=test_labels_l1,
+                pred_labels_l1=pred_labels_l1_proj,
+                true_labels_l2=test_labels_l2,
+                pred_labels_l2=pred_labels_l2_proj,
+                title='Text Embeddings Evaluation (With Projection)',
+                subtitle=f'Aligned embedding space | {len(test_embeddings_proj)} test samples',
+                save_path=str(output_dir / 'text_tsne_proj.png')
+            )
+
+            # Save results
+            results_summary = {
+                'no_projection': {
+                    'metrics_l1': {
+                        'accuracy': metrics_l1_orig.get('accuracy', 0),
+                        'f1_macro': metrics_l1_orig.get('f1_macro', 0),
+                        'f1_weighted': metrics_l1_orig.get('f1_weighted', 0),
+                        'num_classes': metrics_l1_orig.get('num_classes', 0),
+                        'num_samples': metrics_l1_orig.get('num_samples', 0),
+                    },
+                    'metrics_l2': {
+                        'accuracy': metrics_l2_orig.get('accuracy', 0),
+                        'f1_macro': metrics_l2_orig.get('f1_macro', 0),
+                        'f1_weighted': metrics_l2_orig.get('f1_weighted', 0),
+                        'num_classes': metrics_l2_orig.get('num_classes', 0),
+                        'num_samples': metrics_l2_orig.get('num_samples', 0),
+                    }
+                },
+                'with_projection': {
+                    'metrics_l1': {
+                        'accuracy': metrics_l1_proj.get('accuracy', 0),
+                        'f1_macro': metrics_l1_proj.get('f1_macro', 0),
+                        'f1_weighted': metrics_l1_proj.get('f1_weighted', 0),
+                        'num_classes': metrics_l1_proj.get('num_classes', 0),
+                        'num_samples': metrics_l1_proj.get('num_samples', 0),
+                    },
+                    'metrics_l2': {
+                        'accuracy': metrics_l2_proj.get('accuracy', 0),
+                        'f1_macro': metrics_l2_proj.get('f1_macro', 0),
+                        'f1_weighted': metrics_l2_proj.get('f1_weighted', 0),
+                        'num_classes': metrics_l2_proj.get('num_classes', 0),
+                        'num_samples': metrics_l2_proj.get('num_samples', 0),
+                    }
+                }
+            }
+
+            with open(output_dir / 'text_embedding_results.json', 'w') as f:
+                json.dump(results_summary, f, indent=2)
+
+            print(f"💾 Results saved: {output_dir / 'text_embedding_results.json'}")
+
+        # ===== SUMMARY =====
+        print("\n" + "="*80)
+        print("🎯 TEXT EMBEDDING EVALUATION SUMMARY")
+        print("="*80)
+
+        print("\n📊 WITHOUT PROJECTION (Original Space):")
+        print(f"   L1 - F1 Macro: {metrics_l1_orig.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l1_orig.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l1_orig.get('accuracy', 0):.4f}")
+        print(f"   L2 - F1 Macro: {metrics_l2_orig.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l2_orig.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l2_orig.get('accuracy', 0):.4f}")
+
+        print("\n📊 WITH PROJECTION (Aligned Space):")
+        print(f"   L1 - F1 Macro: {metrics_l1_proj.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l1_proj.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l1_proj.get('accuracy', 0):.4f}")
+        print(f"   L2 - F1 Macro: {metrics_l2_proj.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l2_proj.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l2_proj.get('accuracy', 0):.4f}")
+
+        print(f"\n📈 IMPROVEMENT WITH PROJECTION:")
+        l1_improvement = metrics_l1_proj.get('f1_macro', 0) - metrics_l1_orig.get('f1_macro', 0)
+        l2_improvement = metrics_l2_proj.get('f1_macro', 0) - metrics_l2_orig.get('f1_macro', 0)
+        print(f"   L1 F1 Macro: {l1_improvement:+.4f} ({'improved' if l1_improvement > 0 else 'degraded'})")
+        print(f"   L2 F1 Macro: {l2_improvement:+.4f} ({'improved' if l2_improvement > 0 else 'degraded'})")
+
+        return {
+            'no_projection': {
+                'metrics_l1': metrics_l1_orig,
+                'metrics_l2': metrics_l2_orig,
+            },
+            'with_projection': {
+                'metrics_l1': metrics_l1_proj,
+                'metrics_l2': metrics_l2_proj,
+            }
+        }
+
+    def create_prototypes_from_embeddings(self, embeddings: np.ndarray,
+                                         labels: List[str]) -> Dict[str, np.ndarray]:
+        """Create prototypes by averaging embeddings for each label.
+
+        Args:
+            embeddings: Array of embeddings
+            labels: Corresponding labels
+
+        Returns:
+            Dictionary mapping label to prototype embedding
+        """
+        unique_labels = sorted(list(set(labels)))
+        prototypes = {}
+
+        for label in unique_labels:
+            # Get all embeddings for this label
+            mask = np.array(labels) == label
+            label_embeddings = embeddings[mask]
+
+            # Average to create prototype
+            prototype = np.mean(label_embeddings, axis=0)
+            prototypes[label] = prototype
+
+        print(f"✅ Created {len(prototypes)} prototypes from embeddings")
+
+        return prototypes
+
+    def create_combined_tsne_plot(self,
+                                 embeddings_dict: Dict[str, np.ndarray],
+                                 labels_dict: Dict[str, List[str]],
+                                 save_path: str = None,
+                                 max_samples_tsne: int = 5000) -> plt.Figure:
+        """Create combined t-SNE plot with 3 subplots showing different embedding types.
+
+        Args:
+            embeddings_dict: Dict with keys 'text_noproj', 'text_proj', 'sensor'
+            labels_dict: Dict with same keys containing L1 ground truth labels
+            save_path: Path to save plot
+            max_samples_tsne: Max samples for t-SNE computation
+        """
+        print(f"🔄 Creating combined t-SNE visualization (3 subplots)...")
+
+        # Sample each embedding type separately with its own labels
+        embeddings_sampled = {}
+        labels_sampled = {}
+
+        for key in embeddings_dict.keys():
+            embeddings = embeddings_dict[key]
+            labels = labels_dict[key]
+
+            if len(labels) > max_samples_tsne:
+                print(f"   Sampling {max_samples_tsne} from {len(labels)} samples for {key}")
+                np.random.seed(42)
+                indices = np.random.choice(len(labels), max_samples_tsne, replace=False)
+                embeddings_sampled[key] = embeddings[indices]
+                labels_sampled[key] = [labels[i] for i in indices]
+            else:
+                embeddings_sampled[key] = embeddings
+                labels_sampled[key] = labels
+
+        # Create figure with 3 subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(21, 6))
+        fig.suptitle('t-SNE Visualization Comparison (L1 Ground Truth Labels)',
+                     fontsize=16, fontweight='bold', y=0.98)
+
+        # Get all unique labels across all embedding types for consistent coloring
+        all_labels = []
+        for labels in labels_sampled.values():
+            all_labels.extend(labels)
+        unique_labels_all = sorted(list(set(all_labels)))
+        if len(unique_labels_all) > 15:
+            label_counts = Counter(all_labels)
+            unique_labels_all = [label for label, _ in label_counts.most_common(15)]
+
+        # Create consistent color mapping
+        label_to_color = {}
+        for i, label in enumerate(unique_labels_all):
+            if hasattr(self, 'label_colors') and label in self.label_colors:
+                label_to_color[label] = self.label_colors[label]
+            else:
+                label_to_color[label] = plt.cm.tab20(i % 20)
+
+        # Process each embedding type
+        axes = [ax1, ax2, ax3]
+        titles = ['Text Embeddings (No Projection)', 'Text Embeddings (With Projection)', 'Sensor Embeddings']
+        keys = ['text_noproj', 'text_proj', 'sensor']
+
+        for ax, title, key in zip(axes, titles, keys):
+            if key not in embeddings_sampled:
+                ax.text(0.5, 0.5, 'Not Available', ha='center', va='center', fontsize=14)
+                ax.set_title(title, fontweight='bold', fontsize=12)
+                continue
+
+            embeddings = embeddings_sampled[key]
+            labels_for_key = labels_sampled[key]
+
+            print(f"   Computing t-SNE for {title}...")
+            print(f"      Embeddings shape: {embeddings.shape}, Labels: {len(labels_for_key)}")
+            print(f"      Label distribution: {Counter(labels_for_key).most_common(5)}")
+
+            tsne = TSNE(n_components=2, random_state=42,
+                       perplexity=min(30, len(embeddings)//4))
+            embeddings_2d = tsne.fit_transform(embeddings)
+
+            # Get unique labels for this specific embedding type
+            unique_labels_key = sorted(list(set(labels_for_key)))
+            if len(unique_labels_key) > 15:
+                label_counts_key = Counter(labels_for_key)
+                unique_labels_key = [label for label, _ in label_counts_key.most_common(15)]
+
+            # Plot each label using the correct labels for this embedding type
+            for label in unique_labels_key:
+                mask = np.array(labels_for_key) == label
+                if np.any(mask):
+                    ax.scatter(embeddings_2d[mask, 0], embeddings_2d[mask, 1],
+                             c=[label_to_color[label]], label=label.replace('_', ' '),
+                             alpha=0.6, s=20, edgecolors='white', linewidth=0.3)
+
+            ax.set_title(title, fontweight='bold', fontsize=12)
+            ax.set_xlabel('t-SNE 1', fontsize=10)
+            ax.set_ylabel('t-SNE 2', fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+        # Create shared legend
+        handles, legend_labels = ax1.get_legend_handles_labels()
+        if handles:
+            fig.legend(handles, legend_labels, bbox_to_anchor=(0.5, -0.02),
+                      loc='upper center', fontsize=9, ncol=5, frameon=True,
+                      fancybox=True, shadow=True)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Combined t-SNE plot saved: {save_path}")
+
+        return fig
+
+    def create_combined_confusion_matrices(self,
+                                          confusion_matrices: Dict[str, np.ndarray],
+                                          unique_labels: Dict[str, List[str]],
+                                          label_level: str,
+                                          save_path: str = None) -> plt.Figure:
+        """Create combined confusion matrix plot with 3 subplots.
+
+        Args:
+            confusion_matrices: Dict with keys 'text_noproj', 'text_proj', 'sensor'
+            unique_labels: Dict with same keys containing label lists
+            label_level: 'L1' or 'L2'
+            save_path: Path to save plot
+        """
+        print(f"🔄 Creating combined confusion matrix plot ({label_level})...")
+
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 7))
+        fig.suptitle(f'Confusion Matrix Comparison - {label_level} Labels',
+                     fontsize=16, fontweight='bold')
+
+        axes = [ax1, ax2, ax3]
+        titles = ['Text (No Projection)', 'Text (With Projection)', 'Sensor']
+        keys = ['text_noproj', 'text_proj', 'sensor']
+
+        for ax, title, key in zip(axes, titles, keys):
+            if key not in confusion_matrices:
+                ax.text(0.5, 0.5, 'Not Available', ha='center', va='center', fontsize=14)
+                ax.set_title(title, fontweight='bold', fontsize=12)
+                continue
+
+            cm = confusion_matrices[key]
+            labels = unique_labels[key]
+
+            # Limit to top 15 if too many
+            if len(labels) > 15:
+                cm = cm[:15, :15]
+                labels = labels[:15]
+
+            # Normalize
+            cm_normalized = cm.astype('float') / (cm.sum(axis=1)[:, np.newaxis] + 1e-8)
+
+            # Plot heatmap
+            sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues',
+                       xticklabels=labels, yticklabels=labels, ax=ax,
+                       cbar_kws={'label': 'Normalized Count'})
+
+            ax.set_title(title, fontweight='bold', fontsize=12)
+            ax.set_xlabel('Predicted Label', fontsize=10)
+            ax.set_ylabel('True Label', fontsize=10)
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right', fontsize=8)
+            plt.setp(ax.yaxis.get_majorticklabels(), rotation=0, fontsize=8)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Combined confusion matrix plot saved: {save_path}")
+
+        return fig
+
+    def create_combined_f1_analysis(self,
+                                   metrics_dict: Dict[str, Dict],
+                                   save_path: str = None) -> plt.Figure:
+        """Create F1 analysis plot with 2 subplots (L1 and L2).
+        Grouped by metric (each metric shows all 3 models).
+
+        Args:
+            metrics_dict: Dict with keys 'text_noproj', 'text_proj', 'sensor',
+                         each containing 'metrics_l1' and 'metrics_l2'
+            save_path: Path to save plot
+        """
+        print(f"🔄 Creating combined F1 analysis plot...")
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        fig.suptitle('Performance Comparison Across Embedding Types',
+                     fontsize=16, fontweight='bold')
+
+        model_names = ['Text\n(No Proj)', 'Text\n(With Proj)', 'Sensor']
+        keys = ['text_noproj', 'text_proj', 'sensor']
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+
+        # Extract metrics for L1
+        l1_accuracy = [metrics_dict[k]['metrics_l1'].get('accuracy', 0) for k in keys if k in metrics_dict]
+        l1_f1_weighted = [metrics_dict[k]['metrics_l1'].get('f1_weighted', 0) for k in keys if k in metrics_dict]
+        l1_f1_macro = [metrics_dict[k]['metrics_l1'].get('f1_macro', 0) for k in keys if k in metrics_dict]
+
+        # Extract metrics for L2
+        l2_accuracy = [metrics_dict[k]['metrics_l2'].get('accuracy', 0) for k in keys if k in metrics_dict]
+        l2_f1_weighted = [metrics_dict[k]['metrics_l2'].get('f1_weighted', 0) for k in keys if k in metrics_dict]
+        l2_f1_macro = [metrics_dict[k]['metrics_l2'].get('f1_macro', 0) for k in keys if k in metrics_dict]
+
+        # Filter model names based on available data
+        available_models = [model_names[i] for i, k in enumerate(keys) if k in metrics_dict]
+        n_models = len(available_models)
+
+        # Metrics grouped together
+        metric_names = ['Accuracy', 'F1 Weighted', 'F1 Macro']
+        x = np.arange(len(metric_names))
+        width = 0.25
+
+        # L1 subplot - each metric has bars for all models
+        for i in range(n_models):
+            l1_values = [l1_accuracy[i], l1_f1_weighted[i], l1_f1_macro[i]]
+            bars = ax1.bar(x + (i - 1) * width, l1_values, width,
+                          label=available_models[i], alpha=0.8, color=colors[i])
+
+            # Add value labels
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0.02:
+                    ax1.annotate(f'{height:.3f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=8)
+
+        ax1.set_xlabel('Metric', fontsize=11)
+        ax1.set_ylabel('Score', fontsize=11)
+        ax1.set_title('L1 Primary Activities', fontweight='bold', fontsize=13)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(metric_names, fontsize=10)
+        ax1.legend(fontsize=10, loc='upper right')
+        ax1.grid(True, alpha=0.3, axis='y')
+        ax1.set_ylim(0, 1)
+
+        # L2 subplot - each metric has bars for all models
+        for i in range(n_models):
+            l2_values = [l2_accuracy[i], l2_f1_weighted[i], l2_f1_macro[i]]
+            bars = ax2.bar(x + (i - 1) * width, l2_values, width,
+                          label=available_models[i], alpha=0.8, color=colors[i])
+
+            # Add value labels
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0.02:
+                    ax2.annotate(f'{height:.3f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=8)
+
+        ax2.set_xlabel('Metric', fontsize=11)
+        ax2.set_ylabel('Score', fontsize=11)
+        ax2.set_title('L2 Secondary Activities', fontweight='bold', fontsize=13)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(metric_names, fontsize=10)
+        ax2.legend(fontsize=10, loc='upper right')
+        ax2.grid(True, alpha=0.3, axis='y')
+        ax2.set_ylim(0, 1)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Combined F1 analysis plot saved: {save_path}")
+
+        return fig
+
+    def create_perclass_f1_weighted_analysis(self,
+                                            metrics_dict: Dict[str, Dict],
+                                            label_level: str,
+                                            save_path: str = None) -> plt.Figure:
+        """Create per-class F1 weighted analysis plot.
+
+        Args:
+            metrics_dict: Dict with keys 'text_noproj', 'text_proj', 'sensor'
+            label_level: 'L1' or 'L2'
+            save_path: Path to save plot
+        """
+        print(f"🔄 Creating per-class F1 weighted analysis ({label_level})...")
+
+        # Get metrics key
+        metrics_key = 'metrics_l1' if label_level == 'L1' else 'metrics_l2'
+
+        # Get all unique labels across models
+        all_labels = set()
+        for key in ['text_noproj', 'text_proj', 'sensor']:
+            if key in metrics_dict and metrics_key in metrics_dict[key]:
+                per_class_f1 = metrics_dict[key][metrics_key].get('per_class_f1', {})
+                all_labels.update(per_class_f1.keys())
+
+        labels = sorted(list(all_labels))
+
+        # Extract F1 scores for each model
+        text_noproj_f1 = []
+        text_proj_f1 = []
+        sensor_f1 = []
+
+        for label in labels:
+            text_noproj_f1.append(
+                metrics_dict.get('text_noproj', {}).get(metrics_key, {}).get('per_class_f1', {}).get(label, 0)
+            )
+            text_proj_f1.append(
+                metrics_dict.get('text_proj', {}).get(metrics_key, {}).get('per_class_f1', {}).get(label, 0)
+            )
+            sensor_f1.append(
+                metrics_dict.get('sensor', {}).get(metrics_key, {}).get('per_class_f1', {}).get(label, 0)
+            )
+
+        # Create plot
+        fig, ax = plt.subplots(figsize=(max(12, len(labels) * 0.8), 8))
+
+        x = np.arange(len(labels))
+        width = 0.25
+
+        bars1 = ax.bar(x - width, text_noproj_f1, width, label='Text (No Projection)', alpha=0.8)
+        bars2 = ax.bar(x, text_proj_f1, width, label='Text (With Projection)', alpha=0.8, color='orange')
+        bars3 = ax.bar(x + width, sensor_f1, width, label='Sensor', alpha=0.8, color='green')
+
+        ax.set_xlabel('Activity Class', fontsize=12)
+        ax.set_ylabel('F1 Weighted Score', fontsize=12)
+        ax.set_title(f'Per-Class F1 Weighted Comparison - {label_level} Labels',
+                    fontweight='bold', fontsize=14)
+        ax.set_xticks(x)
+        ax.set_xticklabels([label.replace('_', ' ') for label in labels],
+                          rotation=45, ha='right', fontsize=9)
+        ax.legend(fontsize=11)
+        ax.grid(True, alpha=0.3, axis='y')
+        ax.set_ylim(0, 1)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-class F1 weighted analysis saved: {save_path}")
+
+        return fig
+
+    def run_comprehensive_evaluation(self,
+                                     train_text_embeddings_path: str,
+                                     test_text_embeddings_path: str,
+                                     max_samples: int = 10000,
+                                     k_neighbors: int = 1,
+                                     filter_noisy_labels: bool = False,
+                                     save_results: bool = True) -> Dict[str, Any]:
+        """Run comprehensive evaluation: sensor + text embeddings (with/without projection).
+
+        Creates unified visualizations comparing all three embedding types.
+        """
+        print("\n" + "="*80)
+        print("COMPREHENSIVE EMBEDDING EVALUATION")
+        print("Sensor Embeddings + Text Embeddings (with/without projection)")
+        print("="*80)
+
+        output_dir = Path(self.config.get('output_dir', './comprehensive_evaluation'))
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # ===== 1. GET LABELS FROM METADATA & LOAD TEST TEXT EMBEDDINGS =====
+        print("\n" + "="*60)
+        print("1. LOADING LABELS AND TEST TEXT EMBEDDINGS")
+        print("="*60)
+
+        # Get labels from metadata (efficient, no need to load training data)
+        train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
+        print(f"✅ Got {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels from metadata")
+
+        # Only load TEST text embeddings (we don't need train embeddings)
+        test_text_emb, _, test_labels_l1, test_labels_l2 = \
+            self.load_text_embeddings_from_file(
+                test_text_embeddings_path,
+                self.config['test_data_path'],
+                max_samples
+            )
+
+        # Filter if needed (only test, since we got train labels from metadata)
+        if filter_noisy_labels:
+            print("⚠️  Note: Filtering only applied to test data (train labels from metadata)")
+            test_text_emb, test_labels_l1, test_labels_l2, _ = \
+                self.filter_noisy_labels(test_text_emb, test_labels_l1, test_labels_l2)
+
+        # ===== 2. CREATE SYNTHETIC TEXT PROTOTYPES (BOTH VERSIONS) =====
+        print("\n" + "="*60)
+        print("2. CREATING SYNTHETIC TEXT PROTOTYPES")
+        print("="*60)
+
+        # Create RAW prototypes (without projection) for "no projection" comparison
+        prototypes_l1_raw, _ = self.create_text_prototypes(train_labels_l1, apply_projection=False)
+        prototypes_l2_raw, _ = self.create_text_prototypes(train_labels_l2, apply_projection=False)
+
+        # Create PROJECTED prototypes for "with projection" and sensor comparisons
+        prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True)
+        prototypes_l2_projected, _ = self.create_text_prototypes(train_labels_l2, apply_projection=True)
+
+        # ===== 3. EVALUATE TEXT (NO PROJECTION) =====
+        print("\n" + "="*60)
+        print("3. EVALUATING TEXT EMBEDDINGS (NO PROJECTION)")
+        print("="*60)
+
+        # Text embeddings from .npz are raw CLIP embeddings (no projection)
+        # Compare to raw synthetic prototypes (both in original CLIP space)
+        pred_l1_text_noproj = self.predict_labels_knn(test_text_emb, prototypes_l1_raw, k_neighbors)
+        pred_l2_text_noproj = self.predict_labels_knn(test_text_emb, prototypes_l2_raw, k_neighbors)
+
+        metrics_l1_text_noproj = self.evaluate_predictions(test_labels_l1, pred_l1_text_noproj, "Text (No Proj) L1")
+        metrics_l2_text_noproj = self.evaluate_predictions(test_labels_l2, pred_l2_text_noproj, "Text (No Proj) L2")
+
+        # ===== 4. EVALUATE TEXT (WITH PROJECTION) =====
+        print("\n" + "="*60)
+        print("4. EVALUATING TEXT EMBEDDINGS (WITH PROJECTION)")
+        print("="*60)
+
+        # Apply projection to text embeddings
+        test_text_emb_proj = self.apply_projection_to_embeddings(test_text_emb)
+
+        # Compare to projected synthetic prototypes (both in aligned space)
+        pred_l1_text_proj = self.predict_labels_knn(test_text_emb_proj, prototypes_l1_projected, k_neighbors)
+        pred_l2_text_proj = self.predict_labels_knn(test_text_emb_proj, prototypes_l2_projected, k_neighbors)
+
+        metrics_l1_text_proj = self.evaluate_predictions(test_labels_l1, pred_l1_text_proj, "Text (With Proj) L1")
+        metrics_l2_text_proj = self.evaluate_predictions(test_labels_l2, pred_l2_text_proj, "Text (With Proj) L2")
+
+        # ===== 5. EVALUATE SENSOR EMBEDDINGS =====
+        print("\n" + "="*60)
+        print("5. EVALUATING SENSOR EMBEDDINGS")
+        print("="*60)
+
+        # Extract TEST sensor embeddings only (we don't need train, we use prototypes)
+        test_sensor_emb, test_sensor_l1, test_sensor_l2 = self.extract_embeddings_and_labels('test', max_samples)
+
+        if filter_noisy_labels:
+            test_sensor_emb, test_sensor_l1, test_sensor_l2, _ = \
+                self.filter_noisy_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2)
+
+        # Sensor embeddings are already in projected/aligned space
+        # Compare to projected synthetic prototypes (both in aligned space)
+        pred_l1_sensor = self.predict_labels_knn(test_sensor_emb, prototypes_l1_projected, k_neighbors)
+        pred_l2_sensor = self.predict_labels_knn(test_sensor_emb, prototypes_l2_projected, k_neighbors)
+
+        metrics_l1_sensor = self.evaluate_predictions(test_sensor_l1, pred_l1_sensor, "Sensor L1")
+        metrics_l2_sensor = self.evaluate_predictions(test_sensor_l2, pred_l2_sensor, "Sensor L2")
+
+        # ===== 6. CREATE COMBINED VISUALIZATIONS =====
+        print("\n" + "="*60)
+        print("6. CREATING COMBINED VISUALIZATIONS")
+        print("="*60)
+
+        # Combined t-SNE (L1 ground truth only) - use correct labels for each embedding type
+        embeddings_dict = {
+            'text_noproj': test_text_emb,
+            'text_proj': test_text_emb_proj,
+            'sensor': test_sensor_emb
+        }
+        labels_dict = {
+            'text_noproj': test_labels_l1,
+            'text_proj': test_labels_l1,  # Same as text_noproj (same samples)
+            'sensor': test_sensor_l1      # Use sensor labels for sensor embeddings!
+        }
+        self.create_combined_tsne_plot(
+            embeddings_dict=embeddings_dict,
+            labels_dict=labels_dict,
+            save_path=str(output_dir / 'combined_tsne_l1.png')
+        )
+
+        # Combined confusion matrices (L1)
+        confusion_matrices_l1 = {
+            'text_noproj': metrics_l1_text_noproj['confusion_matrix'],
+            'text_proj': metrics_l1_text_proj['confusion_matrix'],
+            'sensor': metrics_l1_sensor['confusion_matrix']
+        }
+        unique_labels_l1 = {
+            'text_noproj': metrics_l1_text_noproj['unique_labels'],
+            'text_proj': metrics_l1_text_proj['unique_labels'],
+            'sensor': metrics_l1_sensor['unique_labels']
+        }
+        self.create_combined_confusion_matrices(
+            confusion_matrices=confusion_matrices_l1,
+            unique_labels=unique_labels_l1,
+            label_level='L1',
+            save_path=str(output_dir / 'combined_confusion_matrix_l1.png')
+        )
+
+        # Combined confusion matrices (L2)
+        confusion_matrices_l2 = {
+            'text_noproj': metrics_l2_text_noproj['confusion_matrix'],
+            'text_proj': metrics_l2_text_proj['confusion_matrix'],
+            'sensor': metrics_l2_sensor['confusion_matrix']
+        }
+        unique_labels_l2 = {
+            'text_noproj': metrics_l2_text_noproj['unique_labels'],
+            'text_proj': metrics_l2_text_proj['unique_labels'],
+            'sensor': metrics_l2_sensor['unique_labels']
+        }
+        self.create_combined_confusion_matrices(
+            confusion_matrices=confusion_matrices_l2,
+            unique_labels=unique_labels_l2,
+            label_level='L2',
+            save_path=str(output_dir / 'combined_confusion_matrix_l2.png')
+        )
+
+        # Combined F1 analysis
+        metrics_dict = {
+            'text_noproj': {'metrics_l1': metrics_l1_text_noproj, 'metrics_l2': metrics_l2_text_noproj},
+            'text_proj': {'metrics_l1': metrics_l1_text_proj, 'metrics_l2': metrics_l2_text_proj},
+            'sensor': {'metrics_l1': metrics_l1_sensor, 'metrics_l2': metrics_l2_sensor}
+        }
+        self.create_combined_f1_analysis(
+            metrics_dict=metrics_dict,
+            save_path=str(output_dir / 'combined_f1_analysis.png')
+        )
+
+        # Per-class F1 weighted (L1)
+        self.create_perclass_f1_weighted_analysis(
+            metrics_dict=metrics_dict,
+            label_level='L1',
+            save_path=str(output_dir / 'perclass_f1_weighted_l1.png')
+        )
+
+        # Per-class F1 weighted (L2)
+        self.create_perclass_f1_weighted_analysis(
+            metrics_dict=metrics_dict,
+            label_level='L2',
+            save_path=str(output_dir / 'perclass_f1_weighted_l2.png')
+        )
+
+        # ===== 7. SAVE RESULTS =====
+        if save_results:
+            results_summary = {
+                'text_noproj': {
+                    'l1': {
+                        'accuracy': metrics_l1_text_noproj.get('accuracy', 0),
+                        'f1_weighted': metrics_l1_text_noproj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l1_text_noproj.get('f1_macro', 0),
+                    },
+                    'l2': {
+                        'accuracy': metrics_l2_text_noproj.get('accuracy', 0),
+                        'f1_weighted': metrics_l2_text_noproj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l2_text_noproj.get('f1_macro', 0),
+                    }
+                },
+                'text_proj': {
+                    'l1': {
+                        'accuracy': metrics_l1_text_proj.get('accuracy', 0),
+                        'f1_weighted': metrics_l1_text_proj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l1_text_proj.get('f1_macro', 0),
+                    },
+                    'l2': {
+                        'accuracy': metrics_l2_text_proj.get('accuracy', 0),
+                        'f1_weighted': metrics_l2_text_proj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l2_text_proj.get('f1_macro', 0),
+                    }
+                },
+                'sensor': {
+                    'l1': {
+                        'accuracy': metrics_l1_sensor.get('accuracy', 0),
+                        'f1_weighted': metrics_l1_sensor.get('f1_weighted', 0),
+                        'f1_macro': metrics_l1_sensor.get('f1_macro', 0),
+                    },
+                    'l2': {
+                        'accuracy': metrics_l2_sensor.get('accuracy', 0),
+                        'f1_weighted': metrics_l2_sensor.get('f1_weighted', 0),
+                        'f1_macro': metrics_l2_sensor.get('f1_macro', 0),
+                    }
+                }
+            }
+
+            with open(output_dir / 'comprehensive_results.json', 'w') as f:
+                json.dump(results_summary, f, indent=2)
+
+            print(f"💾 Results saved: {output_dir / 'comprehensive_results.json'}")
+
+        # ===== 8. PRINT SUMMARY WITH F1 WEIGHTED FOCUS =====
+        print("\n" + "="*80)
+        print("🎯 COMPREHENSIVE EVALUATION SUMMARY (F1 WEIGHTED FOCUS)")
+        print("="*80)
+        print("Note: All evaluations use synthetic text prototypes (unprojected for 'No Proj', projected for others)")
+
+        # L1 Summary
+        print("\n📊 L1 PRIMARY ACTIVITIES:")
+        print(f"{'Model':<25} {'F1 Weighted':<15} {'Accuracy':<12} {'F1 Macro':<12}")
+        print("-" * 64)
+
+        text_noproj_l1_f1w = metrics_l1_text_noproj.get('f1_weighted', 0)
+        text_proj_l1_f1w = metrics_l1_text_proj.get('f1_weighted', 0)
+        sensor_l1_f1w = metrics_l1_sensor.get('f1_weighted', 0)
+
+        print(f"{'Text (No Projection)':<25} {text_noproj_l1_f1w:<15.4f} "
+              f"{metrics_l1_text_noproj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l1_text_noproj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Text (With Projection)':<25} {text_proj_l1_f1w:<15.4f} "
+              f"{metrics_l1_text_proj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l1_text_proj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Sensor':<25} {sensor_l1_f1w:<15.4f} "
+              f"{metrics_l1_sensor.get('accuracy', 0):<12.4f} "
+              f"{metrics_l1_sensor.get('f1_macro', 0):<12.4f}")
+
+        # L2 Summary
+        print("\n📊 L2 SECONDARY ACTIVITIES:")
+        print(f"{'Model':<25} {'F1 Weighted':<15} {'Accuracy':<12} {'F1 Macro':<12}")
+        print("-" * 64)
+
+        text_noproj_l2_f1w = metrics_l2_text_noproj.get('f1_weighted', 0)
+        text_proj_l2_f1w = metrics_l2_text_proj.get('f1_weighted', 0)
+        sensor_l2_f1w = metrics_l2_sensor.get('f1_weighted', 0)
+
+        print(f"{'Text (No Projection)':<25} {text_noproj_l2_f1w:<15.4f} "
+              f"{metrics_l2_text_noproj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l2_text_noproj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Text (With Projection)':<25} {text_proj_l2_f1w:<15.4f} "
+              f"{metrics_l2_text_proj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l2_text_proj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Sensor':<25} {sensor_l2_f1w:<15.4f} "
+              f"{metrics_l2_sensor.get('accuracy', 0):<12.4f} "
+              f"{metrics_l2_sensor.get('f1_macro', 0):<12.4f}")
+
+        # Deltas
+        print("\n📈 F1 WEIGHTED IMPROVEMENTS:")
+        print(f"{'Comparison':<50} {'L1 Delta':<12} {'L2 Delta':<12}")
+        print("-" * 74)
+
+        proj_vs_noproj_l1 = text_proj_l1_f1w - text_noproj_l1_f1w
+        proj_vs_noproj_l2 = text_proj_l2_f1w - text_noproj_l2_f1w
+        sensor_vs_noproj_l1 = sensor_l1_f1w - text_noproj_l1_f1w
+        sensor_vs_noproj_l2 = sensor_l2_f1w - text_noproj_l2_f1w
+        sensor_vs_proj_l1 = sensor_l1_f1w - text_proj_l1_f1w
+        sensor_vs_proj_l2 = sensor_l2_f1w - text_proj_l2_f1w
+
+        print(f"{'Text Projection vs No Projection':<50} {proj_vs_noproj_l1:+<12.4f} {proj_vs_noproj_l2:+<12.4f}")
+        print(f"{'Sensor vs Text (No Projection)':<50} {sensor_vs_noproj_l1:+<12.4f} {sensor_vs_noproj_l2:+<12.4f}")
+        print(f"{'Sensor vs Text (With Projection)':<50} {sensor_vs_proj_l1:+<12.4f} {sensor_vs_proj_l2:+<12.4f}")
+
+        print(f"\n✅ All results saved in: {output_dir}")
+
+        return {
+            'text_noproj': metrics_dict['text_noproj'],
+            'text_proj': metrics_dict['text_proj'],
+            'sensor': metrics_dict['sensor']
+        }
+
     def run_evaluation(self, max_samples: int = 10000,
                       train_split: str = 'train',
                       test_split: str = 'test',
                       k_neighbors: int = 1,
                       save_results: bool = True,
                       filter_noisy_labels: bool = False,
-                      compare_filtering: bool = True) -> Dict[str, Any]:
+                      compare_filtering: bool = False) -> Dict[str, Any]:
         """Run complete embedding evaluation pipeline."""
 
         print("🚀 Starting embedding evaluation...")
@@ -2090,21 +3232,19 @@ class EmbeddingEvaluator:
 
         results = {}
 
-        # 1. Extract training labels to get unique activities
+        # 1. Get labels from metadata (efficient, no need to load training data)
         print("\n" + "="*60)
-        print("1. EXTRACTING TRAINING LABELS")
+        print("1. EXTRACTING LABELS FROM METADATA")
         print("="*60)
 
-        # We only need labels to know which activities exist, not the embeddings
-        train_embeddings, train_labels_l1, train_labels_l2 = self.extract_embeddings_and_labels(
-            train_split, max_samples
-        )
+        # Get all labels from metadata without loading/processing training data
+        train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
 
-        # Filter out noisy labels from training data (if enabled)
+        print(f"✅ Found {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels")
+
+        # Note: filter_noisy_labels is not applicable here since we're getting labels from metadata
         if filter_noisy_labels:
-            _, train_labels_l1, train_labels_l2, _ = self.filter_noisy_labels(
-                train_embeddings, train_labels_l1, train_labels_l2
-            )
+            print("⚠️  Note: filter_noisy_labels is ignored when using metadata (no training data loaded)")
 
         # 2. Create text-based label prototypes
         print("\n" + "="*60)
@@ -2315,6 +3455,14 @@ def main():
                        help='Run comprehensive n-shot evaluation (0-shot, 1-shot, 2-shot, 5-shot)')
     parser.add_argument('--n_shot_values', type=int, nargs='+', default=[1, 2, 5],
                        help='N-shot values to evaluate (default: 1 2 5)')
+    parser.add_argument('--eval_text_embeddings', action='store_true',
+                       help='Evaluate text embeddings (from .npz files) instead of sensor embeddings')
+    parser.add_argument('--train_text_embeddings', type=str, default=None,
+                       help='Path to training text embeddings .npz file')
+    parser.add_argument('--test_text_embeddings', type=str, default=None,
+                       help='Path to test text embeddings .npz file')
+    parser.add_argument('--eval_all', action='store_true',
+                       help='Run comprehensive evaluation: sensor embeddings + text embeddings (with/without projection)')
 
     args = parser.parse_args()
 
@@ -2330,7 +3478,39 @@ def main():
     # Run evaluation
     evaluator = EmbeddingEvaluator(config)
 
-    if args.run_nshot:
+    if args.eval_all:
+        # Validate that text embeddings files are provided
+        if not args.train_text_embeddings or not args.test_text_embeddings:
+            raise ValueError("Both --train_text_embeddings and --test_text_embeddings must be provided when using --eval_all")
+
+        # Run comprehensive evaluation (sensor + text with/without projection)
+        results = evaluator.run_comprehensive_evaluation(
+            train_text_embeddings_path=args.train_text_embeddings,
+            test_text_embeddings_path=args.test_text_embeddings,
+            max_samples=args.max_samples,
+            k_neighbors=args.k_neighbors,
+            filter_noisy_labels=args.filter_noisy_labels,
+            save_results=True
+        )
+        print(f"\n✅ Comprehensive evaluation complete! Results saved in: {args.output_dir}")
+    elif args.eval_text_embeddings:
+        # Validate that text embeddings files are provided
+        if not args.train_text_embeddings or not args.test_text_embeddings:
+            raise ValueError("Both --train_text_embeddings and --test_text_embeddings must be provided when using --eval_text_embeddings")
+
+        # Run text embedding evaluation (with and without projection)
+        results = evaluator.run_text_embedding_evaluation(
+            train_embeddings_path=args.train_text_embeddings,
+            test_embeddings_path=args.test_text_embeddings,
+            train_data_path=args.train_data,
+            test_data_path=args.test_data,
+            max_samples=args.max_samples,
+            k_neighbors=args.k_neighbors,
+            filter_noisy_labels=args.filter_noisy_labels,
+            save_results=True
+        )
+        print(f"\n✅ Text embedding evaluation complete! Results saved in: {args.output_dir}")
+    elif args.run_nshot:
         # Run comprehensive n-shot evaluation
         results = evaluator.run_nshot_evaluation(
             max_samples=args.max_samples,
@@ -2348,7 +3528,7 @@ def main():
         )
         print(f"\n✅ Dual evaluation complete! Comparison results saved in: {args.output_dir}")
     else:
-        # Run single evaluation
+        # Run single evaluation (sensor embeddings)
         results = evaluator.run_evaluation(
             max_samples=args.max_samples,
             k_neighbors=args.k_neighbors,

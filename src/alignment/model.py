@@ -361,8 +361,11 @@ class AlignmentModel(nn.Module):
             # Load the full model state dict (with strict=False to ignore text_projection if not in model)
             missing_keys, unexpected_keys = model.load_state_dict(model_state, strict=False)
 
-            if unexpected_keys:
-                print(f"⚠️  Warning: Ignored unexpected keys in checkpoint: {unexpected_keys[:5]}...")  # Show first 5
+            # Filter out expected unexpected keys (text_projection is loaded separately in evaluation)
+            unexpected_keys_filtered = [k for k in unexpected_keys if not k.startswith('text_projection.')]
+
+            if unexpected_keys_filtered:
+                print(f"⚠️  Warning: Ignored unexpected keys in checkpoint: {unexpected_keys_filtered[:5]}...")  # Show first 5
             if missing_keys:
                 print(f"⚠️  Warning: Missing keys in checkpoint: {missing_keys[:5]}...")  # Show first 5
 
