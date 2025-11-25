@@ -8,6 +8,7 @@ A modular, improved version of the original SensorEncoder with:
 - Clean interface for CLIP alignment
 """
 
+from einops import rearrange
 import math
 import torch
 import torch.nn as nn
@@ -235,6 +236,16 @@ class TransformerSensorEncoder(SequenceEncoder):
 
         self.dropout = nn.Dropout(config.dropout)
 
+        # Floorplan fusion projection layer
+        self.floorplan_fusion_proj = nn.Sequential(
+            nn.Linear(
+                config.d_model + 768,
+                config.d_model
+            ),
+            nn.ReLU(),
+            nn.Linear(config.d_model, config.d_model)
+        )
+
     @property
     def d_model(self) -> int:
         return self.config.d_model
@@ -376,12 +387,17 @@ class TransformerSensorEncoder(SequenceEncoder):
         batch_size = list(categorical_features.values())[0].shape[0]
         seq_len = list(categorical_features.values())[0].shape[1]
 
-        # Create initial embeddings
+        # Create sensor embeddings
         token_embeddings = self._create_embeddings(
             categorical_features,
             continuous_features,
             attention_mask
         )
+
+        # Fuse sensor embeddings with floorplan image embeddings
+        floorplan_embeds = input_data['floorplan_embedding']  # [B, L, embed_dim]
+        token_embeddings = torch.cat([token_embeddings, floorplan_embeds], dim=-1)  # [B, L, d_model + embed_dim]
+        token_embeddings = self.floorplan_fusion_proj(token_embeddings)  # [B, L, d_model]
 
         # Add CLS token
         cls_tokens = self.cls_token.expand(batch_size, -1, -1)

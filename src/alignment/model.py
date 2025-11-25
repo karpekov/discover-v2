@@ -120,6 +120,8 @@ class AlignmentModel(nn.Module):
                 - categorical_features: [batch, seq_len, num_fields]
                 - coordinates: [batch, seq_len, 2]
                 - time_deltas: [batch, seq_len]
+                - floorplan_images: [batch, seq_len, 3, 224, 224]
+                - floorplan_embedding: [batch, seq_len, embed_dim]
             text_embeddings: [batch, text_dim] pre-computed text embeddings
             attention_mask: [batch, seq_len] attention mask (True = valid)
             return_encoder_output: Whether to return full encoder output

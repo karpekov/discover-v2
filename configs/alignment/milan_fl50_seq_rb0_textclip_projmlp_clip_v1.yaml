@@ -48,19 +48,19 @@ training:
   save_interval: 1000
   metrics_interval: 500
   use_amp: false
-  num_workers: 4
+  num_workers: 13
   pin_memory: true
   shuffle: true
 use_wandb: true
 wandb_project: discover-v2
 wandb_entity: null
-wandb_name: null
+wandb_name: milan_fl50_seq_rb0_textclip_projmlp_clip_v1_dinov2fusion
 wandb_tags: []
 wandb_group: null
 wandb_notes: Milan Fixed-Length 50 - Sequence encoder with MLP projection and CLIP-only
   loss
-experiment_name: milan_fl50_seq_rb0_textclip_projmlp_clip_v1
-output_dir: trained_models/milan/milan_fl50_seq_rb0_textclip_projmlp_clip_v1
+experiment_name: milan_fl50_seq_rb0_textclip_projmlp_clip_v1_dinov2fusion
+output_dir: trained_models/milan/milan_fl50_seq_rb0_textclip_projmlp_clip_v1_dinov2fusion
 train_data_path: data/processed/casas/milan/FL_50/train.json
 val_data_path: data/processed/casas/milan/FL_50/val.json
 vocab_path: data/processed/casas/milan/FL_50/vocab.json

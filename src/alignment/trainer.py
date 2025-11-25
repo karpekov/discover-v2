@@ -457,6 +457,8 @@ class AlignmentTrainer:
         }
         batch['sensor_data']['coordinates'] = batch['sensor_data']['coordinates'].to(self.device)
         batch['sensor_data']['time_deltas'] = batch['sensor_data']['time_deltas'].to(self.device)
+        batch['sensor_data']['floorplan_images'] = batch['sensor_data']['floorplan_images'].to(self.device)
+        batch['sensor_data']['floorplan_embedding'] = batch['sensor_data']['floorplan_embedding'].to(self.device)
 
         # Move text embeddings and masks
         batch['text_embeddings'] = batch['text_embeddings'].to(self.device)
@@ -563,7 +565,6 @@ class AlignmentTrainer:
             return {}
 
         self.model.eval()
-
         # Basic loss tracking
         total_loss = 0.0
         total_clip_loss = 0.0

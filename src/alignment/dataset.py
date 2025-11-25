@@ -92,6 +92,8 @@ class AlignmentDataset(Dataset):
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
 
+        self.embed_dict = torch.load('/coc/flash5/myang415/discover-v2/data/processed/casas/milan/layout_embeddings/embeddings/dinov2/dim224/embeddings.pt', weights_only=False)
+
     def _load_sensor_data(self):
         """Load sensor data from JSON and filter out samples with UNK sensors.
 
@@ -229,6 +231,7 @@ class AlignmentDataset(Dataset):
         coordinates = []
         time_deltas = []
         floorplan_imgs = []
+        floorplan_embeds = []
 
         for i, event in enumerate(sensor_sequence):
             # Encode categorical features - one list per field
@@ -257,10 +260,23 @@ class AlignmentDataset(Dataset):
                 categorical_features[field].append(idx_val)
         
             # Get floorplan image
-            floorplan_img_path = os.path.join('/coc/flash5/myang415/discover-v2/data/processed/casas/milan/layout_embeddings/images/dim224', f"{event['sensor_id']}_{event['event_type']}.png")
-            pil_image = Image.open(floorplan_img_path).convert('RGB')
-            image_tensor = self.image_transform(pil_image)  # (C, H, W)
+            
+            # Make sure event['event_type'] is either 'ON', 'OFF', 'OPEN', or 'CLOSE'
+            if event['event_type'] == 'ON0' or event['event_type'] == 'O' or event['event_type'] == 'ON`':
+                event['event_type'] = 'ON'
+            embed_key = f"{event['sensor_id']}_{event['event_type']}"
+
+            # Remove anything that is not a letter, number, or underscore from embed_key
+            # floorplan_img_path = os.path.join('/coc/flash5/myang415/discover-v2/data/processed/casas/milan/layout_embeddings/images/dim224', f"{event['sensor_id']}_{event['event_type']}.png")
+            # pil_image = Image.open(floorplan_img_path).convert('RGB')
+            # image_tensor = self.image_transform(pil_image)  # (C, H, W)
+            image_tensor = torch.zeros(1)  # Placeholder zero tensor, not used right now
             floorplan_imgs.append(image_tensor)
+
+            # Get floorplan image embedding
+            embed_key = f"{event['sensor_id']}_{event['event_type']}"
+            image_embedding = self.embed_dict[embed_key]
+            floorplan_embeds.append(image_embedding)
             
             # Get coordinates
             x = event.get('x', 0.0)
@@ -287,6 +303,7 @@ class AlignmentDataset(Dataset):
         coordinates = torch.tensor(coordinates, dtype=torch.float32)
         time_deltas = torch.tensor(time_deltas, dtype=torch.float32)
         floorplan_imgs = torch.stack(floorplan_imgs)  # (seq_len, C, H, W)
+        floorplan_embeds = torch.stack(floorplan_embeds)  # (seq_len, embed_dim)
 
         # Get text embedding or caption (using same idx ensures alignment)
         if self.text_embeddings is not None:
@@ -301,6 +318,7 @@ class AlignmentDataset(Dataset):
             'coordinates': coordinates,
             'time_deltas': time_deltas,
             'floorplan_images': floorplan_imgs,
+            'floorplan_embedding': floorplan_embeds,
             'text_embedding': text_embedding,
             'caption': caption,
             'sample_id': sensor_sample.get('sample_id', f'sample_{idx}')
@@ -328,7 +346,8 @@ class AlignmentDataset(Dataset):
         }
         coordinates = torch.zeros((batch_size, max_len, 2), dtype=torch.float32)
         time_deltas = torch.zeros((batch_size, max_len), dtype=torch.float32)
-        floorplan_images = torch.zeros((batch_size, max_len, 3, 224, 224), dtype=torch.float32)
+        floorplan_images = torch.zeros((batch_size, max_len, 1), dtype=torch.float32)
+        floorplan_embeddings = torch.zeros((batch_size, max_len, 768), dtype=torch.float32)
         attention_mask = torch.zeros((batch_size, max_len), dtype=torch.bool)
 
         # Fill in data
@@ -343,6 +362,7 @@ class AlignmentDataset(Dataset):
             coordinates[i, :seq_len] = item['coordinates']
             time_deltas[i, :seq_len] = item['time_deltas']
             floorplan_images[i, :seq_len] = item['floorplan_images']
+            floorplan_embeddings[i, :seq_len] = item['floorplan_embedding']
             attention_mask[i, :seq_len] = True
 
         # Handle text embeddings or captions
@@ -361,9 +381,10 @@ class AlignmentDataset(Dataset):
                 'categorical_features': categorical_features,
                 'coordinates': coordinates,
                 'time_deltas': time_deltas,
+                'floorplan_images': floorplan_images,
+                'floorplan_embedding': floorplan_embeddings,
             },
             'text_embeddings': text_embeddings,
-            'floorplan_images': floorplan_images,
             'attention_mask': attention_mask,
             'sample_ids': [item['sample_id'] for item in batch]
         }

@@ -26,7 +26,7 @@ training:
   num_workers: 4
   pin_memory: true
   shuffle: true
-use_wandb: true
+use_wandb: false
 wandb_project: discover-v2
 wandb_entity: null
 wandb_name: null
