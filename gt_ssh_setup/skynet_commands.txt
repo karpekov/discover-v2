@@ -9,7 +9,7 @@ ssh akarpekov3@sky2.cc.gatech.edu
 srun --gpus=a40:1 --cpus-per-task=16 -p rail-lab -J "dicover-runtime" --pty bash
 
 # Copy files: --> rsync
-rsync ~/Desktop/cursor\ shortcuts akarpekov3@sky2.cc.gatech.edu:/coc/flash5/akarpekov3/discover-v2
+rsync -rv ~/Desktop/cursor\ shortcuts akarpekov3@sky2.cc.gatech.edu:/coc/flash5/akarpekov3/discover-v2
 
 
 rm -r slurm ; for cfgnm in $(ls config); do sbatch run_batch.sh $cfgnm; done ; watch squeue --me

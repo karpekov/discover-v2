@@ -299,26 +299,13 @@ class EmbeddingEvaluator:
         labels_l2 = []
         samples_processed = 0
 
-        import time
-        total_time = 0
-        data_load_time = 0
-        forward_time = 0
-        cpu_transfer_time = 0
-        label_extract_time = 0
-
-        batch_start = time.time()
-
         with torch.no_grad():
             for batch_idx, batch in enumerate(data_loader):
-                iter_start = time.time()
-                data_load_time += (iter_start - batch_start)
-
                 if samples_processed >= actual_samples:
                     break
 
                 # Extract CLIP projected embeddings (512-dim)
                 # Pack data for new encoder interface
-                forward_start = time.time()
                 input_data = {
                     'categorical_features': batch['categorical_features'],
                     'coordinates': batch['coordinates'],
@@ -328,14 +315,10 @@ class EmbeddingEvaluator:
                     input_data=input_data,
                     attention_mask=batch['mask']
                 )
-                forward_time += (time.time() - forward_start)
 
-                cpu_start = time.time()
                 embeddings.append(sensor_emb.cpu().numpy())
-                cpu_transfer_time += (time.time() - cpu_start)
 
                 # Extract labels for this batch
-                label_start = time.time()
                 batch_size_actual = sensor_emb.shape[0]
 
                 # Get ground truth labels directly from the batch (much more reliable!)
@@ -355,25 +338,8 @@ class EmbeddingEvaluator:
 
                     samples_processed += 1
 
-                label_extract_time += (time.time() - label_start)
-                total_time = time.time() - iter_start + data_load_time
-
-                if batch_idx % 5 == 0:
-                    avg_per_sample = total_time / max(samples_processed, 1)
-                    eta_seconds = avg_per_sample * (actual_samples - samples_processed)
-                    print(f"  Processed {samples_processed}/{actual_samples} samples... "
-                          f"[{avg_per_sample*1000:.1f}ms/sample, ETA: {eta_seconds:.1f}s]")
-                    print(f"    ⏱️  Data load: {data_load_time:.2f}s | Forward: {forward_time:.2f}s | "
-                          f"CPU transfer: {cpu_transfer_time:.2f}s | Labels: {label_extract_time:.2f}s")
-
-                batch_start = time.time()
-
-        print(f"\n⏱️  Total timing breakdown:")
-        print(f"   Data loading: {data_load_time:.2f}s ({data_load_time/total_time*100:.1f}%)")
-        print(f"   Forward pass: {forward_time:.2f}s ({forward_time/total_time*100:.1f}%)")
-        print(f"   CPU transfer: {cpu_transfer_time:.2f}s ({cpu_transfer_time/total_time*100:.1f}%)")
-        print(f"   Label extract: {label_extract_time:.2f}s ({label_extract_time/total_time*100:.1f}%)")
-        print(f"   Total: {total_time:.2f}s")
+                if batch_idx % 20 == 0:
+                    print(f"  Processed {samples_processed}/{actual_samples} samples...")
 
         # Concatenate embeddings
         embeddings = np.vstack(embeddings)[:actual_samples]
