@@ -187,7 +187,8 @@ class AlignmentTrainer:
             captions_path=self.config.train_captions_path,
             text_encoder_config_path=self.config.text_encoder_config_path,
             vocab=vocab,
-            device=self.device
+            device=self.device,
+            categorical_fields=categorical_fields  # Pass filtered fields
         )
 
         train_loader = DataLoader(
@@ -208,7 +209,8 @@ class AlignmentTrainer:
                 captions_path=self.config.val_captions_path,
                 text_encoder_config_path=self.config.text_encoder_config_path,
                 vocab=vocab,
-                device=self.device
+                device=self.device,
+                categorical_fields=categorical_fields  # Pass filtered fields
             )
 
             val_loader = DataLoader(
@@ -340,51 +342,79 @@ class AlignmentTrainer:
         return optimizer, scheduler
 
     def _setup_span_masker(self):
-        """Setup span masker for MLM."""
+        """Setup span masker for MLM with flexible field configuration."""
         from src.models.mlm_heads import SpanMasker
 
-        # Define field-specific masking probabilities for our data
-        # Note on correlations:
-        #   - sensor ↔ room_id: PERFECTLY correlated (deterministic, sensor→room is fixed)
-        #   - sensor ↔ state: Can vary (same sensor can have different states over time)
-        #   - state is the only truly independent temporal signal
-        field_priors = {
-            'sensor': 0.20,    # Lower - will be masked via correlation with room_id anyway
-            'room_id': 0.20,   # Lower - will be masked via correlation with sensor anyway
-            'state': 0.35,     # Higher - only independent temporal field, most informative
+        # Get active categorical fields from encoder config
+        if self.config.encoder is not None:
+            encoder_config = self.config.encoder
+        else:
+            import yaml
+            with open(self.config.encoder_config_path, 'r') as f:
+                encoder_config = yaml.safe_load(f)
+
+        categorical_fields = set(encoder_config.get('metadata', {}).get('categorical_fields', []))
+
+        # Define default field-specific masking probabilities
+        all_field_priors = {
+            'sensor': 0.20,    # Lower - often correlated with room_id
+            'room_id': 0.20,   # Lower - often correlated with sensor
+            'state': 0.35,     # Higher - independent temporal field, most informative
         }
+
+        # Filter to only active fields
+        field_priors = {
+            field: prob for field, prob in all_field_priors.items()
+            if field in categorical_fields
+        }
+
+        # If no priors defined for a field, use default
+        for field in categorical_fields:
+            if field not in field_priors:
+                field_priors[field] = 0.25  # Default
 
         span_masker = SpanMasker(
             mask_prob=self.config.loss.mask_prob,
             mean_span_length=self.config.loss.mean_span_length,
-            field_priors=field_priors,  # Custom field names for our data
-            # Strict correlation to prevent memorization of deterministic field relationships
-            # (e.g., sensor ↔ room_id ↔ coordinates are fixed)
-            strict_corr_mask=True,  # Mask correlated fields together
-            correlated_field_prob=0.95,  # 95% of the time, mask all together; 5% independent
-            # Field blackout: zero out continuous features when correlated fields masked
-            # This prevents "cheating" via deterministic sensor→coordinates mapping
-            enable_field_blackout=True,  # Zero coordinates/time when sensor/room masked
-            p_transition_seed=0.3,  # Seed masks at activity/room transitions (harder task)
-            adaptive_mask=False  # Disabled for now
+            field_priors=field_priors,
+            strict_corr_mask=True,
+            correlated_field_prob=0.95,
+            enable_field_blackout=True,
+            p_transition_seed=0.3,
+            adaptive_mask=False
         )
 
-        # Override correlated groups to match actual field names in the data
-        # Rationale:
-        #   - sensor ↔ room_id are PERFECTLY correlated (M014 always in kitchen)
-        #     → Mask together 95% of time to force temporal reasoning
-        #   - state is INDEPENDENT (M014 can be ON or OFF over time)
-        #     → Keep separate to learn temporal state transitions
-        span_masker.correlated_groups = [
-            ['sensor', 'room_id'],  # Perfectly correlated → mask together
-            # 'state' is intentionally separate (varies over time for same sensor)
-        ]
+        # Define correlated fields (only if both are active)
+        # sensor ↔ room_id are perfectly correlated (same sensor always in same room)
+        correlated_groups = []
+        if 'sensor' in categorical_fields and 'room_id' in categorical_fields:
+            correlated_groups.append(['sensor', 'room_id'])
 
-        # Update blackout mapping if field_blackout is enabled
-        span_masker.blackout_mapping = {
-            'room_id': ['sensor', 'coordinates'],
-            'sensor': ['room_id', 'coordinates'],
-        }
+        span_masker.correlated_groups = correlated_groups
+
+        # Update blackout mapping (only include active fields)
+        blackout_mapping = {}
+        if 'room_id' in categorical_fields:
+            blackout_targets = []
+            if 'sensor' in categorical_fields:
+                blackout_targets.append('sensor')
+            blackout_targets.append('coordinates')  # Always blackout coordinates with room
+            blackout_mapping['room_id'] = blackout_targets
+
+        if 'sensor' in categorical_fields:
+            blackout_targets = []
+            if 'room_id' in categorical_fields:
+                blackout_targets.append('room_id')
+            blackout_targets.append('coordinates')  # Always blackout coordinates with sensor
+            blackout_mapping['sensor'] = blackout_targets
+
+        span_masker.blackout_mapping = blackout_mapping
+
+        self.logger.info(f"MLM span masker configured for fields: {sorted(categorical_fields)}")
+        if correlated_groups:
+            self.logger.info(f"  Correlated groups: {correlated_groups}")
+        if blackout_mapping:
+            self.logger.info(f"  Blackout mapping: {blackout_mapping}")
 
         return span_masker
 
@@ -648,27 +678,37 @@ class AlignmentTrainer:
         # Compute MLM accuracy metrics
         if all_mlm_predictions and all_mlm_labels and all_mlm_mask_positions:
             try:
-                # Concatenate MLM outputs
+                # Concatenate MLM outputs (handle per-field errors gracefully)
                 combined_mlm_preds = {}
-                for field, pred_list in all_mlm_predictions.items():
-                    combined_mlm_preds[field] = torch.cat(pred_list, dim=0)
-
                 combined_mlm_labels = {}
-                for field, label_list in all_mlm_labels.items():
-                    combined_mlm_labels[field] = torch.cat(label_list, dim=0)
-
                 combined_mlm_masks = {}
-                for field, mask_list in all_mlm_mask_positions.items():
-                    combined_mlm_masks[field] = torch.cat(mask_list, dim=0)
 
-                mlm_metrics = self.metrics_tracker.compute_mlm_accuracy(
-                    combined_mlm_preds,
-                    combined_mlm_labels,
-                    combined_mlm_masks
-                )
-                # Add 'val_' prefix to MLM metrics
-                for key, value in mlm_metrics.items():
-                    metrics[f'val_{key}'] = value
+                for field in all_mlm_predictions.keys():
+                    try:
+                        pred_list = all_mlm_predictions[field]
+                        label_list = all_mlm_labels.get(field, [])
+                        mask_list = all_mlm_mask_positions.get(field, [])
+
+                        if pred_list and label_list and mask_list:
+                            # Concatenate along batch dimension
+                            combined_mlm_preds[field] = torch.cat(pred_list, dim=0)
+                            combined_mlm_labels[field] = torch.cat(label_list, dim=0)
+                            combined_mlm_masks[field] = torch.cat(mask_list, dim=0)
+                    except Exception as field_error:
+                        # Skip this field if concatenation fails
+                        self.logger.debug(f"Skipping MLM accuracy for field '{field}': {field_error}")
+                        continue
+
+                # Compute accuracy only for successfully concatenated fields
+                if combined_mlm_preds and combined_mlm_labels and combined_mlm_masks:
+                    mlm_metrics = self.metrics_tracker.compute_mlm_accuracy(
+                        combined_mlm_preds,
+                        combined_mlm_labels,
+                        combined_mlm_masks
+                    )
+                    # Add 'val_' prefix to MLM metrics
+                    for key, value in mlm_metrics.items():
+                        metrics[f'val_{key}'] = value
             except Exception as e:
                 self.logger.warning(f"Error computing MLM accuracy: {e}")
 

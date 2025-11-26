@@ -1,6 +1,7 @@
 # Milan Fixed-Duration 60s - Sequence Encoder
 # Projection: MLP
 # Loss: CLIP+MLM
+# Only use room_id field in the data (no sensor or coords)
 # Version: 1
 
 encoder_type: transformer
@@ -19,10 +20,10 @@ encoder:
   fourier_bands: 12
   metadata:
     categorical_fields:
-    - sensor
+    # - sensor
     - state
     - room_id
-    use_coordinates: true
+    use_coordinates: false
     use_time_deltas: false
     use_time_of_day: true
     coord_norm_x_max: 10.0
@@ -54,13 +55,13 @@ training:
 use_wandb: true
 wandb_project: discover-v2-newpipeline
 wandb_entity: null
-wandb_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm
+wandb_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm_justroom
 wandb_tags: []
 wandb_group: null
 wandb_notes: Milan Fixed-Duration 60s - Sequence encoder with MLP projection and CLIP+MLM
-  loss
-experiment_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1
-output_dir: trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1
+  loss (without sensor field and room_id field - no spatial features either)
+experiment_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm_justroom_v1
+output_dir: trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_justroom_v1
 train_data_path: data/processed/casas/milan/FD_60/train.json
 val_data_path: data/processed/casas/milan/FD_60/val.json
 vocab_path: data/processed/casas/milan/FD_60/vocab.json

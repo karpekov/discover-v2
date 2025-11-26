@@ -1,6 +1,7 @@
 # Milan Fixed-Duration 60s - Sequence Encoder
 # Projection: MLP
 # Loss: CLIP+MLM
+# No sensor field in the data
 # Version: 1
 
 encoder_type: transformer
@@ -19,7 +20,7 @@ encoder:
   fourier_bands: 12
   metadata:
     categorical_fields:
-    - sensor
+    # - sensor
     - state
     - room_id
     use_coordinates: true
@@ -54,13 +55,13 @@ training:
 use_wandb: true
 wandb_project: discover-v2-newpipeline
 wandb_entity: null
-wandb_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm
+wandb_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nosensor
 wandb_tags: []
 wandb_group: null
 wandb_notes: Milan Fixed-Duration 60s - Sequence encoder with MLP projection and CLIP+MLM
-  loss
-experiment_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1
-output_dir: trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1
+  loss (without sensor field)
+experiment_name: milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nosensor_v1
+output_dir: trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nosensor_v1
 train_data_path: data/processed/casas/milan/FD_60/train.json
 val_data_path: data/processed/casas/milan/FD_60/val.json
 vocab_path: data/processed/casas/milan/FD_60/vocab.json

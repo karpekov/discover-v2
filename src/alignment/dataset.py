@@ -31,7 +31,8 @@ class AlignmentDataset(Dataset):
         vocab: Optional[Dict[str, Dict[str, int]]] = None,
         device: Optional[torch.device] = None,
         span_masker: Optional[Any] = None,
-        vocab_sizes: Optional[Dict[str, int]] = None
+        vocab_sizes: Optional[Dict[str, int]] = None,
+        categorical_fields: Optional[List[str]] = None
     ):
         """
         Args:
@@ -39,19 +40,28 @@ class AlignmentDataset(Dataset):
             text_embeddings_path: Path to pre-computed text embeddings NPZ (Step 4 output)
             captions_path: Path to captions JSON (Step 3 output) - alternative to text_embeddings_path
             text_encoder_config_path: Path to text encoder config YAML - required if using captions_path
-            vocab: Vocabulary mapping for categorical features
+            vocab: Vocabulary mapping for categorical features (can contain more fields than needed)
             device: Device for tensors
             span_masker: Optional SpanMasker for MLM (if mlm_weight > 0)
             vocab_sizes: Vocabulary sizes for each field (required for MLM)
+            categorical_fields: List of fields to use from vocab (if None, uses all fields in vocab)
         """
         self.data_path = data_path
         self.text_embeddings_path = text_embeddings_path
         self.captions_path = captions_path
         self.text_encoder_config_path = text_encoder_config_path
-        self.vocab = vocab
+        self.full_vocab = vocab  # Keep full vocab for reference
         self.device = device or torch.device('cpu')
         self.span_masker = span_masker
         self.vocab_sizes = vocab_sizes
+
+        # Filter vocab to only used fields
+        if categorical_fields is not None:
+            self.vocab = {field: vocab[field] for field in categorical_fields if field in vocab}
+            self.categorical_fields = categorical_fields
+        else:
+            self.vocab = vocab
+            self.categorical_fields = list(vocab.keys()) if vocab else []
 
         # Load sensor data (with filtering)
         all_sensor_data, kept_indices = self._load_sensor_data()
@@ -83,7 +93,7 @@ class AlignmentDataset(Dataset):
         self._validate_data()
 
     def _load_sensor_data(self):
-        """Load sensor data from JSON and filter out samples with UNK sensors.
+        """Load sensor data from JSON and filter out samples with UNK sensors (if sensor field is used).
 
         Returns:
             Tuple of (filtered_samples, kept_indices)
@@ -96,6 +106,15 @@ class AlignmentDataset(Dataset):
             samples = data['samples']
         else:
             samples = data
+
+        # Only filter by sensors if 'sensor' is in the categorical_fields we're using
+        # Check in self.vocab (filtered) rather than full_vocab
+        should_filter_sensors = 'sensor' in self.vocab
+
+        if not should_filter_sensors:
+            # No sensor filtering needed - return all samples
+            print(f"Sensor field not in categorical_fields - skipping sensor UNK filtering")
+            return samples, None
 
         # Filter out samples with UNK sensors
         filtered_samples = []
@@ -120,12 +139,10 @@ class AlignmentDataset(Dataset):
                     has_unk = True
                     break
 
-                # Also check if sensor_id is not in vocab (will become UNK during encoding)
-                if self.vocab and 'sensor' in self.vocab:
-                    # Sensor not in vocab (excluding 'UNK' which we already handled)
-                    if sensor_id not in self.vocab['sensor']:
-                        has_unk = True
-                        break
+                # Check if sensor_id is not in vocab (will become UNK during encoding)
+                if sensor_id not in self.vocab['sensor']:
+                    has_unk = True
+                    break
 
             if not has_unk:
                 filtered_samples.append(sample)

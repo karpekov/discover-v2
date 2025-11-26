@@ -199,6 +199,45 @@ input_data = {
 # coordinates and time_deltas are optional now
 ```
 
+### Flexible Categorical Fields
+
+You can train models with **any subset of categorical fields**. The encoder dynamically creates embeddings only for the fields specified in `categorical_fields`.
+
+**Example: Training without sensor tokens**
+
+```yaml
+# config.yaml
+encoder:
+  metadata:
+    categorical_fields:
+      - state        # Event type (ON/OFF/OPEN/CLOSE)
+      - room_id      # Room location
+      # sensor field removed - no sensor tokens!
+    use_coordinates: false
+    use_time_deltas: false
+    use_time_of_day: true
+```
+
+This allows you to:
+- **Ablation studies**: Test which features are most important
+- **Privacy**: Train without sensor IDs
+- **Generalization**: Learn patterns based on event types and locations only
+- **Domain adaptation**: Transfer models across environments with different sensors
+
+**Important Notes:**
+1. The vocabulary must match the categorical fields (generate vocab with only desired fields)
+2. If `sensor` is removed from `categorical_fields`, sensor UNK filtering is automatically skipped
+3. The encoder will only create embeddings for fields present in `categorical_fields`
+
+**Example: Generating vocab for subset of fields**
+
+```python
+from src.encoders.data_utils import build_vocab_from_data
+
+# Only build vocab for state and room_id (skip sensor)
+vocab = build_vocab_from_data(data, categorical_fields=['state', 'room_id'])
+```
+
 ### Loading from YAML Config
 
 ```python
