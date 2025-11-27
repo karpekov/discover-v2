@@ -575,24 +575,26 @@ def main():
     if args.data_dir is None:
         model_name = model_dir.name
         # Parse model name to extract dataset and config
-        # e.g., milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 -> milan, FD_60
+        # e.g., milan_fd60_... -> milan, FD_60 or milan_fl20_... -> milan, FL_20
         parts = model_name.split('_')
 
         # First part is typically the dataset name
         dataset_name = parts[0]  # e.g., 'milan'
 
-        # Find FD config (e.g., 'fd60' -> 'FD_60')
-        fd_config = None
+        # Find data config (e.g., 'fd60' -> 'FD_60', 'fl20' -> 'FL_20')
+        data_config = None
         for part in parts:
-            if part.startswith('fd') and part[2:].isdigit():
-                duration = part[2:]  # '60'
-                fd_config = f'FD_{duration}'
+            # Handle Fixed Duration (fd) or Fixed Length (fl)
+            if (part.startswith('fd') or part.startswith('fl')) and len(part) > 2 and part[2:].isdigit():
+                config_type = part[:2].upper()  # 'fd' -> 'FD', 'fl' -> 'FL'
+                value = part[2:]  # '60', '20', etc.
+                data_config = f'{config_type}_{value}'
                 break
 
-        if fd_config is None:
+        if data_config is None:
             raise ValueError(f"Could not auto-detect data config from model name: {model_name}. Please provide --data-dir explicitly.")
 
-        data_dir = Path(f'data/processed/casas/{dataset_name}/{fd_config}_p')
+        data_dir = Path(f'data/processed/casas/{dataset_name}/{data_config}_p')
         print(f"Auto-detected data directory: {data_dir}")
     else:
         data_dir = Path(args.data_dir)
