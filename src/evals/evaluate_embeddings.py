@@ -3009,6 +3009,92 @@ class EmbeddingEvaluator:
 
         return fig
 
+    def create_per_label_retrieval_heatmap_instance(self,
+                                                   query_embeddings: np.ndarray,
+                                                   target_embeddings: np.ndarray,
+                                                   query_labels: np.ndarray,
+                                                   target_labels: np.ndarray,
+                                                   direction_name: str,
+                                                   k: int = 10,
+                                                   save_path: str = None) -> plt.Figure:
+        """Create heatmap showing per-label retrieval performance for instance-to-instance.
+
+        Args:
+            query_embeddings: Query embeddings (N_q, D)
+            target_embeddings: Target embeddings (N_t, D)
+            query_labels: Labels for queries (N_q,)
+            target_labels: Labels for targets (N_t,)
+            direction_name: Name of retrieval direction
+            k: K value for recall computation
+            save_path: Path to save plot
+        """
+        from evals.compute_retrieval_metrics import compute_per_label_recall_at_k
+
+        print(f"🎨 Creating per-label instance retrieval heatmap for {direction_name}...")
+
+        # Compute per-label recall
+        per_label_recalls = compute_per_label_recall_at_k(
+            query_embeddings=query_embeddings,
+            target_embeddings=target_embeddings,
+            query_labels=query_labels,
+            target_labels=target_labels,
+            k=k
+        )
+
+        # Convert to arrays for plotting
+        labels = list(per_label_recalls.keys())
+        recalls = [per_label_recalls[label] for label in labels]
+
+        # Create bar plot
+        fig, ax = plt.subplots(figsize=(max(12, len(labels) * 0.5), 8))
+
+        # Sort by recall for better visualization
+        sorted_indices = np.argsort(recalls)[::-1]
+        sorted_labels = np.array(labels)[sorted_indices]
+        sorted_recalls = np.array(recalls)[sorted_indices]
+
+        # Limit to top 20 for readability
+        if len(sorted_labels) > 20:
+            sorted_labels = sorted_labels[:20]
+            sorted_recalls = sorted_recalls[:20]
+
+        # Create horizontal bar chart
+        y_pos = np.arange(len(sorted_labels))
+        colors_bars = plt.cm.RdYlGn(sorted_recalls)  # Color based on performance
+
+        bars = ax.barh(y_pos, sorted_recalls, color=colors_bars, alpha=0.8)
+
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
+        ax.set_xlabel(f'Label-Recall@{k}', fontsize=12)
+        ax.set_title(f'Per-Label Instance Retrieval: {direction_name}',
+                    fontweight='bold', fontsize=14)
+        ax.set_xlim(0, 1)
+        ax.grid(True, alpha=0.3, axis='x')
+
+        # Add value labels
+        for i, (bar, recall) in enumerate(zip(bars, sorted_recalls)):
+            width = bar.get_width()
+            ax.annotate(f'{recall:.3f}',
+                       xy=(width, bar.get_y() + bar.get_height() / 2),
+                       xytext=(5, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=8)
+
+        # Add average line
+        avg_recall = np.mean(sorted_recalls)
+        ax.axvline(avg_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Average: {avg_recall:.3f}')
+        ax.legend(fontsize=10)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-label instance retrieval heatmap saved: {save_path}")
+
+        return fig
+
     def create_per_label_retrieval_heatmap(self,
                                           prototype_labels: np.ndarray,
                                           target_embeddings: np.ndarray,
@@ -3293,16 +3379,32 @@ class EmbeddingEvaluator:
         print("7. COMPUTING RETRIEVAL METRICS")
         print("="*60)
 
+        # Choose which label level to use for retrieval (L1 or L2)
+        # IMPORTANT: Use L1 consistently to avoid mixing Evening_Meds/Morning_Meds (L1) with Take_medicine (L2)
+        retrieval_label_level = 'L1'
+
+        if retrieval_label_level == 'L1':
+            # Use L1 labels for all retrieval metrics
+            text_labels_for_retrieval = np.array(test_labels_l1)
+            sensor_labels_for_retrieval = np.array(test_sensor_l1)
+            print(f"\n📋 Using L1 labels for retrieval metrics ({len(set(test_labels_l1))} unique labels)")
+        else:
+            # Use L2 labels for all retrieval metrics
+            text_labels_for_retrieval = np.array(test_labels_l2)
+            sensor_labels_for_retrieval = np.array(test_sensor_l2)
+            print(f"\n📋 Using L2 labels for retrieval metrics ({len(set(test_labels_l2))} unique labels)")
+
         # Instance-to-instance retrieval (text <-> sensor)
         print("\n📊 Computing instance-to-instance retrieval...")
-        instance_retrieval_results = compute_label_recall_at_k(
+        instance_retrieval_results, instance_per_label = compute_label_recall_at_k(
             sensor_embeddings=test_sensor_emb,
             text_embeddings=test_text_emb_proj,  # Use projected text embeddings
-            labels=np.array(test_labels_l1),  # Use L1 labels
+            labels=sensor_labels_for_retrieval,  # Use consistent labels
             k_values=[10, 50, 100],
             directions=['text2sensor', 'sensor2text'],
             normalize=True,
-            verbose=True
+            verbose=True,
+            return_per_label=True
         )
 
         # Prototype-based retrieval
@@ -3327,16 +3429,18 @@ class EmbeddingEvaluator:
             print(f"✅ Encoded {len(prototype_emb)} text prototypes")
 
             # Compute prototype retrieval metrics
-            prototype_retrieval_results = compute_prototype_retrieval_metrics(
+            # Note: Prototypes use their own labels from metadata, targets use consistent retrieval labels
+            prototype_retrieval_results, prototype_per_label = compute_prototype_retrieval_metrics(
                 prototype_embeddings=prototype_emb,
                 prototype_labels=prototype_labels,
                 sensor_embeddings=test_sensor_emb,
                 text_embeddings=test_text_emb_proj,  # Use projected text embeddings
-                target_labels=np.array(test_labels_l1),  # Use L1 labels
+                target_labels=sensor_labels_for_retrieval,  # Use consistent labels
                 k_values=[10, 50, 100],
                 directions=['prototype2sensor', 'prototype2text'],
                 normalize=True,
-                verbose=True
+                verbose=True,
+                return_per_label=True
             )
 
             # Combine all retrieval results
@@ -3352,26 +3456,48 @@ class EmbeddingEvaluator:
             # Create per-label retrieval heatmaps
             print("\n🎨 Creating per-label retrieval heatmaps...")
 
-            # Prototype -> Sensor
+            # Instance-to-instance: Text -> Sensor
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_text_emb_proj,
+                target_embeddings=test_sensor_emb,
+                query_labels=text_labels_for_retrieval,
+                target_labels=sensor_labels_for_retrieval,
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
+                k=10,
+                save_path=str(output_dir / f'retrieval_perlabel_text2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Instance-to-instance: Sensor -> Text
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_text_emb_proj,
+                query_labels=sensor_labels_for_retrieval,
+                target_labels=text_labels_for_retrieval,
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
+                k=10,
+                save_path=str(output_dir / f'retrieval_perlabel_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Prototype-based: Prototype -> Sensor
             self.create_per_label_retrieval_heatmap(
                 prototype_labels=prototype_labels,
                 target_embeddings=test_sensor_emb,
-                target_labels=np.array(test_sensor_l1),
+                target_labels=sensor_labels_for_retrieval,
                 prototype_embeddings=prototype_emb,
-                direction_name='Prototype → Sensor',
+                direction_name=f'Prototype → Sensor ({retrieval_label_level})',
                 k=10,
-                save_path=str(output_dir / 'retrieval_perlabel_prototype2sensor.png')
+                save_path=str(output_dir / f'retrieval_perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
             )
 
-            # Prototype -> Text
+            # Prototype-based: Prototype -> Text
             self.create_per_label_retrieval_heatmap(
                 prototype_labels=prototype_labels,
                 target_embeddings=test_text_emb_proj,
-                target_labels=np.array(test_labels_l1),
+                target_labels=text_labels_for_retrieval,
                 prototype_embeddings=prototype_emb,
-                direction_name='Prototype → Text',
+                direction_name=f'Prototype → Text ({retrieval_label_level})',
                 k=10,
-                save_path=str(output_dir / 'retrieval_perlabel_prototype2text.png')
+                save_path=str(output_dir / f'retrieval_perlabel_prototype2text_{retrieval_label_level.lower()}.png')
             )
 
         except Exception as e:
@@ -3380,6 +3506,7 @@ class EmbeddingEvaluator:
             traceback.print_exc()
             all_retrieval_results = instance_retrieval_results
             prototype_retrieval_results = {}
+            prototype_per_label = {}
 
         # ===== 8. SAVE RESULTS =====
         if save_results:
@@ -3423,13 +3550,32 @@ class EmbeddingEvaluator:
                     }
                 },
                 'retrieval_metrics': {
+                    'label_level': retrieval_label_level,
                     'instance_to_instance': {
-                        direction: {str(k): float(v) for k, v in k_results.items()}
-                        for direction, k_results in instance_retrieval_results.items()
+                        'overall': {
+                            direction: {str(k): float(v) for k, v in k_results.items()}
+                            for direction, k_results in instance_retrieval_results.items()
+                        },
+                        'per_label': {
+                            direction: {
+                                str(k): {str(label): float(recall) for label, recall in label_recalls.items()}
+                                for k, label_recalls in k_dict.items()
+                            }
+                            for direction, k_dict in instance_per_label.items()
+                        }
                     },
                     'prototype_based': {
-                        direction: {str(k): float(v) for k, v in k_results.items()}
-                        for direction, k_results in prototype_retrieval_results.items()
+                        'overall': {
+                            direction: {str(k): float(v) for k, v in k_results.items()}
+                            for direction, k_results in prototype_retrieval_results.items()
+                        },
+                        'per_label': {
+                            direction: {
+                                str(k): {str(label): float(recall) for label, recall in label_recalls.items()}
+                                for k, label_recalls in k_dict.items()
+                            }
+                            for direction, k_dict in prototype_per_label.items()
+                        }
                     } if prototype_retrieval_results else {}
                 }
             }

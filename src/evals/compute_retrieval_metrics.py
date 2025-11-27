@@ -81,6 +81,74 @@ def compute_cosine_similarity(queries: np.ndarray, targets: np.ndarray) -> np.nd
     return similarities
 
 
+def compute_per_label_recall_at_k(
+    query_embeddings: np.ndarray,
+    target_embeddings: np.ndarray,
+    query_labels: np.ndarray,
+    target_labels: np.ndarray,
+    k: int
+) -> Dict[str, float]:
+    """
+    Compute per-label Label-Recall@K for instance-to-instance retrieval.
+
+    For each unique label:
+    1. Get all queries with that label
+    2. For each query, find top K targets
+    3. Compute recall for that query
+    4. Average across all queries with that label
+
+    Args:
+        query_embeddings: Query embeddings of shape (N_q, D)
+        target_embeddings: Target embeddings of shape (N_t, D)
+        query_labels: Query labels of shape (N_q,)
+        target_labels: Target labels of shape (N_t,)
+        k: Number of top neighbors to consider
+
+    Returns:
+        Dictionary mapping label to average recall for that label
+    """
+    n_queries = len(query_embeddings)
+    n_targets = len(target_embeddings)
+
+    # Ensure K is valid
+    k = min(k, n_targets)
+
+    # Compute similarity matrix (N_q, N_t)
+    similarities = compute_cosine_similarity(query_embeddings, target_embeddings)
+
+    # Get unique labels
+    unique_labels = sorted(list(set(query_labels)))
+
+    # Compute recall for each label
+    per_label_recalls = {}
+
+    for label in unique_labels:
+        # Get indices of queries with this label
+        query_indices = np.where(query_labels == label)[0]
+
+        if len(query_indices) == 0:
+            continue
+
+        label_recalls = []
+        for i in query_indices:
+            query_label = query_labels[i]
+            query_sims = similarities[i]
+
+            # Get indices of top K targets
+            top_k_indices = np.argsort(query_sims)[-k:][::-1]
+            top_k_labels = target_labels[top_k_indices]
+
+            # Count how many match the query label
+            n_matching = np.sum(top_k_labels == query_label)
+            recall = n_matching / k
+            label_recalls.append(recall)
+
+        # Average across all queries with this label
+        per_label_recalls[label] = np.mean(label_recalls)
+
+    return per_label_recalls
+
+
 def compute_label_recall_at_k_single_direction(
     query_embeddings: np.ndarray,
     target_embeddings: np.ndarray,
@@ -211,8 +279,9 @@ def compute_label_recall_at_k(
     k_values: List[int] = [10, 50, 100],
     directions: List[str] = ['text2sensor', 'sensor2text'],
     normalize: bool = True,
-    verbose: bool = True
-) -> Dict[str, Dict[int, float]]:
+    verbose: bool = True,
+    return_per_label: bool = False
+) -> Union[Dict[str, Dict[int, float]], Tuple[Dict[str, Dict[int, float]], Dict[str, Dict[int, Dict[str, float]]]]]:
     """
     Compute Label-Recall@K for cross-modal retrieval.
 
@@ -227,13 +296,21 @@ def compute_label_recall_at_k(
             - 'both': Both directions (shorthand)
         normalize: Whether to L2-normalize embeddings before computing similarities
         verbose: Whether to print progress and results
+        return_per_label: Whether to also return per-label metrics
 
     Returns:
-        Dictionary with structure:
-        {
-            'text2sensor': {k1: recall_value1, k2: recall_value2, ...},
-            'sensor2text': {k1: recall_value1, k2: recall_value2, ...}
-        }
+        If return_per_label=False:
+            Dictionary with structure:
+            {
+                'text2sensor': {k1: recall_value1, k2: recall_value2, ...},
+                'sensor2text': {k1: recall_value1, k2: recall_value2, ...}
+            }
+        If return_per_label=True:
+            Tuple of (overall_results, per_label_results) where per_label_results has structure:
+            {
+                'text2sensor': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...},
+                'sensor2text': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...}
+            }
     """
     # Validate inputs
     n_sensor, n_text, n_labels = len(sensor_embeddings), len(text_embeddings), len(labels)
@@ -278,6 +355,9 @@ def compute_label_recall_at_k(
 
         # Compute for each K
         results[direction] = {}
+        if return_per_label:
+            per_label_results[direction] = {}
+
         for k in k_values:
             if verbose:
                 print(f"  Computing for K={k}...")
@@ -295,6 +375,19 @@ def compute_label_recall_at_k(
             if verbose:
                 print(f"    Label-Recall@{k}: {recall:.4f} ({recall*100:.2f}%)")
 
+            # Compute per-label metrics if requested
+            if return_per_label:
+                per_label_recall = compute_per_label_recall_at_k(
+                    query_embeddings=query_emb,
+                    target_embeddings=target_emb,
+                    query_labels=labels,
+                    target_labels=labels,
+                    k=k
+                )
+                per_label_results[direction][k] = per_label_recall
+
+    if return_per_label:
+        return results, per_label_results
     return results
 
 
@@ -417,8 +510,9 @@ def compute_prototype_retrieval_metrics(
     k_values: List[int] = [10, 50, 100],
     directions: List[str] = ['prototype2sensor', 'prototype2text'],
     normalize: bool = True,
-    verbose: bool = True
-) -> Dict[str, Dict[int, float]]:
+    verbose: bool = True,
+    return_per_label: bool = False
+) -> Union[Dict[str, Dict[int, float]], Tuple[Dict[str, Dict[int, float]], Dict[str, Dict[int, Dict[str, float]]]]]:
     """
     Compute Label-Recall@K for prototype-based retrieval.
 
@@ -438,13 +532,21 @@ def compute_prototype_retrieval_metrics(
             - 'both': Both directions (shorthand)
         normalize: Whether to L2-normalize embeddings before computing similarities
         verbose: Whether to print progress and results
+        return_per_label: Whether to also return per-label metrics
 
     Returns:
-        Dictionary with structure:
-        {
-            'prototype2sensor': {k1: recall_value1, k2: recall_value2, ...},
-            'prototype2text': {k1: recall_value1, k2: recall_value2, ...}
-        }
+        If return_per_label=False:
+            Dictionary with structure:
+            {
+                'prototype2sensor': {k1: recall_value1, k2: recall_value2, ...},
+                'prototype2text': {k1: recall_value1, k2: recall_value2, ...}
+            }
+        If return_per_label=True:
+            Tuple of (overall_results, per_label_results) where per_label_results has structure:
+            {
+                'prototype2sensor': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...},
+                'prototype2text': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...}
+            }
     """
     # Handle 'both' direction shorthand
     if 'both' in directions:
@@ -492,10 +594,14 @@ def compute_prototype_retrieval_metrics(
 
         # Compute for each K
         results[direction] = {}
+        if return_per_label:
+            per_label_results[direction] = {}
+
         for k in k_values:
             if verbose:
                 print(f"  Computing for K={k}...")
 
+            # Compute overall recall
             recall = compute_label_recall_at_k_with_prototypes(
                 prototype_embeddings=prototype_embeddings,
                 prototype_labels=prototype_labels,
@@ -509,6 +615,29 @@ def compute_prototype_retrieval_metrics(
             if verbose:
                 print(f"    Label-Recall@{k}: {recall:.4f} ({recall*100:.2f}%)")
 
+            # Compute per-label metrics if requested
+            if return_per_label:
+                from evals.compute_retrieval_metrics import (
+                    normalize_embeddings,
+                    compute_cosine_similarity
+                )
+
+                # Compute per-label recall for prototypes
+                per_label_recall = {}
+                similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-k:][::-1]
+                    top_k_labels = target_labels[top_k_indices]
+                    n_matching = np.sum(top_k_labels == proto_label)
+                    recall_label = n_matching / k
+                    per_label_recall[str(proto_label)] = float(recall_label)
+
+                per_label_results[direction][k] = per_label_recall
+
+    if return_per_label:
+        return results, per_label_results
     return results
 
 

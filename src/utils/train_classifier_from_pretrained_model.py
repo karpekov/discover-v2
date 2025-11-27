@@ -950,7 +950,7 @@ def main():
     print("=" * 60)
 
     # Extract dataset info from data_dir path
-    # e.g., data/processed/casas/milan/FD_60_p -> dataset: milan, config: FD_60
+    # e.g., data/processed/casas/milan/FD_60_p -> dataset: milan, config: FD_60_p
     dataset_parts = data_dir.parts
     dataset_name = 'unknown'
     data_config = 'unknown'
@@ -960,7 +960,7 @@ def main():
         if part == 'casas' and i + 1 < len(dataset_parts):
             dataset_name = dataset_parts[i + 1]
             if i + 2 < len(dataset_parts):
-                data_config = dataset_parts[i + 2].replace('_p', '')  # 'FD_60_p' -> 'FD_60'
+                data_config = dataset_parts[i + 2]  # Keep full folder name including '_p'
             break
 
     # Determine output directory based on mode
