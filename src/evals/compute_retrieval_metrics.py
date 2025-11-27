@@ -333,6 +333,7 @@ def compute_label_recall_at_k(
 
     # Store results
     results = {}
+    per_label_results = {} if return_per_label else None
 
     # Compute for each direction
     for direction in directions:
@@ -564,6 +565,7 @@ def compute_prototype_retrieval_metrics(
 
     # Store results
     results = {}
+    per_label_results = {} if return_per_label else None
 
     # Compute for each direction
     for direction in directions:
