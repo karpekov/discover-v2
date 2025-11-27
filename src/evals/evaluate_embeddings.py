@@ -67,6 +67,14 @@ from dataio.collate import create_data_loader
 from utils.device_utils import get_optimal_device, log_device_info
 from utils.label_utils import convert_labels_to_text
 
+# Retrieval metrics imports
+from evals.compute_retrieval_metrics import (
+    compute_label_recall_at_k,
+    load_text_prototypes_from_metadata,
+    encode_text_prototypes,
+    compute_prototype_retrieval_metrics
+)
+
 
 class EmbeddingEvaluator:
     """Evaluate embedding-based activity recognition using nearest neighbors."""
@@ -2881,6 +2889,219 @@ class EmbeddingEvaluator:
 
         return fig
 
+    def create_retrieval_metrics_visualization(self,
+                                              retrieval_results: Dict[str, Dict[int, float]],
+                                              save_path: str = None) -> plt.Figure:
+        """Create visualization for retrieval metrics across all 4 variants.
+
+        Args:
+            retrieval_results: Dict with keys 'text2sensor', 'sensor2text',
+                             'prototype2sensor', 'prototype2text'
+            save_path: Path to save the plot
+        """
+        print("🎨 Creating retrieval metrics visualization...")
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        fig.suptitle('Cross-Modal Retrieval Performance (Label-Recall@K)',
+                     fontsize=16, fontweight='bold')
+
+        # Prepare data for plotting
+        directions = []
+        k_values_list = []
+
+        # Get all K values (should be same across all directions)
+        for direction, k_results in retrieval_results.items():
+            if k_results:
+                k_values_list = sorted(k_results.keys())
+                break
+
+        # Colors for different retrieval types
+        colors = {
+            'text2sensor': '#1f77b4',        # Blue
+            'sensor2text': '#ff7f0e',        # Orange
+            'prototype2sensor': '#2ca02c',   # Green
+            'prototype2text': '#d62728'      # Red
+        }
+
+        # Labels for legend
+        labels_map = {
+            'text2sensor': 'Text → Sensor',
+            'sensor2text': 'Sensor → Text',
+            'prototype2sensor': 'Prototype → Sensor',
+            'prototype2text': 'Prototype → Text'
+        }
+
+        # Plot 1: Line chart showing recall across K values
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                recalls = [k_results[k] for k in k_values_list]
+
+                ax1.plot(k_values_list, recalls, 'o-',
+                        color=colors.get(direction, '#333333'),
+                        label=labels_map.get(direction, direction),
+                        linewidth=2.5, markersize=8, alpha=0.8)
+
+        ax1.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
+        ax1.set_ylabel('Label-Recall@K', fontsize=12)
+        ax1.set_title('Retrieval Performance vs K', fontweight='bold', fontsize=13)
+        ax1.legend(fontsize=10, loc='best')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim(0, 1)
+        ax1.set_xticks(k_values_list)
+
+        # Add value labels on points
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                for k in k_values_list:
+                    recall = k_results[k]
+                    # Only show label for middle K value to avoid clutter
+                    if k == k_values_list[len(k_values_list)//2]:
+                        ax1.annotate(f'{recall:.3f}',
+                                   xy=(k, recall),
+                                   xytext=(0, 8),
+                                   textcoords="offset points",
+                                   ha='center', va='bottom',
+                                   fontsize=8,
+                                   color=colors.get(direction, '#333333'))
+
+        # Plot 2: Bar chart comparing all methods at a specific K (middle K)
+        middle_k = k_values_list[len(k_values_list)//2] if k_values_list else 10
+
+        bar_data = []
+        bar_labels = []
+        bar_colors = []
+
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                if middle_k in k_results:
+                    bar_data.append(k_results[middle_k])
+                    bar_labels.append(labels_map.get(direction, direction))
+                    bar_colors.append(colors.get(direction, '#333333'))
+
+        if bar_data:
+            x = np.arange(len(bar_data))
+            bars = ax2.bar(x, bar_data, color=bar_colors, alpha=0.8, width=0.6)
+
+            ax2.set_ylabel('Label-Recall@K', fontsize=12)
+            ax2.set_title(f'Retrieval Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
+            ax2.set_xticks(x)
+            ax2.set_xticklabels(bar_labels, rotation=15, ha='right', fontsize=10)
+            ax2.grid(True, alpha=0.3, axis='y')
+            ax2.set_ylim(0, 1)
+
+            # Add value labels on bars
+            for bar in bars:
+                height = bar.get_height()
+                ax2.annotate(f'{height:.3f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),
+                           textcoords="offset points",
+                           ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Retrieval metrics visualization saved: {save_path}")
+
+        return fig
+
+    def create_per_label_retrieval_heatmap(self,
+                                          prototype_labels: np.ndarray,
+                                          target_embeddings: np.ndarray,
+                                          target_labels: np.ndarray,
+                                          prototype_embeddings: np.ndarray,
+                                          direction_name: str,
+                                          k: int = 10,
+                                          save_path: str = None) -> plt.Figure:
+        """Create heatmap showing per-label retrieval performance.
+
+        Args:
+            prototype_labels: Labels for prototypes (N_prototypes,)
+            target_embeddings: Target embeddings (N_targets, D)
+            target_labels: Labels for targets (N_targets,)
+            prototype_embeddings: Prototype embeddings (N_prototypes, D)
+            direction_name: Name of retrieval direction
+            k: K value for recall computation
+            save_path: Path to save plot
+        """
+        from evals.compute_retrieval_metrics import (
+            normalize_embeddings,
+            compute_cosine_similarity
+        )
+
+        print(f"🎨 Creating per-label retrieval heatmap for {direction_name}...")
+
+        # Normalize embeddings
+        prototype_embeddings_norm = normalize_embeddings(prototype_embeddings)
+        target_embeddings_norm = normalize_embeddings(target_embeddings)
+
+        # Compute similarity matrix
+        similarities = compute_cosine_similarity(prototype_embeddings_norm, target_embeddings_norm)
+
+        # For each prototype, compute recall@k
+        per_label_recalls = []
+        for i, proto_label in enumerate(prototype_labels):
+            proto_sims = similarities[i]
+            top_k_indices = np.argsort(proto_sims)[-k:][::-1]
+            top_k_labels = target_labels[top_k_indices]
+            n_matching = np.sum(top_k_labels == proto_label)
+            recall = n_matching / k
+            per_label_recalls.append(recall)
+
+        # Create bar plot
+        fig, ax = plt.subplots(figsize=(max(12, len(prototype_labels) * 0.5), 8))
+
+        # Sort by recall for better visualization
+        sorted_indices = np.argsort(per_label_recalls)[::-1]
+        sorted_labels = prototype_labels[sorted_indices]
+        sorted_recalls = np.array(per_label_recalls)[sorted_indices]
+
+        # Limit to top 20 for readability
+        if len(sorted_labels) > 20:
+            sorted_labels = sorted_labels[:20]
+            sorted_recalls = sorted_recalls[:20]
+
+        # Create horizontal bar chart
+        y_pos = np.arange(len(sorted_labels))
+        colors_bars = plt.cm.RdYlGn(sorted_recalls)  # Color based on performance
+
+        bars = ax.barh(y_pos, sorted_recalls, color=colors_bars, alpha=0.8)
+
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
+        ax.set_xlabel(f'Label-Recall@{k}', fontsize=12)
+        ax.set_title(f'Per-Label Retrieval Performance: {direction_name}',
+                    fontweight='bold', fontsize=14)
+        ax.set_xlim(0, 1)
+        ax.grid(True, alpha=0.3, axis='x')
+
+        # Add value labels
+        for i, (bar, recall) in enumerate(zip(bars, sorted_recalls)):
+            width = bar.get_width()
+            ax.annotate(f'{recall:.3f}',
+                       xy=(width, bar.get_y() + bar.get_height() / 2),
+                       xytext=(5, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=8)
+
+        # Add average line
+        avg_recall = np.mean(sorted_recalls)
+        ax.axvline(avg_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Average: {avg_recall:.3f}')
+        ax.legend(fontsize=10)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-label retrieval heatmap saved: {save_path}")
+
+        return fig
+
     def run_comprehensive_evaluation(self,
                                      train_text_embeddings_path: str,
                                      test_text_embeddings_path: str,
@@ -3067,44 +3288,149 @@ class EmbeddingEvaluator:
             save_path=str(output_dir / 'perclass_f1_weighted_l2.png')
         )
 
-        # ===== 7. SAVE RESULTS =====
+        # ===== 7. COMPUTE RETRIEVAL METRICS =====
+        print("\n" + "="*60)
+        print("7. COMPUTING RETRIEVAL METRICS")
+        print("="*60)
+
+        # Instance-to-instance retrieval (text <-> sensor)
+        print("\n📊 Computing instance-to-instance retrieval...")
+        instance_retrieval_results = compute_label_recall_at_k(
+            sensor_embeddings=test_sensor_emb,
+            text_embeddings=test_text_emb_proj,  # Use projected text embeddings
+            labels=np.array(test_labels_l1),  # Use L1 labels
+            k_values=[10, 50, 100],
+            directions=['text2sensor', 'sensor2text'],
+            normalize=True,
+            verbose=True
+        )
+
+        # Prototype-based retrieval
+        print("\n📊 Computing prototype-based retrieval...")
+
+        # Load text prototypes from metadata
+        try:
+            label_to_text = load_text_prototypes_from_metadata(
+                metadata_path='metadata/casas_metadata.json',
+                dataset_name=self.dataset_name,
+                style='sourish'
+            )
+            print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
+
+            # Encode text prototypes
+            prototype_emb, prototype_labels = encode_text_prototypes(
+                label_to_text=label_to_text,
+                text_encoder=self.text_encoder,
+                device=str(self.device),
+                normalize=True
+            )
+            print(f"✅ Encoded {len(prototype_emb)} text prototypes")
+
+            # Compute prototype retrieval metrics
+            prototype_retrieval_results = compute_prototype_retrieval_metrics(
+                prototype_embeddings=prototype_emb,
+                prototype_labels=prototype_labels,
+                sensor_embeddings=test_sensor_emb,
+                text_embeddings=test_text_emb_proj,  # Use projected text embeddings
+                target_labels=np.array(test_labels_l1),  # Use L1 labels
+                k_values=[10, 50, 100],
+                directions=['prototype2sensor', 'prototype2text'],
+                normalize=True,
+                verbose=True
+            )
+
+            # Combine all retrieval results
+            all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
+
+            # Create retrieval visualizations
+            print("\n🎨 Creating retrieval metric visualizations...")
+            self.create_retrieval_metrics_visualization(
+                retrieval_results=all_retrieval_results,
+                save_path=str(output_dir / 'retrieval_metrics_comparison.png')
+            )
+
+            # Create per-label retrieval heatmaps
+            print("\n🎨 Creating per-label retrieval heatmaps...")
+
+            # Prototype -> Sensor
+            self.create_per_label_retrieval_heatmap(
+                prototype_labels=prototype_labels,
+                target_embeddings=test_sensor_emb,
+                target_labels=np.array(test_sensor_l1),
+                prototype_embeddings=prototype_emb,
+                direction_name='Prototype → Sensor',
+                k=10,
+                save_path=str(output_dir / 'retrieval_perlabel_prototype2sensor.png')
+            )
+
+            # Prototype -> Text
+            self.create_per_label_retrieval_heatmap(
+                prototype_labels=prototype_labels,
+                target_embeddings=test_text_emb_proj,
+                target_labels=np.array(test_labels_l1),
+                prototype_embeddings=prototype_emb,
+                direction_name='Prototype → Text',
+                k=10,
+                save_path=str(output_dir / 'retrieval_perlabel_prototype2text.png')
+            )
+
+        except Exception as e:
+            print(f"⚠️  Could not compute prototype retrieval metrics: {e}")
+            import traceback
+            traceback.print_exc()
+            all_retrieval_results = instance_retrieval_results
+            prototype_retrieval_results = {}
+
+        # ===== 8. SAVE RESULTS =====
         if save_results:
             results_summary = {
-                'text_noproj': {
-                    'l1': {
-                        'accuracy': metrics_l1_text_noproj.get('accuracy', 0),
-                        'f1_weighted': metrics_l1_text_noproj.get('f1_weighted', 0),
-                        'f1_macro': metrics_l1_text_noproj.get('f1_macro', 0),
+                'classification_metrics': {
+                    'text_noproj': {
+                        'l1': {
+                            'accuracy': metrics_l1_text_noproj.get('accuracy', 0),
+                            'f1_weighted': metrics_l1_text_noproj.get('f1_weighted', 0),
+                            'f1_macro': metrics_l1_text_noproj.get('f1_macro', 0),
+                        },
+                        'l2': {
+                            'accuracy': metrics_l2_text_noproj.get('accuracy', 0),
+                            'f1_weighted': metrics_l2_text_noproj.get('f1_weighted', 0),
+                            'f1_macro': metrics_l2_text_noproj.get('f1_macro', 0),
+                        }
                     },
-                    'l2': {
-                        'accuracy': metrics_l2_text_noproj.get('accuracy', 0),
-                        'f1_weighted': metrics_l2_text_noproj.get('f1_weighted', 0),
-                        'f1_macro': metrics_l2_text_noproj.get('f1_macro', 0),
+                    'text_proj': {
+                        'l1': {
+                            'accuracy': metrics_l1_text_proj.get('accuracy', 0),
+                            'f1_weighted': metrics_l1_text_proj.get('f1_weighted', 0),
+                            'f1_macro': metrics_l1_text_proj.get('f1_macro', 0),
+                        },
+                        'l2': {
+                            'accuracy': metrics_l2_text_proj.get('accuracy', 0),
+                            'f1_weighted': metrics_l2_text_proj.get('f1_weighted', 0),
+                            'f1_macro': metrics_l2_text_proj.get('f1_macro', 0),
+                        }
+                    },
+                    'sensor': {
+                        'l1': {
+                            'accuracy': metrics_l1_sensor.get('accuracy', 0),
+                            'f1_weighted': metrics_l1_sensor.get('f1_weighted', 0),
+                            'f1_macro': metrics_l1_sensor.get('f1_macro', 0),
+                        },
+                        'l2': {
+                            'accuracy': metrics_l2_sensor.get('accuracy', 0),
+                            'f1_weighted': metrics_l2_sensor.get('f1_weighted', 0),
+                            'f1_macro': metrics_l2_sensor.get('f1_macro', 0),
+                        }
                     }
                 },
-                'text_proj': {
-                    'l1': {
-                        'accuracy': metrics_l1_text_proj.get('accuracy', 0),
-                        'f1_weighted': metrics_l1_text_proj.get('f1_weighted', 0),
-                        'f1_macro': metrics_l1_text_proj.get('f1_macro', 0),
+                'retrieval_metrics': {
+                    'instance_to_instance': {
+                        direction: {str(k): float(v) for k, v in k_results.items()}
+                        for direction, k_results in instance_retrieval_results.items()
                     },
-                    'l2': {
-                        'accuracy': metrics_l2_text_proj.get('accuracy', 0),
-                        'f1_weighted': metrics_l2_text_proj.get('f1_weighted', 0),
-                        'f1_macro': metrics_l2_text_proj.get('f1_macro', 0),
-                    }
-                },
-                'sensor': {
-                    'l1': {
-                        'accuracy': metrics_l1_sensor.get('accuracy', 0),
-                        'f1_weighted': metrics_l1_sensor.get('f1_weighted', 0),
-                        'f1_macro': metrics_l1_sensor.get('f1_macro', 0),
-                    },
-                    'l2': {
-                        'accuracy': metrics_l2_sensor.get('accuracy', 0),
-                        'f1_weighted': metrics_l2_sensor.get('f1_weighted', 0),
-                        'f1_macro': metrics_l2_sensor.get('f1_macro', 0),
-                    }
+                    'prototype_based': {
+                        direction: {str(k): float(v) for k, v in k_results.items()}
+                        for direction, k_results in prototype_retrieval_results.items()
+                    } if prototype_retrieval_results else {}
                 }
             }
 
@@ -3113,11 +3439,13 @@ class EmbeddingEvaluator:
 
             print(f"💾 Results saved: {output_dir / 'comprehensive_results.json'}")
 
-        # ===== 8. PRINT SUMMARY WITH F1 WEIGHTED FOCUS =====
+        # ===== 9. PRINT SUMMARY WITH F1 WEIGHTED FOCUS =====
         print("\n" + "="*80)
-        print("🎯 COMPREHENSIVE EVALUATION SUMMARY (F1 WEIGHTED FOCUS)")
+        print("🎯 COMPREHENSIVE EVALUATION SUMMARY")
         print("="*80)
         print("Note: All evaluations use synthetic text prototypes (unprojected for 'No Proj', projected for others)")
+
+        # Classification Metrics Summary
 
         # L1 Summary
         print("\n📊 L1 PRIMARY ACTIVITIES:")
@@ -3172,6 +3500,35 @@ class EmbeddingEvaluator:
         print(f"{'Text Projection vs No Projection':<50} {proj_vs_noproj_l1:+<12.4f} {proj_vs_noproj_l2:+<12.4f}")
         print(f"{'Sensor vs Text (No Projection)':<50} {sensor_vs_noproj_l1:+<12.4f} {sensor_vs_noproj_l2:+<12.4f}")
         print(f"{'Sensor vs Text (With Projection)':<50} {sensor_vs_proj_l1:+<12.4f} {sensor_vs_proj_l2:+<12.4f}")
+
+        # Retrieval Metrics Summary
+        print("\n" + "="*80)
+        print("📊 RETRIEVAL METRICS SUMMARY (Label-Recall@K)")
+        print("="*80)
+
+        if all_retrieval_results:
+            # Choose middle K value for summary
+            k_vals = list(next(iter(all_retrieval_results.values())).keys())
+            middle_k = k_vals[len(k_vals)//2] if k_vals else 10
+
+            print(f"\nLabel-Recall @ K={middle_k}:")
+            print(f"{'Direction':<30} {'Recall':<12}")
+            print("-" * 42)
+
+            for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+                if direction in all_retrieval_results:
+                    recall = all_retrieval_results[direction].get(middle_k, 0)
+                    direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
+                    print(f"{direction_display:<30} {recall:<12.4f} ({recall*100:.2f}%)")
+
+            # Print all K values for main directions
+            print(f"\nDetailed Results (All K values):")
+            for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+                if direction in all_retrieval_results:
+                    direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
+                    print(f"\n{direction_display}:")
+                    for k, recall in sorted(all_retrieval_results[direction].items()):
+                        print(f"  K={k:3d}  =>  {recall:.4f} ({recall*100:.2f}%)")
 
         print(f"\n✅ All results saved in: {output_dir}")
 
