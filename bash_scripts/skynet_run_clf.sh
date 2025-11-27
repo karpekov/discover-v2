@@ -6,16 +6,18 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --ntasks-per-node 1
 #SBATCH -J dv2-train
-#SBATCH -p rail-lab
+#SBATCH -p overcap
 
-echo "RUNNING CLF for milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1"
+MODEL_DIR=trained_models/milan/$1
+
+echo "RUNNING CLF for $MODEL_DIR"
 
 /coc/flash5/akarpekov3/anaconda3/envs/discover-v2-env/bin/python ./src/utils/train_classifier_from_pretrained_model.py \
-  --model trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 \
-  --epochs 30 \
-  --label-level l1 \
+  --model $MODEL_DIR \
+  --epochs 50 \
+  --label-level l2 \
   --batch-size 128 \
-  --classifier mlp
+  --classifier linear \
+  --lr 5e-4
 
-echo "CLF completed for milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1"
-
+echo "CLF completed for $MODEL_DIR"
