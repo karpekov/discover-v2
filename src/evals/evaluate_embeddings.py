@@ -3854,7 +3854,7 @@ class EmbeddingEvaluator:
                         'f1_weighted': metrics_l2_sensor.get('f1_weighted', 0),
                         'f1_macro': metrics_l2_sensor.get('f1_macro', 0),
                     }
-                    }
+                }
                 },
                 'retrieval_metrics': retrieval_results_by_level
             }
@@ -3931,29 +3931,43 @@ class EmbeddingEvaluator:
         print("📊 RETRIEVAL METRICS SUMMARY (Label-Recall@K)")
         print("="*80)
 
-        if all_retrieval_results:
-            # Choose middle K value for summary
-            k_vals = list(next(iter(all_retrieval_results.values())).keys())
-            middle_k = k_vals[len(k_vals)//2] if k_vals else 10
+        # Display results for both L1 and L2 label levels
+        for label_level in ['L1', 'L2']:
+            if label_level in retrieval_results_by_level:
+                level_data = retrieval_results_by_level[label_level]
 
-            print(f"\nLabel-Recall @ K={middle_k}:")
-            print(f"{'Direction':<30} {'Recall':<12}")
-            print("-" * 42)
+                # Combine instance and prototype results for display
+                all_results = {}
+                if 'instance_to_instance' in level_data and 'overall' in level_data['instance_to_instance']:
+                    all_results.update(level_data['instance_to_instance']['overall'])
+                if 'prototype_based' in level_data and 'overall' in level_data['prototype_based']:
+                    all_results.update(level_data['prototype_based']['overall'])
 
-            for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
-                if direction in all_retrieval_results:
-                    recall = all_retrieval_results[direction].get(middle_k, 0)
-                    direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
-                    print(f"{direction_display:<30} {recall:<12.4f} ({recall*100:.2f}%)")
+                if all_results:
+                    print(f"\n{label_level} Labels:")
+                    print("-" * 80)
 
-            # Print all K values for main directions
-            print(f"\nDetailed Results (All K values):")
-            for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
-                if direction in all_retrieval_results:
-                    direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
-                    print(f"\n{direction_display}:")
-                    for k, recall in sorted(all_retrieval_results[direction].items()):
-                        print(f"  K={k:3d}  =>  {recall:.4f} ({recall*100:.2f}%)")
+                    # Choose middle K value for summary
+                    k_vals = list(next(iter(all_results.values())).keys())
+                    middle_k = k_vals[len(k_vals)//2] if k_vals else 10
+
+                    print(f"\nLabel-Recall @ K={middle_k}:")
+                    print(f"{'Direction':<30} {'Macro':<15} {'Weighted':<15}")
+                    print("-" * 60)
+
+                    for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+                        if direction in all_results:
+                            metrics = all_results[direction].get(middle_k, {})
+                            # Handle both old format (single float) and new format (dict)
+                            if isinstance(metrics, dict):
+                                macro = metrics.get('macro', 0)
+                                weighted = metrics.get('weighted', 0)
+                            else:
+                                # Backward compatibility
+                                macro = weighted = metrics
+
+                            direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
+                            print(f"{direction_display:<30} {macro:<.4f} ({macro*100:>5.2f}%)  {weighted:<.4f} ({weighted*100:>5.2f}%)")
 
         print(f"\n✅ All results saved in: {output_dir}")
 
