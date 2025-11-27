@@ -2,11 +2,13 @@
 """
 Train a linear or MLP classifier on top of frozen pretrained embeddings for activity classification.
 
-This script loads a pretrained sensor encoder, freezes it, and trains a simple classifier head
-to predict activity labels. Useful for evaluating embedding quality and downstream task performance.
+This script supports two modes:
+1. Pretrained sensor encoder: Load a model and extract embeddings
+2. Precomputed text embeddings: Load precomputed embeddings from .npz files
 
 Usage Examples:
 
+    # MODE 1: Pretrained Model
     # Basic: Linear probe on L1 labels (default, data-dir auto-detected)
     python src/utils/train_classifier_from_pretrained_model.py \
         --model trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1
@@ -17,46 +19,53 @@ Usage Examples:
         --classifier mlp \
         --epochs 30
 
-    # Override data directory (if needed)
+    # MODE 2: Precomputed Text Embeddings
+    # Linear probe on precomputed CLIP embeddings with baseline captions
     python src/utils/train_classifier_from_pretrained_model.py \
-        --model trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 \
-        --data-dir data/processed/casas/cairo/FD_30_p \
-        --classifier mlp
+        --embeddings-dir data/processed/casas/milan/FD_60_p \
+        --caption-style baseline \
+        --encoder-type clip \
+        --data-dir data/processed/casas/milan/FD_60_p \
+        --classifier linear \
+        --epochs 50 \
+        --label-level l1
 
-    # L2 (secondary) labels with tuned learning rate
+    # MLP on L2 labels with precomputed embeddings
     python src/utils/train_classifier_from_pretrained_model.py \
-        --model trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 \
-        --label-level l2 \
-        --lr 5e-4
-
-    # Full custom configuration
-    python src/utils/train_classifier_from_pretrained_model.py \
-        --model trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 \
+        --embeddings-dir data/processed/casas/milan/FD_60_p \
+        --caption-style baseline \
+        --encoder-type clip \
         --classifier mlp \
         --label-level l2 \
-        --epochs 50 \
-        --batch-size 128 \
-        --lr 2e-3
+        --epochs 30
 
 Arguments:
-    --model: Path to pretrained model directory (required)
-    --data-dir: Path to data directory with train.json/test.json (optional, auto-detected from model name)
-    --classifier: Classifier type - 'linear' or 'mlp' (default: linear)
-    --label-level: Label granularity - 'l1' (primary) or 'l2' (secondary) (default: l1)
-    --epochs: Number of training epochs (default: 30)
-    --batch-size: Batch size for training (default: 64)
-    --lr: Learning rate (default: 1e-3)
-    --unfreeze-layers: Number of encoder layers to fine-tune (default: 0)
-    --use-class-weights: Enable class weighting for imbalanced datasets
-    --no-scheduler: Disable learning rate scheduler
-    --gradient-clip: Gradient clipping value (default: 1.0)
+    MODE 1 (Pretrained Model):
+        --model: Path to pretrained model directory (required if not using embeddings)
+        --data-dir: Path to data directory with train.json/test.json (optional, auto-detected from model name)
+        --unfreeze-layers: Number of encoder layers to fine-tune (default: 0)
+
+    MODE 2 (Precomputed Embeddings):
+        --embeddings-dir: Directory containing precomputed embeddings (train/test .npz files)
+        --caption-style: Caption style used for embeddings (e.g., 'baseline', 'sourish')
+        --encoder-type: Encoder type used for embeddings (e.g., 'clip', 'gte', 'siglip')
+        --data-dir: Path to data directory with train.json/test.json (required for labels)
+
+    Common Arguments:
+        --classifier: Classifier type - 'linear' or 'mlp' (default: linear)
+        --label-level: Label granularity - 'l1' (primary) or 'l2' (secondary) (default: l1)
+        --epochs: Number of training epochs (default: 30)
+        --batch-size: Batch size for training (default: 64)
+        --lr: Learning rate (default: 1e-3)
+        --use-class-weights: Enable class weighting for imbalanced datasets
+        --no-scheduler: Disable learning rate scheduler
+        --gradient-clip: Gradient clipping value (default: 1.0)
 
 Output:
-    - Training progress with loss, accuracy, and F1 scores per epoch
-    - Best validation accuracy and F1 score
-    - Results saved to: results/evals/{dataset}/{config}/{model}/clf_probing/
-      * results_{classifier}_{epochs}_{label_level}.json - Machine-readable metrics
-      * results_{classifier}_{epochs}_{label_level}.txt - Human-readable report
+    MODE 1: results/evals/{dataset}/{config}/{model}/clf_probing/
+    MODE 2: results/evals/{dataset}/{config}/text_only/clf_probing/
+      * {prefix}_results_{classifier}_{epochs}_{label_level}.json - Machine-readable metrics
+      * {prefix}_results_{classifier}_{epochs}_{label_level}.txt - Human-readable report
 """
 
 import argparse
@@ -69,6 +78,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 from sklearn.metrics import f1_score
+import numpy as np
 
 # Add project root to path (go up 2 levels from src/utils/)
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -154,6 +164,85 @@ class ActivityDataset(Dataset):
         }
 
 
+class PrecomputedEmbeddingsDataset(Dataset):
+    """Dataset that loads precomputed embeddings from .npz files."""
+
+    def __init__(self, embeddings_path, data_path, label_level='l1'):
+        """
+        Args:
+            embeddings_path: Path to .npz file with precomputed embeddings
+            data_path: Path to original data JSON file (for labels)
+            label_level: 'l1' or 'l2'
+        """
+        print(f"Loading embeddings from: {embeddings_path}")
+        data = np.load(embeddings_path)
+        self.embeddings = data['embeddings']
+        self.sample_ids = [str(sid) for sid in data['sample_ids']]
+        self.label_level = label_level
+
+        print(f"   Loaded {len(self.embeddings)} embeddings of dimension {self.embeddings.shape[1]}")
+
+        # Load labels from data file
+        print(f"Loading labels from: {data_path}")
+        with open(data_path, 'r') as f:
+            data_json = json.load(f)
+
+        samples_data = data_json.get('samples', data_json)
+
+        # Create label map
+        label_map = {}
+        for sample in samples_data:
+            sample_id = str(sample.get('sample_id'))
+            metadata = sample.get('metadata', {})
+            ground_truth = metadata.get('ground_truth_labels', {})
+            label_l1 = ground_truth.get('primary_l1', ground_truth.get('mode', 'Unknown'))
+            label_l2 = ground_truth.get('primary_l2', 'Unknown')
+            label_map[sample_id] = {'label_l1': label_l1, 'label_l2': label_l2}
+
+        # Match embeddings to labels
+        self.valid_embeddings = []
+        self.valid_labels = []
+        self.valid_sample_ids = []
+
+        no_activity_count = 0
+
+        for i, sample_id in enumerate(self.sample_ids):
+            if sample_id in label_map:
+                label_l1 = label_map[sample_id]['label_l1']
+                label_l2 = label_map[sample_id]['label_l2']
+
+                # For L2, skip No_Activity in L1
+                if label_level == 'l2':
+                    if label_l1.lower().replace('_', '').replace('-', '') in ['noactivity', 'no activity']:
+                        no_activity_count += 1
+                        continue
+
+                # Get the appropriate label
+                label = label_l1 if label_level == 'l1' else label_l2
+
+                # Skip if label is Unknown
+                if label != 'Unknown':
+                    self.valid_embeddings.append(self.embeddings[i])
+                    self.valid_labels.append(label)
+                    self.valid_sample_ids.append(sample_id)
+
+        self.valid_embeddings = np.array(self.valid_embeddings)
+
+        if label_level == 'l2' and no_activity_count > 0:
+            print(f"   Filtered out {no_activity_count} samples with L1 'No_Activity' label")
+        print(f"   Matched {len(self.valid_embeddings)} samples with {label_level.upper()} labels")
+
+    def __len__(self):
+        return len(self.valid_embeddings)
+
+    def __getitem__(self, idx):
+        return {
+            'embedding': self.valid_embeddings[idx],
+            'activity': self.valid_labels[idx],
+            'sample_id': self.valid_sample_ids[idx]
+        }
+
+
 def collate_fn(batch, dataset, model_config):
     """Prepare batch for the pretrained model."""
     # Use the alignment dataset's collate logic but without text embeddings
@@ -223,6 +312,19 @@ def collate_fn(batch, dataset, model_config):
     }
 
 
+def collate_fn_precomputed(batch):
+    """Collate function for precomputed embeddings."""
+    embeddings = torch.tensor(np.array([item['embedding'] for item in batch]), dtype=torch.float32)
+    activities = [item['activity'] for item in batch]
+    sample_ids = [item['sample_id'] for item in batch]
+
+    return {
+        'embeddings': embeddings,
+        'activities': activities,
+        'sample_ids': sample_ids
+    }
+
+
 class ActivityClassifier(nn.Module):
     """Simple classifier on top of frozen embeddings."""
 
@@ -230,6 +332,7 @@ class ActivityClassifier(nn.Module):
                  unfreeze_layers=0):
         super().__init__()
         self.encoder = pretrained_model.sensor_encoder
+        self.use_encoder = True
 
         # Freeze encoder by default
         for param in self.encoder.parameters():
@@ -281,8 +384,34 @@ class ActivityClassifier(nn.Module):
         return logits
 
 
+class PrecomputedEmbeddingsClassifier(nn.Module):
+    """Simple classifier on top of precomputed embeddings."""
+
+    def __init__(self, embed_dim, num_classes, classifier_type='linear', hidden_dim=256):
+        super().__init__()
+        self.use_encoder = False
+
+        # Classification head
+        if classifier_type == 'linear':
+            self.classifier = nn.Linear(embed_dim, num_classes)
+        else:  # mlp
+            self.classifier = nn.Sequential(
+                nn.Linear(embed_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(hidden_dim, num_classes)
+            )
+
+        print(f"Created {classifier_type} classifier for precomputed embeddings: {embed_dim} -> {num_classes}")
+
+    def forward(self, embeddings):
+        # Embeddings are already computed, just classify
+        logits = self.classifier(embeddings)
+        return logits
+
+
 def train_classifier(model, train_loader, val_loader, device, epochs=10, lr=1e-3,
-                    class_weights=None, use_scheduler=True, gradient_clip=1.0):
+                    class_weights=None, use_scheduler=True, gradient_clip=1.0, use_precomputed=False):
     """Train the classifier."""
     # Collect all trainable parameters (classifier + any unfrozen encoder layers)
     trainable_params = [p for p in model.parameters() if p.requires_grad]
@@ -316,24 +445,35 @@ def train_classifier(model, train_loader, val_loader, device, epochs=10, lr=1e-3
         train_labels = []
 
         for batch in train_loader:
-            # Pack input_data dict (same format as evaluate_embeddings.py)
-            input_data = {}
-            for k, v in batch['sensor_data'].items():
-                if k == 'categorical_features':
-                    # Handle nested dict of tensors
-                    input_data['categorical_features'] = {
-                        field: tensor.to(device) for field, tensor in v.items()
-                    }
-                elif isinstance(v, torch.Tensor):
-                    input_data[k] = v.to(device)
+            if use_precomputed:
+                # Precomputed embeddings mode
+                embeddings = batch['embeddings'].to(device)
+                labels = batch['label_ids'].to(device)
 
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['label_ids'].to(device)
+                optimizer.zero_grad()
+                logits = model(embeddings)
+                loss = criterion(logits, labels)
+                loss.backward()
+            else:
+                # Pretrained model mode
+                # Pack input_data dict (same format as evaluate_embeddings.py)
+                input_data = {}
+                for k, v in batch['sensor_data'].items():
+                    if k == 'categorical_features':
+                        # Handle nested dict of tensors
+                        input_data['categorical_features'] = {
+                            field: tensor.to(device) for field, tensor in v.items()
+                        }
+                    elif isinstance(v, torch.Tensor):
+                        input_data[k] = v.to(device)
 
-            optimizer.zero_grad()
-            logits = model(input_data, attention_mask)
-            loss = criterion(logits, labels)
-            loss.backward()
+                attention_mask = batch['attention_mask'].to(device)
+                labels = batch['label_ids'].to(device)
+
+                optimizer.zero_grad()
+                logits = model(input_data, attention_mask)
+                loss = criterion(logits, labels)
+                loss.backward()
 
             # Gradient clipping for stability
             if gradient_clip > 0:
@@ -357,21 +497,28 @@ def train_classifier(model, train_loader, val_loader, device, epochs=10, lr=1e-3
 
         with torch.no_grad():
             for batch in val_loader:
-                # Pack input_data dict (same format as evaluate_embeddings.py)
-                input_data = {}
-                for k, v in batch['sensor_data'].items():
-                    if k == 'categorical_features':
-                        # Handle nested dict of tensors
-                        input_data['categorical_features'] = {
-                            field: tensor.to(device) for field, tensor in v.items()
-                        }
-                    elif isinstance(v, torch.Tensor):
-                        input_data[k] = v.to(device)
+                if use_precomputed:
+                    # Precomputed embeddings mode
+                    embeddings = batch['embeddings'].to(device)
+                    labels = batch['label_ids'].to(device)
+                    logits = model(embeddings)
+                else:
+                    # Pretrained model mode
+                    # Pack input_data dict (same format as evaluate_embeddings.py)
+                    input_data = {}
+                    for k, v in batch['sensor_data'].items():
+                        if k == 'categorical_features':
+                            # Handle nested dict of tensors
+                            input_data['categorical_features'] = {
+                                field: tensor.to(device) for field, tensor in v.items()
+                            }
+                        elif isinstance(v, torch.Tensor):
+                            input_data[k] = v.to(device)
 
-                attention_mask = batch['attention_mask'].to(device)
-                labels = batch['label_ids'].to(device)
+                    attention_mask = batch['attention_mask'].to(device)
+                    labels = batch['label_ids'].to(device)
+                    logits = model(input_data, attention_mask)
 
-                logits = model(input_data, attention_mask)
                 _, predicted = logits.max(1)
                 val_preds.extend(predicted.cpu().numpy())
                 val_labels.extend(labels.cpu().numpy())
@@ -431,8 +578,16 @@ def train_classifier(model, train_loader, val_loader, device, epochs=10, lr=1e-3
     }
 
 
-def save_results(model_path, metrics, hyperparams, output_dir):
-    """Save evaluation results to text and JSON files with descriptive naming."""
+def save_results(model_path, metrics, hyperparams, output_dir, prefix=''):
+    """Save evaluation results to text and JSON files with descriptive naming.
+
+    Args:
+        model_path: Path to model (or 'precomputed_embeddings' for text mode)
+        metrics: Dictionary of evaluation metrics
+        hyperparams: Dictionary of hyperparameters
+        output_dir: Output directory path
+        prefix: Optional prefix for filename (e.g., 'baseline_clip')
+    """
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -442,7 +597,11 @@ def save_results(model_path, metrics, hyperparams, output_dir):
     epoch_suffix = f"e{hyperparams['epochs']}"
     label_suffix = f"l{hyperparams['label_level']}"
 
-    filename_base = f"results_{classifier_suffix}_{epoch_suffix}_{label_suffix}"
+    # Add prefix if provided
+    if prefix:
+        filename_base = f"{prefix}_results_{classifier_suffix}_{epoch_suffix}_{label_suffix}"
+    else:
+        filename_base = f"results_{classifier_suffix}_{epoch_suffix}_{label_suffix}"
 
     # Prepare comprehensive results dictionary
     results = {
@@ -523,10 +682,22 @@ def save_results(model_path, metrics, hyperparams, output_dir):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, required=True,
-                       help='Path to trained model directory')
+    # Mode selection
+    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument('--model', type=str,
+                           help='Path to trained model directory (MODE 1: Pretrained Model)')
+    mode_group.add_argument('--embeddings-dir', type=str,
+                           help='Directory containing precomputed embeddings (MODE 2: Precomputed Embeddings)')
+
+    # Mode 2 specific arguments
+    parser.add_argument('--caption-style', type=str,
+                       help='Caption style for precomputed embeddings (e.g., baseline, sourish)')
+    parser.add_argument('--encoder-type', type=str,
+                       help='Encoder type for precomputed embeddings (e.g., clip, gte, siglip)')
+
+    # Common arguments
     parser.add_argument('--data-dir', type=str, default=None,
-                       help='Path to data directory containing train.json and test.json (auto-detected from model name if not provided)')
+                       help='Path to data directory containing train.json and test.json (auto-detected if not provided)')
     parser.add_argument('--classifier', type=str, default='linear', choices=['linear', 'mlp'],
                        help='Classifier type: linear or mlp')
     parser.add_argument('--label-level', type=str, default='l1', choices=['l1', 'l2'],
@@ -538,7 +709,7 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-3,
                        help='Learning rate')
     parser.add_argument('--unfreeze-layers', type=int, default=0,
-                       help='Number of encoder layers to unfreeze for fine-tuning (0=frozen encoder)')
+                       help='Number of encoder layers to unfreeze for fine-tuning (0=frozen encoder, only for MODE 1)')
     parser.add_argument('--use-class-weights', action='store_true',
                        help='Use class weights to handle imbalanced data')
     parser.add_argument('--no-scheduler', action='store_true',
@@ -547,114 +718,183 @@ def main():
                        help='Gradient clipping value (0 to disable)')
     args = parser.parse_args()
 
+    # Determine mode
+    use_precomputed = args.embeddings_dir is not None
+
+    if use_precomputed and (not args.caption_style or not args.encoder_type):
+        parser.error("--caption-style and --encoder-type are required when using --embeddings-dir")
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
+    print(f"Mode: {'Precomputed Embeddings' if use_precomputed else 'Pretrained Model'}")
     print(f"Label level: {args.label_level.upper()}")
 
-    # Load pretrained model using AlignmentModel.load() method (same as evaluate_embeddings.py)
-    model_dir = Path(args.model)
-    checkpoint_path = model_dir / 'best_model.pt'
-    config_path = model_dir / 'config.yaml'
+    if use_precomputed:
+        # MODE 2: Precomputed Embeddings
+        embeddings_dir = Path(args.embeddings_dir)
 
-    print(f"\nLoading pretrained model from {model_dir}")
+        # Construct embedding file paths
+        train_emb_path = embeddings_dir / f"train_embeddings_{args.caption_style}_{args.encoder_type}.npz"
+        test_emb_path = embeddings_dir / f"test_embeddings_{args.caption_style}_{args.encoder_type}.npz"
 
-    # Load config to get vocab path
-    config = AlignmentConfig.from_yaml(str(config_path))
+        if not train_emb_path.exists():
+            raise FileNotFoundError(f"Training embeddings not found: {train_emb_path}")
+        if not test_emb_path.exists():
+            raise FileNotFoundError(f"Test embeddings not found: {test_emb_path}")
 
-    # Use AlignmentModel.load() which handles all the complexity
-    pretrained_model = AlignmentModel.load(
-        str(checkpoint_path),
-        device=device,
-        vocab_path=config.vocab_path
-    )
-    pretrained_model.eval()
+        # Determine data_dir if not provided
+        if args.data_dir is None:
+            data_dir = embeddings_dir
+        else:
+            data_dir = Path(args.data_dir)
 
-    print("Loaded pretrained model successfully")
+        print(f"\nUsing data directory: {data_dir}")
 
-    # Auto-detect data directory from model name if not provided
-    if args.data_dir is None:
-        model_name = model_dir.name
-        # Parse model name to extract dataset and config
-        # e.g., milan_fd60_... -> milan, FD_60 or milan_fl20_... -> milan, FL_20
-        parts = model_name.split('_')
+        # Load datasets with precomputed embeddings
+        train_dataset = PrecomputedEmbeddingsDataset(
+            train_emb_path,
+            data_dir / 'train.json',
+            label_level=args.label_level
+        )
+        val_dataset = PrecomputedEmbeddingsDataset(
+            test_emb_path,
+            data_dir / 'test.json',
+            label_level=args.label_level
+        )
 
-        # First part is typically the dataset name
-        dataset_name = parts[0]  # e.g., 'milan'
+        # Get embedding dimension from the dataset
+        embed_dim = train_dataset.valid_embeddings.shape[1]
+        print(f"\nEmbedding dimension: {embed_dim}")
 
-        # Find data config (e.g., 'fd60' -> 'FD_60', 'fl20' -> 'FL_20')
-        data_config = None
-        for part in parts:
-            # Handle Fixed Duration (fd) or Fixed Length (fl)
-            if (part.startswith('fd') or part.startswith('fl')) and len(part) > 2 and part[2:].isdigit():
-                config_type = part[:2].upper()  # 'fd' -> 'FD', 'fl' -> 'FL'
-                value = part[2:]  # '60', '20', etc.
-                data_config = f'{config_type}_{value}'
-                break
-
-        if data_config is None:
-            raise ValueError(f"Could not auto-detect data config from model name: {model_name}. Please provide --data-dir explicitly.")
-
-        data_dir = Path(f'data/processed/casas/{dataset_name}/{data_config}_p')
-        print(f"Auto-detected data directory: {data_dir}")
     else:
-        data_dir = Path(args.data_dir)
-        print(f"Using provided data directory: {data_dir}")
+        # MODE 1: Pretrained Model
+        # Load pretrained model using AlignmentModel.load() method (same as evaluate_embeddings.py)
+        model_dir = Path(args.model)
+        checkpoint_path = model_dir / 'best_model.pt'
+        config_path = model_dir / 'config.yaml'
 
-    # Load activity data (use vocab path from config)
-    train_dataset = ActivityDataset(data_dir / 'train.json', config.vocab_path, label_level=args.label_level)
-    val_dataset = ActivityDataset(data_dir / 'test.json', config.vocab_path, label_level=args.label_level)
+        print(f"\nLoading pretrained model from {model_dir}")
+
+        # Load config to get vocab path
+        config = AlignmentConfig.from_yaml(str(config_path))
+
+        # Use AlignmentModel.load() which handles all the complexity
+        pretrained_model = AlignmentModel.load(
+            str(checkpoint_path),
+            device=device,
+            vocab_path=config.vocab_path
+        )
+        pretrained_model.eval()
+
+        print("Loaded pretrained model successfully")
+
+        # Auto-detect data directory from model name if not provided
+        if args.data_dir is None:
+            model_name = model_dir.name
+            # Parse model name to extract dataset and config
+            # e.g., milan_fd60_... -> milan, FD_60 or milan_fl20_... -> milan, FL_20
+            parts = model_name.split('_')
+
+            # First part is typically the dataset name
+            dataset_name = parts[0]  # e.g., 'milan'
+
+            # Find data config (e.g., 'fd60' -> 'FD_60', 'fl20' -> 'FL_20')
+            data_config = None
+            for part in parts:
+                # Handle Fixed Duration (fd) or Fixed Length (fl)
+                if (part.startswith('fd') or part.startswith('fl')) and len(part) > 2 and part[2:].isdigit():
+                    config_type = part[:2].upper()  # 'fd' -> 'FD', 'fl' -> 'FL'
+                    value = part[2:]  # '60', '20', etc.
+                    data_config = f'{config_type}_{value}'
+                    break
+
+            if data_config is None:
+                raise ValueError(f"Could not auto-detect data config from model name: {model_name}. Please provide --data-dir explicitly.")
+
+            data_dir = Path(f'data/processed/casas/{dataset_name}/{data_config}_p')
+            print(f"Auto-detected data directory: {data_dir}")
+        else:
+            data_dir = Path(args.data_dir)
+            print(f"Using provided data directory: {data_dir}")
+
+        # Load activity data (use vocab path from config)
+        train_dataset = ActivityDataset(data_dir / 'train.json', config.vocab_path, label_level=args.label_level)
+        val_dataset = ActivityDataset(data_dir / 'test.json', config.vocab_path, label_level=args.label_level)
 
     # Build activity label mapping based on label level
     all_activities = set()
-    for sample in train_dataset.samples + val_dataset.samples:
-        # Handle both old and new formats
-        if 'metadata' in sample and 'ground_truth_labels' in sample['metadata']:
-            if args.label_level == 'l1':
-                activity = sample['metadata']['ground_truth_labels'].get('primary_l1')
-            else:  # l2
-                activity = sample['metadata']['ground_truth_labels'].get('primary_l2')
-        else:
-            if args.label_level == 'l1':
-                activity = sample.get('first_activity') or sample.get('activity')
-            else:  # l2
-                activity = sample.get('first_activity_l2')
-        if activity:
-            all_activities.add(activity)
+
+    if use_precomputed:
+        # For precomputed embeddings, labels are already in the dataset
+        all_activities = set(train_dataset.valid_labels + val_dataset.valid_labels)
+    else:
+        # For pretrained model, extract from samples
+        for sample in train_dataset.samples + val_dataset.samples:
+            # Handle both old and new formats
+            if 'metadata' in sample and 'ground_truth_labels' in sample['metadata']:
+                if args.label_level == 'l1':
+                    activity = sample['metadata']['ground_truth_labels'].get('primary_l1')
+                else:  # l2
+                    activity = sample['metadata']['ground_truth_labels'].get('primary_l2')
+            else:
+                if args.label_level == 'l1':
+                    activity = sample.get('first_activity') or sample.get('activity')
+                else:  # l2
+                    activity = sample.get('first_activity_l2')
+            if activity:
+                all_activities.add(activity)
 
     activity_to_idx = {act: idx for idx, act in enumerate(sorted(all_activities))}
     num_classes = len(activity_to_idx)
     print(f"\n{num_classes} {args.label_level.upper()} activity classes: {list(activity_to_idx.keys())[:5]}...")
 
     # Create dataloaders with label IDs
-    def collate_with_labels(batch):
-        result = collate_fn(batch, train_dataset, pretrained_model.config.encoder)
-        result['label_ids'] = torch.tensor([activity_to_idx[item['activity']] for item in batch])
-        return result
+    if use_precomputed:
+        def collate_with_labels_precomputed(batch):
+            result = collate_fn_precomputed(batch)
+            result['label_ids'] = torch.tensor([activity_to_idx[item['activity']] for item in batch])
+            return result
 
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
-                              shuffle=True, collate_fn=collate_with_labels)
-    val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
-                           shuffle=False, collate_fn=collate_with_labels)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
+                                  shuffle=True, collate_fn=collate_with_labels_precomputed)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
+                               shuffle=False, collate_fn=collate_with_labels_precomputed)
+    else:
+        def collate_with_labels(batch):
+            result = collate_fn(batch, train_dataset, pretrained_model.config.encoder)
+            result['label_ids'] = torch.tensor([activity_to_idx[item['activity']] for item in batch])
+            return result
+
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
+                                  shuffle=True, collate_fn=collate_with_labels)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size,
+                               shuffle=False, collate_fn=collate_with_labels)
 
     # Compute class weights if requested
     class_weights = None
     if args.use_class_weights:
         from collections import Counter
         train_labels = []
-        for sample in train_dataset.samples:
-            # Handle both old and new formats
-            if 'metadata' in sample and 'ground_truth_labels' in sample['metadata']:
-                if args.label_level == 'l1':
-                    activity = sample['metadata']['ground_truth_labels'].get('primary_l1')
+
+        if use_precomputed:
+            # For precomputed embeddings, use the labels directly
+            train_labels = [activity_to_idx[label] for label in train_dataset.valid_labels]
+        else:
+            # For pretrained model, extract from samples
+            for sample in train_dataset.samples:
+                # Handle both old and new formats
+                if 'metadata' in sample and 'ground_truth_labels' in sample['metadata']:
+                    if args.label_level == 'l1':
+                        activity = sample['metadata']['ground_truth_labels'].get('primary_l1')
+                    else:
+                        activity = sample['metadata']['ground_truth_labels'].get('primary_l2')
                 else:
-                    activity = sample['metadata']['ground_truth_labels'].get('primary_l2')
-            else:
-                if args.label_level == 'l1':
-                    activity = sample.get('first_activity') or sample.get('activity')
-                else:
-                    activity = sample.get('first_activity_l2')
-            if activity:
-                train_labels.append(activity_to_idx[activity])
+                    if args.label_level == 'l1':
+                        activity = sample.get('first_activity') or sample.get('activity')
+                    else:
+                        activity = sample.get('first_activity_l2')
+                if activity:
+                    train_labels.append(activity_to_idx[activity])
 
         label_counts = Counter(train_labels)
         total_samples = len(train_labels)
@@ -663,17 +903,25 @@ def main():
         print(f"\nUsing class weights (min: {min(weights):.3f}, max: {max(weights):.3f})")
 
     # Create classifier
-    classifier = ActivityClassifier(
-        pretrained_model,
-        num_classes,
-        classifier_type=args.classifier,
-        hidden_dim=256,
-        unfreeze_layers=args.unfreeze_layers
-    )
+    if use_precomputed:
+        classifier = PrecomputedEmbeddingsClassifier(
+            embed_dim,
+            num_classes,
+            classifier_type=args.classifier,
+            hidden_dim=256
+        )
+    else:
+        classifier = ActivityClassifier(
+            pretrained_model,
+            num_classes,
+            classifier_type=args.classifier,
+            hidden_dim=256,
+            unfreeze_layers=args.unfreeze_layers
+        )
     classifier.to(device)
 
     # Train
-    if args.unfreeze_layers > 0:
+    if not use_precomputed and args.unfreeze_layers > 0:
         print(f"\nTraining {args.classifier} classifier + {args.unfreeze_layers} encoder layers for {args.epochs} epochs...")
     else:
         print(f"\nTraining {args.classifier} classifier for {args.epochs} epochs...")
@@ -684,23 +932,22 @@ def main():
         lr=args.lr,
         class_weights=class_weights,
         use_scheduler=not args.no_scheduler,
-        gradient_clip=args.gradient_clip
+        gradient_clip=args.gradient_clip,
+        use_precomputed=use_precomputed
     )
 
     print("\n" + "=" * 60)
     print(f"Final Results:")
-    print(f"  Model: {model_dir.name}")
+    if use_precomputed:
+        print(f"  Embeddings: {args.caption_style}_{args.encoder_type}")
+    else:
+        print(f"  Model: {model_dir.name}")
     print(f"  Classifier: {args.classifier}")
     print(f"  Label Level: {args.label_level.upper()}")
     print(f"  Num Classes: {num_classes}")
     print(f"  Best Val Accuracy: {metrics['best_val_acc']:.2f}%")
     print(f"  Best Val F1 (weighted): {metrics['best_val_f1']:.4f}")
     print("=" * 60)
-
-    # Determine output directory based on model path and data_dir
-    # e.g., trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1
-    # -> results/evals/milan/FD_60/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1/clf_probing
-    model_name = model_dir.name
 
     # Extract dataset info from data_dir path
     # e.g., data/processed/casas/milan/FD_60_p -> dataset: milan, config: FD_60
@@ -716,25 +963,44 @@ def main():
                 data_config = dataset_parts[i + 2].replace('_p', '')  # 'FD_60_p' -> 'FD_60'
             break
 
-    output_dir = Path('results/evals') / dataset_name / data_config / model_name / 'clf_probing'
+    # Determine output directory based on mode
+    if use_precomputed:
+        # MODE 2: results/evals/milan/FD_60/text_only/clf_probing/
+        output_dir = Path('results/evals') / dataset_name / data_config / 'text_only' / 'clf_probing'
+        model_path_str = f"precomputed_embeddings_{args.caption_style}_{args.encoder_type}"
+        file_prefix = f"{args.caption_style}_{args.encoder_type}"
+    else:
+        # MODE 1: results/evals/milan/FD_60/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1/clf_probing
+        model_name = model_dir.name
+        output_dir = Path('results/evals') / dataset_name / data_config / model_name / 'clf_probing'
+        model_path_str = str(model_dir)
+        file_prefix = ''
 
     # Prepare hyperparameters dict
     hyperparams = {
+        'mode': 'precomputed_embeddings' if use_precomputed else 'pretrained_model',
         'classifier_type': args.classifier,
         'label_level': args.label_level,
         'epochs': args.epochs,
         'batch_size': args.batch_size,
         'learning_rate': args.lr,
-        'unfreeze_layers': args.unfreeze_layers,
         'use_class_weights': args.use_class_weights,
         'use_scheduler': not args.no_scheduler,
         'gradient_clip': args.gradient_clip,
         'num_classes': num_classes,
-        'data_config': data_config
+        'data_config': data_config,
+        'dataset_name': dataset_name
     }
 
+    if use_precomputed:
+        hyperparams['caption_style'] = args.caption_style
+        hyperparams['encoder_type'] = args.encoder_type
+        hyperparams['embedding_dim'] = embed_dim
+    else:
+        hyperparams['unfreeze_layers'] = args.unfreeze_layers
+
     # Save results
-    save_results(model_dir, metrics, hyperparams, output_dir)
+    save_results(model_path_str, metrics, hyperparams, output_dir, prefix=file_prefix)
 
 
 if __name__ == '__main__':
