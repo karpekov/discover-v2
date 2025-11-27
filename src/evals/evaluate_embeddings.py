@@ -2892,26 +2892,26 @@ class EmbeddingEvaluator:
         return fig
 
     def create_retrieval_metrics_visualization(self,
-                                              retrieval_results: Dict[str, Dict[int, float]],
-                                              save_path: str = None) -> plt.Figure:
+                                              retrieval_results: Dict[str, Dict[int, Union[float, Dict[str, float]]]],
+                                              save_path: str = None,
+                                              label_level: str = "L1") -> plt.Figure:
         """Create visualization for retrieval metrics across all 4 variants.
 
         Args:
             retrieval_results: Dict with keys 'text2sensor', 'sensor2text',
                              'prototype2sensor', 'prototype2text'
+                             Values are either floats or dicts with 'macro' and 'weighted' keys
             save_path: Path to save the plot
+            label_level: Label level being used (L1 or L2)
         """
-        print("🎨 Creating retrieval metrics visualization...")
+        print(f"🎨 Creating retrieval metrics visualization for {label_level} labels...")
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
-        fig.suptitle('Cross-Modal Retrieval Performance (Label-Recall@K)',
-                     fontsize=16, fontweight='bold')
-
-        # Prepare data for plotting
-        directions = []
-        k_values_list = []
+        fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+        fig.suptitle(f'Cross-Modal Retrieval Performance ({label_level} Labels)',
+                     fontsize=18, fontweight='bold')
 
         # Get all K values (should be same across all directions)
+        k_values_list = []
         for direction, k_results in retrieval_results.items():
             if k_results:
                 k_values_list = sorted(k_results.keys())
@@ -2933,11 +2933,18 @@ class EmbeddingEvaluator:
             'prototype2text': 'Prototype → Text'
         }
 
-        # Plot 1: Line chart showing recall across K values
+        # Helper function to extract metric
+        def get_metric(k_result, metric_type='macro'):
+            if isinstance(k_result, dict):
+                return k_result.get(metric_type, 0.0)
+            return k_result  # Backward compatibility
+
+        # Plot 1: Macro average across K values
+        ax1 = axes[0, 0]
         for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
-                recalls = [k_results[k] for k in k_values_list]
+                recalls = [get_metric(k_results[k], 'macro') for k in k_values_list]
 
                 ax1.plot(k_values_list, recalls, 'o-',
                         color=colors.get(direction, '#333333'),
@@ -2945,33 +2952,38 @@ class EmbeddingEvaluator:
                         linewidth=2.5, markersize=8, alpha=0.8)
 
         ax1.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
-        ax1.set_ylabel('Label-Recall@K', fontsize=12)
-        ax1.set_title('Retrieval Performance vs K', fontweight='bold', fontsize=13)
+        ax1.set_ylabel('Label-Recall@K (Macro)', fontsize=12)
+        ax1.set_title('Macro Average (Equal Weight per Class)', fontweight='bold', fontsize=13)
         ax1.legend(fontsize=10, loc='best')
         ax1.grid(True, alpha=0.3)
         ax1.set_ylim(0, 1)
         ax1.set_xticks(k_values_list)
 
-        # Add value labels on points
+        # Plot 2: Weighted average across K values
+        ax2 = axes[0, 1]
         for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
-                for k in k_values_list:
-                    recall = k_results[k]
-                    # Only show label for middle K value to avoid clutter
-                    if k == k_values_list[len(k_values_list)//2]:
-                        ax1.annotate(f'{recall:.3f}',
-                                   xy=(k, recall),
-                                   xytext=(0, 8),
-                                   textcoords="offset points",
-                                   ha='center', va='bottom',
-                                   fontsize=8,
-                                   color=colors.get(direction, '#333333'))
+                recalls = [get_metric(k_results[k], 'weighted') for k in k_values_list]
 
-        # Plot 2: Bar chart comparing all methods at a specific K (middle K)
+                ax2.plot(k_values_list, recalls, 'o-',
+                        color=colors.get(direction, '#333333'),
+                        label=labels_map.get(direction, direction),
+                        linewidth=2.5, markersize=8, alpha=0.8)
+
+        ax2.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
+        ax2.set_ylabel('Label-Recall@K (Weighted)', fontsize=12)
+        ax2.set_title('Weighted Average (By Class Prevalence)', fontweight='bold', fontsize=13)
+        ax2.legend(fontsize=10, loc='best')
+        ax2.grid(True, alpha=0.3)
+        ax2.set_ylim(0, 1)
+        ax2.set_xticks(k_values_list)
+
+        # Plot 3: Bar chart comparing macro at middle K
         middle_k = k_values_list[len(k_values_list)//2] if k_values_list else 10
+        ax3 = axes[1, 0]
 
-        bar_data = []
+        bar_data_macro = []
         bar_labels = []
         bar_colors = []
 
@@ -2979,25 +2991,58 @@ class EmbeddingEvaluator:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
                 if middle_k in k_results:
-                    bar_data.append(k_results[middle_k])
+                    bar_data_macro.append(get_metric(k_results[middle_k], 'macro'))
                     bar_labels.append(labels_map.get(direction, direction))
                     bar_colors.append(colors.get(direction, '#333333'))
 
-        if bar_data:
-            x = np.arange(len(bar_data))
-            bars = ax2.bar(x, bar_data, color=bar_colors, alpha=0.8, width=0.6)
+        if bar_data_macro:
+            x = np.arange(len(bar_data_macro))
+            bars = ax3.bar(x, bar_data_macro, color=bar_colors, alpha=0.8, width=0.6)
 
-            ax2.set_ylabel('Label-Recall@K', fontsize=12)
-            ax2.set_title(f'Retrieval Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
-            ax2.set_xticks(x)
-            ax2.set_xticklabels(bar_labels, rotation=15, ha='right', fontsize=10)
-            ax2.grid(True, alpha=0.3, axis='y')
-            ax2.set_ylim(0, 1)
+            ax3.set_ylabel('Label-Recall@K (Macro)', fontsize=12)
+            ax3.set_title(f'Macro Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
+            ax3.set_xticks(x)
+            ax3.set_xticklabels(bar_labels, rotation=15, ha='right', fontsize=10)
+            ax3.grid(True, alpha=0.3, axis='y')
+            ax3.set_ylim(0, 1)
 
-            # Add value labels on bars
             for bar in bars:
                 height = bar.get_height()
-                ax2.annotate(f'{height:.3f}',
+                ax3.annotate(f'{height:.3f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),
+                           textcoords="offset points",
+                           ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+        # Plot 4: Bar chart comparing weighted at middle K
+        ax4 = axes[1, 1]
+
+        bar_data_weighted = []
+        bar_labels2 = []
+        bar_colors2 = []
+
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                if middle_k in k_results:
+                    bar_data_weighted.append(get_metric(k_results[middle_k], 'weighted'))
+                    bar_labels2.append(labels_map.get(direction, direction))
+                    bar_colors2.append(colors.get(direction, '#333333'))
+
+        if bar_data_weighted:
+            x = np.arange(len(bar_data_weighted))
+            bars = ax4.bar(x, bar_data_weighted, color=bar_colors2, alpha=0.8, width=0.6)
+
+            ax4.set_ylabel('Label-Recall@K (Weighted)', fontsize=12)
+            ax4.set_title(f'Weighted Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
+            ax4.set_xticks(x)
+            ax4.set_xticklabels(bar_labels2, rotation=15, ha='right', fontsize=10)
+            ax4.grid(True, alpha=0.3, axis='y')
+            ax4.set_ylim(0, 1)
+
+            for bar in bars:
+                height = bar.get_height()
+                ax4.annotate(f'{height:.3f}',
                            xy=(bar.get_x() + bar.get_width() / 2, height),
                            xytext=(0, 3),
                            textcoords="offset points",
@@ -3030,17 +3075,23 @@ class EmbeddingEvaluator:
             k: K value for recall computation
             save_path: Path to save plot
         """
-        from evals.compute_retrieval_metrics import compute_per_label_recall_at_k
+        from evals.compute_retrieval_metrics import compute_per_label_recall_at_k, compute_macro_and_weighted_metrics
 
         print(f"🎨 Creating per-label instance retrieval heatmap for {direction_name}...")
 
-        # Compute per-label recall
-        per_label_recalls = compute_per_label_recall_at_k(
+        # Compute per-label recall and counts
+        per_label_recalls, per_label_counts = compute_per_label_recall_at_k(
             query_embeddings=query_embeddings,
             target_embeddings=target_embeddings,
             query_labels=query_labels,
             target_labels=target_labels,
-            k=k
+            k=k,
+            return_counts=True
+        )
+
+        # Compute macro and weighted metrics
+        macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
+            per_label_recalls, per_label_counts
         )
 
         # Convert to arrays for plotting
@@ -3083,11 +3134,18 @@ class EmbeddingEvaluator:
                        textcoords="offset points",
                        ha='left', va='center', fontsize=8)
 
-        # Add average line
-        avg_recall = np.mean(sorted_recalls)
-        ax.axvline(avg_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
-                  label=f'Average: {avg_recall:.3f}')
+        # Add macro and weighted lines
+        ax.axvline(macro_recall, color='blue', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Macro: {macro_recall:.3f}')
+        ax.axvline(weighted_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Weighted: {weighted_recall:.3f}')
         ax.legend(fontsize=10)
+
+        # Add text box with metrics in corner
+        textstr = f'Macro: {macro_recall:.4f}\nWeighted: {weighted_recall:.4f}\nN={len(labels)} classes'
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=11,
+                verticalalignment='top', bbox=props)
 
         plt.tight_layout()
 
@@ -3468,23 +3526,28 @@ class EmbeddingEvaluator:
 
         # ===== 7. COMPUTE RETRIEVAL METRICS =====
         print("\n" + "="*60)
-        print("7. COMPUTING RETRIEVAL METRICS")
+        print("7. COMPUTING RETRIEVAL METRICS (L1 and L2 Labels)")
         print("="*60)
 
-        # Choose which label level to use for retrieval (L1 or L2)
-        # IMPORTANT: Use L1 consistently to avoid mixing Evening_Meds/Morning_Meds (L1) with Take_medicine (L2)
-        retrieval_label_level = 'L1'
+        # Store results for both label levels
+        retrieval_results_by_level = {}
 
-        if retrieval_label_level == 'L1':
-            # Use L1 labels for all retrieval metrics
-            text_labels_for_retrieval = np.array(test_labels_l1)
-            sensor_labels_for_retrieval = np.array(test_sensor_l1)
-            print(f"\n📋 Using L1 labels for retrieval metrics ({len(set(test_labels_l1))} unique labels)")
-        else:
-            # Use L2 labels for all retrieval metrics
-            text_labels_for_retrieval = np.array(test_labels_l2)
-            sensor_labels_for_retrieval = np.array(test_sensor_l2)
-            print(f"\n📋 Using L2 labels for retrieval metrics ({len(set(test_labels_l2))} unique labels)")
+        # Compute metrics for both L1 and L2 labels
+        for retrieval_label_level in ['L1', 'L2']:
+            print(f"\n{'='*70}")
+            print(f"Computing retrieval metrics for {retrieval_label_level} labels")
+            print(f"{'='*70}")
+
+            if retrieval_label_level == 'L1':
+                # Use L1 labels for all retrieval metrics
+                text_labels_for_retrieval = np.array(test_labels_l1)
+                sensor_labels_for_retrieval = np.array(test_sensor_l1)
+                print(f"📋 {len(set(test_labels_l1))} unique {retrieval_label_level} labels")
+            else:
+                # Use L2 labels for all retrieval metrics
+                text_labels_for_retrieval = np.array(test_labels_l2)
+                sensor_labels_for_retrieval = np.array(test_sensor_l2)
+                print(f"📋 {len(set(test_labels_l2))} unique {retrieval_label_level} labels")
 
         # Instance-to-instance retrieval (text <-> sensor)
         print("\n📊 Computing instance-to-instance retrieval...")
@@ -3613,10 +3676,11 @@ class EmbeddingEvaluator:
             all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
 
             # Create retrieval visualizations
-            print("\n🎨 Creating retrieval metric visualizations...")
+            print(f"\n🎨 Creating retrieval metric visualizations for {retrieval_label_level}...")
             self.create_retrieval_metrics_visualization(
                 retrieval_results=all_retrieval_results,
-                save_path=str(output_dir / 'retrieval_metrics_comparison.png')
+                save_path=str(output_dir / f'retrieval_metrics_comparison_{retrieval_label_level.lower()}.png'),
+                label_level=retrieval_label_level
             )
 
             # Create prototype per-label retrieval heatmaps
@@ -3718,6 +3782,39 @@ class EmbeddingEvaluator:
             traceback.print_exc()
             all_retrieval_results = instance_retrieval_results
 
+            # Store results for this label level
+            retrieval_results_by_level[retrieval_label_level] = {
+                'instance_to_instance': {
+                    'overall': instance_retrieval_results,
+                    'per_label': instance_per_label,
+                    'confusion': instance_confusion_data
+                },
+                'prototype_based': {
+                    'overall': {},
+                    'per_label': {},
+                    'confusion': {}
+                }
+            }
+            continue  # Skip to next label level
+
+        # Store results for this label level (successful case)
+        retrieval_results_by_level[retrieval_label_level] = {
+            'instance_to_instance': {
+                'overall': instance_retrieval_results,
+                'per_label': instance_per_label,
+                'confusion': instance_confusion_data
+            },
+            'prototype_based': {
+                'overall': prototype_retrieval_results,
+                'per_label': prototype_per_label,
+                'confusion': prototype_confusion_data
+            }
+        }
+
+        print(f"\n✅ Completed retrieval metrics for {retrieval_label_level} labels")
+
+        # End of label level loop
+
         # ===== 8. SAVE RESULTS =====
         if save_results:
             results_summary = {
@@ -3759,37 +3856,7 @@ class EmbeddingEvaluator:
                     }
                     }
                 },
-                'retrieval_metrics': {
-                    'label_level': retrieval_label_level,
-                    'instance_to_instance': {
-                        'overall': {
-                            direction: {str(k): float(v) for k, v in k_results.items()}
-                            for direction, k_results in instance_retrieval_results.items()
-                        },
-                        'per_label': {
-                            direction: {
-                                str(k): {str(label): float(recall) for label, recall in label_recalls.items()}
-                                for k, label_recalls in k_dict.items()
-                            }
-                            for direction, k_dict in instance_per_label.items()
-                        },
-                        'confusion': instance_confusion_data
-                    },
-                    'prototype_based': {
-                        'overall': {
-                            direction: {str(k): float(v) for k, v in k_results.items()}
-                            for direction, k_results in prototype_retrieval_results.items()
-                        },
-                        'per_label': {
-                            direction: {
-                                str(k): {str(label): float(recall) for label, recall in label_recalls.items()}
-                                for k, label_recalls in k_dict.items()
-                            }
-                            for direction, k_dict in prototype_per_label.items()
-                        },
-                        'confusion': prototype_confusion_data
-                    } if prototype_retrieval_results else {}
-                }
+                'retrieval_metrics': retrieval_results_by_level
             }
 
             with open(output_dir / 'comprehensive_results.json', 'w') as f:

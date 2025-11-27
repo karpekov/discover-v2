@@ -177,8 +177,9 @@ def compute_per_label_recall_at_k(
     target_embeddings: np.ndarray,
     query_labels: np.ndarray,
     target_labels: np.ndarray,
-    k: int
-) -> Dict[str, float]:
+    k: int,
+    return_counts: bool = False
+) -> Union[Dict[str, float], Tuple[Dict[str, float], Dict[str, int]]]:
     """
     Compute per-label Label-Recall@K for instance-to-instance retrieval.
 
@@ -194,9 +195,13 @@ def compute_per_label_recall_at_k(
         query_labels: Query labels of shape (N_q,)
         target_labels: Target labels of shape (N_t,)
         k: Number of top neighbors to consider
+        return_counts: If True, also return the count of queries per label
 
     Returns:
-        Dictionary mapping label to average recall for that label
+        If return_counts=False:
+            Dictionary mapping label to average recall for that label
+        If return_counts=True:
+            Tuple of (per_label_recalls, per_label_counts)
     """
     n_queries = len(query_embeddings)
     n_targets = len(target_embeddings)
@@ -212,6 +217,7 @@ def compute_per_label_recall_at_k(
 
     # Compute recall for each label
     per_label_recalls = {}
+    per_label_counts = {}
 
     for label in unique_labels:
         # Get indices of queries with this label
@@ -236,8 +242,47 @@ def compute_per_label_recall_at_k(
 
         # Average across all queries with this label
         per_label_recalls[label] = np.mean(label_recalls)
+        per_label_counts[label] = len(query_indices)
 
+    if return_counts:
+        return per_label_recalls, per_label_counts
     return per_label_recalls
+
+
+def compute_macro_and_weighted_metrics(
+    per_label_scores: Dict[str, float],
+    per_label_counts: Dict[str, int]
+) -> Tuple[float, float]:
+    """
+    Compute macro and weighted averages from per-label scores.
+
+    Args:
+        per_label_scores: Dictionary mapping label to score (e.g., recall)
+        per_label_counts: Dictionary mapping label to number of queries
+
+    Returns:
+        Tuple of (macro_avg, weighted_avg)
+        - macro_avg: Simple average across all labels (treats all labels equally)
+        - weighted_avg: Weighted average by number of queries per label
+    """
+    if not per_label_scores:
+        return 0.0, 0.0
+
+    labels = list(per_label_scores.keys())
+    scores = [per_label_scores[label] for label in labels]
+    counts = [per_label_counts[label] for label in labels]
+
+    # Macro: simple average
+    macro_avg = np.mean(scores)
+
+    # Weighted: average weighted by counts
+    total_count = sum(counts)
+    if total_count == 0:
+        weighted_avg = 0.0
+    else:
+        weighted_avg = sum(score * count for score, count in zip(scores, counts)) / total_count
+
+    return float(macro_avg), float(weighted_avg)
 
 
 def compute_label_recall_at_k_single_direction(
@@ -454,28 +499,33 @@ def compute_label_recall_at_k(
             if verbose:
                 print(f"  Computing for K={k}...")
 
-            recall = compute_label_recall_at_k_single_direction(
+            # Get per-label recalls and counts (needed for macro/weighted computation)
+            per_label_recall, per_label_count = compute_per_label_recall_at_k(
                 query_embeddings=query_emb,
                 target_embeddings=target_emb,
                 query_labels=labels,
                 target_labels=labels,
-                k=k
+                k=k,
+                return_counts=True
             )
 
-            results[direction][k] = recall
+            # Compute macro and weighted averages
+            macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
+                per_label_recall, per_label_count
+            )
+
+            # Store both metrics
+            results[direction][k] = {
+                'macro': macro_recall,
+                'weighted': weighted_recall
+            }
 
             if verbose:
-                print(f"    Label-Recall@{k}: {recall:.4f} ({recall*100:.2f}%)")
+                print(f"    Label-Recall@{k} (Macro): {macro_recall:.4f} ({macro_recall*100:.2f}%)")
+                print(f"    Label-Recall@{k} (Weighted): {weighted_recall:.4f} ({weighted_recall*100:.2f}%)")
 
-            # Compute per-label metrics if requested
+            # Store per-label metrics if requested
             if return_per_label:
-                per_label_recall = compute_per_label_recall_at_k(
-                    query_embeddings=query_emb,
-                    target_embeddings=target_emb,
-                    query_labels=labels,
-                    target_labels=labels,
-                    k=k
-                )
                 per_label_results[direction][k] = per_label_recall
 
     if return_per_label:
@@ -483,16 +533,17 @@ def compute_label_recall_at_k(
     return results
 
 
-def print_results_summary(results: Dict[str, Dict[int, float]]) -> None:
+def print_results_summary(results: Dict[str, Dict[int, Union[float, Dict[str, float]]]]) -> None:
     """
     Print a formatted summary of retrieval results.
 
     Args:
         results: Results dictionary from compute_label_recall_at_k or compute_prototype_retrieval_metrics
+                Now includes both macro and weighted metrics
     """
-    print("\n" + "="*70)
+    print("\n" + "="*80)
     print("LABEL-RECALL@K RESULTS SUMMARY")
-    print("="*70)
+    print("="*80)
 
     for direction, k_results in results.items():
         # Format direction name
@@ -508,15 +559,22 @@ def print_results_summary(results: Dict[str, Dict[int, float]]) -> None:
             direction_name = direction
 
         print(f"\n{direction_name}:")
-        print("-" * 40)
+        print("-" * 60)
 
         # Sort by K value
         sorted_k = sorted(k_results.keys())
         for k in sorted_k:
-            recall = k_results[k]
-            print(f"  K={k:3d}  =>  Label-Recall@K = {recall:.4f} ({recall*100:.2f}%)")
+            metrics = k_results[k]
+            # Handle both old format (single float) and new format (dict with macro/weighted)
+            if isinstance(metrics, dict):
+                macro = metrics.get('macro', 0.0)
+                weighted = metrics.get('weighted', 0.0)
+                print(f"  K={k:3d}  =>  Macro: {macro:.4f} ({macro*100:.2f}%)  |  Weighted: {weighted:.4f} ({weighted*100:.2f}%)")
+            else:
+                # Backward compatibility
+                print(f"  K={k:3d}  =>  Label-Recall@K = {metrics:.4f} ({metrics*100:.2f}%)")
 
-    print("\n" + "="*70)
+    print("\n" + "="*80)
 
 
 def load_text_prototypes_from_metadata(
@@ -694,35 +752,38 @@ def compute_prototype_retrieval_metrics(
             if verbose:
                 print(f"  Computing for K={k}...")
 
-            # Compute overall recall
-            recall = compute_label_recall_at_k_with_prototypes(
-                prototype_embeddings=prototype_embeddings,
-                prototype_labels=prototype_labels,
-                target_embeddings=target_emb,
-                target_labels=target_labels,
-                k=k
+            # Compute per-label recall for prototypes
+            # Note: For prototypes, there's exactly 1 query per label, so macro and weighted are the same
+            per_label_recall = {}
+            per_label_count = {}
+            similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
+
+            for i, proto_label in enumerate(prototype_labels):
+                proto_sims = similarities[i]
+                top_k_indices = np.argsort(proto_sims)[-k:][::-1]
+                top_k_labels = target_labels[top_k_indices]
+                n_matching = np.sum(top_k_labels == proto_label)
+                recall_label = n_matching / k
+                per_label_recall[str(proto_label)] = float(recall_label)
+                per_label_count[str(proto_label)] = 1  # One prototype per label
+
+            # Compute macro and weighted (will be the same for prototypes since count=1 for all)
+            macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
+                per_label_recall, per_label_count
             )
 
-            results[direction][k] = recall
+            # Store both metrics
+            results[direction][k] = {
+                'macro': macro_recall,
+                'weighted': weighted_recall
+            }
 
             if verbose:
-                print(f"    Label-Recall@{k}: {recall:.4f} ({recall*100:.2f}%)")
+                print(f"    Label-Recall@{k} (Macro): {macro_recall:.4f} ({macro_recall*100:.2f}%)")
+                print(f"    Label-Recall@{k} (Weighted): {weighted_recall:.4f} ({weighted_recall*100:.2f}%)")
 
-            # Compute per-label metrics if requested
+            # Store per-label metrics if requested
             if return_per_label:
-                # Compute per-label recall for prototypes
-                # Note: normalize_embeddings and compute_cosine_similarity are already available in this module
-                per_label_recall = {}
-                similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
-
-                for i, proto_label in enumerate(prototype_labels):
-                    proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-k:][::-1]
-                    top_k_labels = target_labels[top_k_indices]
-                    n_matching = np.sum(top_k_labels == proto_label)
-                    recall_label = n_matching / k
-                    per_label_recall[str(proto_label)] = float(recall_label)
-
                 per_label_results[direction][k] = per_label_recall
 
     if return_per_label:
