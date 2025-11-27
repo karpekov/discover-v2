@@ -81,6 +81,97 @@ def compute_cosine_similarity(queries: np.ndarray, targets: np.ndarray) -> np.nd
     return similarities
 
 
+def compute_retrieval_confusion(
+    query_embeddings: np.ndarray,
+    target_embeddings: np.ndarray,
+    query_labels: np.ndarray,
+    target_labels: np.ndarray,
+    k: int
+) -> Dict[str, Dict[str, float]]:
+    """
+    Compute retrieval confusion: for each query label, what target labels are retrieved?
+
+    This is like a confusion matrix for retrieval - shows the distribution of
+    retrieved labels for each query label.
+
+    Args:
+        query_embeddings: Query embeddings of shape (N_q, D)
+        target_embeddings: Target embeddings of shape (N_t, D)
+        query_labels: Query labels of shape (N_q,)
+        target_labels: Target labels of shape (N_t,)
+        k: Number of top neighbors to consider
+
+    Returns:
+        Nested dictionary: {query_label: {retrieved_label: proportion, ...}, ...}
+
+        Example:
+        {
+            'Cooking': {
+                'Cooking': 0.75,  # 75% of retrieved items are correct
+                'Eating': 0.15,   # 15% confused with Eating
+                'Other': 0.10     # 10% confused with Other
+            },
+            'Sleeping': {
+                'Sleeping': 0.92,
+                'Other': 0.08
+            }
+        }
+    """
+    n_queries = len(query_embeddings)
+    n_targets = len(target_embeddings)
+
+    # Ensure K is valid
+    k = min(k, n_targets)
+
+    # Compute similarity matrix (N_q, N_t)
+    similarities = compute_cosine_similarity(query_embeddings, target_embeddings)
+
+    # Get unique labels
+    unique_query_labels = sorted(list(set(query_labels)))
+
+    # For each query label, track what target labels are retrieved
+    retrieval_confusion = {}
+
+    for query_label in unique_query_labels:
+        # Get all queries with this label
+        query_indices = np.where(query_labels == query_label)[0]
+
+        if len(query_indices) == 0:
+            continue
+
+        # Track all retrieved labels for this query label
+        all_retrieved_labels = []
+
+        for i in query_indices:
+            query_sims = similarities[i]
+
+            # Get indices of top K targets
+            top_k_indices = np.argsort(query_sims)[-k:][::-1]
+            top_k_labels = target_labels[top_k_indices]
+
+            # Add to list
+            all_retrieved_labels.extend(top_k_labels)
+
+        # Compute distribution of retrieved labels
+        total_retrieved = len(all_retrieved_labels)
+        label_counts = {}
+        for label in all_retrieved_labels:
+            label_str = str(label)
+            label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+        # Convert to proportions
+        label_proportions = {
+            label: count / total_retrieved
+            for label, count in label_counts.items()
+        }
+
+        # Sort by proportion (descending) and keep top 10
+        sorted_labels = sorted(label_proportions.items(), key=lambda x: x[1], reverse=True)[:10]
+        retrieval_confusion[str(query_label)] = dict(sorted_labels)
+
+    return retrieval_confusion
+
+
 def compute_per_label_recall_at_k(
     query_embeddings: np.ndarray,
     target_embeddings: np.ndarray,
@@ -619,12 +710,8 @@ def compute_prototype_retrieval_metrics(
 
             # Compute per-label metrics if requested
             if return_per_label:
-                from evals.compute_retrieval_metrics import (
-                    normalize_embeddings,
-                    compute_cosine_similarity
-                )
-
                 # Compute per-label recall for prototypes
+                # Note: normalize_embeddings and compute_cosine_similarity are already available in this module
                 per_label_recall = {}
                 similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
 
