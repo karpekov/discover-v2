@@ -3549,240 +3549,255 @@ class EmbeddingEvaluator:
                 sensor_labels_for_retrieval = np.array(test_sensor_l2)
                 print(f"📋 {len(set(test_labels_l2))} unique {retrieval_label_level} labels")
 
-        # Instance-to-instance retrieval (text <-> sensor)
-        print("\n📊 Computing instance-to-instance retrieval...")
-        instance_retrieval_results, instance_per_label = compute_label_recall_at_k(
-            sensor_embeddings=test_sensor_emb,
-            text_embeddings=test_text_emb_proj,  # Use projected text embeddings
-            labels=sensor_labels_for_retrieval,  # Use consistent labels
-            k_values=[10, 50, 100],
-            directions=['text2sensor', 'sensor2text'],
-            normalize=True,
-            verbose=True,
-            return_per_label=True
-        )
-
-        # Initialize confusion data (will be populated later)
-        instance_confusion_data = {}
-
-        # Create instance per-label charts (always create these, even if prototype fails)
-        print("\n🎨 Creating instance-to-instance per-label retrieval heatmaps...")
-
-        # Instance-to-instance: Text -> Sensor
-        self.create_per_label_retrieval_heatmap_instance(
-            query_embeddings=test_text_emb_proj,
-            target_embeddings=test_sensor_emb,
-            query_labels=text_labels_for_retrieval,
-            target_labels=sensor_labels_for_retrieval,
-            direction_name=f'Text → Sensor ({retrieval_label_level})',
-            k=10,
-            save_path=str(output_dir / f'retrieval_perlabel_text2sensor_{retrieval_label_level.lower()}.png')
-        )
-
-        # Instance-to-instance: Sensor -> Text
-        self.create_per_label_retrieval_heatmap_instance(
-            query_embeddings=test_sensor_emb,
-            target_embeddings=test_text_emb_proj,
-            query_labels=sensor_labels_for_retrieval,
-            target_labels=text_labels_for_retrieval,
-            direction_name=f'Sensor → Text ({retrieval_label_level})',
-            k=10,
-            save_path=str(output_dir / f'retrieval_perlabel_sensor2text_{retrieval_label_level.lower()}.png')
-        )
-
-        # Compute and visualize retrieval confusion (error analysis)
-        print("\n🎨 Creating retrieval confusion analysis (error analysis)...")
-
-        # Text -> Sensor confusion
-        text2sensor_confusion = compute_retrieval_confusion(
-            query_embeddings=test_text_emb_proj,
-            target_embeddings=test_sensor_emb,
-            query_labels=text_labels_for_retrieval,
-            target_labels=sensor_labels_for_retrieval,
-            k=10
-        )
-
-        self.create_retrieval_confusion_heatmap(
-            retrieval_confusion=text2sensor_confusion,
-            direction_name=f'Text → Sensor ({retrieval_label_level})',
-            k=10,
-            save_path=str(output_dir / f'retrieval_confusion_text2sensor_{retrieval_label_level.lower()}.png')
-        )
-
-        # Sensor -> Text confusion
-        sensor2text_confusion = compute_retrieval_confusion(
-            query_embeddings=test_sensor_emb,
-            target_embeddings=test_text_emb_proj,
-            query_labels=sensor_labels_for_retrieval,
-            target_labels=text_labels_for_retrieval,
-            k=10
-        )
-
-        self.create_retrieval_confusion_heatmap(
-            retrieval_confusion=sensor2text_confusion,
-            direction_name=f'Sensor → Text ({retrieval_label_level})',
-            k=10,
-            save_path=str(output_dir / f'retrieval_confusion_sensor2text_{retrieval_label_level.lower()}.png')
-        )
-
-        # Store confusion data for JSON export
-        instance_confusion_data = {
-            'text2sensor': text2sensor_confusion,
-            'sensor2text': sensor2text_confusion
-        }
-
-        # Prototype-based retrieval
-        print("\n📊 Computing prototype-based retrieval...")
-
-        # Initialize prototype data (will be populated if successful)
-        prototype_retrieval_results = {}
-        prototype_per_label = {}
-        prototype_confusion_data = {}
-
-        # Load text prototypes from metadata
-        try:
-            label_to_text = load_text_prototypes_from_metadata(
-                metadata_path='metadata/casas_metadata.json',
-                dataset_name=self.dataset_name,
-                style='sourish'
-            )
-            print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
-
-            # Encode text prototypes
-            prototype_emb, prototype_labels = encode_text_prototypes(
-                label_to_text=label_to_text,
-                text_encoder=self.text_encoder,
-                device=str(self.device),
-                normalize=True
-            )
-            print(f"✅ Encoded {len(prototype_emb)} text prototypes")
-
-            # Compute prototype retrieval metrics
-            # Note: Prototypes use their own labels from metadata, targets use consistent retrieval labels
-            prototype_retrieval_results, prototype_per_label = compute_prototype_retrieval_metrics(
-                prototype_embeddings=prototype_emb,
-                prototype_labels=prototype_labels,
+            # Instance-to-instance retrieval (text <-> sensor)
+            print("\n📊 Computing instance-to-instance retrieval...")
+            instance_retrieval_results, instance_per_label = compute_label_recall_at_k(
                 sensor_embeddings=test_sensor_emb,
                 text_embeddings=test_text_emb_proj,  # Use projected text embeddings
-                target_labels=sensor_labels_for_retrieval,  # Use consistent labels
+                labels=sensor_labels_for_retrieval,  # Use consistent labels
                 k_values=[10, 50, 100],
-                directions=['prototype2sensor', 'prototype2text'],
+                directions=['text2sensor', 'sensor2text'],
                 normalize=True,
                 verbose=True,
                 return_per_label=True
             )
 
-            # Combine all retrieval results
-            all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
+            # Initialize confusion data (will be populated later)
+            instance_confusion_data = {}
 
-            # Create retrieval visualizations
-            print(f"\n🎨 Creating retrieval metric visualizations for {retrieval_label_level}...")
-            self.create_retrieval_metrics_visualization(
-                retrieval_results=all_retrieval_results,
-                save_path=str(output_dir / f'retrieval_metrics_comparison_{retrieval_label_level.lower()}.png'),
-                label_level=retrieval_label_level
-            )
+            # Create instance per-label charts (always create these, even if prototype fails)
+            print("\n🎨 Creating instance-to-instance per-label retrieval heatmaps...")
 
-            # Create prototype per-label retrieval heatmaps
-            print("\n🎨 Creating prototype per-label retrieval heatmaps...")
-
-            # Prototype-based: Prototype -> Sensor
-            self.create_per_label_retrieval_heatmap(
-                prototype_labels=prototype_labels,
+            # Instance-to-instance: Text -> Sensor
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_text_emb_proj,
                 target_embeddings=test_sensor_emb,
+                query_labels=text_labels_for_retrieval,
                 target_labels=sensor_labels_for_retrieval,
-                prototype_embeddings=prototype_emb,
-                direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
                 k=10,
-                save_path=str(output_dir / f'retrieval_perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
+                save_path=str(output_dir / f'retrieval_perlabel_text2sensor_{retrieval_label_level.lower()}.png')
             )
 
-            # Prototype-based: Prototype -> Text
-            self.create_per_label_retrieval_heatmap(
-                prototype_labels=prototype_labels,
+            # Instance-to-instance: Sensor -> Text
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_sensor_emb,
                 target_embeddings=test_text_emb_proj,
+                query_labels=sensor_labels_for_retrieval,
                 target_labels=text_labels_for_retrieval,
-                prototype_embeddings=prototype_emb,
-                direction_name=f'Prototype → Text ({retrieval_label_level})',
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
                 k=10,
-                save_path=str(output_dir / f'retrieval_perlabel_prototype2text_{retrieval_label_level.lower()}.png')
+                save_path=str(output_dir / f'retrieval_perlabel_sensor2text_{retrieval_label_level.lower()}.png')
             )
 
-            # Create prototype confusion heatmaps
-            print("\n🎨 Creating prototype retrieval confusion analysis...")
+            # Compute and visualize retrieval confusion (error analysis)
+            print("\n🎨 Creating retrieval confusion analysis (error analysis)...")
 
-            # Prototype -> Sensor confusion
-            # Treat each prototype as a single query
-            proto2sensor_confusion = {}
-            similarities = compute_cosine_similarity(prototype_emb, test_sensor_emb)
-
-            for i, proto_label in enumerate(prototype_labels):
-                proto_sims = similarities[i]
-                top_k_indices = np.argsort(proto_sims)[-10:][::-1]
-                top_k_labels = sensor_labels_for_retrieval[top_k_indices]
-
-                # Count distribution
-                label_counts = {}
-                for label in top_k_labels:
-                    label_str = str(label)
-                    label_counts[label_str] = label_counts.get(label_str, 0) + 1
-
-                # Convert to proportions
-                total = len(top_k_labels)
-                label_proportions = {
-                    label: count / total for label, count in label_counts.items()
-                }
-                proto2sensor_confusion[str(proto_label)] = label_proportions
+            # Text -> Sensor confusion
+            text2sensor_confusion = compute_retrieval_confusion(
+                query_embeddings=test_text_emb_proj,
+                target_embeddings=test_sensor_emb,
+                query_labels=text_labels_for_retrieval,
+                target_labels=sensor_labels_for_retrieval,
+                k=10
+            )
 
             self.create_retrieval_confusion_heatmap(
-                retrieval_confusion=proto2sensor_confusion,
-                direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                retrieval_confusion=text2sensor_confusion,
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
                 k=10,
-                save_path=str(output_dir / f'retrieval_confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
+                save_path=str(output_dir / f'retrieval_confusion_text2sensor_{retrieval_label_level.lower()}.png')
             )
 
-            # Prototype -> Text confusion
-            proto2text_confusion = {}
-            similarities = compute_cosine_similarity(prototype_emb, test_text_emb_proj)
-
-            for i, proto_label in enumerate(prototype_labels):
-                proto_sims = similarities[i]
-                top_k_indices = np.argsort(proto_sims)[-10:][::-1]
-                top_k_labels = text_labels_for_retrieval[top_k_indices]
-
-                # Count distribution
-                label_counts = {}
-                for label in top_k_labels:
-                    label_str = str(label)
-                    label_counts[label_str] = label_counts.get(label_str, 0) + 1
-
-                # Convert to proportions
-                total = len(top_k_labels)
-                label_proportions = {
-                    label: count / total for label, count in label_counts.items()
-                }
-                proto2text_confusion[str(proto_label)] = label_proportions
+            # Sensor -> Text confusion
+            sensor2text_confusion = compute_retrieval_confusion(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_text_emb_proj,
+                query_labels=sensor_labels_for_retrieval,
+                target_labels=text_labels_for_retrieval,
+                k=10
+            )
 
             self.create_retrieval_confusion_heatmap(
-                retrieval_confusion=proto2text_confusion,
-                direction_name=f'Prototype → Text ({retrieval_label_level})',
+                retrieval_confusion=sensor2text_confusion,
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
                 k=10,
-                save_path=str(output_dir / f'retrieval_confusion_prototype2text_{retrieval_label_level.lower()}.png')
+                save_path=str(output_dir / f'retrieval_confusion_sensor2text_{retrieval_label_level.lower()}.png')
             )
 
-            # Store prototype confusion data for JSON export
-            prototype_confusion_data = {
-                'prototype2sensor': proto2sensor_confusion,
-                'prototype2text': proto2text_confusion
+            # Store confusion data for JSON export
+            instance_confusion_data = {
+                'text2sensor': text2sensor_confusion,
+                'sensor2text': sensor2text_confusion
             }
 
-        except Exception as e:
-            print(f"⚠️  Could not compute prototype retrieval metrics: {e}")
-            import traceback
-            traceback.print_exc()
-            all_retrieval_results = instance_retrieval_results
+            # Prototype-based retrieval
+            print("\n📊 Computing prototype-based retrieval...")
 
-            # Store results for this label level
+            # Initialize prototype data (will be populated if successful)
+            prototype_retrieval_results = {}
+            prototype_per_label = {}
+            prototype_confusion_data = {}
+
+            # Load text prototypes from metadata
+            try:
+                label_to_text = load_text_prototypes_from_metadata(
+                    metadata_path='metadata/casas_metadata.json',
+                    dataset_name=self.dataset_name,
+                    style='sourish'
+                )
+                print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
+
+                # Encode text prototypes
+                prototype_emb, prototype_labels = encode_text_prototypes(
+                    label_to_text=label_to_text,
+                    text_encoder=self.text_encoder,
+                    device=str(self.device),
+                    normalize=True
+                )
+                print(f"✅ Encoded {len(prototype_emb)} text prototypes")
+
+                # Compute prototype retrieval metrics
+                # Note: Prototypes use their own labels from metadata, targets use consistent retrieval labels
+                prototype_retrieval_results, prototype_per_label = compute_prototype_retrieval_metrics(
+                    prototype_embeddings=prototype_emb,
+                    prototype_labels=prototype_labels,
+                    sensor_embeddings=test_sensor_emb,
+                    text_embeddings=test_text_emb_proj,  # Use projected text embeddings
+                    target_labels=sensor_labels_for_retrieval,  # Use consistent labels
+                    k_values=[10, 50, 100],
+                    directions=['prototype2sensor', 'prototype2text'],
+                    normalize=True,
+                    verbose=True,
+                    return_per_label=True
+                )
+
+                # Combine all retrieval results
+                all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
+
+                # Create retrieval visualizations
+                print(f"\n🎨 Creating retrieval metric visualizations for {retrieval_label_level}...")
+                self.create_retrieval_metrics_visualization(
+                    retrieval_results=all_retrieval_results,
+                    save_path=str(output_dir / f'retrieval_metrics_comparison_{retrieval_label_level.lower()}.png'),
+                    label_level=retrieval_label_level
+                )
+
+                # Create prototype per-label retrieval heatmaps
+                print("\n🎨 Creating prototype per-label retrieval heatmaps...")
+
+                # Prototype-based: Prototype -> Sensor
+                self.create_per_label_retrieval_heatmap(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_sensor_emb,
+                    target_labels=sensor_labels_for_retrieval,
+                    prototype_embeddings=prototype_emb,
+                    direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(output_dir / f'retrieval_perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype-based: Prototype -> Text
+                self.create_per_label_retrieval_heatmap(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_text_emb_proj,
+                    target_labels=text_labels_for_retrieval,
+                    prototype_embeddings=prototype_emb,
+                    direction_name=f'Prototype → Text ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(output_dir / f'retrieval_perlabel_prototype2text_{retrieval_label_level.lower()}.png')
+                )
+
+                # Create prototype confusion heatmaps
+                print("\n🎨 Creating prototype retrieval confusion analysis...")
+
+                # Prototype -> Sensor confusion
+                # Treat each prototype as a single query
+                proto2sensor_confusion = {}
+                similarities = compute_cosine_similarity(prototype_emb, test_sensor_emb)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_labels = sensor_labels_for_retrieval[top_k_indices]
+
+                    # Count distribution
+                    label_counts = {}
+                    for label in top_k_labels:
+                        label_str = str(label)
+                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+                    # Convert to proportions
+                    total = len(top_k_labels)
+                    label_proportions = {
+                        label: count / total for label, count in label_counts.items()
+                    }
+                    proto2sensor_confusion[str(proto_label)] = label_proportions
+
+                self.create_retrieval_confusion_heatmap(
+                    retrieval_confusion=proto2sensor_confusion,
+                    direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(output_dir / f'retrieval_confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype -> Text confusion
+                proto2text_confusion = {}
+                similarities = compute_cosine_similarity(prototype_emb, test_text_emb_proj)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_labels = text_labels_for_retrieval[top_k_indices]
+
+                    # Count distribution
+                    label_counts = {}
+                    for label in top_k_labels:
+                        label_str = str(label)
+                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+                    # Convert to proportions
+                    total = len(top_k_labels)
+                    label_proportions = {
+                        label: count / total for label, count in label_counts.items()
+                    }
+                    proto2text_confusion[str(proto_label)] = label_proportions
+
+                self.create_retrieval_confusion_heatmap(
+                    retrieval_confusion=proto2text_confusion,
+                    direction_name=f'Prototype → Text ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(output_dir / f'retrieval_confusion_prototype2text_{retrieval_label_level.lower()}.png')
+                )
+
+                # Store prototype confusion data for JSON export
+                prototype_confusion_data = {
+                    'prototype2sensor': proto2sensor_confusion,
+                    'prototype2text': proto2text_confusion
+                }
+
+            except Exception as e:
+                print(f"⚠️  Could not compute prototype retrieval metrics: {e}")
+                import traceback
+                traceback.print_exc()
+                all_retrieval_results = instance_retrieval_results
+
+                # Store results for this label level
+                retrieval_results_by_level[retrieval_label_level] = {
+                    'instance_to_instance': {
+                        'overall': instance_retrieval_results,
+                        'per_label': instance_per_label,
+                        'confusion': instance_confusion_data
+                    },
+                    'prototype_based': {
+                        'overall': {},
+                        'per_label': {},
+                        'confusion': {}
+                    }
+                }
+                continue  # Skip to next label level
+
+            # Store results for this label level (successful case)
             retrieval_results_by_level[retrieval_label_level] = {
                 'instance_to_instance': {
                     'overall': instance_retrieval_results,
@@ -3790,28 +3805,13 @@ class EmbeddingEvaluator:
                     'confusion': instance_confusion_data
                 },
                 'prototype_based': {
-                    'overall': {},
-                    'per_label': {},
-                    'confusion': {}
+                    'overall': prototype_retrieval_results,
+                    'per_label': prototype_per_label,
+                    'confusion': prototype_confusion_data
                 }
             }
-            continue  # Skip to next label level
 
-        # Store results for this label level (successful case)
-        retrieval_results_by_level[retrieval_label_level] = {
-            'instance_to_instance': {
-                'overall': instance_retrieval_results,
-                'per_label': instance_per_label,
-                'confusion': instance_confusion_data
-            },
-            'prototype_based': {
-                'overall': prototype_retrieval_results,
-                'per_label': prototype_per_label,
-                'confusion': prototype_confusion_data
-            }
-        }
-
-        print(f"\n✅ Completed retrieval metrics for {retrieval_label_level} labels")
+            print(f"\n✅ Completed retrieval metrics for {retrieval_label_level} labels")
 
         # End of label level loop
 
