@@ -43,7 +43,7 @@ import numpy as np
 import pandas as pd
 import json
 import argparse
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Union
 from pathlib import Path
 from collections import defaultdict, Counter
 import warnings
