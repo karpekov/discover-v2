@@ -36,6 +36,7 @@ def collate_fn(
   all_captions = []
   activity_labels_l1 = []
   activity_labels_l2 = []
+  sample_ids = []
 
   for sample in batch:
     all_categorical.append(sample['categorical_features'])
@@ -47,6 +48,9 @@ def collate_fn(
     # Extract ground truth activity labels if available
     activity_labels_l1.append(sample.get('first_activity', 'Unknown'))
     activity_labels_l2.append(sample.get('first_activity_l2', 'Unknown'))
+
+    # Extract sample_id for alignment
+    sample_ids.append(sample.get('sample_id', f'unknown_{len(sample_ids)}'))
 
   # Stack tensors
   coordinates = torch.stack(all_coordinates).to(device)  # [batch_size, seq_len, 2]
@@ -104,6 +108,7 @@ def collate_fn(
     'activity_labels': activity_labels_l1,  # Primary activity labels for evaluation
     'activity_labels_l2': activity_labels_l2,  # Secondary activity labels for evaluation
     'captions': all_captions,  # Include captions for evaluation
+    'sample_ids': sample_ids,  # Sample IDs for alignment
     'batch_size': batch_size
   }
 

@@ -2,10 +2,17 @@
 """
 Merge multiple comprehensive_results.json files into a single report.
 
+Supports both classification and retrieval evaluation merging.
+
 Usage:
+    # Classification evals (default)
     python src/evals/merge_embedding_evals.py --dataset milan --model-regex ".*_v1"
-    python src/evals/merge_embedding_evals.py --dataset milan --model-regex "fd60.*seq.*"
-    python src/evals/merge_embedding_evals.py --dataset milan --model-regex ".*img.*" --output-name image_models
+
+    # Retrieval evals
+    python src/evals/merge_embedding_evals.py --dataset milan --model-regex ".*_v1" --eval-type retrieval
+
+    # Both types
+    python src/evals/merge_embedding_evals.py --dataset milan --model-regex ".*_v1" --eval-type both
 """
 
 import argparse
@@ -36,27 +43,60 @@ class EmbeddingEvalsMerger:
         if not self.dataset_dir.exists():
             raise ValueError(f"Dataset directory not found: {self.dataset_dir}")
 
-    def find_results_files(self, model_regex: str) -> List[Dict[str, Any]]:
-        """Find all comprehensive_results.json files matching the regex."""
+    def find_results_files(self, model_regex: str, eval_type: str = 'classification') -> List[Dict[str, Any]]:
+        """Find all comprehensive_results.json files matching the regex.
+
+        Args:
+            model_regex: Regex pattern to match model names
+            eval_type: 'classification', 'retrieval', or 'both'
+        """
         pattern = re.compile(model_regex)
         results_files = []
 
-        # Search through all subdirectories
-        for results_file in self.dataset_dir.rglob("comprehensive_results.json"):
-            # Extract model name from path
-            # Path structure: results/evals/{dataset}/{sampling_strategy}/{model_name}/comprehensive_results.json
-            model_name = results_file.parent.name
-            sampling_strategy = results_file.parent.parent.name
+        if eval_type in ['classification', 'both']:
+            # Search for classification results
+            for results_file in self.dataset_dir.rglob("comprehensive_results.json"):
+                # Skip retrieval subdirectory
+                if 'retrieval' in str(results_file):
+                    continue
 
-            # Check if model matches regex
-            if pattern.match(model_name):
-                results_files.append({
-                    'model_name': model_name,
-                    'sampling_strategy': sampling_strategy,
-                    'file_path': results_file
-                })
+                # Extract model name from path
+                # Path structure: results/evals/{dataset}/{sampling_strategy}/{model_name}/comprehensive_results.json
+                model_name = results_file.parent.name
+                sampling_strategy = results_file.parent.parent.name
 
-        return sorted(results_files, key=lambda x: (x['sampling_strategy'], x['model_name']))
+                # Check if model matches regex
+                if pattern.match(model_name):
+                    results_files.append({
+                        'model_name': model_name,
+                        'sampling_strategy': sampling_strategy,
+                        'file_path': results_file,
+                        'eval_type': 'classification'
+                    })
+
+        if eval_type in ['retrieval', 'both']:
+            # Search for retrieval results
+            # Try both comprehensive_results.json and retrieval_metrics.json
+            for results_file in self.dataset_dir.rglob("retrieval/*.json"):
+                # Skip if it's not one of the expected files
+                if results_file.name not in ['comprehensive_results.json', 'retrieval_metrics.json']:
+                    continue
+
+                # Extract model name from path
+                # Path structure: results/evals/{dataset}/{sampling_strategy}/{model_name}/retrieval/{filename}.json
+                model_name = results_file.parent.parent.name
+                sampling_strategy = results_file.parent.parent.parent.name
+
+                # Check if model matches regex
+                if pattern.match(model_name):
+                    results_files.append({
+                        'model_name': model_name,
+                        'sampling_strategy': sampling_strategy,
+                        'file_path': results_file,
+                        'eval_type': 'retrieval'
+                    })
+
+        return sorted(results_files, key=lambda x: (x['sampling_strategy'], x['model_name'], x.get('eval_type', '')))
 
     def load_results(self, results_files: List[Dict[str, Any]]) -> pd.DataFrame:
         """Load all results files and merge into a DataFrame."""
@@ -109,6 +149,175 @@ class EmbeddingEvalsMerger:
 
         if not all_data:
             raise ValueError("No valid results found!")
+
+        df = pd.DataFrame(all_data)
+        return df
+
+    def load_retrieval_results(self, results_files: List[Dict[str, Any]]) -> pd.DataFrame:
+        """Load all retrieval results files and merge into a DataFrame."""
+        all_data = []
+
+        for item in results_files:
+            if item.get('eval_type') != 'retrieval':
+                continue
+
+            model_name = item['model_name']
+            sampling_strategy = item['sampling_strategy']
+            file_path = item['file_path']
+
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+
+                # Handle different possible structures
+                retrieval_data = None
+                if 'retrieval_metrics' in data:
+                    retrieval_data = data['retrieval_metrics']
+                elif 'instance_to_instance' in data or 'prototype_based' in data:
+                    retrieval_data = data
+                else:
+                    print(f"⚠️  Unexpected structure in {file_path}, skipping...")
+                    continue
+
+                # Extract metrics for each label level
+                label_levels = ['l1', 'l2']
+                if isinstance(retrieval_data, dict):
+                    # Check which label levels are present
+                    available_levels = [level for level in label_levels if level in retrieval_data]
+                    if not available_levels:
+                        # Try uppercase
+                        available_levels = [level for level in ['L1', 'L2'] if level in retrieval_data]
+                        label_levels = ['L1', 'L2'] if available_levels else []
+
+                for level in label_levels:
+                    if level not in retrieval_data:
+                        continue
+
+                    level_data = retrieval_data[level]
+
+                    # Check if this is the new format (with recall_at_k) or old format
+                    if 'recall_at_k' in level_data:
+                        # New format: retrieval_metrics -> L1 -> recall_at_k -> text2sensor -> 10 -> {macro, weighted}
+                        recall_data = level_data['recall_at_k']
+
+                        # Instance-to-instance directions
+                        for direction in ['text2sensor', 'sensor2text']:
+                            if direction in recall_data:
+                                direction_data = recall_data[direction]
+                                for k_str, metrics in direction_data.items():
+                                    k = int(k_str)
+                                    if isinstance(metrics, dict):
+                                        macro = metrics.get('macro', 0)
+                                        weighted = metrics.get('weighted', 0)
+                                    else:
+                                        macro = metrics
+                                        weighted = metrics
+
+                                    row = {
+                                        'model_name': model_name,
+                                        'sampling_strategy': sampling_strategy,
+                                        'label_level': level.upper(),
+                                        'retrieval_type': 'instance_to_instance',
+                                        'direction': direction,
+                                        'k': k,
+                                        'macro': macro,
+                                        'weighted': weighted
+                                    }
+                                    all_data.append(row)
+
+                        # Prototype-based directions
+                        for direction in ['prototype2sensor', 'prototype2text']:
+                            if direction in recall_data:
+                                direction_data = recall_data[direction]
+                                for k_str, metrics in direction_data.items():
+                                    k = int(k_str)
+                                    if isinstance(metrics, dict):
+                                        macro = metrics.get('macro', 0)
+                                        weighted = metrics.get('weighted', 0)
+                                    else:
+                                        macro = metrics
+                                        weighted = metrics
+
+                                    row = {
+                                        'model_name': model_name,
+                                        'sampling_strategy': sampling_strategy,
+                                        'label_level': level.upper(),
+                                        'retrieval_type': 'prototype_based',
+                                        'direction': direction,
+                                        'k': k,
+                                        'macro': macro,
+                                        'weighted': weighted
+                                    }
+                                    all_data.append(row)
+
+                    else:
+                        # Old format: instance_to_instance/prototype_based structure
+                        # Instance-to-instance retrieval
+                        if 'instance_to_instance' in level_data:
+                            instance_data = level_data['instance_to_instance']
+                            if 'overall' in instance_data:
+                                overall = instance_data['overall']
+                                for direction in ['text2sensor', 'sensor2text']:
+                                    if direction in overall:
+                                        direction_data = overall[direction]
+                                        for k_str, metrics in direction_data.items():
+                                            k = int(k_str)
+                                            if isinstance(metrics, dict):
+                                                macro = metrics.get('macro', 0)
+                                                weighted = metrics.get('weighted', 0)
+                                            else:
+                                                macro = metrics
+                                                weighted = metrics
+
+                                            row = {
+                                                'model_name': model_name,
+                                                'sampling_strategy': sampling_strategy,
+                                                'label_level': level.upper(),
+                                                'retrieval_type': 'instance_to_instance',
+                                                'direction': direction,
+                                                'k': k,
+                                                'macro': macro,
+                                                'weighted': weighted
+                                            }
+                                            all_data.append(row)
+
+                        # Prototype-based retrieval
+                        if 'prototype_based' in level_data:
+                            prototype_data = level_data['prototype_based']
+                            if 'overall' in prototype_data:
+                                overall = prototype_data['overall']
+                                for direction in ['prototype2sensor', 'prototype2text']:
+                                    if direction in overall:
+                                        direction_data = overall[direction]
+                                        for k_str, metrics in direction_data.items():
+                                            k = int(k_str)
+                                            if isinstance(metrics, dict):
+                                                macro = metrics.get('macro', 0)
+                                                weighted = metrics.get('weighted', 0)
+                                            else:
+                                                macro = metrics
+                                                weighted = metrics
+
+                                            row = {
+                                                'model_name': model_name,
+                                                'sampling_strategy': sampling_strategy,
+                                                'label_level': level.upper(),
+                                                'retrieval_type': 'prototype_based',
+                                                'direction': direction,
+                                                'k': k,
+                                                'macro': macro,
+                                                'weighted': weighted
+                                            }
+                                            all_data.append(row)
+
+            except Exception as e:
+                print(f"⚠️  Error loading {file_path}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+
+        if not all_data:
+            raise ValueError("No valid retrieval results found!")
 
         df = pd.DataFrame(all_data)
         return df
@@ -233,9 +442,9 @@ class EmbeddingEvalsMerger:
             f.write("- **Text (Proj)**: Text embeddings with learned projection\n")
             f.write("- **Sensor**: Sensor embeddings (primary model output)\n\n")
 
-    def add_comprehensive_tables_to_report(self, output_dir: Path):
+    def add_comprehensive_tables_to_report(self, output_dir: Path, report_filename: str = 'RESULTS_REPORT.md'):
         """Add comprehensive tables to the markdown report."""
-        report_path = output_dir / 'RESULTS_REPORT.md'
+        report_path = output_dir / report_filename
 
         # Read existing report
         with open(report_path, 'r') as f:
@@ -730,107 +939,542 @@ class EmbeddingEvalsMerger:
         plt.close()
         print(f"✅ Chart saved: {output_dir / 'embedding_type_comparison.png'}")
 
-    def run(self, model_regex: str, output_name: str = None):
-        """Run the complete merging pipeline."""
+    def create_retrieval_summary_table(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create a summary table with best retrieval metrics for each model."""
+        summary_data = []
+
+        # Group by model and sampling strategy
+        for (model_name, sampling_strategy), group in df.groupby(['model_name', 'sampling_strategy']):
+            # Get metrics for K=50 (middle value, commonly used)
+            k50_data = group[group['k'] == 50]
+
+            if len(k50_data) == 0:
+                # Try K=10 or K=100 if 50 not available
+                k50_data = group[group['k'] == 10]
+                if len(k50_data) == 0:
+                    k50_data = group[group['k'] == 100]
+
+            if len(k50_data) == 0:
+                continue
+
+            # Extract best metrics for each direction/type
+            row = {
+                'Model': model_name,
+                'Sampling': sampling_strategy,
+            }
+
+            # Instance-to-instance metrics
+            instance_l1 = k50_data[
+                (k50_data['label_level'] == 'L1') &
+                (k50_data['retrieval_type'] == 'instance_to_instance')
+            ]
+            instance_l2 = k50_data[
+                (k50_data['label_level'] == 'L2') &
+                (k50_data['retrieval_type'] == 'instance_to_instance')
+            ]
+
+            # Text2Sensor
+            t2s_l1 = instance_l1[instance_l1['direction'] == 'text2sensor']
+            t2s_l2 = instance_l2[instance_l2['direction'] == 'text2sensor']
+            if len(t2s_l1) > 0:
+                row['L1_T2S_Weighted'] = t2s_l1.iloc[0]['weighted']
+                row['L1_T2S_Macro'] = t2s_l1.iloc[0]['macro']
+            if len(t2s_l2) > 0:
+                row['L2_T2S_Weighted'] = t2s_l2.iloc[0]['weighted']
+                row['L2_T2S_Macro'] = t2s_l2.iloc[0]['macro']
+
+            # Sensor2Text
+            s2t_l1 = instance_l1[instance_l1['direction'] == 'sensor2text']
+            s2t_l2 = instance_l2[instance_l2['direction'] == 'sensor2text']
+            if len(s2t_l1) > 0:
+                row['L1_S2T_Weighted'] = s2t_l1.iloc[0]['weighted']
+                row['L1_S2T_Macro'] = s2t_l1.iloc[0]['macro']
+            if len(s2t_l2) > 0:
+                row['L2_S2T_Weighted'] = s2t_l2.iloc[0]['weighted']
+                row['L2_S2T_Macro'] = s2t_l2.iloc[0]['macro']
+
+            # Prototype-based metrics
+            proto_l1 = k50_data[
+                (k50_data['label_level'] == 'L1') &
+                (k50_data['retrieval_type'] == 'prototype_based')
+            ]
+            proto_l2 = k50_data[
+                (k50_data['label_level'] == 'L2') &
+                (k50_data['retrieval_type'] == 'prototype_based')
+            ]
+
+            # Prototype2Sensor
+            p2s_l1 = proto_l1[proto_l1['direction'] == 'prototype2sensor']
+            p2s_l2 = proto_l2[proto_l2['direction'] == 'prototype2sensor']
+            if len(p2s_l1) > 0:
+                row['L1_P2S_Weighted'] = p2s_l1.iloc[0]['weighted']
+                row['L1_P2S_Macro'] = p2s_l1.iloc[0]['macro']
+            if len(p2s_l2) > 0:
+                row['L2_P2S_Weighted'] = p2s_l2.iloc[0]['weighted']
+                row['L2_P2S_Macro'] = p2s_l2.iloc[0]['macro']
+
+            # Prototype2Text
+            p2t_l1 = proto_l1[proto_l1['direction'] == 'prototype2text']
+            p2t_l2 = proto_l2[proto_l2['direction'] == 'prototype2text']
+            if len(p2t_l1) > 0:
+                row['L1_P2T_Weighted'] = p2t_l1.iloc[0]['weighted']
+                row['L1_P2T_Macro'] = p2t_l1.iloc[0]['macro']
+            if len(p2t_l2) > 0:
+                row['L2_P2T_Weighted'] = p2t_l2.iloc[0]['weighted']
+                row['L2_P2T_Macro'] = p2t_l2.iloc[0]['macro']
+
+            summary_data.append(row)
+
+        summary_df = pd.DataFrame(summary_data)
+
+        # Sort by L1 Text2Sensor Weighted (primary metric)
+        if len(summary_df) > 0 and 'L1_T2S_Weighted' in summary_df.columns:
+            summary_df = summary_df.sort_values('L1_T2S_Weighted', ascending=False, na_position='last')
+
+        return summary_df
+
+    def create_retrieval_charts(self, df: pd.DataFrame, summary_df: pd.DataFrame,
+                                output_dir: Path):
+        """Create comparison charts for retrieval metrics."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Overall comparison: All directions, all K values (L1)
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+
+        k_values = sorted(df['k'].unique())
+        directions = ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']
+        direction_labels = {
+            'text2sensor': 'Text → Sensor',
+            'sensor2text': 'Sensor → Text',
+            'prototype2sensor': 'Prototype → Sensor',
+            'prototype2text': 'Prototype → Text'
+        }
+
+        for level_idx, level in enumerate(['L1', 'L2']):
+            level_df = df[df['label_level'] == level]
+
+            # Top subplot: Weighted metrics
+            ax_weighted = axes[level_idx, 0]
+            for direction in directions:
+                dir_df = level_df[level_df['direction'] == direction]
+                if len(dir_df) == 0:
+                    continue
+
+                # Average across models for each K
+                k_means = dir_df.groupby('k')['weighted'].mean()
+                k_stds = dir_df.groupby('k')['weighted'].std()
+
+                ax_weighted.plot(k_means.index, k_means.values,
+                                marker='o', label=direction_labels.get(direction, direction),
+                                linewidth=2, markersize=8)
+                ax_weighted.fill_between(k_means.index,
+                                        k_means.values - k_stds.values,
+                                        k_means.values + k_stds.values,
+                                        alpha=0.2)
+
+            ax_weighted.set_xlabel('K (Number of Neighbors)', fontsize=11)
+            ax_weighted.set_ylabel('Label-Recall@K (Weighted)', fontsize=11)
+            ax_weighted.set_title(f'{level} - Weighted Average Across Models', fontsize=12, fontweight='bold')
+            ax_weighted.legend(fontsize=9)
+            ax_weighted.grid(alpha=0.3)
+            ax_weighted.set_ylim([0, 1])
+
+            # Bottom subplot: Macro metrics
+            ax_macro = axes[level_idx, 1]
+            for direction in directions:
+                dir_df = level_df[level_df['direction'] == direction]
+                if len(dir_df) == 0:
+                    continue
+
+                k_means = dir_df.groupby('k')['macro'].mean()
+                k_stds = dir_df.groupby('k')['macro'].std()
+
+                ax_macro.plot(k_means.index, k_means.values,
+                             marker='o', label=direction_labels.get(direction, direction),
+                             linewidth=2, markersize=8)
+                ax_macro.fill_between(k_means.index,
+                                     k_means.values - k_stds.values,
+                                     k_means.values + k_stds.values,
+                                     alpha=0.2)
+
+            ax_macro.set_xlabel('K (Number of Neighbors)', fontsize=11)
+            ax_macro.set_ylabel('Label-Recall@K (Macro)', fontsize=11)
+            ax_macro.set_title(f'{level} - Macro Average Across Models', fontsize=12, fontweight='bold')
+            ax_macro.legend(fontsize=9)
+            ax_macro.grid(alpha=0.3)
+            ax_macro.set_ylim([0, 1])
+
+        plt.tight_layout()
+        plt.savefig(output_dir / 'retrieval_overall_comparison.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"✅ Chart saved: {output_dir / 'retrieval_overall_comparison.png'}")
+
+        # 2. Top models comparison (K=50, L1, Weighted)
+        if len(summary_df) > 0 and 'L1_T2S_Weighted' in summary_df.columns:
+            fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+            top_n = min(15, len(summary_df))
+            top_models = summary_df.head(top_n)
+
+            # Instance-to-instance
+            ax1 = axes[0]
+            x = np.arange(len(top_models))
+            width = 0.35
+
+            t2s_values = top_models['L1_T2S_Weighted'].fillna(0)
+            s2t_values = top_models['L1_S2T_Weighted'].fillna(0)
+
+            ax1.bar(x - width/2, t2s_values, width, label='Text → Sensor', alpha=0.8)
+            ax1.bar(x + width/2, s2t_values, width, label='Sensor → Text', alpha=0.8)
+
+            ax1.set_xlabel('Model', fontsize=11)
+            ax1.set_ylabel('Label-Recall@50 (Weighted)', fontsize=11)
+            ax1.set_title('L1 - Instance-to-Instance Retrieval (Top Models)', fontsize=12, fontweight='bold')
+            ax1.set_xticks(x)
+            ax1.set_xticklabels([f"{row['Model'][:20]}..." if len(row['Model']) > 20 else row['Model']
+                                for _, row in top_models.iterrows()],
+                               rotation=45, ha='right', fontsize=8)
+            ax1.legend(fontsize=9)
+            ax1.grid(axis='y', alpha=0.3)
+            ax1.set_ylim([0, 1])
+
+            # Prototype-based
+            ax2 = axes[1]
+            p2s_values = top_models['L1_P2S_Weighted'].fillna(0)
+            p2t_values = top_models['L1_P2T_Weighted'].fillna(0)
+
+            ax2.bar(x - width/2, p2s_values, width, label='Prototype → Sensor', alpha=0.8)
+            ax2.bar(x + width/2, p2t_values, width, label='Prototype → Text', alpha=0.8)
+
+            ax2.set_xlabel('Model', fontsize=11)
+            ax2.set_ylabel('Label-Recall@50 (Weighted)', fontsize=11)
+            ax2.set_title('L1 - Prototype-Based Retrieval (Top Models)', fontsize=12, fontweight='bold')
+            ax2.set_xticks(x)
+            ax2.set_xticklabels([f"{row['Model'][:20]}..." if len(row['Model']) > 20 else row['Model']
+                                for _, row in top_models.iterrows()],
+                               rotation=45, ha='right', fontsize=8)
+            ax2.legend(fontsize=9)
+            ax2.grid(axis='y', alpha=0.3)
+            ax2.set_ylim([0, 1])
+
+            plt.tight_layout()
+            plt.savefig(output_dir / 'retrieval_top_models.png', dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"✅ Chart saved: {output_dir / 'retrieval_top_models.png'}")
+
+        # 3. Heatmap: All models, all metrics (K=50, L1)
+        if len(summary_df) > 0:
+            fig, ax = plt.subplots(figsize=(14, max(8, len(summary_df) * 0.3)))
+
+            # Select relevant columns
+            metric_cols = [col for col in summary_df.columns
+                          if col not in ['Model', 'Sampling'] and 'L1' in col and 'Weighted' in col]
+
+            if metric_cols:
+                heatmap_data = summary_df[['Model'] + metric_cols].set_index('Model')
+                heatmap_data = heatmap_data.fillna(0)
+
+                # Truncate model names
+                heatmap_data.index = [name[:40] + '...' if len(name) > 40 else name
+                                     for name in heatmap_data.index]
+
+                # Create heatmap
+                data_min = heatmap_data.min().min()
+                data_max = heatmap_data.max().max()
+                data_center = (data_min + data_max) / 2
+
+                sns.heatmap(heatmap_data, annot=True, fmt='.3f', cmap='RdYlGn',
+                           ax=ax, cbar_kws={'label': 'Label-Recall@50 (Weighted)'},
+                           vmin=data_min, vmax=data_max, linewidths=0.5, center=data_center)
+                ax.set_title('L1 Retrieval Metrics Heatmap (K=50, Weighted)', fontsize=12, fontweight='bold')
+                ax.set_xlabel('Metric', fontsize=11)
+                ax.set_ylabel('Model', fontsize=11)
+
+                plt.tight_layout()
+                plt.savefig(output_dir / 'retrieval_heatmap.png', dpi=300, bbox_inches='tight')
+                plt.close()
+                print(f"✅ Chart saved: {output_dir / 'retrieval_heatmap.png'}")
+
+        # 4. Sampling strategy comparison
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+        for level_idx, level in enumerate(['L1', 'L2']):
+            ax = axes[level_idx]
+            level_df = df[df['label_level'] == level]
+
+            # Group by sampling strategy and direction
+            sampling_stats = level_df.groupby(['sampling_strategy', 'direction'])['weighted'].agg(['mean', 'std', 'count'])
+
+            sampling_strategies = sorted(level_df['sampling_strategy'].unique())
+            x = np.arange(len(sampling_strategies))
+            width = 0.2
+
+            directions_to_plot = ['text2sensor', 'sensor2text']
+            colors = ['steelblue', 'coral']
+
+            for dir_idx, direction in enumerate(directions_to_plot):
+                means = []
+                stds = []
+                for sampling in sampling_strategies:
+                    if (sampling, direction) in sampling_stats.index:
+                        stats = sampling_stats.loc[(sampling, direction)]
+                        means.append(stats['mean'])
+                        stds.append(stats['std'])
+                    else:
+                        means.append(0)
+                        stds.append(0)
+
+                ax.bar(x + dir_idx * width, means, width, yerr=stds,
+                      label=direction_labels.get(direction, direction),
+                      capsize=5, color=colors[dir_idx], alpha=0.7)
+
+            ax.set_xlabel('Sampling Strategy', fontsize=11)
+            ax.set_ylabel('Label-Recall@K (Weighted)', fontsize=11)
+            ax.set_title(f'{level} - Average by Sampling Strategy', fontsize=12, fontweight='bold')
+            ax.set_xticks(x + width / 2)
+            ax.set_xticklabels(sampling_strategies, rotation=45, ha='right')
+            ax.legend(fontsize=9)
+            ax.grid(axis='y', alpha=0.3)
+            ax.set_ylim([0, 1])
+
+        plt.tight_layout()
+        plt.savefig(output_dir / 'retrieval_sampling_comparison.png', dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"✅ Chart saved: {output_dir / 'retrieval_sampling_comparison.png'}")
+
+    def create_retrieval_markdown_report(self, df: pd.DataFrame, summary_df: pd.DataFrame,
+                                        output_path: Path):
+        """Create a markdown report for retrieval results."""
+        with open(output_path, 'w') as f:
+            f.write(f"# Retrieval Evaluation Results - {self.dataset.upper()}\n\n")
+            f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            f.write(f"**Total Models:** {len(summary_df)}\n\n")
+
+            # Summary table
+            f.write("## Summary - Retrieval Performance (K=50)\n\n")
+            f.write("Models sorted by L1 Text→Sensor Weighted score (primary metric).\n\n")
+
+            # Format summary table
+            summary_formatted = summary_df.copy()
+            metric_cols = [col for col in summary_formatted.columns if col not in ['Model', 'Sampling']]
+            for col in metric_cols:
+                summary_formatted[col] = summary_formatted[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "N/A")
+
+            # Write header
+            f.write("| " + " | ".join(summary_formatted.columns) + " |\n")
+            f.write("| " + " | ".join(["---"] * len(summary_formatted.columns)) + " |\n")
+            # Write rows
+            for _, row in summary_formatted.iterrows():
+                f.write("| " + " | ".join(str(v) for v in row.values) + " |\n")
+            f.write("\n\n")
+
+            # Top 5 models
+            f.write("## 🏆 Top 5 Models (L1 Text→Sensor Weighted)\n\n")
+            if 'L1_T2S_Weighted' in summary_df.columns:
+                top5 = summary_df.head(5)[['Model', 'Sampling', 'L1_T2S_Weighted', 'L1_S2T_Weighted']]
+                top5_formatted = top5.copy()
+                for col in ['L1_T2S_Weighted', 'L1_S2T_Weighted']:
+                    top5_formatted[col] = top5_formatted[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "N/A")
+
+                f.write("| " + " | ".join(top5_formatted.columns) + " |\n")
+                f.write("| " + " | ".join(["---"] * len(top5_formatted.columns)) + " |\n")
+                for _, row in top5_formatted.iterrows():
+                    f.write("| " + " | ".join(str(v) for v in row.values) + " |\n")
+                f.write("\n\n")
+
+            # Detailed breakdown by K value
+            f.write("## Detailed Results by K Value\n\n")
+            for level in ['L1', 'L2']:
+                f.write(f"### {level}\n\n")
+                level_df = df[df['label_level'] == level]
+
+                for k in sorted(level_df['k'].unique()):
+                    f.write(f"#### K={k}\n\n")
+                    k_df = level_df[level_df['k'] == k]
+
+                    # Pivot table: models vs directions
+                    pivot_df = k_df.pivot_table(
+                        index=['model_name', 'sampling_strategy'],
+                        columns='direction',
+                        values='weighted',
+                        aggfunc='first'
+                    ).reset_index()
+
+                    pivot_df.columns.name = None
+                    pivot_df = pivot_df.sort_values('text2sensor', ascending=False, na_position='last')
+
+                    # Format
+                    for col in pivot_df.columns:
+                        if col not in ['model_name', 'sampling_strategy']:
+                            pivot_df[col] = pivot_df[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "N/A")
+
+                    pivot_df = pivot_df.rename(columns={'model_name': 'Model', 'sampling_strategy': 'Sampling'})
+
+                    # Write header
+                    f.write("| " + " | ".join(pivot_df.columns) + " |\n")
+                    f.write("| " + " | ".join(["---"] * len(pivot_df.columns)) + " |\n")
+                    # Write rows
+                    for _, row in pivot_df.iterrows():
+                        f.write("| " + " | ".join(str(v) for v in row.values) + " |\n")
+                    f.write("\n")
+
+            # Metrics legend
+            f.write("## Metrics Legend\n\n")
+            f.write("- **Label-Recall@K**: Proportion of top-K retrieved neighbors that share the same label as the query\n")
+            f.write("- **Weighted**: Average weighted by label prevalence (accounts for class imbalance)\n")
+            f.write("- **Macro**: Unweighted average across all labels\n")
+            f.write("- **Text → Sensor**: Text queries retrieving sensor embeddings\n")
+            f.write("- **Sensor → Text**: Sensor queries retrieving text embeddings\n")
+            f.write("- **Prototype → Sensor**: Text prototype queries retrieving sensor embeddings\n")
+            f.write("- **Prototype → Text**: Text prototype queries retrieving text embeddings\n\n")
+
+    def run(self, model_regex: str, output_name: str = None, eval_type: str = 'classification'):
+        """Run the complete merging pipeline.
+
+        Args:
+            model_regex: Regex pattern to match model names
+            output_name: Output directory name (default: auto-generated)
+            eval_type: 'classification', 'retrieval', or 'both'
+        """
         print("="*80)
         print("EMBEDDING EVALUATIONS MERGER")
         print("="*80)
         print(f"Dataset: {self.dataset}")
         print(f"Model regex: {model_regex}")
+        print(f"Evaluation type: {eval_type}")
         print("")
 
         # Find results files
         print("🔍 Finding results files...")
-        results_files = self.find_results_files(model_regex)
+        results_files = self.find_results_files(model_regex, eval_type)
 
         if not results_files:
             print("❌ No results files found matching the regex!")
             return
 
-        print(f"✅ Found {len(results_files)} models:")
+        print(f"✅ Found {len(results_files)} result files:")
         for item in results_files:
-            print(f"   - {item['sampling_strategy']}/{item['model_name']}")
-        print("")
-
-        # Load results
-        print("📊 Loading and merging results...")
-        df = self.load_results(results_files)
-        print(f"✅ Loaded {len(df)} result entries")
-        print("")
-
-        # Create summary
-        print("📋 Creating summary table...")
-        summary_df = self.create_summary_table(df)
-        print(f"✅ Summary created with {len(summary_df)} models")
+            eval_type_str = item.get('eval_type', 'classification')
+            print(f"   - {item['sampling_strategy']}/{item['model_name']} ({eval_type_str})")
         print("")
 
         # Create output directory
         if output_name is None:
-            output_name = f"all_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            suffix = eval_type if eval_type != 'both' else 'all'
+            output_name = f"{suffix}_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         output_dir = self.results_base_dir / self.dataset / output_name
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save merged data
-        print("💾 Saving merged data...")
+        # Process classification results
+        if eval_type in ['classification', 'both']:
+            classification_files = [f for f in results_files if f.get('eval_type') == 'classification']
+            if classification_files:
+                print("="*80)
+                print("PROCESSING CLASSIFICATION RESULTS")
+                print("="*80)
 
-        # CSV files
-        df.to_csv(output_dir / 'detailed_results.csv', index=False)
-        summary_df.to_csv(output_dir / 'summary_results.csv', index=False)
-        print(f"✅ Saved: {output_dir / 'detailed_results.csv'}")
-        print(f"✅ Saved: {output_dir / 'summary_results.csv'}")
+                print("📊 Loading and merging classification results...")
+                df_class = self.load_results(classification_files)
+                print(f"✅ Loaded {len(df_class)} classification result entries")
+                print("")
 
-        # JSON files
-        df.to_json(output_dir / 'detailed_results.json', orient='records', indent=2)
-        summary_df.to_json(output_dir / 'summary_results.json', orient='records', indent=2)
-        print(f"✅ Saved: {output_dir / 'detailed_results.json'}")
-        print(f"✅ Saved: {output_dir / 'summary_results.json'}")
-        print("")
+                print("📋 Creating classification summary table...")
+                summary_df_class = self.create_summary_table(df_class)
+                print(f"✅ Summary created with {len(summary_df_class)} models")
+                print("")
 
-        # Create markdown report
-        print("📝 Creating markdown report...")
-        self.create_markdown_report(df, summary_df, output_dir / 'RESULTS_REPORT.md')
-        print("")
+                print("💾 Saving classification data...")
+                df_class.to_csv(output_dir / 'classification_detailed_results.csv', index=False)
+                summary_df_class.to_csv(output_dir / 'classification_summary_results.csv', index=False)
+                df_class.to_json(output_dir / 'classification_detailed_results.json', orient='records', indent=2)
+                summary_df_class.to_json(output_dir / 'classification_summary_results.json', orient='records', indent=2)
+                print("✅ Saved classification results")
+                print("")
 
-        # Create comprehensive tables
-        print("📊 Creating comprehensive comparison tables...")
-        self.create_comprehensive_tables(df, output_dir)
-        print("")
+                print("📝 Creating classification markdown report...")
+                self.create_markdown_report(df_class, summary_df_class, output_dir / 'CLASSIFICATION_RESULTS_REPORT.md')
+                print("")
 
-        # Add comprehensive tables to markdown report
-        print("📝 Adding comprehensive tables to report...")
-        self.add_comprehensive_tables_to_report(output_dir)
-        print("")
+                print("📊 Creating comprehensive comparison tables...")
+                self.create_comprehensive_tables(df_class, output_dir)
+                print("")
 
-        # Create charts
-        print("📊 Creating comparison charts...")
-        charts_dir = output_dir / 'charts'
-        self.create_comparison_charts(df, summary_df, charts_dir)
-        print("")
+                print("📝 Adding comprehensive tables to report...")
+                self.add_comprehensive_tables_to_report(output_dir, 'CLASSIFICATION_RESULTS_REPORT.md')
+                print("")
 
-        # Print summary
+                print("📊 Creating classification comparison charts...")
+                charts_dir = output_dir / 'classification_charts'
+                self.create_comparison_charts(df_class, summary_df_class, charts_dir)
+                print("")
+
+        # Process retrieval results
+        if eval_type in ['retrieval', 'both']:
+            retrieval_files = [f for f in results_files if f.get('eval_type') == 'retrieval']
+            if retrieval_files:
+                print("="*80)
+                print("PROCESSING RETRIEVAL RESULTS")
+                print("="*80)
+
+                print("📊 Loading and merging retrieval results...")
+                df_retrieval = self.load_retrieval_results(retrieval_files)
+                print(f"✅ Loaded {len(df_retrieval)} retrieval result entries")
+                print("")
+
+                print("📋 Creating retrieval summary table...")
+                summary_df_retrieval = self.create_retrieval_summary_table(df_retrieval)
+                print(f"✅ Summary created with {len(summary_df_retrieval)} models")
+                print("")
+
+                print("💾 Saving retrieval data...")
+                df_retrieval.to_csv(output_dir / 'retrieval_detailed_results.csv', index=False)
+                summary_df_retrieval.to_csv(output_dir / 'retrieval_summary_results.csv', index=False)
+                df_retrieval.to_json(output_dir / 'retrieval_detailed_results.json', orient='records', indent=2)
+                summary_df_retrieval.to_json(output_dir / 'retrieval_summary_results.json', orient='records', indent=2)
+                print("✅ Saved retrieval results")
+                print("")
+
+                print("📝 Creating retrieval markdown report...")
+                self.create_retrieval_markdown_report(df_retrieval, summary_df_retrieval,
+                                                     output_dir / 'RETRIEVAL_RESULTS_REPORT.md')
+                print("")
+
+                print("📊 Creating retrieval comparison charts...")
+                charts_dir = output_dir / 'retrieval_charts'
+                self.create_retrieval_charts(df_retrieval, summary_df_retrieval, charts_dir)
+                print("")
+
+        # Print final summary
         print("="*80)
         print("✅ MERGE COMPLETE!")
         print("="*80)
         print(f"Output directory: {output_dir}")
-        print(f"Total models: {len(summary_df)}")
         print("")
         print("📁 Files created:")
-        print(f"  - detailed_results.csv / .json")
-        print(f"  - summary_results.csv / .json")
-        print(f"  - RESULTS_REPORT.md")
-        print(f"  - comprehensive_table_L1_f1_weighted.csv (+ heatmap)")
-        print(f"  - comprehensive_table_L1_f1_macro.csv (+ heatmap)")
-        print(f"  - comprehensive_table_L2_f1_weighted.csv (+ heatmap)")
-        print(f"  - comprehensive_table_L2_f1_macro.csv (+ heatmap)")
-        print(f"  - charts/ (11 comparison visualizations)")
-        print("")
-        print("Top 3 Models (L1 F1-Weighted):")
-        for idx, row in summary_df.head(3).iterrows():
-            print(f"  {idx+1}. {row['Model']}")
-            print(f"     Sampling: {row['Sampling']}")
-            print(f"     L1 F1-Weighted: {row['L1_F1_Weighted']:.4f}")
-            print(f"     L1 Accuracy: {row['L1_Accuracy']:.4f}")
+
+        if eval_type in ['classification', 'both']:
+            classification_files = [f for f in results_files if f.get('eval_type') == 'classification']
+            if classification_files:
+                print("\n📊 Classification Results:")
+                print(f"  - classification_detailed_results.csv / .json")
+                print(f"  - classification_summary_results.csv / .json")
+                print(f"  - CLASSIFICATION_RESULTS_REPORT.md")
+                print(f"  - comprehensive_table_L1_f1_weighted.csv (+ heatmap)")
+                print(f"  - comprehensive_table_L1_f1_macro.csv (+ heatmap)")
+                print(f"  - comprehensive_table_L2_f1_weighted.csv (+ heatmap)")
+                print(f"  - comprehensive_table_L2_f1_macro.csv (+ heatmap)")
+                print(f"  - classification_charts/ (11 comparison visualizations)")
+
+        if eval_type in ['retrieval', 'both']:
+            retrieval_files = [f for f in results_files if f.get('eval_type') == 'retrieval']
+            if retrieval_files:
+                print("\n🔍 Retrieval Results:")
+                print(f"  - retrieval_detailed_results.csv / .json")
+                print(f"  - retrieval_summary_results.csv / .json")
+                print(f"  - RETRIEVAL_RESULTS_REPORT.md")
+                print(f"  - retrieval_charts/ (4 comparison visualizations)")
+
             print("")
 
 
@@ -855,6 +1499,9 @@ Examples:
                        help='Dataset name (e.g., milan, aruba)')
     parser.add_argument('--model-regex', type=str, required=True,
                        help='Regular expression to match model names')
+    parser.add_argument('--eval-type', type=str, default='classification',
+                       choices=['classification', 'retrieval', 'both'],
+                       help='Type of evaluation to merge (default: classification)')
     parser.add_argument('--output-name', type=str, default=None,
                        help='Output directory name (default: auto-generated with timestamp)')
     parser.add_argument('--results-dir', type=str, default='results/evals',
@@ -864,7 +1511,7 @@ Examples:
 
     # Run merger
     merger = EmbeddingEvalsMerger(args.dataset, args.results_dir)
-    merger.run(args.model_regex, args.output_name)
+    merger.run(args.model_regex, args.output_name, args.eval_type)
 
 
 if __name__ == '__main__':

@@ -657,6 +657,7 @@ def compute_prototype_retrieval_metrics(
     sensor_embeddings: Optional[np.ndarray] = None,
     text_embeddings: Optional[np.ndarray] = None,
     target_labels: Optional[np.ndarray] = None,
+    label_counts: Optional[Dict[str, int]] = None,
     k_values: List[int] = [10, 50, 100],
     directions: List[str] = ['prototype2sensor', 'prototype2text'],
     normalize: bool = True,
@@ -675,6 +676,8 @@ def compute_prototype_retrieval_metrics(
         sensor_embeddings: Sensor embeddings of shape (N, D_sensor) [optional]
         text_embeddings: Text embeddings of shape (N, D_text) [optional]
         target_labels: Labels for target embeddings of shape (N,) [required if any targets provided]
+        label_counts: Dictionary mapping label to count (prevalence) in the dataset [optional]
+                     If provided, used for weighted averaging. If None, assumes count=1 for all.
         k_values: List of K values to evaluate
         directions: List of directions to evaluate:
             - 'prototype2sensor': Text prototype queries → Sensor targets
@@ -742,6 +745,8 @@ def compute_prototype_retrieval_metrics(
         if verbose:
             print(f"\n[COMPUTING] Label-Recall@K for {direction}...")
             print(f"  {len(prototype_embeddings)} prototypes, {len(target_emb)} targets")
+            if label_counts is not None:
+                print(f"  Using label prevalence for weighted averaging (dataset has {sum(label_counts.values())} samples)")
 
         # Compute for each K
         results[direction] = {}
@@ -753,9 +758,8 @@ def compute_prototype_retrieval_metrics(
                 print(f"  Computing for K={k}...")
 
             # Compute per-label recall for prototypes
-            # Note: For prototypes, there's exactly 1 query per label, so macro and weighted are the same
             per_label_recall = {}
-            per_label_count = {}
+            per_label_count_dict = {}
             similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
 
             for i, proto_label in enumerate(prototype_labels):
@@ -765,11 +769,16 @@ def compute_prototype_retrieval_metrics(
                 n_matching = np.sum(top_k_labels == proto_label)
                 recall_label = n_matching / k
                 per_label_recall[str(proto_label)] = float(recall_label)
-                per_label_count[str(proto_label)] = 1  # One prototype per label
 
-            # Compute macro and weighted (will be the same for prototypes since count=1 for all)
+                # Use actual label prevalence if provided, otherwise assume 1
+                if label_counts is not None and str(proto_label) in label_counts:
+                    per_label_count_dict[str(proto_label)] = label_counts[str(proto_label)]
+                else:
+                    per_label_count_dict[str(proto_label)] = 1
+
+            # Compute macro (unweighted) and weighted (by label prevalence) averages
             macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
-                per_label_recall, per_label_count
+                per_label_recall, per_label_count_dict
             )
 
             # Store both metrics
