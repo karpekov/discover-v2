@@ -46,7 +46,7 @@ class AlignmentModel(nn.Module):
         # Build text projection head (optional)
         self.text_projection = self._build_text_projection()
 
-        # Build CLIP loss
+        # Build CLIP loss (with configurable alignment loss type)
         self.clip_loss = CLIPLoss(
             temperature_init=config.loss.temperature_init,
             learnable_temperature=config.loss.learnable_temperature,
@@ -56,7 +56,10 @@ class AlignmentModel(nn.Module):
                 'hard_negative_ratio': config.loss.hard_negative_ratio,
                 'sampling_strategy': config.loss.hard_negative_strategy,
                 'temperature_for_sampling': config.loss.hard_negative_sampling_temperature,
-            } if config.loss.use_hard_negatives else None
+            } if config.loss.use_hard_negatives else None,
+            alignment_loss_type=getattr(config.loss, 'alignment_loss_type', 'infonce'),
+            focal_gamma=getattr(config.loss, 'focal_gamma', 2.0),
+            focal_alpha=getattr(config.loss, 'focal_alpha', None)
         )
 
         # MLM heads (optional, only if mlm_weight > 0)

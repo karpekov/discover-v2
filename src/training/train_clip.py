@@ -362,7 +362,10 @@ class SmartHomeTrainer:
       temperature_init=self.config['temperature_init'],
       learnable_temperature=self.config['learnable_temperature'],
       use_hard_negatives=self.config.get('use_hard_negatives', False),
-      hard_negative_config=hard_negative_config
+      hard_negative_config=hard_negative_config,
+      alignment_loss_type=self.config.get('alignment_loss_type', 'infonce'),
+      focal_gamma=self.config.get('focal_gamma', 2.0),
+      focal_alpha=self.config.get('focal_alpha', None)
     )
     self.loss_fn.to(self.device)
 

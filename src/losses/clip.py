@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, Callable
 import random
+
+from .alignment_loss import build_alignment_loss
 
 
 class HardNegativeSampler:
@@ -164,7 +166,13 @@ class HardNegativeSampler:
 
 class CLIPLoss(nn.Module):
   """
-  Bidirectional InfoNCE (CLIP) loss with learnable temperature.
+  Configurable contrastive alignment loss with learnable temperature.
+
+  Supports multiple alignment loss types:
+  - infonce: Bidirectional InfoNCE (CLIP-style)
+  - sigmoid: Sigmoid BCE (SigLIP-style)
+  - focal_sigmoid: Focal sigmoid BCE
+
   Uses in-batch negatives and optional hard negatives for contrastive learning.
   """
 
@@ -173,7 +181,10 @@ class CLIPLoss(nn.Module):
     temperature_init: float = 0.05,
     learnable_temperature: bool = True,
     use_hard_negatives: bool = False,
-    hard_negative_config: Optional[Dict[str, Any]] = None
+    hard_negative_config: Optional[Dict[str, Any]] = None,
+    alignment_loss_type: str = 'infonce',
+    focal_gamma: float = 2.0,
+    focal_alpha: Optional[float] = None
   ):
     super().__init__()
 
@@ -197,6 +208,14 @@ class CLIPLoss(nn.Module):
     else:
       self.hard_negative_sampler = None
 
+    # Build alignment loss function
+    self.alignment_loss_fn = build_alignment_loss(
+      loss_type=alignment_loss_type,
+      focal_gamma=focal_gamma,
+      focal_alpha=focal_alpha
+    )
+    self.alignment_loss_type = alignment_loss_type
+
   @property
   def temperature(self) -> torch.Tensor:
     """Get current temperature value."""
@@ -209,7 +228,7 @@ class CLIPLoss(nn.Module):
     return_similarity_matrix: bool = False
   ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
     """
-    Compute bidirectional InfoNCE loss with optional hard negatives.
+    Compute alignment loss with optional hard negatives.
 
     Args:
       sensor_embeddings: [batch_size, d_model] L2-normalized sensor embeddings
@@ -228,7 +247,8 @@ class CLIPLoss(nn.Module):
     text_embeddings = F.normalize(text_embeddings, p=2, dim=-1)
 
     # Handle hard negatives if enabled
-    if self.use_hard_negatives and self.hard_negative_sampler is not None:
+    # Note: Hard negatives only work with InfoNCE loss type currently
+    if self.use_hard_negatives and self.hard_negative_sampler is not None and self.alignment_loss_type == 'infonce':
       # Update memory bank
       self.hard_negative_sampler.update_memory(sensor_embeddings, text_embeddings)
 
@@ -254,27 +274,25 @@ class CLIPLoss(nn.Module):
         # Labels: positive pairs are still at diagonal positions (first batch_size positions)
         labels = torch.arange(batch_size, device=device)
 
-        # Compute losses with extended negatives
+        # Compute losses with extended negatives (only InfoNCE supports this currently)
         sensor_to_text_loss = F.cross_entropy(logits, labels)
         text_to_sensor_loss = F.cross_entropy(logits_t, labels)
+        total_loss = (sensor_to_text_loss + text_to_sensor_loss) / 2.0
 
       else:
         # Fallback to standard in-batch negatives
         similarity_matrix = torch.matmul(sensor_embeddings, text_embeddings.t())
         logits = similarity_matrix / self.temperature
-        labels = torch.arange(batch_size, device=device)
-        sensor_to_text_loss = F.cross_entropy(logits, labels)
-        text_to_sensor_loss = F.cross_entropy(logits.t(), labels)
+        total_loss = self.alignment_loss_fn(logits)
     else:
       # Standard in-batch negatives only
       similarity_matrix = torch.matmul(sensor_embeddings, text_embeddings.t())
-      logits = similarity_matrix / self.temperature
-      labels = torch.arange(batch_size, device=device)
-      sensor_to_text_loss = F.cross_entropy(logits, labels)
-      text_to_sensor_loss = F.cross_entropy(logits.t(), labels)
 
-    # Average the bidirectional losses
-    total_loss = (sensor_to_text_loss + text_to_sensor_loss) / 2.0
+      # Scale by temperature
+      logits = similarity_matrix / self.temperature
+
+      # Apply alignment loss function
+      total_loss = self.alignment_loss_fn(logits)
 
     if return_similarity_matrix:
       return total_loss, similarity_matrix
@@ -327,7 +345,9 @@ class CLIPLoss(nn.Module):
 
 class CombinedLoss(nn.Module):
   """
-  Combined CLIP + MLM loss with configurable weighting and optional hard negatives.
+  Combined alignment + MLM loss with configurable weighting and optional hard negatives.
+
+  Supports multiple alignment loss types through the CLIPLoss module.
   """
 
   def __init__(
@@ -337,17 +357,23 @@ class CombinedLoss(nn.Module):
     temperature_init: float = 0.05,
     learnable_temperature: bool = True,
     use_hard_negatives: bool = False,
-    hard_negative_config: Optional[Dict[str, Any]] = None
+    hard_negative_config: Optional[Dict[str, Any]] = None,
+    alignment_loss_type: str = 'infonce',
+    focal_gamma: float = 2.0,
+    focal_alpha: Optional[float] = None
   ):
     super().__init__()
     self.mlm_weight = mlm_weight
     self.clip_weight = clip_weight
 
     self.clip_loss = CLIPLoss(
-      temperature_init,
-      learnable_temperature,
-      use_hard_negatives,
-      hard_negative_config
+      temperature_init=temperature_init,
+      learnable_temperature=learnable_temperature,
+      use_hard_negatives=use_hard_negatives,
+      hard_negative_config=hard_negative_config,
+      alignment_loss_type=alignment_loss_type,
+      focal_gamma=focal_gamma,
+      focal_alpha=focal_alpha
     )
 
   def forward(
