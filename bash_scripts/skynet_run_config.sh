@@ -1,6 +1,6 @@
 #! /bin/bash
-#SBATCH -o slurm/output_%j.txt
-#SBATCH -e slurm/err_%j.txt
+#SBATCH -o slurm/alignment_output_%j.txt
+#SBATCH -e slurm/alignment_error_%j.txt
 #SBATCH --gres=gpu:a40:1
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task=12
