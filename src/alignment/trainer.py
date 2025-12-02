@@ -744,6 +744,7 @@ class AlignmentTrainer:
         all_sensor_embeddings = []
         all_text_embeddings = []
         all_ground_truth_labels = []
+        all_l1_labels = []
 
         batch_count = 0
         for batch in data_loader:
@@ -767,6 +768,15 @@ class AlignmentTrainer:
             # Collect ground truth labels if available (for per-class metrics)
             if 'activity_label' in batch:
                 all_ground_truth_labels.extend(batch['activity_label'])
+
+            # Collect L1 labels for label-recall metric (collect from all batches, even if some are None)
+            if 'activity_label_l1' in batch:
+                if batch['activity_label_l1'] is not None:
+                    all_l1_labels.extend(batch['activity_label_l1'])
+                else:
+                    # Batch has no labels - add None for each sample in batch
+                    batch_size = outputs['sensor_embeddings_projected'].size(0)
+                    all_l1_labels.extend([None] * batch_size)
 
             batch_count += 1
 
@@ -817,6 +827,22 @@ class AlignmentTrainer:
 
         except Exception as e:
             self.logger.warning(f"Error computing nDCG@K metrics: {e}")
+
+        # Compute Label-Recall@10 for L1 labels (lightweight)
+        # Only compute if we have labels and the count matches (function will filter None values)
+        if all_l1_labels and len(all_l1_labels) == combined_sensor_emb.size(0):
+            try:
+                label_recall_metrics = self.metrics_tracker.compute_label_recall_at_10(
+                    combined_sensor_emb,
+                    combined_text_emb,
+                    labels=all_l1_labels
+                )
+                # Add label-recall metrics (only if computation succeeded)
+                if label_recall_metrics:
+                    for key, value in label_recall_metrics.items():
+                        metrics[key] = value
+            except Exception as e:
+                self.logger.debug(f"Error computing label-recall@10 (skipping): {e}")
 
         # Add split prefix to all metrics
         prefixed_metrics = {}
@@ -999,6 +1025,12 @@ class AlignmentTrainer:
                                 split = key.split('/')[0]  # Get 'train' or 'val'
                                 k_val = key.split('/')[1].replace('recall@', 'R@')  # Get 'R@1'
                                 key_metrics.append(f"{split}/{k_val}: {all_comprehensive_metrics[key]:.3f}")
+
+                        # Add label-recall@10 metrics if available
+                        for key in ['train/label_recall@10/average', 'val/label_recall@10/average']:
+                            if key in all_comprehensive_metrics:
+                                split = key.split('/')[0]
+                                key_metrics.append(f"{split}/LR@10: {all_comprehensive_metrics[key]:.3f}")
 
                         if key_metrics:
                             self.logger.info(f"Retrieval Metrics | {' | '.join(key_metrics)}")

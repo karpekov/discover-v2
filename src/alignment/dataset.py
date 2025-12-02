@@ -294,13 +294,24 @@ class AlignmentDataset(Dataset):
             text_embedding = None
             caption = self.captions[idx]
 
+        # Extract L1 activity label if available
+        activity_label_l1 = None
+        if 'metadata' in sensor_sample and 'ground_truth_labels' in sensor_sample['metadata']:
+            gt_labels = sensor_sample['metadata']['ground_truth_labels']
+            activity_label_l1 = gt_labels.get('primary_l1')
+        elif 'first_activity' in sensor_sample:
+            activity_label_l1 = sensor_sample['first_activity']
+        elif 'activity' in sensor_sample:
+            activity_label_l1 = sensor_sample['activity']
+
         return {
             'categorical_features': categorical_features,
             'coordinates': coordinates,
             'time_deltas': time_deltas,
             'text_embedding': text_embedding,
             'caption': caption,
-            'sample_id': sensor_sample.get('sample_id', f'sample_{idx}')
+            'sample_id': sensor_sample.get('sample_id', f'sample_{idx}'),
+            'activity_label_l1': activity_label_l1
         }
 
     def collate_fn(self, batch: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
@@ -361,7 +372,8 @@ class AlignmentDataset(Dataset):
             },
             'text_embeddings': text_embeddings,
             'attention_mask': attention_mask,
-            'sample_ids': [item['sample_id'] for item in batch]
+            'sample_ids': [item['sample_id'] for item in batch],
+            'activity_label_l1': [item.get('activity_label_l1') for item in batch] if any(item.get('activity_label_l1') for item in batch) else None
         }
 
         # Apply MLM masking if span_masker is provided
