@@ -48,6 +48,31 @@ def create_sampler(config_dict: dict):
     if 'output_dir' in config_dict:
         config_dict['output_dir'] = Path(config_dict['output_dir'])
 
+    # Auto-load metadata if not provided
+    if 'metadata_path' not in config_dict or config_dict['metadata_path'] is None:
+        # Get the project root
+        project_root = Path(__file__).parent
+
+        # Determine metadata file based on dataset name
+        dataset_name = config_dict.get('dataset_name', '')
+        dataset_lower = dataset_name.lower()
+
+        if dataset_lower in ['milan', 'aruba', 'cairo', 'kyoto']:
+            metadata_path = project_root / 'metadata' / 'casas_metadata.json'
+        elif dataset_lower == 'marble':
+            metadata_path = project_root / 'metadata' / 'marble_metadata.json'
+        else:
+            metadata_path = None
+
+        # Use the metadata file if it exists
+        if metadata_path and metadata_path.exists():
+            config_dict['metadata_path'] = metadata_path
+            print(f"Auto-loaded sensor metadata from: {metadata_path}")
+    elif 'metadata_path' in config_dict and config_dict['metadata_path'] is not None:
+        # Convert to Path if it's a string
+        if isinstance(config_dict['metadata_path'], str):
+            config_dict['metadata_path'] = Path(config_dict['metadata_path'])
+
     # Convert strategy string to enum
     if isinstance(strategy_str, str):
         config_dict['strategy'] = SamplingStrategy(strategy_str)

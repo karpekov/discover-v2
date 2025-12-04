@@ -9,29 +9,29 @@ Output Format: {split}_captions_{style}.json
 - sourish → train_captions_sourish.json
 - llm_gpt4 → train_captions_llm_gpt4.json
 
-Usage:
+Usage (run from project root with conda environment activated):
     # Generate baseline captions for Milan data
-    python generate_captions.py \\
+    python src/captions/generate_captions.py \\
         --data-dir data/processed/casas/milan/FL_50 \\
         --caption-style baseline \\
         --dataset-name milan
 
     # Generate Sourish captions
-    python generate_captions.py \\
+    python src/captions/generate_captions.py \\
         --data-dir data/processed/casas/milan/FL_50 \\
         --caption-style sourish \\
         --dataset-name milan
 
     # Generate LLM captions (placeholder)
-    python generate_captions.py \\
+    python src/captions/generate_captions.py \\
         --data-dir data/processed/casas/milan/FL_50 \\
         --caption-style llm \\
         --llm-model gpt4 \\
         --dataset-name milan
 
     # Generate multiple styles for comparison
-    python generate_captions.py --data-dir data/... --caption-style baseline --dataset-name milan
-    python generate_captions.py --data-dir data/... --caption-style sourish --dataset-name milan
+    python src/captions/generate_captions.py --data-dir data/... --caption-style baseline --dataset-name milan
+    python src/captions/generate_captions.py --data-dir data/... --caption-style sourish --dataset-name milan
 """
 
 import argparse
@@ -204,11 +204,31 @@ def main():
     output_dir = Path(args.output_dir) if args.output_dir else data_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Auto-load sensor details if not provided
+    if args.sensor_details is None:
+        # Get the project root (assuming we're in src/captions/)
+        project_root = Path(__file__).parent.parent.parent
+
+        # Determine metadata file based on dataset name
+        dataset_lower = args.dataset_name.lower()
+        if dataset_lower in ['milan', 'aruba', 'cairo', 'kyoto']:
+            metadata_path = project_root / 'metadata' / 'casas_metadata.json'
+        elif dataset_lower == 'marble':
+            metadata_path = project_root / 'metadata' / 'marble_metadata.json'
+        else:
+            metadata_path = None
+
+        # Use the metadata file if it exists
+        if metadata_path and metadata_path.exists():
+            args.sensor_details = str(metadata_path)
+            print(f"Auto-loaded sensor details from: {metadata_path}")
+
     print(f"Caption Generation")
     print(f"=" * 80)
     print(f"Data directory: {data_dir}")
     print(f"Caption style: {args.caption_style}")
     print(f"Dataset: {args.dataset_name}")
+    print(f"Sensor details: {args.sensor_details if args.sensor_details else 'None'}")
     print(f"Output directory: {output_dir}")
     print(f"=" * 80)
 
