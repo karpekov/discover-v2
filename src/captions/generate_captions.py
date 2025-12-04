@@ -10,28 +10,28 @@ Output Format: {split}_captions_{style}.json
 - llm_gpt4 → train_captions_llm_gpt4.json
 
 Usage (run from project root with conda environment activated):
-    # Generate baseline captions for Milan data
-    python src/captions/generate_captions.py \\
-        --data-dir data/processed/casas/milan/FL_50 \\
-        --caption-style baseline \\
-        --dataset-name milan
+# Generate baseline captions for Milan data
+python src/captions/generate_captions.py \\
+    --data-dir data/processed/casas/milan/FD_60 \\
+    --caption-style baseline \\
+    --dataset-name milan
 
-    # Generate Sourish captions
-    python src/captions/generate_captions.py \\
-        --data-dir data/processed/casas/milan/FL_50 \\
-        --caption-style sourish \\
-        --dataset-name milan
+# Generate Sourish captions
+python src/captions/generate_captions.py \\
+    --data-dir data/processed/casas/milan/FD_60 \\
+    --caption-style sourish \\
+    --dataset-name milan
 
-    # Generate LLM captions (placeholder)
-    python src/captions/generate_captions.py \\
-        --data-dir data/processed/casas/milan/FL_50 \\
-        --caption-style llm \\
-        --llm-model gpt4 \\
-        --dataset-name milan
+# Generate LLM captions (placeholder)
+python src/captions/generate_captions.py \\
+    --data-dir data/processed/casas/milan/FD_60 \\
+    --caption-style llm \\
+    --llm-model gpt4 \\
+    --dataset-name milan
 
-    # Generate multiple styles for comparison
-    python src/captions/generate_captions.py --data-dir data/... --caption-style baseline --dataset-name milan
-    python src/captions/generate_captions.py --data-dir data/... --caption-style sourish --dataset-name milan
+# Generate multiple styles for comparison
+python src/captions/generate_captions.py --data-dir data/... --caption-style baseline --dataset-name milan
+python src/captions/generate_captions.py --data-dir data/... --caption-style sourish --dataset-name milan
 """
 
 import argparse

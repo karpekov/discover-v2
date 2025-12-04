@@ -108,7 +108,9 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
                 metadata = json.load(f)
             # Extract sensor details based on dataset
             if self.config.dataset_name:
-                return metadata.get(self.config.dataset_name, {}).get('sensor_details', {})
+                sensor_details = metadata.get(self.config.dataset_name, {}).get('sensor_details', {})
+                # Convert None values to empty strings
+                return {k: (v if v is not None else '') for k, v in sensor_details.items()}
             return {}
         except Exception as e:
             print(f"Warning: Could not load sensor details: {e}")
@@ -159,19 +161,23 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         room_sequence = self._extract_room_sequence(df)
         unique_rooms = self._get_unique_consecutive_rooms(room_sequence)
 
-        # Aggregate sensors by room and type
+        # Extract precomputed special sensors from metadata (if available)
+        special_sensors = metadata.get('special_sensors', None)
+
+        # Aggregate sensors for Layer B (still needed for full detail)
         agg, ids_per_room = self._aggregate_sensors(df, sensor_details)
 
-        # Select salient sensors
-        salient = self._select_salient_sensors(unique_rooms, agg)
-
-        # Generate Layer A caption
+        # Generate Layer A caption with special sensors (or None if not available)
         layer_a = self._generate_natural_caption(
-            dow, month_desc, tod, dur, unique_rooms, salient, df, metadata
+            dow, month_desc, tod, dur, unique_rooms, df, metadata,
+            special_sensors=special_sensors
         )
 
-        # Generate Layer B (structured evidence)
-        layer_b = self._generate_layer_b(agg, metadata, first_event, last_event, dow, tod, dur)
+        # Generate Layer B (structured evidence) with special sensors
+        layer_b = self._generate_layer_b(
+            agg, metadata, first_event, last_event, dow, tod, dur,
+            special_sensors=special_sensors
+        )
 
         return layer_a, layer_b
 
@@ -323,9 +329,9 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
                                  tod: str,
                                  dur: float,
                                  unique_rooms: List[str],
-                                 salient: List[str],
                                  df: pd.DataFrame,
-                                 metadata: Dict[str, Any]) -> str:
+                                 metadata: Dict[str, Any],
+                                 special_sensors: Optional[Dict[str, Any]] = None) -> str:
         """Generate natural sentence-like caption."""
 
         # Generate duration description
@@ -337,8 +343,8 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         # Generate room description
         room_desc = self._generate_room_description(unique_rooms)
 
-        # Generate sensor description
-        sensor_desc = self._generate_sensor_description(salient)
+        # Generate sensor description (with special sensors if available)
+        sensor_desc = self._generate_sensor_description(special_sensors)
 
         # Choose between active and passive mode
         use_active_mode = self.random.choice([True, False])
@@ -366,7 +372,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
                                 resident_term: str,
                                 duration_desc: str,
                                 room_desc: str,
-                                sensor_desc: str,
+                                sensor_desc: Optional[str],
                                 unique_rooms: List[str]) -> str:
         """Generate caption with active resident actions."""
 
@@ -377,18 +383,34 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         action_verb = self.random.choice(action_verbs)
 
-        if temporal_at_start:
-            templates = [
-                f"{time_context.capitalize()}, the {resident_term} {action_verb} {duration_desc} {room_desc}, with {sensor_desc}.",
-                f"{time_context.capitalize()}, {resident_term} {action_verb} {duration_desc} {room_desc}, showing {sensor_desc}.",
-                f"The {resident_term} {action_verb} {time_context} {duration_desc} {room_desc}, indicating {sensor_desc}."
-            ]
+        # Generate templates with or without sensor description
+        if sensor_desc:
+            if temporal_at_start:
+                templates = [
+                    f"{time_context.capitalize()}, the {resident_term} {action_verb} {duration_desc} {room_desc}, with {sensor_desc}.",
+                    f"{time_context.capitalize()}, {resident_term} {action_verb} {duration_desc} {room_desc}, showing {sensor_desc}.",
+                    f"The {resident_term} {action_verb} {time_context} {duration_desc} {room_desc}, indicating {sensor_desc}."
+                ]
+            else:
+                templates = [
+                    f"The {resident_term} {action_verb} {duration_desc} {room_desc}, with {sensor_desc} {time_context}.",
+                    f"{resident_term.capitalize()} {action_verb} {duration_desc} {room_desc}, showing {sensor_desc} {time_context}.",
+                    f"{resident_term.capitalize()} was {action_verb.replace('was ', '')} {duration_desc} {room_desc}, indicating {sensor_desc} {time_context}."
+                ]
         else:
-            templates = [
-                f"The {resident_term} {action_verb} {duration_desc} {room_desc}, with {sensor_desc} {time_context}.",
-                f"{resident_term.capitalize()} {action_verb} {duration_desc} {room_desc}, showing {sensor_desc} {time_context}.",
-                f"{resident_term.capitalize()} was {action_verb.replace('was ', '')} {duration_desc} {room_desc}, indicating {sensor_desc} {time_context}."
-            ]
+            # No special sensors - simpler caption
+            if temporal_at_start:
+                templates = [
+                    f"{time_context.capitalize()}, the {resident_term} {action_verb} {duration_desc} {room_desc}.",
+                    f"{time_context.capitalize()}, {resident_term} {action_verb} {duration_desc} {room_desc}.",
+                    f"The {resident_term} {action_verb} {time_context} {duration_desc} {room_desc}."
+                ]
+            else:
+                templates = [
+                    f"The {resident_term} {action_verb} {duration_desc} {room_desc} {time_context}.",
+                    f"{resident_term.capitalize()} {action_verb} {duration_desc} {room_desc} {time_context}.",
+                    f"{resident_term.capitalize()} was {action_verb.replace('was ', '')} {duration_desc} {room_desc} {time_context}."
+                ]
 
         return self.random.choice(templates)
 
@@ -397,7 +419,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
                                  temporal_at_start: bool,
                                  duration_desc: str,
                                  room_desc: str,
-                                 sensor_desc: str) -> str:
+                                 sensor_desc: Optional[str]) -> str:
         """Generate caption with passive detection language."""
 
         action_words = ['Activity', 'Motion', 'Movement']
@@ -406,18 +428,34 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         action_word = self.random.choice(action_words)
         detection_word = self.random.choice(detection_words)
 
-        if temporal_at_start:
-            templates = [
-                f"{time_context.capitalize()}, {action_word.lower()} {detection_word} {duration_desc} {room_desc}, with {sensor_desc}.",
-                f"{action_word} {detection_word} {time_context} {duration_desc} {room_desc}, showing {sensor_desc}.",
-                f"{time_context.capitalize()} saw {action_word.lower()} {duration_desc} {room_desc} with {sensor_desc}."
-            ]
+        # Generate templates with or without sensor description
+        if sensor_desc:
+            if temporal_at_start:
+                templates = [
+                    f"{time_context.capitalize()}, {action_word.lower()} {detection_word} {duration_desc} {room_desc}, with {sensor_desc}.",
+                    f"{action_word} {detection_word} {time_context} {duration_desc} {room_desc}, showing {sensor_desc}.",
+                    f"{time_context.capitalize()} saw {action_word.lower()} {duration_desc} {room_desc} with {sensor_desc}."
+                ]
+            else:
+                templates = [
+                    f"{action_word} {detection_word} {duration_desc} {room_desc} with {sensor_desc} {time_context}.",
+                    f"Sensors {detection_word} {action_word.lower()} {duration_desc} {room_desc}, showing {sensor_desc} {time_context}.",
+                    f"{action_word} was {detection_word} {duration_desc} {room_desc} with {sensor_desc} {time_context}."
+                ]
         else:
-            templates = [
-                f"{action_word} {detection_word} {duration_desc} {room_desc} with {sensor_desc} {time_context}.",
-                f"Sensors {detection_word} {action_word.lower()} {duration_desc} {room_desc}, showing {sensor_desc} {time_context}.",
-                f"{action_word} was {detection_word} {duration_desc} {room_desc} with {sensor_desc} {time_context}."
-            ]
+            # No special sensors - simpler caption
+            if temporal_at_start:
+                templates = [
+                    f"{time_context.capitalize()}, {action_word.lower()} {detection_word} {duration_desc} {room_desc}.",
+                    f"{action_word} {detection_word} {time_context} {duration_desc} {room_desc}.",
+                    f"{time_context.capitalize()} saw {action_word.lower()} {duration_desc} {room_desc}."
+                ]
+            else:
+                templates = [
+                    f"{action_word} {detection_word} {duration_desc} {room_desc} {time_context}.",
+                    f"Sensors {detection_word} {action_word.lower()} {duration_desc} {room_desc} {time_context}.",
+                    f"{action_word} was {detection_word} {duration_desc} {room_desc} {time_context}."
+                ]
 
         return self.random.choice(templates)
 
@@ -526,35 +564,89 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
             else:
                 return f"movement from {clean_rooms[0]} to {clean_rooms[1]} then to {clean_rooms[2]}"
 
-    def _generate_sensor_description(self, salient: List[str]) -> str:
-        """Generate sensor activity description."""
-        if not salient:
-            return self.random.choice(["motion detected", "activity sensed"])
+    def _generate_sensor_description(self, special_sensors: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Generate sensor activity description, incorporating special sensors if available.
+
+        Returns None if no special sensors are available.
+        """
+
+        # Use precomputed special sensors if available
+        if not special_sensors:
+            return None
+
+        special_list = special_sensors.get('special_sensors_triggered', [])
+        primary_special = special_sensors.get('primary_special_sensor', None)
+
+        if not special_list:
+            return None
 
         descriptions = []
-        for sensor in salient:
-            if 'bed sensor' in sensor:
-                descriptions.append(self.random.choice(['activity near bed', 'movement in sleeping area']))
-            elif 'toilet' in sensor:
-                descriptions.append(self.random.choice(['movement near toilet', 'bathroom activity']))
-            elif 'door' in sensor:
-                descriptions.append(self.random.choice(['door activity', 'entrance movement']))
-            elif 'fridge area' in sensor:
-                descriptions.append(self.random.choice(['activity near fridge', 'movement by refrigerator']))
-            elif 'stove area' in sensor:
-                descriptions.append(self.random.choice(['movement near stove', 'cooking area activity']))
-            elif 'desk' in sensor:
-                descriptions.append(self.random.choice(['activity at desk', 'workspace motion']))
-            elif 'motion' in sensor:
-                room = sensor.split(' motion')[0]
-                descriptions.append(f'movement in {room}')
 
+        # First, add primary special sensor with emphasis if it exists
+        if primary_special:
+            descriptions.append(self._format_special_sensor_desc(primary_special, is_primary=True))
+
+        # Then add other special sensors WITHOUT emphasis (excluding primary)
+        for sensor_detail in special_list:
+            if sensor_detail != primary_special:
+                descriptions.append(self._format_special_sensor_desc(sensor_detail, is_primary=False))
+
+        # Format the descriptions
         if len(descriptions) == 1:
             return descriptions[0]
         elif len(descriptions) == 2:
             return f"{descriptions[0]} and {descriptions[1]}"
-        else:
+        elif len(descriptions) <= 4:
             return f"{', '.join(descriptions[:-1])}, and {descriptions[-1]}"
+        else:
+            # Too many special sensors, just mention top ones
+            return f"{', '.join(descriptions[:3])}, and {len(descriptions) - 3} other special sensors"
+
+    def _format_special_sensor_desc(self, sensor_detail: str, is_primary: bool = False) -> str:
+        """Format a special sensor detail into a natural description."""
+        detail_lower = sensor_detail.lower()
+
+        # Map sensor details to natural descriptions
+        if 'bed' in detail_lower:
+            options = ['activity near bed', 'bed sensor activation', 'movement in sleeping area', 'lying on bed']
+        elif 'medicine' in detail_lower or 'pill' in detail_lower:
+            options = ['medicine cabinet access', 'activity at medicine cabinet', 'taking medicine']
+        elif 'fridge' in detail_lower or 'refrigerator' in detail_lower:
+            options = ['fridge access', 'refrigerator activity', 'movement by fridge', 'opening fridge']
+        elif 'stove' in detail_lower or 'cooking' in detail_lower:
+            options = ['stove activity', 'cooking area motion', 'activity near stove', 'using stove']
+        elif 'desk' in detail_lower:
+            options = ['desk activity', 'workspace motion', 'activity at desk', 'working at desk', 'using desk', 'sitting at desk']
+        elif 'table' in detail_lower and 'dining' in detail_lower:
+            options = ['dining table activity', 'movement at dining table', 'eating at dining table', 'sitting at dining table']
+        elif 'table' in detail_lower:
+            options = ['table activity', 'movement near table', 'using table', 'sitting at table']
+        elif 'toilet' in detail_lower:
+            options = ['toilet area activity', 'movement near toilet', 'using toilet']
+        elif 'sink' in detail_lower:
+            options = ['sink area activity', 'movement by sink']
+        elif 'cabinet' in detail_lower:
+            options = ['cabinet access', 'movement by cabinet']
+        elif 'door' in detail_lower and ('entry' in detail_lower or 'entrance' in detail_lower):
+            options = ['entry door activity', 'entrance movement', 'opening entry door', 'closing entry door', 'entering the house', 'exiting the house']
+        elif 'door' in detail_lower:
+            options = ['door activity', 'door sensor activation']
+        elif 'couch' in detail_lower or 'sofa' in detail_lower:
+            options = ['couch activity', 'movement on sofa', 'sitting on sofa', 'using sofa']
+        elif 'armchair' in detail_lower or 'chair' in detail_lower:
+            options = ['chair activity', 'seating area motion', 'sitting on chair', 'using chair']
+        else:
+            # Generic description from the sensor detail itself
+            options = [f'activity at {sensor_detail}', f'{sensor_detail} activity']
+
+        desc = self.random.choice(options)
+
+        # Add emphasis for primary special sensor
+        if is_primary:
+            emphasis = ['frequent', 'repeated', 'significant', 'notable']
+            return f"{self.random.choice(emphasis)} {desc}"
+
+        return desc
 
     def _generate_layer_b(self,
                          agg: Dict[str, Dict],
@@ -563,8 +655,9 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
                          last_event: pd.Series,
                          dow: str,
                          tod: str,
-                         dur: float) -> str:
-        """Generate Layer B: structured evidence."""
+                         dur: float,
+                         special_sensors: Optional[Dict[str, Any]] = None) -> str:
+        """Generate Layer B: structured evidence with special sensor information."""
 
         # Build compact dict
         detail = {}
@@ -579,9 +672,33 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         start_time = first_event['datetime'].strftime('%H:%M')
         end_time = last_event['datetime'].strftime('%H:%M')
 
+        # Build base layer B
         layer_b = (f"span={start_time}-{end_time}; dur={dur}m; dow={dow}; "
                   f"month={first_event['datetime'].month}; tod={tod}; "
                   f"rooms={list(detail.keys())}; sensors={detail}")
+
+        # Add special sensor information if available
+        if special_sensors:
+            special_list = special_sensors.get('special_sensors_triggered', [])
+            primary_special = special_sensors.get('primary_special_sensor', None)
+            sensor_counts = special_sensors.get('special_sensor_counts', {})
+
+            if special_list:
+                layer_b += f"; special_sensors={special_list}"
+
+                if primary_special:
+                    layer_b += f"; primary_special={primary_special}"
+
+                # Add counts for sensors triggered multiple times
+                frequent_sensors = {k: v for k, v in sensor_counts.items() if v >= 2}
+                if frequent_sensors:
+                    layer_b += f"; special_counts={frequent_sensors}"
+            else:
+                # No special sensors triggered in this window
+                layer_b += "; special_sensors=[]"
+        else:
+            # Special sensor metadata not available
+            layer_b += "; special_sensors=not_available"
 
         return layer_b
 
