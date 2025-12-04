@@ -42,12 +42,13 @@ optimizer:
   grad_clip_norm: 1.0
 training:
   batch_size: 256
-  max_epochs: 50
+  max_epochs: 100
+  max_steps: null  # Let epochs control duration
   log_interval: 50
   val_interval: 200
   save_interval: 5000
   metrics_interval: 500
-  use_amp: true
+  use_amp: false  # Disabled for focal/sigmoid loss numerical stability
   num_workers: 4
   pin_memory: true
   shuffle: true

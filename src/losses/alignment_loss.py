@@ -7,6 +7,8 @@ Supports:
 - Focal Sigmoid (focal BCE with optional class balancing)
 """
 
+import math
+
 import torch
 import torch.nn.functional as F
 from typing import Optional, Callable
@@ -44,6 +46,8 @@ def sigmoid_loss(sim_matrix: torch.Tensor) -> torch.Tensor:
     Treats each pair independently using binary cross-entropy.
     Positives are on the diagonal, negatives are off-diagonal.
 
+    Scaled by log(B) to match InfoNCE magnitude for comparable MLM weighting.
+
     Args:
         sim_matrix: [B, B] similarity matrix (temperature-scaled logits)
 
@@ -51,12 +55,19 @@ def sigmoid_loss(sim_matrix: torch.Tensor) -> torch.Tensor:
         Scalar loss tensor
     """
     B = sim_matrix.size(0)
-    # Labels: identity matrix (1 for positives on diagonal, 0 elsewhere)
-    labels = torch.eye(B, device=sim_matrix.device)
+
+    # Compute in float32 for numerical stability under AMP
+    logits = sim_matrix.float()
+    labels = torch.eye(B, device=logits.device, dtype=torch.float32)
 
     # Binary cross-entropy with logits
-    loss = F.binary_cross_entropy_with_logits(sim_matrix, labels, reduction='mean')
-    return loss
+    bce_loss = F.binary_cross_entropy_with_logits(logits, labels, reduction='mean')
+
+    # Scale to better match InfoNCE magnitude
+    # BCE per element is ~log(2), but InfoNCE is cross-entropy over B classes
+    # Scale by B/log(B) to get comparable gradient contribution
+    scale_factor = float(B) / math.log(B)
+    return bce_loss * scale_factor
 
 
 def focal_sigmoid_loss(
@@ -71,6 +82,8 @@ def focal_sigmoid_loss(
     The focal weight is (1 - p_t)^gamma where p_t is the predicted probability
     of the correct class.
 
+    Scaled by log(B) to match InfoNCE magnitude for comparable MLM weighting.
+
     Args:
         sim_matrix: [B, B] similarity matrix (temperature-scaled logits)
         gamma: Focal loss focusing parameter (higher = more focus on hard examples)
@@ -80,11 +93,14 @@ def focal_sigmoid_loss(
         Scalar loss tensor
     """
     B = sim_matrix.size(0)
-    logits = sim_matrix
-    labels = torch.eye(B, device=logits.device)
 
-    # Compute probabilities
-    p = torch.sigmoid(logits)
+    # Compute focal loss in float32 for numerical stability (like cross_entropy)
+    # This is critical for AMP training where inputs may be float16
+    logits = sim_matrix.float()
+    labels = torch.eye(B, device=logits.device, dtype=torch.float32)
+
+    # Compute probabilities with clamping for numerical stability
+    p = torch.sigmoid(logits).clamp(min=1e-7, max=1.0 - 1e-7)
 
     # Compute pt: p if y=1, (1-p) if y=0
     pt = labels * p + (1 - labels) * (1 - p)
@@ -98,11 +114,18 @@ def focal_sigmoid_loss(
         focal_weight = focal_weight * alpha_t
 
     # Binary cross-entropy per element (no reduction)
+    # Use the numerically stable version with logits
     bce = F.binary_cross_entropy_with_logits(logits, labels, reduction='none')
 
     # Apply focal weight and average
-    loss = (focal_weight * bce).mean()
-    return loss
+    focal_bce = (focal_weight * bce).mean()
+
+    # Scale to match InfoNCE magnitude (~log(B) for random predictions)
+    # Focal loss is naturally much smaller due to aggressive downweighting,
+    # so we scale by B (not log(B)) to get comparable gradient contribution
+    # This makes focal_loss ≈ InfoNCE in magnitude at initialization
+    scale_factor = float(B)
+    return focal_bce * scale_factor
 
 
 def build_alignment_loss(
