@@ -695,8 +695,8 @@ class AlignmentTrainer:
                             combined_mlm_labels[field] = torch.cat(label_list, dim=0)
                             combined_mlm_masks[field] = torch.cat(mask_list, dim=0)
                     except Exception as field_error:
-                        # Skip this field if concatenation fails
-                        self.logger.debug(f"Skipping MLM accuracy for field '{field}': {field_error}")
+                        # Skip this field if concatenation fails - log as warning to make visible
+                        self.logger.warning(f"Skipping MLM accuracy for field '{field}': {field_error}")
                         continue
 
                 # Compute accuracy only for successfully concatenated fields
@@ -709,8 +709,16 @@ class AlignmentTrainer:
                     # Add 'val_' prefix to MLM metrics
                     for key, value in mlm_metrics.items():
                         metrics[f'val_{key}'] = value
+
+                    # Log which MLM metrics were computed
+                    mlm_fields = [k.replace('mlm_accuracy/', '') for k in mlm_metrics.keys() if k.startswith('mlm_accuracy/') and not k.endswith('_top5')]
+                    self.logger.debug(f"Computed MLM accuracy for fields: {mlm_fields}")
+                else:
+                    self.logger.warning("No MLM predictions/labels/masks available for accuracy computation")
             except Exception as e:
                 self.logger.warning(f"Error computing MLM accuracy: {e}")
+                import traceback
+                self.logger.warning(f"Traceback: {traceback.format_exc()}")
 
         self.model.train()
         return metrics
@@ -977,6 +985,15 @@ class AlignmentTrainer:
                         # Add overall MLM accuracy
                         if 'val_mlm_accuracy/overall' in val_metrics:
                             val_msg += f" | MLM Acc: {val_metrics['val_mlm_accuracy/overall']:.3f}"
+
+                            # Add per-field MLM accuracy for visibility
+                            field_accs = []
+                            for field in self.vocab_sizes.keys():  # Only check fields that actually have MLM
+                                key = f'val_mlm_accuracy/{field}'
+                                if key in val_metrics:
+                                    field_accs.append(f"{field}={val_metrics[key]:.3f}")
+                            if field_accs:
+                                val_msg += f" ({', '.join(field_accs)})"
 
                         self.logger.info(val_msg)
 
