@@ -44,6 +44,8 @@ Arguments:
         --model: Path to pretrained model directory (required if not using embeddings)
         --data-dir: Path to data directory with train.json/test.json (optional, auto-detected from model name)
         --unfreeze-layers: Number of encoder layers to fine-tune (default: 0)
+        --use-base-embeddings: Use base transformer embeddings instead of CLIP-projected (for diagnosing
+                               whether CLIP projection is discarding discriminative information)
 
     MODE 2 (Precomputed Embeddings):
         --embeddings-dir: Directory containing precomputed embeddings (train/test .npz files)
@@ -329,10 +331,11 @@ class ActivityClassifier(nn.Module):
     """Simple classifier on top of frozen embeddings."""
 
     def __init__(self, pretrained_model, num_classes, classifier_type='linear', hidden_dim=256,
-                 unfreeze_layers=0):
+                 unfreeze_layers=0, use_base_embeddings=False):
         super().__init__()
         self.encoder = pretrained_model.sensor_encoder
         self.use_encoder = True
+        self.use_base_embeddings = use_base_embeddings
 
         # Freeze encoder by default
         for param in self.encoder.parameters():
@@ -353,9 +356,15 @@ class ActivityClassifier(nn.Module):
                 for param in self.encoder.transformer.norm.parameters():
                     param.requires_grad = True
 
-        # Get embedding dimension from CLIP projection (not d_model)
-        # The forward_clip method returns projected embeddings
-        embed_dim = self.encoder.config.projection_dim
+        # Get embedding dimension based on whether we use base or CLIP-projected embeddings
+        if use_base_embeddings:
+            # Base embeddings from transformer (before CLIP projection)
+            embed_dim = self.encoder.config.d_model
+            print(f"Using BASE embeddings (d_model={embed_dim}, before CLIP projection)")
+        else:
+            # CLIP-projected embeddings
+            embed_dim = self.encoder.config.projection_dim
+            print(f"Using CLIP-projected embeddings (projection_dim={embed_dim})")
 
         # Classification head
         if classifier_type == 'linear':
@@ -371,13 +380,21 @@ class ActivityClassifier(nn.Module):
         print(f"Created {classifier_type} classifier: {embed_dim} -> {num_classes}")
 
     def forward(self, input_data, attention_mask):
-        # Get CLIP projected embeddings from encoder
-        # Use forward_clip which returns projected embeddings directly
-        # Note: If encoder layers are unfrozen, gradients will flow through them
-        embeddings = self.encoder.forward_clip(
-            input_data=input_data,
-            attention_mask=attention_mask
-        )  # [batch_size, projection_dim]
+        if self.use_base_embeddings:
+            # Get base embeddings from transformer (before CLIP projection)
+            output = self.encoder.forward(
+                input_data=input_data,
+                attention_mask=attention_mask
+            )
+            embeddings = output.embeddings  # [batch_size, d_model]
+        else:
+            # Get CLIP projected embeddings from encoder
+            # Use forward_clip which returns projected embeddings directly
+            # Note: If encoder layers are unfrozen, gradients will flow through them
+            embeddings = self.encoder.forward_clip(
+                input_data=input_data,
+                attention_mask=attention_mask
+            )  # [batch_size, projection_dim]
 
         # Classify
         logits = self.classifier(embeddings)
@@ -597,11 +614,14 @@ def save_results(model_path, metrics, hyperparams, output_dir, prefix=''):
     epoch_suffix = f"e{hyperparams['epochs']}"
     label_suffix = f"l{hyperparams['label_level']}"
 
+    # Add suffix for base embeddings (vs CLIP-projected)
+    emb_suffix = "_base" if hyperparams.get('use_base_embeddings', False) else ""
+
     # Add prefix if provided
     if prefix:
-        filename_base = f"{prefix}_results_{classifier_suffix}_{epoch_suffix}_{label_suffix}"
+        filename_base = f"{prefix}_results_{classifier_suffix}_{epoch_suffix}_{label_suffix}{emb_suffix}"
     else:
-        filename_base = f"results_{classifier_suffix}_{epoch_suffix}_{label_suffix}"
+        filename_base = f"results_{classifier_suffix}_{epoch_suffix}_{label_suffix}{emb_suffix}"
 
     # Prepare comprehensive results dictionary
     results = {
@@ -710,6 +730,8 @@ def main():
                        help='Learning rate')
     parser.add_argument('--unfreeze-layers', type=int, default=0,
                        help='Number of encoder layers to unfreeze for fine-tuning (0=frozen encoder, only for MODE 1)')
+    parser.add_argument('--use-base-embeddings', action='store_true',
+                       help='Use base transformer embeddings instead of CLIP-projected embeddings (only for MODE 1)')
     parser.add_argument('--use-class-weights', action='store_true',
                        help='Use class weights to handle imbalanced data')
     parser.add_argument('--no-scheduler', action='store_true',
@@ -916,7 +938,8 @@ def main():
             num_classes,
             classifier_type=args.classifier,
             hidden_dim=256,
-            unfreeze_layers=args.unfreeze_layers
+            unfreeze_layers=args.unfreeze_layers,
+            use_base_embeddings=args.use_base_embeddings
         )
     classifier.to(device)
 
@@ -998,6 +1021,7 @@ def main():
         hyperparams['embedding_dim'] = embed_dim
     else:
         hyperparams['unfreeze_layers'] = args.unfreeze_layers
+        hyperparams['use_base_embeddings'] = args.use_base_embeddings
 
     # Save results
     save_results(model_path_str, metrics, hyperparams, output_dir, prefix=file_prefix)
