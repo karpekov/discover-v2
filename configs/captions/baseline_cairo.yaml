@@ -1,11 +1,11 @@
-# Baseline caption generation config for Aruba dataset
+# Baseline caption generation config for Cairo dataset
 
 caption_style: baseline
 num_captions_per_sample: 4
 random_seed: 42
 
 # Dataset information
-dataset_name: aruba
+dataset_name: cairo
 
 # Sensor metadata (optional - provides richer captions)
 sensor_details_path: metadata/casas_metadata.json
@@ -16,4 +16,5 @@ generate_short_captions: true
 include_temporal_context: true
 include_duration_details: true
 include_sensor_details: true
+
 

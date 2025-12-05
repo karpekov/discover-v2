@@ -9,11 +9,11 @@ from typing import Dict, Optional, Any, Tuple
 from pathlib import Path
 import yaml
 
-from src.alignment.config import AlignmentConfig
-from src.encoders import build_encoder
-from src.encoders.base import EncoderOutput
-from src.encoders.sensor.sequence.projection import create_projection_head
-from src.losses.clip import CLIPLoss
+from alignment.config import AlignmentConfig
+from encoders import build_encoder
+from encoders.base import EncoderOutput
+from encoders.sensor.sequence.projection import create_projection_head
+from losses.clip import CLIPLoss
 
 
 class AlignmentModel(nn.Module):

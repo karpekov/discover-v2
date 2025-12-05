@@ -6,7 +6,7 @@ Contains different types of sensor sequence encoders:
 - image/: Image-based encoders (CLIP, DINO, etc.) [placeholder]
 """
 
-from src.encoders.sensor.sequence.transformer import TransformerSensorEncoder
+from encoders.sensor.sequence.transformer import TransformerSensorEncoder
 
 __all__ = [
     'TransformerSensorEncoder',

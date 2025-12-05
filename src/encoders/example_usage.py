@@ -21,9 +21,9 @@ sys.path.insert(0, str(project_root))
 import torch
 import yaml
 
-from src.encoders.config import TransformerEncoderConfig, MetadataConfig
-from src.encoders.sensor.sequence import TransformerSensorEncoder
-from src.encoders.data_utils import load_and_prepare_milan_data, prepare_batch_for_encoder
+from encoders.config import TransformerEncoderConfig, MetadataConfig
+from encoders.sensor.sequence import TransformerSensorEncoder
+from encoders.data_utils import load_and_prepare_milan_data, prepare_batch_for_encoder
 
 
 def example_basic_usage(use_real_data: bool = True):

@@ -20,16 +20,16 @@ try:
 except ImportError:
     WANDB_AVAILABLE = False
 
-from src.alignment.config import AlignmentConfig
-from src.alignment.model import AlignmentModel
-from src.alignment.dataset import AlignmentDataset
-from src.alignment.wandb_utils import (
+from alignment.config import AlignmentConfig
+from alignment.model import AlignmentModel
+from alignment.dataset import AlignmentDataset
+from alignment.wandb_utils import (
     generate_wandb_run_name,
     generate_wandb_group,
     generate_wandb_tags
 )
-from src.utils.device_utils import get_optimal_device
-from src.utils.training_metrics import TrainingMetrics
+from utils.device_utils import get_optimal_device
+from utils.training_metrics import TrainingMetrics
 
 
 class AlignmentTrainer:

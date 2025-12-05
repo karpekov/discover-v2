@@ -251,7 +251,13 @@ class BaseSampler(ABC):
 
         # Get unique dates (timestamp column is now standardized)
         df['date'] = pd.to_datetime(df['timestamp']).dt.date
-        unique_dates = sorted(df['date'].unique())
+
+        # Filter out NaT values before sorting
+        valid_dates = df['date'].dropna().unique()
+        unique_dates = sorted(valid_dates)
+
+        # Remove rows with NaT dates
+        df = df[df['date'].notna()].copy()
 
         n_dates = len(unique_dates)
         n_train = int(n_dates * 0.7)  # 70% for training

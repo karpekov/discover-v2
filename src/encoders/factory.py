@@ -7,9 +7,9 @@ import yaml
 from pathlib import Path
 import logging
 
-from src.encoders.config import TransformerEncoderConfig
-from src.encoders.sensor.sequence import TransformerSensorEncoder
-from src.encoders.sensor.sequence.image_transformer import ImageTransformerSensorEncoder
+from encoders.config import TransformerEncoderConfig
+from encoders.sensor.sequence import TransformerSensorEncoder
+from encoders.sensor.sequence.image_transformer import ImageTransformerSensorEncoder
 
 logger = logging.getLogger(__name__)
 

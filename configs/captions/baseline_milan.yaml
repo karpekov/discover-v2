@@ -1,7 +1,7 @@
 # Baseline caption generation config for Milan dataset
 
 caption_style: baseline
-num_captions_per_sample: 2
+num_captions_per_sample: 4
 random_seed: 42
 
 # Dataset information

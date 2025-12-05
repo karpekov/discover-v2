@@ -2,6 +2,41 @@
 """
 General retrieval script for querying the trained model with arbitrary text queries.
 This is the main evaluation tool for the trained dual-encoder model.
+
+The script automatically:
+- Detects the text encoder type (CLIP, SigLIP, GTE, etc.) from checkpoint config
+- Loads text projection head if present in checkpoint
+- Applies projections during inference for proper alignment
+
+Sample Usage:
+  # Interactive mode
+  python src/evals/query_retrieval.py \
+    --checkpoint trained_models/milan/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v1/best_model.pt \
+    --test_data data/processed/casas/milan/FD_60/test.json \
+    --vocab data/processed/casas/milan/FD_60/vocab.json \
+    --captions data/processed/casas/milan/FD_60/test_captions_baseline.json \
+    --interactive \
+    --max_samples 5000
+
+  # Single query mode
+  python src/evals/query_retrieval.py \
+    --checkpoint trained_models/milan/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v1/best_model.pt \
+    --test_data data/processed/casas/milan/FD_60/test.json \
+    --vocab data/processed/casas/milan/FD_60/vocab.json \
+    --captions data/processed/casas/milan/FD_60/test_captions_baseline.json \
+    --query "cooking in kitchen" \
+    --top_k 5
+
+  # Demo mode (runs predefined queries)
+  python src/evals/query_retrieval.py \
+    --checkpoint trained_models/milan/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v1/best_model.pt \
+    --test_data data/processed/casas/milan/FD_60/test.json \
+    --vocab data/processed/casas/milan/FD_60/vocab.json \
+    --captions data/processed/casas/milan/FD_60/test_captions_baseline.json
+
+Note: You'll need the processed data files (test.json, vocab.json, test_captions_baseline.json)
+      which should match the data used during training. Generate them using the data generation
+      pipeline or copy from the training server.
 """
 
 import torch
@@ -24,16 +59,20 @@ from utils.device_utils import get_optimal_device
 class SmartHomeRetrieval:
     """General retrieval system for smart-home sensor sequences."""
 
-    def __init__(self, checkpoint_path: str, vocab_path: str, test_data_path: str, max_samples: int = 5000):
+    def __init__(self, checkpoint_path: str, vocab_path: str, test_data_path: str,
+                 captions_path: str = None, max_samples: int = 5000):
         self.device = get_optimal_device()
         self.checkpoint_path = checkpoint_path
         self.vocab_path = vocab_path
         self.test_data_path = test_data_path
+        self.captions_path = captions_path
         self.max_samples = max_samples
+        self.captions_dict = {}
 
         # Load models and data
         self._load_models()
         self._load_vocab()
+        self._load_captions()
         self._load_data()
         self._extract_embeddings()
         self._build_index()
@@ -42,36 +81,101 @@ class SmartHomeRetrieval:
         """Load trained models from checkpoint."""
         print(f"🔄 Loading models from {self.checkpoint_path}")
 
+        # Set up module namespace for backwards compatibility with checkpoints saved with 'src.' prefix
+        import sys
+        import types
+
+        if 'src' not in sys.modules:
+            src_module = types.ModuleType('src')
+            src_module.__path__ = []
+            sys.modules['src'] = src_module
+
+        # Import and map all necessary modules
+        import encoders
+        import encoders.base
+        import encoders.config
+        import alignment
+        import alignment.config
+        import alignment.model
+        import losses
+        import losses.clip
+
+        # Create mappings
+        for module_name in list(sys.modules.keys()):
+            if not module_name.startswith('src.') and not module_name.startswith('_'):
+                if any(module_name.startswith(pkg) for pkg in ['encoders', 'alignment', 'losses', 'models', 'dataio', 'utils']):
+                    sys.modules[f'src.{module_name}'] = sys.modules[module_name]
+                    # Also set as attribute on src module
+                    parts = module_name.split('.')
+                    if len(parts) == 1:
+                        setattr(sys.modules['src'], parts[0], sys.modules[module_name])
+
+        # Now load the model
+        from alignment.model import AlignmentModel
+
+        full_model = AlignmentModel.load(
+            self.checkpoint_path,
+            device=self.device,
+            vocab_path=self.vocab_path
+        )
+
+        # Extract components
+        self.sensor_encoder = full_model.sensor_encoder
+        self.text_projection = full_model.text_projection
+        self.config = full_model.config
+        self.vocab_sizes = full_model.vocab_sizes
+
+        # Get config dict for compatibility - handle both dict and dataclass
+        if hasattr(self.config, '__dataclass_fields__'):
+            # It's an AlignmentConfig dataclass
+            encoder_config = self.config.encoder
+            if hasattr(encoder_config, '__dataclass_fields__'):
+                # Encoder config is also a dataclass
+                config = {
+                    'd_model': encoder_config.d_model,
+                    'n_layers': encoder_config.n_layers,
+                    'n_heads': encoder_config.n_heads,
+                    'd_ff': encoder_config.d_ff,
+                    'max_seq_len': encoder_config.max_seq_len,
+                    'dropout': encoder_config.dropout,
+                    'fourier_bands': getattr(encoder_config, 'fourier_bands', 12),
+                    'train_text_embeddings_path': self.config.train_text_embeddings_path,
+                }
+            else:
+                # Encoder config is a dict
+                config = dict(encoder_config)
+                config['train_text_embeddings_path'] = self.config.train_text_embeddings_path
+        else:
+            # Config is already a dict
+            config = self.config
+
+        # Sensor encoder is already loaded and on device
+        self.sensor_encoder.eval()
+
+        # Load the checkpoint again to pass to text encoder creator
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
 
-        # Get config from checkpoint
-        config = checkpoint['config']
-        self.vocab_sizes = checkpoint['vocab_sizes']
+        # Use the same robust text encoder detection as evaluate_embeddings.py
+        from evals.eval_utils import create_text_encoder_from_checkpoint
+        self.text_encoder = create_text_encoder_from_checkpoint(
+            checkpoint=checkpoint,
+            device=self.device,
+            data_path=config.get('train_text_embeddings_path')
+        )
 
-        # Text encoder (frozen)
-        # Use text encoder factory with default GTE
+        if self.text_encoder is None:
+            # Ultimate fallback
+            from models.text_encoder import TextEncoder
+            text_model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+            self.text_encoder = TextEncoder(text_model_name)
+            print(f"⚠️  Using default text encoder: {text_model_name}")
 
-        eval_config = {"text_model_name": "thenlper/gte-base", "use_cached_embeddings": False}
-
-        self.text_encoder = build_text_encoder(eval_config)
         self.text_encoder.to(self.device)
 
-        # Sensor encoder with correct parameters from checkpoint
-        self.sensor_encoder = SensorEncoder(
-            vocab_sizes=self.vocab_sizes,
-            d_model=config['d_model'],
-            n_layers=config['n_layers'],
-            n_heads=config['n_heads'],
-            d_ff=config['d_ff'],
-            max_seq_len=config.get('max_seq_len', 512),
-            dropout=config.get('dropout', 0.1),
-            fourier_bands=config.get('fourier_bands', 12),
-            use_rope_time=config.get('use_rope_time', False),
-            use_rope_2d=config.get('use_rope_2d', False)
-        )
-        self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
-        self.sensor_encoder.to(self.device)
-        self.sensor_encoder.eval()
+        # Text projection is already loaded
+        if self.text_projection is not None:
+            self.text_projection.eval()
+            print(f"✅ Text projection loaded from checkpoint")
 
         print(f"✅ Models loaded successfully (d_model={config['d_model']}, n_layers={config['n_layers']})")
 
@@ -86,6 +190,30 @@ class SmartHomeRetrieval:
             self.reverse_vocab[field] = {v: k for k, v in field_vocab.items()}
 
         print(f"📚 Vocabulary loaded: {list(self.vocab.keys())}")
+
+    def _load_captions(self):
+        """Load captions from separate JSON file if provided."""
+        if self.captions_path is None:
+            print(f"⚠️  No captions file provided, will use sample indices as captions")
+            return
+
+        try:
+            with open(self.captions_path, 'r') as f:
+                captions_data = json.load(f)
+
+            # Build a dictionary mapping sample_id to full caption data (captions array + metadata)
+            for item in captions_data:
+                if 'sample_id' in item:
+                    self.captions_dict[item['sample_id']] = {
+                        'captions': item.get('captions', []),
+                        'layer_b': item.get('metadata', {}).get('layer_b', ''),
+                        'caption_type': item.get('metadata', {}).get('caption_type', ''),
+                    }
+
+            print(f"📖 Loaded {len(self.captions_dict)} captions from {self.captions_path}")
+        except Exception as e:
+            print(f"⚠️  Could not load captions from {self.captions_path}: {e}")
+            self.captions_dict = {}
 
     def _load_data(self):
         """Load test dataset."""
@@ -138,6 +266,11 @@ class SmartHomeRetrieval:
                 )
 
                 text_emb = batch['text_embeddings']
+
+                # Apply text projection if it exists
+                if self.text_projection is not None:
+                    text_emb = self.text_projection(text_emb)
+                    text_emb = torch.nn.functional.normalize(text_emb, p=2, dim=-1)
 
                 sensor_embeddings.append(sensor_emb.cpu().numpy())
                 text_embeddings.append(text_emb.cpu().numpy())
@@ -252,70 +385,90 @@ class SmartHomeRetrieval:
 
         return events, metadata
 
-    def _get_caption_and_labels(self, batch_idx: int, sample_idx: int) -> tuple[str, Dict[str, Any]]:
-        """Get caption and any available labels for a sample."""
+    def _get_caption_and_labels(self, batch_idx: int, sample_idx: int) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Get caption data and labels for a sample."""
         dataset_idx = batch_idx * 64 + sample_idx
         labels_info = {}
+        caption_data = {'captions': [], 'layer_b': '', 'primary_caption': ''}
 
         if dataset_idx < len(self.test_dataset):
             try:
                 original_sample = self.test_dataset.data[dataset_idx]
-                caption = original_sample['captions'][0] if original_sample['captions'] else "No caption"
 
-                # Extract ground truth labels if available
-                if 'first_activity' in original_sample:
-                    labels_info['ground_truth_activity'] = original_sample['first_activity']
+                # Get sample_id
+                sample_id = original_sample.get('sample_id', f"sample_{dataset_idx}")
+                labels_info['sample_id'] = sample_id
 
-                if 'first_activity_l2' in original_sample:
-                    labels_info['ground_truth_activity_l2'] = original_sample['first_activity_l2']
+                # Get captions from the loaded captions dictionary
+                if sample_id in self.captions_dict:
+                    caption_info = self.captions_dict[sample_id]
+                    caption_data['captions'] = caption_info.get('captions', [])
+                    caption_data['layer_b'] = caption_info.get('layer_b', '')
+                    caption_data['caption_type'] = caption_info.get('caption_type', '')
+                    # Use first caption as primary
+                    if caption_data['captions']:
+                        caption_data['primary_caption'] = caption_data['captions'][0]
+
+                if not caption_data['primary_caption']:
+                    caption_data['primary_caption'] = f"Sample {sample_id}"
+
+                # Extract metadata from the sample
+                if 'metadata' in original_sample:
+                    metadata = original_sample['metadata']
+                    labels_info['window_id'] = metadata.get('window_id')
+                    labels_info['start_time'] = metadata.get('start_time')
+                    labels_info['end_time'] = metadata.get('end_time')
+                    labels_info['duration_seconds'] = metadata.get('duration_seconds')
+                    labels_info['num_events'] = metadata.get('num_events')
+                    labels_info['rooms_visited'] = metadata.get('rooms_visited', [])
+                    labels_info['primary_room'] = metadata.get('primary_room')
+                    labels_info['room_transitions'] = metadata.get('room_transitions')
+
+                    # Extract ground truth labels from metadata
+                    if 'ground_truth_labels' in metadata:
+                        gt_labels = metadata['ground_truth_labels']
+                        labels_info['activity_l1'] = gt_labels.get('primary_l1')
+                        labels_info['activity_l2'] = gt_labels.get('primary_l2')
+                        labels_info['all_labels_l1'] = gt_labels.get('all_labels_l1', [])
+                        labels_info['all_labels_l2'] = gt_labels.get('all_labels_l2', [])
+
+                # Fallback: try old format for backward compatibility
+                if 'activity_l1' not in labels_info:
+                    if 'activity' in original_sample:
+                        labels_info['activity_l1'] = original_sample['activity']
+                    elif 'first_activity' in original_sample:
+                        labels_info['activity_l1'] = original_sample['first_activity']
+
+                if 'activity_l2' not in labels_info:
+                    if 'activity_l2' in original_sample:
+                        labels_info['activity_l2'] = original_sample['activity_l2']
+                    elif 'first_activity_l2' in original_sample:
+                        labels_info['activity_l2'] = original_sample['first_activity_l2']
 
                 # Fallback to inferred labels if ground truth not available
-                if 'ground_truth_activity' not in labels_info:
-                    if "kitchen" in caption.lower() and ("cook" in caption.lower() or "stove" in caption.lower()):
-                        labels_info['inferred_activity'] = "cooking"
-                    elif "bathroom" in caption.lower() or "toilet" in caption.lower():
-                        labels_info['inferred_activity'] = "bathroom"
-                    elif "bedroom" in caption.lower() or "bed" in caption.lower():
-                        labels_info['inferred_activity'] = "bedroom"
-                    elif "night" in caption.lower() and ("wander" in caption.lower() or "restless" in caption.lower()):
-                        labels_info['inferred_activity'] = "night_wandering"
-                    elif "morning" in caption.lower():
-                        labels_info['inferred_activity'] = "morning_routine"
+                if 'activity_l1' not in labels_info or not labels_info['activity_l1']:
+                    cap = caption_data['primary_caption'].lower()
+                    if "kitchen" in cap and ("cook" in cap or "stove" in cap):
+                        labels_info['activity_l1'] = "cooking"
+                    elif "bathroom" in cap or "toilet" in cap:
+                        labels_info['activity_l1'] = "bathroom"
+                    elif "bedroom" in cap or "bed" in cap:
+                        labels_info['activity_l1'] = "bedroom"
+                    elif "night" in cap and ("wander" in cap or "restless" in cap):
+                        labels_info['activity_l1'] = "night_wandering"
+                    elif "morning" in cap:
+                        labels_info['activity_l1'] = "morning_routine"
                     else:
-                        labels_info['inferred_activity'] = "general_activity"
+                        labels_info['activity_l1'] = "unknown"
 
-                # Extract day and time from caption if available
-                if "Monday" in caption:
-                    labels_info['caption_day'] = "Monday"
-                elif "Tuesday" in caption:
-                    labels_info['caption_day'] = "Tuesday"
-                elif "Wednesday" in caption:
-                    labels_info['caption_day'] = "Wednesday"
-                elif "Thursday" in caption:
-                    labels_info['caption_day'] = "Thursday"
-                elif "Friday" in caption:
-                    labels_info['caption_day'] = "Friday"
-                elif "Saturday" in caption:
-                    labels_info['caption_day'] = "Saturday"
-                elif "Sunday" in caption:
-                    labels_info['caption_day'] = "Sunday"
-
-                # Extract time period from caption
-                if "morning" in caption.lower():
-                    labels_info['caption_time'] = "morning"
-                elif "evening" in caption.lower():
-                    labels_info['caption_time'] = "evening"
-                elif "night" in caption.lower():
-                    labels_info['caption_time'] = "night"
-                elif "afternoon" in caption.lower():
-                    labels_info['caption_time'] = "afternoon"
-
-                return caption, labels_info
+                return caption_data, labels_info
 
             except Exception as e:
-                return f"Sample {dataset_idx}", {'error': str(e)}
+                error_caption = {'captions': [], 'layer_b': '', 'primary_caption': f"Sample {dataset_idx}"}
+                return error_caption, {'error': str(e)}
 
-        return f"Batch {batch_idx}, Sample {sample_idx}", {}
+        empty_caption = {'captions': [], 'layer_b': '', 'primary_caption': f"Batch {batch_idx}, Sample {sample_idx}"}
+        return empty_caption, {}
 
     def query(self, query_text: str, top_k: int = 5, show_details: bool = True) -> List[Dict]:
         """
@@ -335,6 +488,12 @@ class SmartHomeRetrieval:
         # Encode query
         with torch.no_grad():
             query_emb = self.text_encoder.encode_texts_clip([query_text], self.device)
+
+            # Apply text projection if it exists
+            if self.text_projection is not None:
+                query_emb = self.text_projection(query_emb)
+                query_emb = torch.nn.functional.normalize(query_emb, p=2, dim=-1)
+
         query_emb = query_emb.cpu().numpy().astype(np.float32)
 
         # Search
@@ -346,8 +505,8 @@ class SmartHomeRetrieval:
             # Get batch and sample info
             batch_idx, sample_idx = self.sample_indices[idx]
 
-            # Get caption and labels
-            caption, labels_info = self._get_caption_and_labels(batch_idx, sample_idx)
+            # Get caption data and labels
+            caption_data, labels_info = self._get_caption_and_labels(batch_idx, sample_idx)
 
             # Decode sequence and get metadata
             events, metadata = self._decode_sequence(batch_idx, sample_idx)
@@ -355,7 +514,7 @@ class SmartHomeRetrieval:
             result = {
                 'rank': rank + 1,
                 'score': float(score),
-                'caption': caption,
+                'caption_data': caption_data,
                 'events': events,
                 'metadata': metadata,
                 'labels': labels_info,
@@ -368,36 +527,55 @@ class SmartHomeRetrieval:
             # Display result
             print(f"\n🏆 RANK {rank + 1} | Score: {score:.4f}")
             print("-" * 60)
-            print(f"📝 Caption: {caption}")
 
-            # Display labels and activity info
+            # Display sample info
+            if 'sample_id' in labels_info:
+                print(f"🆔 Sample: {labels_info['sample_id']}")
+            if 'window_id' in labels_info and labels_info['window_id']:
+                print(f"   Window ID: {labels_info['window_id']}")
+
+            # Display captions
+            if caption_data['captions']:
+                print(f"\n📝 Captions:")
+                for i, cap in enumerate(caption_data['captions'][:2], 1):  # Show first 2
+                    print(f"   {i}. {cap}")
+            else:
+                print(f"\n📝 Caption: {caption_data['primary_caption']}")
+
+            # Display layer_b summary if available
+            if caption_data['layer_b']:
+                print(f"\n📊 Summary: {caption_data['layer_b']}")
+
+            # Display ground truth labels and metadata
             if labels_info:
-                print(f"🏷️  Labels:")
-                if 'ground_truth_activity' in labels_info:
-                    print(f"    Ground Truth Activity: {labels_info['ground_truth_activity']}")
-                if 'ground_truth_activity_l2' in labels_info:
-                    print(f"    Ground Truth Activity L2: {labels_info['ground_truth_activity_l2']}")
-                if 'inferred_activity' in labels_info:
-                    print(f"    Inferred Activity: {labels_info['inferred_activity']}")
-                if 'caption_day' in labels_info:
-                    print(f"    Day (from caption): {labels_info['caption_day']}")
-                if 'caption_time' in labels_info:
-                    print(f"    Time (from caption): {labels_info['caption_time']}")
+                print(f"\n🏷️  Ground Truth:")
+                if 'activity_l1' in labels_info and labels_info['activity_l1']:
+                    print(f"    Activity (L1): {labels_info['activity_l1']}")
+                if 'activity_l2' in labels_info and labels_info['activity_l2']:
+                    print(f"    Activity (L2): {labels_info['activity_l2']}")
+                if 'all_labels_l1' in labels_info and len(labels_info['all_labels_l1']) > 1:
+                    print(f"    All L1 labels: {', '.join(labels_info['all_labels_l1'])}")
+
+                # Time and location info
+                if 'start_time' in labels_info and labels_info['start_time']:
+                    print(f"\n⏰ Time:")
+                    print(f"    Start: {labels_info['start_time']}")
+                    if 'duration_seconds' in labels_info:
+                        print(f"    Duration: {labels_info['duration_seconds']:.1f}s")
+
+                if 'primary_room' in labels_info and labels_info['primary_room']:
+                    print(f"\n📍 Location:")
+                    print(f"    Primary room: {labels_info['primary_room']}")
+                    if 'rooms_visited' in labels_info and len(labels_info['rooms_visited']) > 1:
+                        print(f"    Rooms visited: {', '.join(labels_info['rooms_visited'])}")
+                    if 'room_transitions' in labels_info:
+                        print(f"    Room transitions: {labels_info['room_transitions']}")
+
+                if 'num_events' in labels_info:
+                    print(f"\n📈 Events: {labels_info['num_events']} total")
+
                 if 'error' in labels_info:
-                    print(f"    Error: {labels_info['error']}")
-
-            # Display metadata
-            print(f"📊 Metadata:")
-            print(f"    Events: {metadata['valid_events']}/{metadata['sequence_length']}")
-            print(f"    Duration: {metadata['total_time_span']:.1f}s")
-            print(f"    Rooms: {metadata['rooms_visited']} ({metadata['num_rooms']} total)")
-            print(f"    Time period: {metadata['primary_time_period']}")
-            print(f"    Room path: {' → '.join(metadata['room_sequence'])}")
-
-            if 'day_of_week' in metadata:
-                print(f"    Day of week (sensor): {metadata['day_of_week']}")
-            if 'delta_t_bucket' in metadata:
-                print(f"    Time delta: {metadata['delta_t_bucket']}")
+                    print(f"    ⚠️  Error: {labels_info['error']}")
 
             if show_details:
                 print(f"🔧 Sensor Sequence ({len(events)} events):")
@@ -455,14 +633,18 @@ class SmartHomeRetrieval:
 
 def main():
     parser = argparse.ArgumentParser(description='Query smart-home retrieval system')
-    parser.add_argument('--checkpoint', type=str, default='./outputs/milan_training/best_model.pt',
+    parser.add_argument('--checkpoint', type=str,
+                       default='trained_models/milan/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v1/best_model.pt',
                        help='Path to model checkpoint')
     parser.add_argument('--test_data', type=str,
-                       default='../data/processed_experiments/experiment_milan_training/milan/milan_test.json',
+                       default='data/processed/casas/milan/FD_60/test.json',
                        help='Path to test data')
     parser.add_argument('--vocab', type=str,
-                       default='../data/processed_experiments/experiment_milan_training/milan/milan_vocab.json',
+                       default='data/processed/casas/milan/FD_60/vocab.json',
                        help='Path to vocabulary file')
+    parser.add_argument('--captions', type=str,
+                       default='data/processed/casas/milan/FD_60/test_captions_baseline.json',
+                       help='Path to captions JSON file')
     parser.add_argument('--query', type=str, help='Query text (e.g., "cooking", "night wandering")')
     parser.add_argument('--top_k', type=int, default=3, help='Number of top results')
     parser.add_argument('--max_samples', type=int, default=5000, help='Max samples to process')
@@ -476,6 +658,7 @@ def main():
         checkpoint_path=args.checkpoint,
         vocab_path=args.vocab,
         test_data_path=args.test_data,
+        captions_path=args.captions,
         max_samples=args.max_samples
     )
 

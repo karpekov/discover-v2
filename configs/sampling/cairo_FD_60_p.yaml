@@ -1,13 +1,13 @@
-# Fixed-duration sampling config for Aruba dataset - duration 120 seconds
+# Fixed-duration sampling config for Cairo dataset - duration 60 seconds, presegmented
 
-dataset_name: "aruba"
-raw_data_path: "data/raw/casas/aruba"
-output_dir: "data/processed/casas/aruba/FD_120"
+dataset_name: "cairo"
+raw_data_path: "data/raw/casas/cairo"
+output_dir: "data/processed/casas/cairo/FD_60_p"
 
 strategy: "fixed_duration"
 
 # Duration windows to generate (in seconds)
-duration_seconds: [120]
+duration_seconds: [60]
 min_events_per_window: 3
 max_events_per_window: null
 max_sequence_length: 256
@@ -21,10 +21,10 @@ random_seed: 42
 overlap_factor: 0.5
 
 # Presegmentation
-use_presegmentation: false
+use_presegmentation: true
 presegment_label_level: "l1"
 min_segment_events: 1
-exclude_no_activity: false
+exclude_no_activity: true
 
 # Filtering
 filter_numeric_sensors: true
@@ -38,4 +38,5 @@ include_sensor_types: true
 # Processing limits
 max_lines: null
 max_windows: null
+
 

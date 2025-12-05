@@ -83,8 +83,8 @@ import numpy as np
 # Add project root to path (go up 2 levels from src/utils/)
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.alignment.model import AlignmentModel
-from src.alignment.config import AlignmentConfig
+from alignment.model import AlignmentModel
+from alignment.config import AlignmentConfig
 
 
 class ActivityDataset(Dataset):

@@ -14,9 +14,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Optional
 
-from src.encoders.base import SequenceEncoder, EncoderOutput
-from src.encoders.config import TransformerEncoderConfig
-from src.encoders.sensor.sequence.projection import create_projection_head
+from encoders.base import SequenceEncoder, EncoderOutput
+from encoders.config import TransformerEncoderConfig
+from encoders.sensor.sequence.projection import create_projection_head
 
 
 class FourierFeatures(nn.Module):
