@@ -68,7 +68,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from tqdm import tqdm
 import yaml
 
@@ -142,9 +142,10 @@ def generate_llm_captions(
     verbose: bool = False,
     show_prompts: bool = False,
     use_multi_sample: bool = True,
-    multi_sample_size: int = 5
+    multi_sample_size: int = 5,
+    checkpoint_path: Optional[Path] = None
 ) -> List[Dict[str, Any]]:
-    """Generate LLM captions for samples.
+    """Generate LLM captions for samples with checkpoint recovery.
 
     Args:
         samples: List of raw sample dictionaries
@@ -155,17 +156,48 @@ def generate_llm_captions(
         show_prompts: Print prompts sent to LLM
         use_multi_sample: Pack multiple samples in one API call to save tokens
         multi_sample_size: Number of samples per multi-sample prompt
+        checkpoint_path: Optional path to checkpoint file for crash recovery
 
     Returns:
         List of samples with llm_captions field added
     """
     mode_str = f"multi-sample (packing {multi_sample_size} samples/call)" if use_multi_sample else "individual"
-    print(f"\nGenerating LLM captions for {len(samples)} samples ({mode_str})...")
 
+    # Load existing checkpoint if available
+    existing_captions = {}
+    if checkpoint_path and checkpoint_path.exists():
+        print(f"\n[Checkpoint] Found existing checkpoint: {checkpoint_path}")
+        try:
+            with open(checkpoint_path, 'r') as f:
+                checkpoint_data = json.load(f)
+            existing_captions = {item['sample_id']: item for item in checkpoint_data.get('captions', [])}
+            print(f"[Checkpoint] Loaded {len(existing_captions)} existing captions")
+        except Exception as e:
+            print(f"[Checkpoint] Warning: Could not load checkpoint: {e}")
+            existing_captions = {}
+
+    # Filter out samples that already have captions
+    samples_to_process = []
     captioned_samples = []
 
-    for i in tqdm(range(0, len(samples), batch_size), desc="Processing batches"):
-        batch = samples[i:i + batch_size]
+    for sample in samples:
+        sample_id = sample.get('sample_id', 'unknown')
+        if sample_id in existing_captions:
+            # Use existing caption
+            captioned_samples.append(existing_captions[sample_id])
+        else:
+            # Need to generate
+            samples_to_process.append(sample)
+
+    if samples_to_process:
+        print(f"\nGenerating LLM captions for {len(samples_to_process)} samples ({mode_str})...")
+        print(f"  ({len(existing_captions)} samples already completed)")
+    else:
+        print(f"\n[Checkpoint] All {len(samples)} samples already have captions!")
+        return captioned_samples
+
+    for i in tqdm(range(0, len(samples_to_process), batch_size), desc="Processing batches"):
+        batch = samples_to_process[i:i + batch_size]
 
         # Convert to compact JSON
         compact_jsons = []
@@ -177,50 +209,52 @@ def generate_llm_captions(
                 print(f"Warning: Failed to convert sample {sample.get('sample_id', 'unknown')}: {e}")
                 compact_jsons.append({'sample_id': sample.get('sample_id', 'unknown')})
 
+        # Note: Old multi-sample path removed in favor of structured output approach below
         if use_multi_sample and len(batch) > 1:
-            # Process multiple samples per API call to save tokens
+            # Use structured output multi-sample mode (Gemini backend)
+            # Process in mini-batches to avoid token limits
             batch_captions = []
 
             for j in range(0, len(compact_jsons), multi_sample_size):
                 mini_batch = compact_jsons[j:j + multi_sample_size]
 
-                # Build multi-sample prompt
-                multi_prompt = build_multi_sample_prompt(mini_batch, num_captions)
+                # Build individual prompts for each sample
+                prompts = [build_user_prompt(cj, num_captions) for cj in mini_batch]
+                sample_ids = [cj.get('sample_id', f'sample_{i+j+k}') for k, cj in enumerate(mini_batch)]
 
                 # Show prompt if requested
                 if show_prompts and i == 0 and j == 0:
                     print("\n" + "=" * 80)
-                    print(f"MULTI-SAMPLE PROMPT ({len(mini_batch)} samples):")
+                    print(f"MULTI-SAMPLE MODE ({len(mini_batch)} samples):")
                     print("=" * 80)
-                    print(multi_prompt)
+                    print(f"First prompt:\n{prompts[0]}")
                     print("=" * 80 + "\n")
 
-                # Generate for all samples in one call
+                # Generate using structured output (backend will batch them)
                 try:
-                    response_lists = backend.generate([multi_prompt])
-                    response_text = response_lists[0][0] if response_lists and response_lists[0] else None
-
-                    if response_text:
-                        # Parse JSON object {sample_id: [captions]}
-                        captions_dict = _parse_multi_sample_response(response_text, num_captions)
-
-                        # Extract captions for each sample in order
-                        for cj in mini_batch:
-                            sid = cj.get('sample_id', 'unknown')
-                            captions = captions_dict.get(sid, ["Activity detected."] * num_captions)
-                            batch_captions.append(captions)
+                    import inspect
+                    sig = inspect.signature(backend.generate)
+                    if 'sample_ids' in sig.parameters:
+                        captions_list = backend.generate(prompts=prompts, sample_ids=sample_ids)
                     else:
-                        # Fallback
-                        batch_captions.extend([["Activity detected."] * num_captions for _ in mini_batch])
-
+                        # Legacy backend without sample_ids
+                        captions_list = backend.generate(prompts)
+                    batch_captions.extend(captions_list)
                 except Exception as e:
+                    error_str = str(e).lower()
+                    # Re-raise fatal errors
+                    if any(x in error_str for x in ['auth', 'quota', 'api_key', 'permission', 'not found']):
+                        print(f"FATAL ERROR: {e}")
+                        raise
+
                     print(f"Warning: Multi-sample generation failed: {e}, using fallback")
                     batch_captions.extend([["Activity detected."] * num_captions for _ in mini_batch])
 
             caption_lists = batch_captions
         else:
-            # Original: one sample per prompt
+            # Original: one sample per prompt (or batch multiple samples with structured output)
             prompts = [build_user_prompt(cj, num_captions) for cj in compact_jsons]
+            sample_ids = [cj.get('sample_id', f'sample_{i+j}') for j, cj in enumerate(compact_jsons)]
 
             # Show prompts if requested
             if show_prompts and i == 0:
@@ -230,10 +264,23 @@ def generate_llm_captions(
                 print(prompts[0])
                 print("=" * 80 + "\n")
 
-            # Generate captions
+            # Generate captions with sample_ids for structured output
             try:
-                caption_lists = backend.generate(prompts)
+                # Check if backend supports sample_ids parameter (Gemini structured output)
+                import inspect
+                sig = inspect.signature(backend.generate)
+                if 'sample_ids' in sig.parameters:
+                    caption_lists = backend.generate(prompts=prompts, sample_ids=sample_ids)
+                else:
+                    # Legacy backend without sample_ids
+                    caption_lists = backend.generate(prompts)
             except Exception as e:
+                error_str = str(e).lower()
+                # Re-raise fatal errors
+                if any(x in error_str for x in ['auth', 'quota', 'api_key', 'permission', 'not found']):
+                    print(f"FATAL ERROR: {e}")
+                    raise
+
                 print(f"Warning: Backend generation failed for batch: {e}")
                 caption_lists = [["Activity detected."] * num_captions for _ in batch]
 
@@ -262,6 +309,15 @@ def generate_llm_captions(
                 print(f"\nGenerated Captions ({len(captions)}):")
                 for j, caption in enumerate(captions, 1):
                     print(f"  {j}. {caption}")
+
+        # Save checkpoint after each batch
+        if checkpoint_path:
+            try:
+                checkpoint_data = {'captions': captioned_samples}
+                with open(checkpoint_path, 'w') as f:
+                    json.dump(checkpoint_data, f, indent=2)
+            except Exception as e:
+                print(f"[Checkpoint] Warning: Failed to save checkpoint: {e}")
 
     return captioned_samples
 
@@ -463,7 +519,7 @@ def main():
     backend = args.backend or config_dict.get('backend_type', config_dict.get('backend', 'openai'))
     model = args.model or config_dict.get('model_name', config_dict.get('model'))
     num_captions = args.num_captions if args.num_captions is not None else config_dict.get('num_captions_per_sample', 4)
-    temperature = args.temperature if args.temperature is not None else config_dict.get('temperature', 0.9)
+    temperature = args.temperature if args.temperature is not None else config_dict.get('temperature', 0.6)
     api_key = args.api_key or config_dict.get('api_key')
     device = args.device or config_dict.get('device')
 
@@ -576,7 +632,13 @@ def main():
         # Determine if using multi-sample mode (default: disabled)
         use_multi_sample = args.multi_sample
 
-        # Generate captions
+        # Create checkpoint path for crash recovery
+        model_for_filename = model if model else backend
+        model_short_name = model_for_filename.split('/')[-1].replace('-', '_').replace('.', '_')
+        output_filename = f'{split}_llm_{backend}_{model_short_name}.json'
+        checkpoint_path = output_dir / f'{output_filename}.checkpoint.tmp'
+
+        # Generate captions with checkpoint recovery
         captioned_samples = generate_llm_captions(
             samples=samples,
             backend=backend_instance,
@@ -585,16 +647,21 @@ def main():
             verbose=args.verbose,
             show_prompts=args.show_prompts,
             use_multi_sample=use_multi_sample,
-            multi_sample_size=args.multi_sample_size
+            multi_sample_size=args.multi_sample_size,
+            checkpoint_path=checkpoint_path
         )
 
-        # Save output
-        # Ensure model is set (fallback to backend name if somehow still None)
-        model_for_filename = model if model else backend
-        model_short_name = model_for_filename.split('/')[-1].replace('-', '_').replace('.', '_')
-        output_filename = f'{split}_llm_{backend}_{model_short_name}.json'
+        # Save final output
         output_path = output_dir / output_filename
         save_captioned_json(captioned_samples, output_path)
+
+        # Delete checkpoint file after successful completion
+        if checkpoint_path.exists():
+            try:
+                checkpoint_path.unlink()
+                print(f"[Checkpoint] Deleted checkpoint file: {checkpoint_path.name}")
+            except Exception as e:
+                print(f"[Checkpoint] Warning: Could not delete checkpoint: {e}")
 
         # Print statistics
         print(f"\n{split.upper()} Statistics:")

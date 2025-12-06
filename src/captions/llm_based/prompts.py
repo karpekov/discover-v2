@@ -27,9 +27,9 @@ AVOID:
 - Listing locations without inferring activity
 
 OUTPUT FORMAT:
-- Exactly 4 captions per sample
-- Return ONLY a JSON list: ["caption1", "caption2", "caption3", "caption4"]
-- No explanations, no commentary, just the JSON list"""
+- Exactly 4 captions per sample (or as specified)
+- The response structure is controlled by a JSON schema
+- Focus on caption content quality, not formatting"""
 
 
 def build_user_prompt(compact_json: Dict[str, Any], num_captions: int = 4) -> str:
@@ -204,8 +204,9 @@ def build_multi_sample_prompt(compact_jsons: list[Dict[str, Any]],
         "",
         f"Generate {num_captions} captions per segment with DIFFERENT styles for each caption.",
         "",
-        "Return a JSON object mapping sample_id to list of captions:",
-        '{"sample_id_1": ["caption1", "caption2", ...], "sample_id_2": [...], ...}',
+        "The output format is structured JSON with:",
+        "- 'samples': array of objects",
+        "- Each object has 'sample_id' (string) and 'captions' (array of strings)",
         "",
         "=" * 80,
     ]
@@ -248,7 +249,8 @@ def build_multi_sample_prompt(compact_jsons: list[Dict[str, Any]],
 
     lines.append("\n" + "=" * 80)
     lines.append("")
-    lines.append("Generate highly diverse captions for each segment. Return ONLY the JSON object.")
+    lines.append("Generate highly diverse captions for each segment.")
+    lines.append("Fill the 'sample_id' and 'captions' fields for each segment shown above.")
 
     return '\n'.join(lines)
 
