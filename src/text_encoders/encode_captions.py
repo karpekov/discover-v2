@@ -390,6 +390,12 @@ def main():
         for split in splits_to_process:
             caption_file = data_dir / f'{split}_captions_{args.caption_style}.json'
 
+            # Check if caption_style starts with "llm_" for LLM captions
+            if args.caption_style.startswith('llm_'):
+                # LLM caption files have format: {split}_llm_{backend}_{model}.json
+                # caption_style should be like "llm_gemini_gemini_2_5_flash"
+                caption_file = data_dir / f'{split}_{args.caption_style}.json'
+
             if not caption_file.exists():
                 print(f"⚠️  Warning: {caption_file} not found, skipping {split}")
                 continue

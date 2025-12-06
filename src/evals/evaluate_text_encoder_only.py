@@ -15,6 +15,7 @@ This script evaluates text embeddings by:
 5. Comparing all encoders in unified plots
 
 Sample Usage (CASAS):
+  # Baseline captions
   python src/evals/evaluate_text_encoder_only.py \
     --embeddings_dir data/processed/casas/milan/FL_20 \
     --captions data/processed/casas/milan/FL_20/train_captions_baseline.json \
@@ -22,6 +23,17 @@ Sample Usage (CASAS):
     --output_dir results/evals/milan/FL_20 \
     --split train \
     --description_style baseline \
+    --max_samples 10000 \
+    --filter_noisy_labels
+
+  # LLM-generated captions
+  python src/evals/evaluate_text_encoder_only.py \
+    --embeddings_dir data/processed/casas/milan/FD_60 \
+    --captions data/processed/casas/milan/FD_60/train_llm_gemini_gemini_2_5_flash.json \
+    --data data/processed/casas/milan/FD_60/train.json \
+    --output_dir results/evals/milan/FD_60 \
+    --split train \
+    --description_style llm_gemini_gemini_2_5_flash \
     --max_samples 10000 \
     --filter_noisy_labels
 """
@@ -94,7 +106,13 @@ def extract_metadata_from_paths(embeddings_path: str) -> Dict[str, str]:
         emb_idx = parts.index('embeddings')
         if emb_idx + 1 < len(parts):
             encoder_name = parts[-1]
-            if emb_idx + 2 < len(parts):
+            # Handle LLM caption style: train_embeddings_llm_gemini_gemini_2_5_flash_clip.npz
+            # Caption style should be: llm_gemini_gemini_2_5_flash
+            if 'llm' in parts:
+                llm_idx = parts.index('llm')
+                # Everything from 'llm' to encoder_name (last part) is caption style
+                caption_style = '_'.join(parts[llm_idx:-1])
+            elif emb_idx + 2 < len(parts):
                 caption_style = '_'.join(parts[emb_idx + 1:-1])
             elif emb_idx + 1 < len(parts) - 1:
                 caption_style = parts[emb_idx + 1]
@@ -171,12 +189,23 @@ def load_embeddings_and_labels(
 
     if data_path is None:
         captions_path_obj = Path(captions_path)
-        data_path = captions_path_obj.parent / captions_path_obj.name.replace('_captions_', '_').replace('captions_', '').replace('.json', '.json')
-        if '_baseline' in str(data_path) or '_sourish' in str(data_path):
-            filename = captions_path_obj.stem
-            if '_captions_' in filename:
-                split = filename.split('_captions_')[0]
-                data_path = captions_path_obj.parent / f"{split}.json"
+        filename = captions_path_obj.stem
+
+        # Handle LLM caption files: train_llm_gemini_gemini_2_5_flash.json -> train.json
+        if '_llm_' in filename:
+            split = filename.split('_llm_')[0]
+            data_path = captions_path_obj.parent / f"{split}.json"
+        # Handle regular caption files: train_captions_baseline.json -> train.json
+        elif '_captions_' in filename:
+            split = filename.split('_captions_')[0]
+            data_path = captions_path_obj.parent / f"{split}.json"
+        else:
+            # Fallback
+            data_path = captions_path_obj.parent / captions_path_obj.name.replace('_captions_', '_').replace('captions_', '').replace('.json', '.json')
+            if '_baseline' in str(data_path) or '_sourish' in str(data_path):
+                if '_captions_' in filename:
+                    split = filename.split('_captions_')[0]
+                    data_path = captions_path_obj.parent / f"{split}.json"
 
     print(f"\n📖 Loading labels from: {data_path}")
     with open(data_path, 'r') as f:
@@ -734,6 +763,9 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
 
     embeddings_dir_path = Path(embeddings_dir)
     # Look for embedding files matching the split and description style
+    # Handle both regular and LLM caption styles:
+    # Regular: train_embeddings_baseline_clip.npz
+    # LLM: train_embeddings_llm_gemini_gemini_2_5_flash_clip.npz
     pattern = f"{split}_embeddings_{description_style}_*.npz"
     embedding_files = sorted(embeddings_dir_path.glob(pattern))
 
@@ -747,6 +779,7 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
             for f in all_files:
                 print(f"     - {f.name}")
             print(f"\n   💡 Tip: Make sure description_style matches the embedding file names")
+            print(f"   💡 For LLM captions, use: --description_style llm_gemini_gemini_2_5_flash")
         return
 
     print(f"\n📂 Found {len(embedding_files)} embedding files for split '{split}' with style '{description_style}':")
@@ -1051,8 +1084,8 @@ Example usage:
                        help='Output directory for results')
     parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'],
                        help='Which data split to evaluate')
-    parser.add_argument('--description_style', type=str, default='baseline', choices=['baseline', 'sourish'],
-                       help='Style of label descriptions')
+    parser.add_argument('--description_style', type=str, default='baseline',
+                       help='Style of label descriptions (baseline, sourish, or llm_backend_model for LLM captions)')
     parser.add_argument('--house_name', type=str, default='milan',
                        help='House name for label descriptions')
     parser.add_argument('--max_samples', type=int, default=10000,
