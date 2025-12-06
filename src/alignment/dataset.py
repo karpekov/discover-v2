@@ -55,6 +55,10 @@ class AlignmentDataset(Dataset):
         self.span_masker = span_masker
         self.vocab_sizes = vocab_sizes
 
+        # Multi-caption mode attributes (set by _load_text_embeddings)
+        self.multi_caption_mode = False
+        self.sample_to_embedding_indices = None
+
         # Filter vocab to only used fields
         if categorical_fields is not None:
             self.vocab = {field: vocab[field] for field in categorical_fields if field in vocab}
@@ -70,12 +74,22 @@ class AlignmentDataset(Dataset):
         # Load text embeddings (pre-computed or on-the-fly) and filter to match sensor data
         if text_embeddings_path:
             all_text_embeddings = self._load_text_embeddings()
-            # Filter text embeddings to match filtered sensor data
-            if kept_indices is not None:
-                import numpy as np
-                self.text_embeddings = all_text_embeddings[np.array(kept_indices)]
+
+            # In multi-caption mode, validate that all sensor samples have embeddings
+            if self.multi_caption_mode:
+                # No array filtering needed - we use sample_id matching in __getitem__
+                # Just verify all sensor samples are present in the mapping
+                for sample in self.sensor_data:
+                    sample_id = sample.get('sample_id', 'unknown')
+                    if sample_id not in self.sample_to_embedding_indices:
+                        print(f"Warning: No embeddings found for sample {sample_id}")
             else:
-                self.text_embeddings = all_text_embeddings
+                # Old format: filter embeddings by array index
+                if kept_indices is not None:
+                    import numpy as np
+                    all_text_embeddings = all_text_embeddings[np.array(kept_indices)]
+
+            self.text_embeddings = all_text_embeddings
             self.text_encoder = None
         elif captions_path and text_encoder_config_path:
             all_captions = self._load_captions()
@@ -231,17 +245,42 @@ class AlignmentDataset(Dataset):
         num_sensor_samples = len(self.sensor_data)
 
         if self.text_embeddings is not None:
-            num_text_samples = len(self.text_embeddings)
+            # Check if we're in multi-caption mode
+            if self.multi_caption_mode and self.sample_to_embedding_indices is not None:
+                # In multi-caption mode, validate that we have embeddings for all sensor samples
+                missing_samples = []
+                for sample in self.sensor_data:
+                    sample_id = sample.get('sample_id', 'unknown')
+                    if sample_id not in self.sample_to_embedding_indices:
+                        missing_samples.append(sample_id)
+
+                if missing_samples:
+                    raise ValueError(
+                        f"Missing embeddings for {len(missing_samples)} sensor samples. "
+                        f"First few missing: {missing_samples[:5]}"
+                    )
+
+                print(f"   ✓ Validated multi-caption embeddings: {num_sensor_samples} sensor samples, "
+                      f"{len(self.text_embeddings)} total embeddings")
+            else:
+                # Old format: direct 1-to-1 matching
+                num_text_samples = len(self.text_embeddings)
+                if num_sensor_samples != num_text_samples:
+                    raise ValueError(
+                        f"Mismatch between sensor samples ({num_sensor_samples}) "
+                        f"and text samples ({num_text_samples}). "
+                        f"Sensor data and text data must have the same number of samples "
+                        f"and be ordered consistently."
+                    )
         else:
             num_text_samples = len(self.captions)
-
-        if num_sensor_samples != num_text_samples:
-            raise ValueError(
-                f"Mismatch between sensor samples ({num_sensor_samples}) "
-                f"and text samples ({num_text_samples}). "
-                f"Sensor data and text data must have the same number of samples "
-                f"and be ordered consistently."
-            )
+            if num_sensor_samples != num_text_samples:
+                raise ValueError(
+                    f"Mismatch between sensor samples ({num_sensor_samples}) "
+                    f"and text samples ({num_text_samples}). "
+                    f"Sensor data and text data must have the same number of samples "
+                    f"and be ordered consistently."
+                )
 
     def __len__(self) -> int:
         return len(self.sensor_data)
