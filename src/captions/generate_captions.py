@@ -167,10 +167,39 @@ def main():
     )
 
     parser.add_argument(
+        '--llm-backend',
+        type=str,
+        choices=['gemma', 'llama', 'openai', 'gemini'],
+        default=None,
+        help='LLM backend type - used with --caption-style llm'
+    )
+
+    parser.add_argument(
         '--llm-model',
         type=str,
-        default='gpt4',
-        help='LLM model name for filename (e.g., gpt4, claude, gemini) - used with --caption-style llm'
+        default=None,
+        help='LLM model name (e.g., gpt-4o-mini, gemini-1.5-flash, google/gemma-7b) - used with --caption-style llm'
+    )
+
+    parser.add_argument(
+        '--llm-api-key',
+        type=str,
+        default=None,
+        help='API key for remote LLM backends (OpenAI, Gemini). If not provided, reads from environment.'
+    )
+
+    parser.add_argument(
+        '--llm-temperature',
+        type=float,
+        default=None,
+        help='Sampling temperature for LLM generation (default: 0.9)'
+    )
+
+    parser.add_argument(
+        '--llm-device',
+        type=str,
+        default=None,
+        help='Device for local LLM models (cuda, cpu, mps, or None for auto)'
     )
 
     parser.add_argument(
@@ -317,16 +346,40 @@ def main():
         generator = BaselineCaptionGenerator(config)
         style_suffix = 'mixed'
     elif args.caption_style == 'llm':
+        # Get LLM settings from args or config
+        llm_backend = args.llm_backend or config_dict.get('llm_backend', config_dict.get('backend_type', 'openai'))
+        llm_model = args.llm_model or config_dict.get('llm_model', config_dict.get('model_name'))
+        llm_temperature = args.llm_temperature if args.llm_temperature is not None else config_dict.get('temperature', 0.9)
+        llm_device = args.llm_device or config_dict.get('device')
+        llm_api_key = args.llm_api_key or config_dict.get('api_key')
+
+        # Set default model if not provided
+        if llm_model is None:
+            default_models = {
+                'openai': 'gpt-4o-mini',
+                'gemini': 'gemini-1.5-flash',
+                'gemma': 'google/gemma-7b',
+                'llama': 'meta-llama/Meta-Llama-3-8B-Instruct'
+            }
+            llm_model = default_models.get(llm_backend, 'gpt-4o-mini')
+
         # Create LLM config
         llm_config = LLMCaptionConfig(
             caption_style='llm',
             num_captions_per_sample=args.num_captions,
             random_seed=args.random_seed,
             dataset_name=args.dataset_name,
-            llm_model=args.llm_model
+            backend_type=llm_backend,
+            model_name=llm_model,
+            temperature=llm_temperature,
+            api_key=llm_api_key,
+            device=llm_device
         )
         generator = LLMCaptionGenerator(llm_config)
-        style_suffix = f'llm_{args.llm_model}'
+
+        # Create a clean model name for filename
+        model_short_name = llm_model.split('/')[-1].replace('-', '_').replace('.', '_')
+        style_suffix = f'llm_{llm_backend}_{model_short_name}'
     else:
         print(f"Error: Unknown caption style: {args.caption_style}")
         sys.exit(1)

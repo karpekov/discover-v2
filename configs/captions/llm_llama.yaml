@@ -1,0 +1,20 @@
+# LLM Caption Generation Config - Local Llama 3 8B Instruct
+# Use with: python src/captions/generate_llm_captions.py --config configs/captions/llm_llama.yaml --data-dir <path>
+
+# Backend settings
+backend_type: llama
+model_name: meta-llama/Meta-Llama-3-8B-Instruct
+
+# Generation settings
+num_captions_per_sample: 4
+temperature: 0.9
+
+# Device settings (for local models)
+device: cuda  # or 'cpu', 'mps', or null for auto
+
+# Dataset info
+dataset_name: milan
+
+# Random seed for reproducibility
+random_seed: 42
+
