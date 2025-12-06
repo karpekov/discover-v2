@@ -75,13 +75,42 @@ Future support for LLM-generated captions using GPT-4, Claude, Gemini, or local 
 
 ### Command Line Interface
 
+#### Using Config Files (Recommended)
+
+```bash
+# Generate captions using config file
+# All parameters (num_captions, dataset_name, etc.) come from config
+python src/captions/generate_captions.py \
+    --config configs/captions/baseline_aruba.yaml \
+    --data-dir data/processed/casas/aruba/FD_60
+
+# Generate captions for Milan using config
+python src/captions/generate_captions.py \
+    --config configs/captions/baseline_milan.yaml \
+    --data-dir data/processed/casas/milan/FD_60
+
+# Override config values with command-line args
+python src/captions/generate_captions.py \
+    --config configs/captions/baseline_aruba.yaml \
+    --data-dir data/processed/casas/aruba/FD_60 \
+    --num-captions 8
+
+# Sourish captions from config
+python src/captions/generate_captions.py \
+    --config configs/captions/sourish_milan.yaml \
+    --data-dir data/processed/casas/milan/FD_60
+```
+
+#### Using Command-Line Arguments Only
+
 ```bash
 # Generate baseline captions for Milan data
 # Output: train_captions_baseline.json, test_captions_baseline.json
 python src/captions/generate_captions.py \
     --data-dir data/processed/casas/milan/fixed_length_50 \
     --caption-style baseline \
-    --dataset-name milan
+    --dataset-name milan \
+    --num-captions 4
 
 # Generate Sourish captions
 # Output: train_captions_sourish.json, test_captions_sourish.json
@@ -251,17 +280,24 @@ for sample in sensor_data['samples']:
 
 ## Configuration
 
+### Using Config Files
+
+Config files provide a convenient way to manage caption generation settings. They are loaded using the `--config` flag and support all generation parameters.
+
+**Priority**: Command-line arguments override config file values.
+
 ### Baseline Configuration
 
 ```yaml
 # configs/captions/baseline_milan.yaml
 caption_style: baseline
-num_captions_per_sample: 2
+num_captions_per_sample: 4  # Generate 4 captions per sample
 random_seed: 42
 
 dataset_name: milan
 sensor_details_path: metadata/casas_metadata.json
 
+# Caption generation options
 generate_long_captions: true
 generate_short_captions: true
 include_temporal_context: true
@@ -269,16 +305,33 @@ include_duration_details: true
 include_sensor_details: true
 ```
 
+**Usage:**
+```bash
+python src/captions/generate_captions.py \
+    --config configs/captions/baseline_milan.yaml \
+    --data-dir data/processed/casas/milan/FD_60
+```
+
+**Override config values:**
+```bash
+python src/captions/generate_captions.py \
+    --config configs/captions/baseline_milan.yaml \
+    --data-dir data/processed/casas/milan/FD_60 \
+    --num-captions 8  # Override config's num_captions_per_sample
+```
+
 ### Sourish Configuration
 
 ```yaml
 # configs/captions/sourish_milan.yaml
 caption_style: sourish
-num_captions_per_sample: 1
+num_captions_per_sample: 1  # Sourish is deterministic
 random_seed: 42
 
 dataset_name: milan  # REQUIRED for sensor mappings
 ```
+
+**Note**: The `num_captions_per_sample` value in config files is properly respected (previously there was a bug where it was always defaulting to 2).
 
 ## Caption Statistics
 

@@ -10,11 +10,17 @@ Output Format: {split}_captions_{style}.json
 - llm_gpt4 → train_captions_llm_gpt4.json
 
 Usage (run from project root with conda environment activated):
-# Generate baseline captions for Milan data
+# Generate captions using config file (recommended)
+python src/captions/generate_captions.py \\
+    --config configs/captions/baseline_aruba.yaml \\
+    --data-dir data/processed/casas/aruba/FD_60
+
+# Generate baseline captions for Milan data (manual args)
 python src/captions/generate_captions.py \\
     --data-dir data/processed/casas/milan/FD_60 \\
     --caption-style baseline \\
-    --dataset-name milan
+    --dataset-name milan \\
+    --num-captions 4
 
 # Generate Sourish captions
 python src/captions/generate_captions.py \\
@@ -29,15 +35,18 @@ python src/captions/generate_captions.py \\
     --llm-model gpt4 \\
     --dataset-name milan
 
-# Generate multiple styles for comparison
-python src/captions/generate_captions.py --data-dir data/... --caption-style baseline --dataset-name milan
-python src/captions/generate_captions.py --data-dir data/... --caption-style sourish --dataset-name milan
+# Override config file values with command-line args
+python src/captions/generate_captions.py \\
+    --config configs/captions/baseline_aruba.yaml \\
+    --data-dir data/processed/casas/aruba/FD_60 \\
+    --num-captions 8
 """
 
 import argparse
 import json
 import os
 import sys
+import yaml
 from pathlib import Path
 from typing import Dict, List, Any
 from tqdm import tqdm
@@ -52,6 +61,12 @@ from captions import (
     RuleBasedCaptionConfig,
     LLMCaptionConfig
 )
+
+
+def load_config_from_yaml(config_path: Path) -> Dict[str, Any]:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
 
 
 def load_sampled_data(data_path: Path) -> Dict[str, Any]:
@@ -129,6 +144,14 @@ def main():
     )
 
     parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help='Path to YAML config file (e.g., configs/captions/baseline_aruba.yaml). '
+             'If provided, config values will be used as defaults, but can be overridden by other command-line args.'
+    )
+
+    parser.add_argument(
         '--data-dir',
         type=str,
         required=True,
@@ -139,7 +162,7 @@ def main():
         '--caption-style',
         type=str,
         choices=['baseline', 'sourish', 'mixed', 'llm'],
-        default='baseline',
+        default=None,
         help='Caption generation style'
     )
 
@@ -153,7 +176,7 @@ def main():
     parser.add_argument(
         '--dataset-name',
         type=str,
-        required=True,
+        default=None,
         help='Dataset name (milan, aruba, cairo, etc.) - needed for some caption styles'
     )
 
@@ -167,7 +190,7 @@ def main():
     parser.add_argument(
         '--num-captions',
         type=int,
-        default=2,
+        default=None,
         help='Number of captions to generate per sample (for baseline style)'
     )
 
@@ -182,18 +205,52 @@ def main():
         '--split',
         type=str,
         choices=['train', 'val', 'test', 'all'],
-        default='all',
+        default=None,
         help='Which split to process (all = train + val + test)'
     )
 
     parser.add_argument(
         '--random-seed',
         type=int,
-        default=42,
+        default=None,
         help='Random seed for reproducibility'
     )
 
     args = parser.parse_args()
+
+    # Load config from YAML if provided
+    config_dict = {}
+    if args.config:
+        config_path = Path(args.config)
+        if not config_path.exists():
+            print(f"Error: Config file not found: {config_path}")
+            sys.exit(1)
+        print(f"Loading config from: {config_path}")
+        config_dict = load_config_from_yaml(config_path)
+
+    # Merge config file values with command-line args (command-line args take precedence)
+    if args.caption_style is None:
+        args.caption_style = config_dict.get('caption_style', 'baseline')
+    if args.dataset_name is None:
+        args.dataset_name = config_dict.get('dataset_name')
+        if args.dataset_name is None:
+            print("Error: --dataset-name is required (either in config or as argument)")
+            sys.exit(1)
+    if args.sensor_details is None:
+        args.sensor_details = config_dict.get('sensor_details_path')
+    if args.num_captions is None:
+        args.num_captions = config_dict.get('num_captions_per_sample', 2)
+    if args.random_seed is None:
+        args.random_seed = config_dict.get('random_seed', 42)
+    if args.split is None:
+        args.split = config_dict.get('split', 'all')
+
+    # Store additional config options
+    generate_long_captions = config_dict.get('generate_long_captions', True)
+    generate_short_captions = config_dict.get('generate_short_captions', False)
+    include_temporal_context = config_dict.get('include_temporal_context', True)
+    include_duration_details = config_dict.get('include_duration_details', True)
+    include_sensor_details = config_dict.get('include_sensor_details', True)
 
     # Setup paths
     data_dir = Path(args.data_dir)
@@ -225,9 +282,11 @@ def main():
 
     print(f"Caption Generation")
     print(f"=" * 80)
+    print(f"Config file: {args.config if args.config else 'None (using defaults)'}")
     print(f"Data directory: {data_dir}")
     print(f"Caption style: {args.caption_style}")
     print(f"Dataset: {args.dataset_name}")
+    print(f"Num captions per sample: {args.num_captions}")
     print(f"Sensor details: {args.sensor_details if args.sensor_details else 'None'}")
     print(f"Output directory: {output_dir}")
     print(f"=" * 80)
@@ -239,8 +298,11 @@ def main():
         random_seed=args.random_seed,
         dataset_name=args.dataset_name,
         sensor_details_path=args.sensor_details,
-        generate_long_captions=True,
-        generate_short_captions=False  # Only generate long captions
+        generate_long_captions=generate_long_captions,
+        generate_short_captions=generate_short_captions,
+        include_temporal_context=include_temporal_context,
+        include_duration_details=include_duration_details,
+        include_sensor_details=include_sensor_details
     )
 
     # Determine style suffix for filenames
