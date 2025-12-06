@@ -8,7 +8,9 @@
 #SBATCH -J dv2-train
 #SBATCH -p rail-lab
 
-MODEL_DIR=trained_models/milan/$1
+# Extract dataset from model name (e.g., "cairo" from "cairo_fd60_...")
+DATASET=$(echo $1 | cut -d'_' -f1)
+MODEL_DIR=trained_models/$DATASET/$1
 
 echo "RUNNING CLF for $MODEL_DIR"
 

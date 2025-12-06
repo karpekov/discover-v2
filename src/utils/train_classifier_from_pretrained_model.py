@@ -82,7 +82,9 @@ from datetime import datetime, timedelta
 from sklearn.metrics import f1_score
 import numpy as np
 
-# Add project root to path (go up 2 levels from src/utils/)
+# Add src/ to path for direct imports (e.g., from alignment.model import ...)
+sys.path.insert(0, str(Path(__file__).parent.parent))
+# Also add project root so 'src' is a valid module (needed for unpickling saved models)
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from alignment.model import AlignmentModel

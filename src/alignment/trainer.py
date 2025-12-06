@@ -556,6 +556,31 @@ class AlignmentTrainer:
 
             self.optimizer.step()
 
+        # Compute MLM accuracy (minimal overhead - just argmax + comparison)
+        if outputs.get('mlm_predictions') is not None:
+            mlm_predictions = outputs['mlm_predictions']
+            mlm_labels = batch.get('mlm_labels', {})
+            mlm_mask_positions = batch.get('mlm_mask_positions', {})
+
+            total_correct = 0
+            total_masked = 0
+            for field in mlm_predictions.keys():
+                if field not in mlm_labels or field not in mlm_mask_positions:
+                    continue
+                preds = mlm_predictions[field]
+                labels = mlm_labels[field]
+                mask_pos = mlm_mask_positions[field]
+                if mask_pos.sum() == 0:
+                    continue
+                masked_preds = preds[mask_pos]
+                masked_labels = labels[mask_pos]
+                pred_classes = masked_preds.argmax(dim=-1)
+                total_correct += (pred_classes == masked_labels).sum().item()
+                total_masked += masked_labels.numel()
+
+            if total_masked > 0:
+                loss_dict['mlm_acc'] = total_correct / total_masked
+
         # Update scheduler
         self.scheduler.step()
         self.global_step += 1
@@ -587,12 +612,13 @@ class AlignmentTrainer:
         num_batches = 0
         has_mlm = False
 
-        # Collect embeddings and outputs for comprehensive metrics
+        # Collect embeddings for alignment health
         all_sensor_embeddings = []
         all_text_embeddings = []
-        all_mlm_predictions = {}
-        all_mlm_labels = {}
-        all_mlm_mask_positions = {}
+
+        # Incremental MLM accuracy tracking (per-field)
+        mlm_correct_per_field = {}
+        mlm_total_per_field = {}
 
         with torch.no_grad():
             for batch in self.val_loader:
@@ -628,22 +654,38 @@ class AlignmentTrainer:
                 all_sensor_embeddings.append(outputs['sensor_embeddings_projected'])
                 all_text_embeddings.append(outputs['text_embeddings_projected'])
 
-                # Collect MLM outputs
+                # Compute MLM accuracy incrementally per-batch (avoids seq_len mismatch issues)
                 if outputs.get('mlm_predictions') is not None:
-                    for field, preds in outputs['mlm_predictions'].items():
-                        if field not in all_mlm_predictions:
-                            all_mlm_predictions[field] = []
-                        all_mlm_predictions[field].append(preds)
+                    mlm_predictions = outputs['mlm_predictions']
+                    mlm_labels = batch.get('mlm_labels', {})
+                    mlm_mask_positions = batch.get('mlm_mask_positions', {})
 
-                    for field, labels in batch.get('mlm_labels', {}).items():
-                        if field not in all_mlm_labels:
-                            all_mlm_labels[field] = []
-                        all_mlm_labels[field].append(labels)
+                    for field in mlm_predictions.keys():
+                        if field not in mlm_labels or field not in mlm_mask_positions:
+                            continue
 
-                    for field, mask_pos in batch.get('mlm_mask_positions', {}).items():
-                        if field not in all_mlm_mask_positions:
-                            all_mlm_mask_positions[field] = []
-                        all_mlm_mask_positions[field].append(mask_pos)
+                        preds = mlm_predictions[field]  # [batch_size, seq_len, vocab_size]
+                        labels = mlm_labels[field]  # [batch_size, seq_len]
+                        mask_pos = mlm_mask_positions[field]  # [batch_size, seq_len]
+
+                        if mask_pos.sum() == 0:
+                            continue
+
+                        # Get predictions and labels for masked positions only
+                        masked_preds = preds[mask_pos]  # [num_masked, vocab_size]
+                        masked_labels = labels[mask_pos]  # [num_masked]
+
+                        # Compute correct predictions
+                        pred_classes = masked_preds.argmax(dim=-1)
+                        correct = (pred_classes == masked_labels).sum().item()
+                        total = masked_labels.numel()
+
+                        # Accumulate
+                        if field not in mlm_correct_per_field:
+                            mlm_correct_per_field[field] = 0
+                            mlm_total_per_field[field] = 0
+                        mlm_correct_per_field[field] += correct
+                        mlm_total_per_field[field] += total
 
                 num_batches += 1
 
@@ -675,50 +717,19 @@ class AlignmentTrainer:
             except Exception as e:
                 self.logger.warning(f"Error computing alignment health: {e}")
 
-        # Compute MLM accuracy metrics
-        if all_mlm_predictions and all_mlm_labels and all_mlm_mask_positions:
-            try:
-                # Concatenate MLM outputs (handle per-field errors gracefully)
-                combined_mlm_preds = {}
-                combined_mlm_labels = {}
-                combined_mlm_masks = {}
+        # Compute MLM accuracy from incrementally accumulated stats
+        if mlm_correct_per_field and mlm_total_per_field:
+            field_accuracies = []
+            for field in mlm_correct_per_field.keys():
+                if mlm_total_per_field[field] > 0:
+                    accuracy = mlm_correct_per_field[field] / mlm_total_per_field[field]
+                    metrics[f'val_mlm_accuracy/{field}'] = accuracy
+                    field_accuracies.append(accuracy)
 
-                for field in all_mlm_predictions.keys():
-                    try:
-                        pred_list = all_mlm_predictions[field]
-                        label_list = all_mlm_labels.get(field, [])
-                        mask_list = all_mlm_mask_positions.get(field, [])
-
-                        if pred_list and label_list and mask_list:
-                            # Concatenate along batch dimension
-                            combined_mlm_preds[field] = torch.cat(pred_list, dim=0)
-                            combined_mlm_labels[field] = torch.cat(label_list, dim=0)
-                            combined_mlm_masks[field] = torch.cat(mask_list, dim=0)
-                    except Exception as field_error:
-                        # Skip this field if concatenation fails - log as warning to make visible
-                        self.logger.warning(f"Skipping MLM accuracy for field '{field}': {field_error}")
-                        continue
-
-                # Compute accuracy only for successfully concatenated fields
-                if combined_mlm_preds and combined_mlm_labels and combined_mlm_masks:
-                    mlm_metrics = self.metrics_tracker.compute_mlm_accuracy(
-                        combined_mlm_preds,
-                        combined_mlm_labels,
-                        combined_mlm_masks
-                    )
-                    # Add 'val_' prefix to MLM metrics
-                    for key, value in mlm_metrics.items():
-                        metrics[f'val_{key}'] = value
-
-                    # Log which MLM metrics were computed
-                    mlm_fields = [k.replace('mlm_accuracy/', '') for k in mlm_metrics.keys() if k.startswith('mlm_accuracy/') and not k.endswith('_top5')]
-                    self.logger.debug(f"Computed MLM accuracy for fields: {mlm_fields}")
-                else:
-                    self.logger.warning("No MLM predictions/labels/masks available for accuracy computation")
-            except Exception as e:
-                self.logger.warning(f"Error computing MLM accuracy: {e}")
-                import traceback
-                self.logger.warning(f"Traceback: {traceback.format_exc()}")
+            # Overall MLM accuracy (macro average)
+            if field_accuracies:
+                metrics['val_mlm_accuracy/overall'] = sum(field_accuracies) / len(field_accuracies)
+                self.logger.debug(f"Computed MLM accuracy for fields: {list(mlm_correct_per_field.keys())}")
 
         self.model.train()
         return metrics
@@ -940,6 +951,8 @@ class AlignmentTrainer:
 
                     if 'mlm_loss' in loss_dict:
                         log_msg += f" | MLM: {loss_dict['mlm_loss']:.4f}"
+                    if 'mlm_acc' in loss_dict:
+                        log_msg += f" | MLM Acc: {loss_dict['mlm_acc']:.3f}"
 
                     self.logger.info(log_msg)
 
@@ -958,6 +971,8 @@ class AlignmentTrainer:
 
                         if 'mlm_loss' in loss_dict:
                             wandb_dict['train/mlm_loss'] = loss_dict['mlm_loss']
+                        if 'mlm_acc' in loss_dict:
+                            wandb_dict['train/mlm_acc'] = loss_dict['mlm_acc']
 
                         wandb.log(wandb_dict, step=self.global_step)
 
