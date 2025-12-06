@@ -260,7 +260,7 @@ class AlignmentDataset(Dataset):
                         f"First few missing: {missing_samples[:5]}"
                     )
 
-                print(f"   ✓ Validated multi-caption embeddings: {num_sensor_samples} sensor samples, "
+                print(f"   [OK] Validated multi-caption embeddings: {num_sensor_samples} sensor samples, "
                       f"{len(self.text_embeddings)} total embeddings")
             else:
                 # Old format: direct 1-to-1 matching
