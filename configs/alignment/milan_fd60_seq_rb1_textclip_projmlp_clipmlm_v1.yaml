@@ -55,7 +55,7 @@ training:
 use_wandb: true
 wandb_project: discover-v2-newpipeline
 wandb_entity: null
-wandb_name: milan_fd60_seq_rb1_textclip_projmlp_clipmlm
+wandb_name: milan_fd60_seq_rb1_textclip_projmlp_clipmlm_4capts
 wandb_tags: []
 wandb_group: null
 wandb_notes: Milan Fixed-Duration 60s - Sequence encoder with MLP projection and CLIP+MLM
