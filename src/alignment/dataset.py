@@ -157,9 +157,37 @@ class AlignmentDataset(Dataset):
         return filtered_samples, (kept_indices if num_filtered > 0 else None)
 
     def _load_text_embeddings(self) -> np.ndarray:
-        """Load pre-computed text embeddings from NPZ."""
+        """Load pre-computed text embeddings from NPZ.
+
+        Handles both old format (1 caption per sample) and new format (multiple captions per sample).
+        For new format, stores mapping for random caption selection during training.
+        """
         data = np.load(self.text_embeddings_path)
         embeddings = data['embeddings']
+
+        # Check if this is new multi-caption format
+        if 'caption_indices' in data and 'sample_ids' in data:
+            # New format: multiple captions per sample
+            sample_ids = data['sample_ids']
+            caption_indices = data['caption_indices']
+
+            # Build mapping: sample_id -> list of embedding indices
+            self.sample_to_embedding_indices = {}
+            for idx, (sample_id, cap_idx) in enumerate(zip(sample_ids, caption_indices)):
+                sample_id_str = str(sample_id)  # Ensure string key
+                if sample_id_str not in self.sample_to_embedding_indices:
+                    self.sample_to_embedding_indices[sample_id_str] = []
+                self.sample_to_embedding_indices[sample_id_str].append(idx)
+
+            print(f"   Loaded multi-caption embeddings: {len(embeddings)} total, {len(self.sample_to_embedding_indices)} unique samples")
+            print(f"   Average captions per sample: {len(embeddings) / len(self.sample_to_embedding_indices):.1f}")
+
+            self.multi_caption_mode = True
+        else:
+            # Old format: 1 caption per sample
+            self.sample_to_embedding_indices = None
+            self.multi_caption_mode = False
+            print(f"   Loaded single-caption embeddings: {len(embeddings)} samples")
 
         return embeddings
 
@@ -288,7 +316,24 @@ class AlignmentDataset(Dataset):
 
         # Get text embedding or caption (using same idx ensures alignment)
         if self.text_embeddings is not None:
-            text_embedding = torch.tensor(self.text_embeddings[idx], dtype=torch.float32)
+            # Check if we're in multi-caption mode
+            if self.multi_caption_mode and self.sample_to_embedding_indices is not None:
+                # Get sample_id for this data sample
+                sample_id = sensor_sample.get('sample_id', f'sample_{idx}')
+
+                # Get all embedding indices for this sample
+                if sample_id in self.sample_to_embedding_indices:
+                    embedding_indices = self.sample_to_embedding_indices[sample_id]
+                    # Randomly select one caption embedding
+                    import random
+                    selected_idx = random.choice(embedding_indices)
+                    text_embedding = torch.tensor(self.text_embeddings[selected_idx], dtype=torch.float32)
+                else:
+                    # Fallback: use idx directly if sample_id not found
+                    text_embedding = torch.tensor(self.text_embeddings[idx], dtype=torch.float32)
+            else:
+                # Old format: direct indexing
+                text_embedding = torch.tensor(self.text_embeddings[idx], dtype=torch.float32)
             caption = None
         else:
             text_embedding = None

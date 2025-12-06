@@ -138,6 +138,16 @@ def load_embeddings_and_labels(
     embeddings = data['embeddings']
     sample_ids_from_emb = data['sample_ids']
 
+    # Check if this is multi-caption format
+    if 'caption_indices' in data:
+        caption_indices = data['caption_indices']
+        # Keep only first caption (caption_indices == 0) for evaluation
+        first_caption_mask = caption_indices == 0
+        embeddings = embeddings[first_caption_mask]
+        sample_ids_from_emb = sample_ids_from_emb[first_caption_mask]
+        print(f"   Multi-caption format detected: using first caption per sample for evaluation")
+        print(f"   Filtered to {embeddings.shape[0]} unique samples")
+
     print(f"   Loaded {embeddings.shape[0]} embeddings of dimension {embeddings.shape[1]}")
     print(f"   Encoder: {data.get('encoder_type', ['unknown'])[0]}")
     print(f"   Model: {data.get('model_name', ['unknown'])[0]}")
@@ -477,7 +487,17 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
         encoder_name = metadata['encoder_name'].upper()
         data = np.load(emb_file)
         embeddings = data['embeddings']
-        file_sample_ids = [str(sid) for sid in data['sample_ids']]
+        file_sample_ids_raw = data['sample_ids']
+
+        # Check if this is multi-caption format
+        if 'caption_indices' in data:
+            caption_indices = data['caption_indices']
+            # Keep only first caption for evaluation
+            first_caption_mask = caption_indices == 0
+            embeddings = embeddings[first_caption_mask]
+            file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
+
+        file_sample_ids = [str(sid) for sid in file_sample_ids_raw]
 
         # Match sample_ids to get correct embeddings for this file
         file_sample_id_to_idx = {sid: i for i, sid in enumerate(file_sample_ids)}
@@ -792,7 +812,17 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
 
         data = np.load(emb_file)
         embeddings = data['embeddings']
-        file_sample_ids = [str(sid) for sid in data['sample_ids']]
+        file_sample_ids_raw = data['sample_ids']
+
+        # Check if this is multi-caption format
+        if 'caption_indices' in data:
+            caption_indices = data['caption_indices']
+            # Keep only first caption for evaluation
+            first_caption_mask = caption_indices == 0
+            embeddings = embeddings[first_caption_mask]
+            file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
+
+        file_sample_ids = [str(sid) for sid in file_sample_ids_raw]
         encoder_type = str(data.get('encoder_type', ['unknown'])[0])
         model_name = str(data.get('model_name', ['unknown'])[0])
 

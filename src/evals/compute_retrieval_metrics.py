@@ -845,7 +845,19 @@ def load_embeddings_and_labels(
                     print(f"   Using key: '{key}'")
                 else:
                     raise KeyError(f"Multiple keys found, please specify which to use")
-            return data[key]
+
+            result = data[key]
+
+            # Check if this is multi-caption format (for text embeddings only)
+            if 'caption_indices' in data and key == 'embeddings':
+                caption_indices = data['caption_indices']
+                # Keep only first caption (caption_indices == 0) for evaluation
+                first_caption_mask = caption_indices == 0
+                result = result[first_caption_mask]
+                print(f"[INFO] Multi-caption format detected in {path.name}")
+                print(f"   Using first caption per sample: {result.shape[0]} samples")
+
+            return result
         else:
             raise ValueError(f"Unsupported file format: {path.suffix} (use .npy or .npz)")
 

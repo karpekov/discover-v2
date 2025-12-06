@@ -2284,6 +2284,9 @@ class EmbeddingEvaluator:
                                        max_samples: int = None) -> Tuple[np.ndarray, List[str], List[str], List[str]]:
         """Load text embeddings from .npz file and match with labels.
 
+        For multi-caption embeddings (new format), uses only the FIRST caption per sample
+        for consistent evaluation metrics.
+
         Returns:
             Tuple of (embeddings, sample_ids, labels_l1, labels_l2)
         """
@@ -2291,6 +2294,16 @@ class EmbeddingEvaluator:
         data = np.load(embeddings_path)
         embeddings = data['embeddings']
         sample_ids_from_emb = data['sample_ids']
+
+        # Check if this is multi-caption format
+        if 'caption_indices' in data:
+            caption_indices = data['caption_indices']
+            # Keep only first caption (caption_indices == 0) for evaluation
+            first_caption_mask = caption_indices == 0
+            embeddings = embeddings[first_caption_mask]
+            sample_ids_from_emb = sample_ids_from_emb[first_caption_mask]
+            print(f"   Multi-caption format detected: using first caption per sample for evaluation")
+            print(f"   Filtered to {embeddings.shape[0]} unique samples (from {len(caption_indices)} total embeddings)")
 
         print(f"   Loaded {embeddings.shape[0]} embeddings of dimension {embeddings.shape[1]}")
         if 'encoder_type' in data:
