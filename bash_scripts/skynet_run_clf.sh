@@ -17,7 +17,7 @@ echo "RUNNING CLF for $MODEL_DIR"
 /coc/flash5/akarpekov3/anaconda3/envs/discover-v2-env/bin/python ./src/utils/train_classifier_from_pretrained_model.py \
   --model $MODEL_DIR \
   --epochs 50 \
-  --label-level l2 \
+  --label-level l1 \
   --batch-size 128 \
   --classifier linear \
   --lr 5e-4

@@ -301,9 +301,42 @@ def collate_fn(batch, dataset, model_config):
             coordinates[i, j, 0] = event.get('x', 0.0)
             coordinates[i, j, 1] = event.get('y', 0.0)
 
-            # Time delta (simplified)
-            if j > 0:
-                time_deltas[i, j] = 1.0  # Placeholder
+            # Time delta - properly compute from timestamps or use pre-computed value
+            if j == 0:
+                time_deltas[i, j] = 0.0
+            else:
+                # Priority 1: Use pre-computed delta_t_since_prev (most accurate)
+                if 'delta_t_since_prev' in event:
+                    time_deltas[i, j] = float(event['delta_t_since_prev'])
+                # Priority 2: Compute from timestamps
+                elif 'timestamp' in event and 'timestamp' in seq[j-1]:
+                    from datetime import datetime
+                    try:
+                        curr_time = event['timestamp']
+                        prev_time = seq[j-1]['timestamp']
+                        if isinstance(curr_time, str):
+                            curr_dt = datetime.fromisoformat(curr_time)
+                            prev_dt = datetime.fromisoformat(prev_time)
+                            time_deltas[i, j] = max(0.0, (curr_dt - prev_dt).total_seconds())
+                        else:
+                            # Numeric timestamp (possibly milliseconds)
+                            delta = max(0.0, curr_time - prev_time)
+                            if curr_time > 10000:  # Heuristic: Unix timestamps are large
+                                delta = delta / 1000.0
+                            time_deltas[i, j] = delta
+                    except Exception:
+                        time_deltas[i, j] = 1.0  # Fallback
+                # Priority 3: Use datetime field
+                elif 'datetime' in event and 'datetime' in seq[j-1]:
+                    from datetime import datetime
+                    try:
+                        curr_dt = datetime.fromisoformat(event['datetime'])
+                        prev_dt = datetime.fromisoformat(seq[j-1]['datetime'])
+                        time_deltas[i, j] = max(0.0, (curr_dt - prev_dt).total_seconds())
+                    except Exception:
+                        time_deltas[i, j] = 1.0  # Fallback
+                else:
+                    time_deltas[i, j] = 1.0  # Last resort fallback
 
     return {
         'sensor_data': {
@@ -459,6 +492,9 @@ def train_classifier(model, train_loader, val_loader, device, epochs=10, lr=1e-3
 
         # Train
         model.train()
+        # Keep frozen encoder in eval mode to disable dropout
+        if hasattr(model, 'encoder'):
+            model.encoder.eval()
         train_loss = 0.0
         train_preds = []
         train_labels = []
