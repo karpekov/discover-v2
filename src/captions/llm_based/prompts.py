@@ -87,16 +87,8 @@ def build_user_prompt(compact_json: Dict[str, Any], num_captions: int = 4) -> st
                 time_str += f", period of day {time_context['period_of_day']}"
             lines.append(time_str)
 
-    # Activity labels
-    if 'primary_l1' in compact_json:
-        lines.append(f"Activity (L1): {compact_json['primary_l1']}")
-
-    if 'primary_l2' in compact_json:
-        lines.append(f"Activity (L2): {compact_json['primary_l2']}")
-
-    if 'all_labels_l1' in compact_json and compact_json['all_labels_l1']:
-        labels_str = ', '.join(compact_json['all_labels_l1'])
-        lines.append(f"All activity labels (L1): {labels_str}")
+    # NOTE: We deliberately exclude activity labels to prevent label leakage to LLM
+    # The LLM should infer activities from sensor patterns, not be told the answer
 
     # Special sensors
     special_sensors = compact_json.get('special_sensors', {})
@@ -234,8 +226,7 @@ def build_multi_sample_prompt(compact_jsons: list[Dict[str, Any]],
             if tc_parts:
                 lines.append(f"Time: {' '.join(tc_parts)}")
 
-        if 'primary_l1' in cj:
-            lines.append(f"Activity: {cj['primary_l1']}")
+        # NOTE: Activity labels deliberately excluded to prevent label leakage
 
         special_sensors = cj.get('special_sensors', {})
         if special_sensors and 'special_sensors_triggered' in special_sensors:

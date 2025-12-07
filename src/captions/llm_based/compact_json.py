@@ -43,13 +43,8 @@ def to_compact_caption_json(sample: Dict[str, Any]) -> Dict[str, Any]:
     # Movement summary
     movement_summary = _extract_movement_summary(rooms_visited, room_transitions, primary_room)
 
-    # Activity labels (if available)
-    ground_truth = metadata.get('ground_truth_labels', {})
-    primary_l1 = ground_truth.get('primary_l1', None)
-    primary_l2 = ground_truth.get('primary_l2', None)
-    all_labels_l1 = ground_truth.get('all_labels_l1', [])
-
     # Build compact object
+    # NOTE: We deliberately exclude ground truth labels to prevent label leakage to LLM
     compact = {
         'sample_id': sample_id,
         'duration_seconds': duration_seconds,
@@ -61,14 +56,6 @@ def to_compact_caption_json(sample: Dict[str, Any]) -> Dict[str, Any]:
         'special_sensors': special_sensors,
         'movement_summary': movement_summary
     }
-
-    # Add activity labels if available
-    if primary_l1:
-        compact['primary_l1'] = primary_l1
-    if primary_l2:
-        compact['primary_l2'] = primary_l2
-    if all_labels_l1:
-        compact['all_labels_l1'] = all_labels_l1
 
     return compact
 

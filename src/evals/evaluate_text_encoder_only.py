@@ -36,6 +36,29 @@ Sample Usage (CASAS):
     --description_style llm_gemini_gemini_2_5_flash \
     --max_samples 10000 \
     --filter_noisy_labels
+
+  # Evaluate ALL caption styles at once
+  python src/evals/evaluate_text_encoder_only.py \
+    --embeddings_dir data/processed/casas/milan/FD_60 \
+    --captions data/processed/casas/milan/FD_60/train_captions_baseline.json \
+    --data data/processed/casas/milan/FD_60/train.json \
+    --output_dir results/evals/milan/FD_60 \
+    --split train \
+    --description_style all \
+    --max_samples 10000 \
+    --filter_noisy_labels
+
+  # Evaluate with AVERAGED caption embeddings (use all 4 captions per sample)
+  python src/evals/evaluate_text_encoder_only.py \
+    --embeddings_dir data/processed/casas/milan/FD_60 \
+    --captions data/processed/casas/milan/FD_60/train_captions_baseline.json \
+    --data data/processed/casas/milan/FD_60/train.json \
+    --output_dir results/evals/milan/FD_60 \
+    --split train \
+    --description_style all \
+    --max_samples 10000 \
+    --filter_noisy_labels \
+    --avg_captions
 """
 
 import torch
@@ -148,9 +171,14 @@ def load_embeddings_and_labels(
     embeddings_path: str,
     captions_path: str,
     data_path: str = None,
-    max_samples: int = None
+    max_samples: int = None,
+    avg_captions: bool = False
 ) -> Tuple[np.ndarray, List[str], List[str], List[str], List[str]]:
-    """Load embeddings and corresponding labels."""
+    """Load embeddings and corresponding labels.
+
+    Args:
+        avg_captions: If True, average all caption embeddings per sample. If False, use only first caption.
+    """
     print(f"\n📖 Loading embeddings from: {embeddings_path}")
     data = np.load(embeddings_path)
     embeddings = data['embeddings']
@@ -159,12 +187,37 @@ def load_embeddings_and_labels(
     # Check if this is multi-caption format
     if 'caption_indices' in data:
         caption_indices = data['caption_indices']
-        # Keep only first caption (caption_indices == 0) for evaluation
-        first_caption_mask = caption_indices == 0
-        embeddings = embeddings[first_caption_mask]
-        sample_ids_from_emb = sample_ids_from_emb[first_caption_mask]
-        print(f"   Multi-caption format detected: using first caption per sample for evaluation")
-        print(f"   Filtered to {embeddings.shape[0]} unique samples")
+
+        if avg_captions:
+            # Average all captions per sample
+            print(f"   Multi-caption format detected: averaging all captions per sample")
+            unique_sample_ids = []
+            averaged_embeddings = []
+
+            # Group by sample_id and average
+            from collections import defaultdict
+            sample_embeddings = defaultdict(list)
+
+            for i, (sid, emb) in enumerate(zip(sample_ids_from_emb, embeddings)):
+                sample_embeddings[str(sid)].append(emb)
+
+            # Average embeddings for each sample
+            for sid in sorted(sample_embeddings.keys()):
+                unique_sample_ids.append(sid)
+                avg_emb = np.mean(sample_embeddings[sid], axis=0)
+                averaged_embeddings.append(avg_emb)
+
+            embeddings = np.array(averaged_embeddings)
+            sample_ids_from_emb = np.array(unique_sample_ids)
+            print(f"   Averaged {len(sample_embeddings[unique_sample_ids[0]])} captions per sample")
+            print(f"   Result: {embeddings.shape[0]} unique samples")
+        else:
+            # Keep only first caption (caption_indices == 0) for evaluation
+            first_caption_mask = caption_indices == 0
+            embeddings = embeddings[first_caption_mask]
+            sample_ids_from_emb = sample_ids_from_emb[first_caption_mask]
+            print(f"   Multi-caption format detected: using first caption per sample for evaluation")
+            print(f"   Filtered to {embeddings.shape[0]} unique samples")
 
     print(f"   Loaded {embeddings.shape[0]} embeddings of dimension {embeddings.shape[1]}")
     print(f"   Encoder: {data.get('encoder_type', ['unknown'])[0]}")
@@ -471,7 +524,8 @@ def evaluate_predictions(true_labels: List[str], pred_labels: List[str], label_t
 def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_path: str,
                                 output_prefix: str, label_colors: Dict, label_colors_l2: Dict,
                                 sample_id_to_label_l1: Dict[str, str], sample_id_to_label_l2: Dict[str, str],
-                                selected_sample_ids: List[str], split: str, max_samples: int = 10000, perplexity: int = 30):
+                                selected_sample_ids: List[str], split: str, max_samples: int = 10000, perplexity: int = 30,
+                                avg_captions: bool = False):
     """Create t-SNE comparison grids for embeddings from a specific split.
 
     Args:
@@ -513,7 +567,10 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
     for idx, emb_file in enumerate(embedding_files):
         print(f"\n🔄 Processing {emb_file.name} for t-SNE...")
         metadata = extract_metadata_from_paths(str(emb_file))
-        encoder_name = metadata['encoder_name'].upper()
+        encoder_type = metadata['encoder_name'].upper()
+        caption_style = metadata['caption_style']
+        # Create display label with both encoder and caption style
+        encoder_name = f"{encoder_type}\n({caption_style})"
         data = np.load(emb_file)
         embeddings = data['embeddings']
         file_sample_ids_raw = data['sample_ids']
@@ -525,6 +582,34 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
             first_caption_mask = caption_indices == 0
             embeddings = embeddings[first_caption_mask]
             file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
+
+        # Check if this is multi-caption format (for t-SNE)
+        if 'caption_indices' in data:
+            caption_indices = data['caption_indices']
+
+            if avg_captions:
+                # Average all captions per sample
+                from collections import defaultdict
+                sample_embeddings_tsne = defaultdict(list)
+
+                for i, (sid, emb) in enumerate(zip(file_sample_ids_raw, embeddings)):
+                    sample_embeddings_tsne[str(sid)].append(emb)
+
+                # Average embeddings for each sample
+                unique_sample_ids_tsne = []
+                averaged_embeddings_tsne = []
+                for sid in sorted(sample_embeddings_tsne.keys()):
+                    unique_sample_ids_tsne.append(sid)
+                    avg_emb = np.mean(sample_embeddings_tsne[sid], axis=0)
+                    averaged_embeddings_tsne.append(avg_emb)
+
+                embeddings = np.array(averaged_embeddings_tsne)
+                file_sample_ids_raw = np.array(unique_sample_ids_tsne)
+            else:
+                # Keep only first caption for evaluation
+                first_caption_mask = caption_indices == 0
+                embeddings = embeddings[first_caption_mask]
+                file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
 
         file_sample_ids = [str(sid) for sid in file_sample_ids_raw]
 
@@ -561,7 +646,7 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
             color = label_colors.get(label, plt.cm.tab20(len([l for l in unique_labels_l1 if l < label]) % 20))
             ax_l1.scatter(projection[mask, 0], projection[mask, 1], c=[color], label=label.replace('_', ' '),
                          alpha=0.6, s=20, edgecolors='white', linewidth=0.3)
-        ax_l1.set_title(f'{encoder_name}', fontsize=12, fontweight='bold')
+        ax_l1.set_title(encoder_name, fontsize=11, fontweight='bold')
         ax_l1.set_xlabel('t-SNE 1', fontsize=10)
         ax_l1.set_ylabel('t-SNE 2', fontsize=10)
         ax_l1.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
@@ -574,7 +659,7 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
             color = label_colors_l2.get(label, plt.cm.tab10(len([l for l in unique_labels_l2 if l < label]) % 10))
             ax_l2.scatter(projection[mask, 0], projection[mask, 1], c=[color], label=label.replace('_', ' '),
                          alpha=0.6, s=20, edgecolors='white', linewidth=0.3)
-        ax_l2.set_title(f'{encoder_name}', fontsize=12, fontweight='bold')
+        ax_l2.set_title(encoder_name, fontsize=11, fontweight='bold')
         ax_l2.set_xlabel('t-SNE 1', fontsize=10)
         ax_l2.set_ylabel('t-SNE 2', fontsize=10)
         ax_l2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
@@ -588,12 +673,22 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
     split = first_metadata['split']
     caption_style = first_metadata['caption_style']
 
-    fig_l1.suptitle(f'Embedding Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L1 Labels\n'
-                    f'{caption_style.capitalize()} Captions - All Encoders',
+    # For "all" mode, show "All Caption Styles", otherwise show the specific style
+    if first_metadata['caption_style'] == 'all' or len(embedding_files) > 1:
+        style_text = 'All Caption Styles Comparison'
+    else:
+        style_text = f'{caption_style.capitalize()} Captions'
+
+    # Add averaging info if enabled
+    if avg_captions:
+        style_text += ' (Averaged)'
+
+    fig_l1.suptitle(f'Caption Style Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L1 Labels\n'
+                    f'{style_text}',
                     fontsize=16, fontweight='bold', y=0.995)
 
-    fig_l2.suptitle(f'Embedding Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L2 Labels\n'
-                    f'{caption_style.capitalize()} Captions - All Encoders',
+    fig_l2.suptitle(f'Caption Style Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L2 Labels\n'
+                    f'{style_text}',
                     fontsize=16, fontweight='bold', y=0.995)
 
     fig_l1.tight_layout()
@@ -641,13 +736,15 @@ def create_confusion_matrix_plot(confusion_matrix_data: np.ndarray, labels: List
     plt.close(fig)
 
 
-def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str):
-    """Create comparison plot across all encoders."""
-    print("\n🔄 Creating encoder comparison plot...")
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
-    fig.suptitle('Text Encoder Comparison - All Encoders', fontsize=16, fontweight='bold')
+def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str, avg_captions: bool = False):
+    """Create comparison plot across all encoder+caption combinations."""
+    print("\n🔄 Creating encoder+caption comparison plot...")
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(18, 12))
+    title_suffix = ' (Averaged Captions)' if avg_captions else ''
+    fig.suptitle(f'Caption Style Comparison (Text Embeddings Only){title_suffix}', fontsize=16, fontweight='bold')
 
     encoder_names = []
+    display_labels = []
     l1_f1_macro = []
     l1_f1_weighted = []
     l1_accuracy = []
@@ -657,6 +754,11 @@ def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str)
 
     for encoder_name, results in sorted(all_results.items()):
         encoder_names.append(encoder_name)
+        # Create display label: encoder (caption_style)
+        encoder_type = results.get('encoder_type', encoder_name.split('_')[0])
+        caption_style = results.get('caption_style', 'unknown')
+        display_label = f"{encoder_type}\n({caption_style})"
+        display_labels.append(display_label)
         l1_f1_macro.append(results['metrics_l1'].get('f1_macro', 0))
         l1_f1_weighted.append(results['metrics_l1'].get('f1_weighted', 0))
         l1_accuracy.append(results['metrics_l1'].get('accuracy', 0))
@@ -669,11 +771,11 @@ def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str)
 
     bars1 = ax1.bar(x - width/2, l1_f1_macro, width, label='F1 Macro', alpha=0.8)
     bars2 = ax1.bar(x + width/2, l1_f1_weighted, width, label='F1 Weighted', alpha=0.8)
-    ax1.set_xlabel('Encoder')
+    ax1.set_xlabel('Caption Style')
     ax1.set_ylabel('F1 Score')
     ax1.set_title('L1 (Primary) Labels - F1 Scores')
     ax1.set_xticks(x)
-    ax1.set_xticklabels(encoder_names, rotation=45, ha='right')
+    ax1.set_xticklabels(display_labels, rotation=0, ha='center', fontsize=9)
     ax1.legend()
     ax1.grid(True, alpha=0.3, axis='y')
     ax1.set_ylim(0, 1)
@@ -687,11 +789,11 @@ def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str)
 
     bars1 = ax2.bar(x - width/2, l2_f1_macro, width, label='F1 Macro', alpha=0.8)
     bars2 = ax2.bar(x + width/2, l2_f1_weighted, width, label='F1 Weighted', alpha=0.8)
-    ax2.set_xlabel('Encoder')
+    ax2.set_xlabel('Caption Style')
     ax2.set_ylabel('F1 Score')
     ax2.set_title('L2 (Secondary) Labels - F1 Scores')
     ax2.set_xticks(x)
-    ax2.set_xticklabels(encoder_names, rotation=45, ha='right')
+    ax2.set_xticklabels(display_labels, rotation=0, ha='center', fontsize=9)
     ax2.legend()
     ax2.grid(True, alpha=0.3, axis='y')
     ax2.set_ylim(0, 1)
@@ -703,14 +805,14 @@ def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str)
                 ax2.annotate(f'{height:.3f}', xy=(bar.get_x() + bar.get_width() / 2, height),
                              xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
 
-    bars = ax3.bar(encoder_names, l1_accuracy, alpha=0.8)
-    ax3.set_xlabel('Encoder')
+    bars = ax3.bar(x, l1_accuracy, alpha=0.8)
+    ax3.set_xlabel('Caption Style')
     ax3.set_ylabel('Accuracy')
     ax3.set_title('L1 (Primary) Labels - Accuracy')
-    ax3.tick_params(axis='x', rotation=45)
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(display_labels, rotation=0, ha='center', fontsize=9)
     ax3.grid(True, alpha=0.3, axis='y')
     ax3.set_ylim(0, 1)
-    plt.setp(ax3.xaxis.get_majorticklabels(), rotation=45, ha='right')
 
     for bar in bars:
         height = bar.get_height()
@@ -718,14 +820,14 @@ def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str)
             ax3.annotate(f'{height:.3f}', xy=(bar.get_x() + bar.get_width() / 2, height),
                          xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
 
-    bars = ax4.bar(encoder_names, l2_accuracy, alpha=0.8)
-    ax4.set_xlabel('Encoder')
+    bars = ax4.bar(x, l2_accuracy, alpha=0.8)
+    ax4.set_xlabel('Caption Style')
     ax4.set_ylabel('Accuracy')
     ax4.set_title('L2 (Secondary) Labels - Accuracy')
-    ax4.tick_params(axis='x', rotation=45)
+    ax4.set_xticks(x)
+    ax4.set_xticklabels(display_labels, rotation=0, ha='center', fontsize=9)
     ax4.grid(True, alpha=0.3, axis='y')
     ax4.set_ylim(0, 1)
-    plt.setp(ax4.xaxis.get_majorticklabels(), rotation=45, ha='right')
 
     for bar in bars:
         height = bar.get_height()
@@ -742,7 +844,8 @@ def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str)
 def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_path: str,
                                  output_dir: str, split: str = 'train', description_style: str = 'baseline',
                                  house_name: str = 'milan', max_samples: int = 10000, k_neighbors: int = 1,
-                                 filter_noisy: bool = True, perplexity: int = 30, verbose: bool = False):
+                                 filter_noisy: bool = True, perplexity: int = 30, verbose: bool = False,
+                                 avg_captions: bool = False):
     """Run comprehensive evaluation for all encoders in a directory."""
     print("="*80)
     print("COMPREHENSIVE TEXT ENCODER EVALUATION")
@@ -755,32 +858,63 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
     print(f"🔢 Max samples: {max_samples}")
     print(f"🔍 K-neighbors: {k_neighbors}")
     print(f"🧹 Filter noisy labels: {filter_noisy}")
+    print(f"📊 Average all captions: {avg_captions}")
 
     # Create output directory with text_only/description_style structure
-    output_path = Path(output_dir) / "text_only" / description_style
+    # Add suffix if using averaged captions
+    if avg_captions:
+        output_path = Path(output_dir) / "text_only" / f"{description_style}_averaged"
+    else:
+        output_path = Path(output_dir) / "text_only" / description_style
     output_path.mkdir(parents=True, exist_ok=True)
     print(f"📂 Full output path: {output_path}")
 
     embeddings_dir_path = Path(embeddings_dir)
-    # Look for embedding files matching the split and description style
-    # Handle both regular and LLM caption styles:
-    # Regular: train_embeddings_baseline_clip.npz
-    # LLM: train_embeddings_llm_gemini_gemini_2_5_flash_clip.npz
-    pattern = f"{split}_embeddings_{description_style}_*.npz"
-    embedding_files = sorted(embeddings_dir_path.glob(pattern))
 
-    if not embedding_files:
-        print(f"\n❌ No embedding files found matching pattern: {pattern}")
-        print(f"   Looking in: {embeddings_dir_path}")
-        # Try broader pattern to see what files exist
-        all_files = list(embeddings_dir_path.glob(f"{split}_embeddings_*.npz"))
-        if all_files:
-            print(f"\n   Found {len(all_files)} files with broader pattern:")
-            for f in all_files:
+    # If description_style is "all", find all embedding files for this split
+    if description_style == "all":
+        print(f"\n🔍 Auto-discovering all embedding files for split '{split}'...")
+        embedding_files = sorted(embeddings_dir_path.glob(f"{split}_embeddings_*.npz"))
+
+        if not embedding_files:
+            print(f"\n❌ No embedding files found for split: {split}")
+            print(f"   Looking in: {embeddings_dir_path}")
+            return
+
+        print(f"\n✅ Found {len(embedding_files)} embedding file(s):")
+        for f in embedding_files:
+            # Extract description style from filename
+            # Format: {split}_embeddings_{description_style}_{encoder}.npz
+            parts = f.stem.split('_embeddings_')
+            if len(parts) == 2:
+                style_and_encoder = parts[1]
+                # Remove encoder suffix (last part after underscore)
+                style_parts = style_and_encoder.rsplit('_', 1)
+                extracted_style = style_parts[0] if len(style_parts) > 1 else style_and_encoder
+                print(f"     - {f.name} → style: '{extracted_style}'")
+            else:
                 print(f"     - {f.name}")
-            print(f"\n   💡 Tip: Make sure description_style matches the embedding file names")
-            print(f"   💡 For LLM captions, use: --description_style llm_gemini_gemini_2_5_flash")
-        return
+    else:
+        # Look for embedding files matching the split and description style
+        # Handle both regular and LLM caption styles:
+        # Regular: train_embeddings_baseline_clip.npz
+        # LLM: train_embeddings_llm_gemini_gemini_2_5_flash_clip.npz
+        pattern = f"{split}_embeddings_{description_style}_*.npz"
+        embedding_files = sorted(embeddings_dir_path.glob(pattern))
+
+        if not embedding_files:
+            print(f"\n❌ No embedding files found matching pattern: {pattern}")
+            print(f"   Looking in: {embeddings_dir_path}")
+            # Try broader pattern to see what files exist
+            all_files = list(embeddings_dir_path.glob(f"{split}_embeddings_*.npz"))
+            if all_files:
+                print(f"\n   Found {len(all_files)} files with broader pattern:")
+                for f in all_files:
+                    print(f"     - {f.name}")
+                print(f"\n   💡 Tip: Make sure description_style matches the embedding file names")
+                print(f"   💡 For LLM captions, use: --description_style llm_gemini_gemini_2_5_flash")
+                print(f"   💡 To evaluate all caption styles at once, use: --description_style all")
+            return
 
     print(f"\n📂 Found {len(embedding_files)} embedding files for split '{split}' with style '{description_style}':")
     for f in embedding_files:
@@ -796,7 +930,7 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
     print("="*80)
 
     _, sample_ids_all, labels_l1_all, labels_l2_all, captions_all = load_embeddings_and_labels(
-        str(embedding_files[0]), captions_path, data_path=data_path, max_samples=None
+        str(embedding_files[0]), captions_path, data_path=data_path, max_samples=None, avg_captions=avg_captions
     )
 
     # Track sample_ids through filtering and sampling (ensure they're strings)
@@ -837,10 +971,15 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
 
     for emb_file in embedding_files:
         encoder_metadata = extract_metadata_from_paths(str(emb_file))
-        encoder_name = encoder_metadata['encoder_name']
+        encoder_type_only = encoder_metadata['encoder_name']
+        caption_style_from_file = encoder_metadata['caption_style']
+
+        # Create a combined identifier: encoder_captionStyle
+        # This allows us to differentiate between same encoder with different captions
+        encoder_name = f"{encoder_type_only}_{caption_style_from_file}"
 
         print(f"\n{'='*80}")
-        print(f"EVALUATING: {encoder_name.upper()}")
+        print(f"EVALUATING: {encoder_type_only.upper()} with {caption_style_from_file.upper()} captions")
         print(f"{'='*80}")
 
         data = np.load(emb_file)
@@ -850,10 +989,32 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
         # Check if this is multi-caption format
         if 'caption_indices' in data:
             caption_indices = data['caption_indices']
-            # Keep only first caption for evaluation
-            first_caption_mask = caption_indices == 0
-            embeddings = embeddings[first_caption_mask]
-            file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
+
+            if avg_captions:
+                # Average all captions per sample (ENCODER LOOP)
+                print(f"   Averaging {len(set(file_sample_ids_raw))} samples with {len(embeddings)//len(set(file_sample_ids_raw))} captions each...")
+                from collections import defaultdict
+                sample_embeddings_eval = defaultdict(list)
+
+                for i, (sid, emb) in enumerate(zip(file_sample_ids_raw, embeddings)):
+                    sample_embeddings_eval[str(sid)].append(emb)
+
+                # Average embeddings for each sample
+                unique_sample_ids_eval = []
+                averaged_embeddings_eval = []
+                for sid in sorted(sample_embeddings_eval.keys()):
+                    unique_sample_ids_eval.append(sid)
+                    avg_emb = np.mean(sample_embeddings_eval[sid], axis=0)
+                    averaged_embeddings_eval.append(avg_emb)
+
+                embeddings = np.array(averaged_embeddings_eval)
+                file_sample_ids_raw = np.array(unique_sample_ids_eval)
+                print(f"   ✓ Averaged to {embeddings.shape[0]} samples (shape: {embeddings.shape})")
+            else:
+                # Keep only first caption for evaluation
+                first_caption_mask = caption_indices == 0
+                embeddings = embeddings[first_caption_mask]
+                file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
 
         file_sample_ids = [str(sid) for sid in file_sample_ids_raw]
         encoder_type = str(data.get('encoder_type', ['unknown'])[0])
@@ -939,7 +1100,9 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
             'metrics_l1': metrics_l1,
             'metrics_l2': metrics_l2,
             'predictions_l1': pred_labels_l1,
-            'predictions_l2': pred_labels_l2
+            'predictions_l2': pred_labels_l2,
+            'encoder_type': encoder_type_only,
+            'caption_style': caption_style_from_file
         }
 
         # Save confusion matrices with encoder prefix in the same folder (no subfolders)
@@ -955,6 +1118,8 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
 
         encoder_results = {
             'encoder_name': encoder_name,
+            'encoder_type': encoder_type_only,
+            'caption_style': caption_style_from_file,
             'split': split,
             'dataset': dataset_name,
             'description_style': description_style,
@@ -998,14 +1163,15 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
                                 label_colors=label_colors, label_colors_l2=label_colors_l2,
                                 sample_id_to_label_l1=sample_id_to_label_l1, sample_id_to_label_l2=sample_id_to_label_l2,
                                 selected_sample_ids=selected_sample_ids,
-                                split=split, max_samples=max_samples, perplexity=perplexity)
+                                split=split, max_samples=max_samples, perplexity=perplexity, avg_captions=avg_captions)
 
     print("\n" + "="*80)
     print("CREATING ENCODER COMPARISON PLOT")
     print("="*80)
 
     create_encoder_comparison_plot(all_results=all_results,
-                                   save_path=str(output_path / f"{split}_encoder_comparison.png"))
+                                   save_path=str(output_path / f"{split}_encoder_comparison.png"),
+                                   avg_captions=avg_captions)
 
     summary = {
         'dataset': dataset_name,
@@ -1038,20 +1204,22 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
 
     print(f"\n📊 Dataset: {dataset_name} ({split})")
     print(f"📊 Samples: {len(selected_sample_ids)}")
-    print(f"📊 Encoders evaluated: {len(all_results)}")
+    print(f"📊 Caption styles evaluated: {len(all_results)}")
 
-    print(f"\n{'Encoder':<15} {'L1 F1-Macro':<12} {'L1 F1-Weight':<12} {'L1 Acc':<12} {'L2 F1-Macro':<12} {'L2 F1-Weight':<12} {'L2 Acc':<12}")
-    print("="*90)
+    print(f"\n{'Encoder':<10} {'Caption Style':<30} {'L1 F1-M':<10} {'L1 F1-W':<10} {'L1 Acc':<10} {'L2 F1-M':<10} {'L2 F1-W':<10} {'L2 Acc':<10}")
+    print("="*100)
 
     for encoder_name in sorted(all_results.keys()):
         results = all_results[encoder_name]
-        print(f"{encoder_name:<15} "
-              f"{results['metrics_l1'].get('f1_macro', 0):<12.4f} "
-              f"{results['metrics_l1'].get('f1_weighted', 0):<12.4f} "
-              f"{results['metrics_l1'].get('accuracy', 0):<12.4f} "
-              f"{results['metrics_l2'].get('f1_macro', 0):<12.4f} "
-              f"{results['metrics_l2'].get('f1_weighted', 0):<12.4f} "
-              f"{results['metrics_l2'].get('accuracy', 0):<12.4f}")
+        encoder_type = results.get('encoder_type', encoder_name.split('_')[0])
+        caption_style = results.get('caption_style', 'unknown')
+        print(f"{encoder_type:<10} {caption_style:<30} "
+              f"{results['metrics_l1'].get('f1_macro', 0):<10.4f} "
+              f"{results['metrics_l1'].get('f1_weighted', 0):<10.4f} "
+              f"{results['metrics_l1'].get('accuracy', 0):<10.4f} "
+              f"{results['metrics_l2'].get('f1_macro', 0):<10.4f} "
+              f"{results['metrics_l2'].get('f1_weighted', 0):<10.4f} "
+              f"{results['metrics_l2'].get('accuracy', 0):<10.4f}")
 
     print(f"\n✅ All results saved to: {output_path}")
 
@@ -1085,7 +1253,7 @@ Example usage:
     parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'],
                        help='Which data split to evaluate')
     parser.add_argument('--description_style', type=str, default='baseline',
-                       help='Style of label descriptions (baseline, sourish, or llm_backend_model for LLM captions)')
+                       help='Style of label descriptions (baseline, sourish, llm_backend_model, or "all" to evaluate all found embeddings)')
     parser.add_argument('--house_name', type=str, default='milan',
                        help='House name for label descriptions')
     parser.add_argument('--max_samples', type=int, default=10000,
@@ -1098,6 +1266,8 @@ Example usage:
                        help='t-SNE perplexity parameter')
     parser.add_argument('--verbose', action='store_true',
                        help='Enable verbose output')
+    parser.add_argument('--avg_captions', action='store_true',
+                       help='Average all caption embeddings per sample (default: use only first caption)')
 
     args = parser.parse_args()
 
@@ -1113,7 +1283,8 @@ Example usage:
         k_neighbors=args.k_neighbors,
         filter_noisy=args.filter_noisy_labels,
         perplexity=args.perplexity,
-        verbose=args.verbose
+        verbose=args.verbose,
+        avg_captions=args.avg_captions
     )
 
     print(f"\n✅ Comprehensive evaluation complete! Results saved in: {args.output_dir}")
