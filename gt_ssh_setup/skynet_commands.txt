@@ -3,9 +3,25 @@
 # - RAIL-specific: https://docs.google.com/document/d/1YG5Uvap1jMdrKYjVZou7epkZqyFl7UF1IEpFowqlgiQ/edit?tab=t.0
 
 ssh akarpekov3@sky1.cc.gatech.edu
+ssh akarpekov3@sky2.cc.gatech.edu
 
 # Allocate resources:
 srun --gpus=a40:1 --cpus-per-task=16 -p rail-lab -J "dicover-runtime" --pty bash
 
+# Run sbatch file
+sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1.yaml
+sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nosensor_v1.yaml
+sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nocoords_v1.yaml
+
 # Copy files: --> rsync
-rsync ~/Desktop/cursor\ shortcuts akarpekov3@sky2.cc.gatech.edu:/coc/flash5/akarpekov3/discover-v2
+rsync -rv ~/Desktop/cursor\ shortcuts akarpekov3@sky2.cc.gatech.edu:/coc/flash5/akarpekov3/discover-v2
+
+rm -r slurm ; for cfgnm in $(ls config); do sbatch run_batch.sh $cfgnm; done ; watch squeue --me
+
+# Job monitoring
+squeue
+squeue -p rail-lab
+squeue --me
+
+scancel --me
+scancel 123456

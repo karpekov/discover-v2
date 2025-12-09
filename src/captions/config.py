@@ -54,26 +54,33 @@ class RuleBasedCaptionConfig(CaptionConfig):
 
 @dataclass
 class LLMCaptionConfig(CaptionConfig):
-    """Configuration for LLM-based caption generation (placeholder)."""
+    """Configuration for LLM-based caption generation."""
 
     caption_style: str = 'llm'
 
-    # LLM settings
-    llm_provider: str = 'openai'  # 'openai', 'anthropic', 'google', 'local'
-    llm_model: str = 'gpt-4'  # Model name
+    # Backend settings
+    backend_type: str = 'openai'  # 'gemma', 'llama', 'openai', 'gemini'
+    model_name: str = 'gpt-4o-mini'  # Model identifier
 
-    # API settings
+    # API settings (for remote backends)
     api_key: Optional[str] = None
-    api_base_url: Optional[str] = None
 
-    # Local model settings
-    local_model_path: Optional[str] = None  # For local models like Llama
+    # Device settings (for local backends)
+    device: Optional[str] = None  # None = auto, 'cuda', 'cpu', 'mps'
 
     # Generation parameters
-    temperature: float = 0.7
-    max_tokens: int = 150
-    top_p: float = 0.9
+    temperature: float = 0.9
+    max_tokens: int = 512
+    top_p: float = 0.95
 
-    # Prompt template
-    prompt_template: Optional[str] = None
+    # Legacy compatibility
+    @property
+    def llm_provider(self) -> str:
+        """Legacy compatibility for llm_provider."""
+        return self.backend_type
+
+    @property
+    def llm_model(self) -> str:
+        """Legacy compatibility for llm_model."""
+        return self.model_name
 

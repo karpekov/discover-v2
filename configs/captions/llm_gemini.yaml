@@ -1,0 +1,20 @@
+# LLM Caption Generation Config - Google Gemini 1.5 Flash
+# Use with: python src/captions/generate_llm_captions.py --config configs/captions/llm_gemini.yaml --data-dir <path>
+
+# Backend settings
+backend_type: gemini
+model_name: gemini-2.5-flash  # or gemini-1.5-pro for better quality
+
+# Generation settings
+num_captions_per_sample: 4
+temperature: 0.9
+
+# API key (optional - can also set via GOOGLE_API_KEY env var or --api-key arg)
+# api_key: ...
+
+# Dataset info
+dataset_name: milan
+
+# Random seed for reproducibility
+random_seed: 42
+

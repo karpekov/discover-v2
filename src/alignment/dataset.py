@@ -31,7 +31,8 @@ class AlignmentDataset(Dataset):
         vocab: Optional[Dict[str, Dict[str, int]]] = None,
         device: Optional[torch.device] = None,
         span_masker: Optional[Any] = None,
-        vocab_sizes: Optional[Dict[str, int]] = None
+        vocab_sizes: Optional[Dict[str, int]] = None,
+        categorical_fields: Optional[List[str]] = None
     ):
         """
         Args:
@@ -39,19 +40,32 @@ class AlignmentDataset(Dataset):
             text_embeddings_path: Path to pre-computed text embeddings NPZ (Step 4 output)
             captions_path: Path to captions JSON (Step 3 output) - alternative to text_embeddings_path
             text_encoder_config_path: Path to text encoder config YAML - required if using captions_path
-            vocab: Vocabulary mapping for categorical features
+            vocab: Vocabulary mapping for categorical features (can contain more fields than needed)
             device: Device for tensors
             span_masker: Optional SpanMasker for MLM (if mlm_weight > 0)
             vocab_sizes: Vocabulary sizes for each field (required for MLM)
+            categorical_fields: List of fields to use from vocab (if None, uses all fields in vocab)
         """
         self.data_path = data_path
         self.text_embeddings_path = text_embeddings_path
         self.captions_path = captions_path
         self.text_encoder_config_path = text_encoder_config_path
-        self.vocab = vocab
+        self.full_vocab = vocab  # Keep full vocab for reference
         self.device = device or torch.device('cpu')
         self.span_masker = span_masker
         self.vocab_sizes = vocab_sizes
+
+        # Multi-caption mode attributes (set by _load_text_embeddings)
+        self.multi_caption_mode = False
+        self.sample_to_embedding_indices = None
+
+        # Filter vocab to only used fields
+        if categorical_fields is not None:
+            self.vocab = {field: vocab[field] for field in categorical_fields if field in vocab}
+            self.categorical_fields = categorical_fields
+        else:
+            self.vocab = vocab
+            self.categorical_fields = list(vocab.keys()) if vocab else []
 
         # Load sensor data (with filtering)
         all_sensor_data, kept_indices = self._load_sensor_data()
@@ -60,12 +74,22 @@ class AlignmentDataset(Dataset):
         # Load text embeddings (pre-computed or on-the-fly) and filter to match sensor data
         if text_embeddings_path:
             all_text_embeddings = self._load_text_embeddings()
-            # Filter text embeddings to match filtered sensor data
-            if kept_indices is not None:
-                import numpy as np
-                self.text_embeddings = all_text_embeddings[np.array(kept_indices)]
+
+            # In multi-caption mode, validate that all sensor samples have embeddings
+            if self.multi_caption_mode:
+                # No array filtering needed - we use sample_id matching in __getitem__
+                # Just verify all sensor samples are present in the mapping
+                for sample in self.sensor_data:
+                    sample_id = sample.get('sample_id', 'unknown')
+                    if sample_id not in self.sample_to_embedding_indices:
+                        print(f"Warning: No embeddings found for sample {sample_id}")
             else:
-                self.text_embeddings = all_text_embeddings
+                # Old format: filter embeddings by array index
+                if kept_indices is not None:
+                    import numpy as np
+                    all_text_embeddings = all_text_embeddings[np.array(kept_indices)]
+
+            self.text_embeddings = all_text_embeddings
             self.text_encoder = None
         elif captions_path and text_encoder_config_path:
             all_captions = self._load_captions()
@@ -83,7 +107,7 @@ class AlignmentDataset(Dataset):
         self._validate_data()
 
     def _load_sensor_data(self):
-        """Load sensor data from JSON and filter out samples with UNK sensors.
+        """Load sensor data from JSON and filter out samples with UNK sensors (if sensor field is used).
 
         Returns:
             Tuple of (filtered_samples, kept_indices)
@@ -96,6 +120,15 @@ class AlignmentDataset(Dataset):
             samples = data['samples']
         else:
             samples = data
+
+        # Only filter by sensors if 'sensor' is in the categorical_fields we're using
+        # Check in self.vocab (filtered) rather than full_vocab
+        should_filter_sensors = 'sensor' in self.vocab
+
+        if not should_filter_sensors:
+            # No sensor filtering needed - return all samples
+            print(f"Sensor field not in categorical_fields - skipping sensor UNK filtering")
+            return samples, None
 
         # Filter out samples with UNK sensors
         filtered_samples = []
@@ -120,12 +153,10 @@ class AlignmentDataset(Dataset):
                     has_unk = True
                     break
 
-                # Also check if sensor_id is not in vocab (will become UNK during encoding)
-                if self.vocab and 'sensor' in self.vocab:
-                    # Sensor not in vocab (excluding 'UNK' which we already handled)
-                    if sensor_id not in self.vocab['sensor']:
-                        has_unk = True
-                        break
+                # Check if sensor_id is not in vocab (will become UNK during encoding)
+                if sensor_id not in self.vocab['sensor']:
+                    has_unk = True
+                    break
 
             if not has_unk:
                 filtered_samples.append(sample)
@@ -140,9 +171,37 @@ class AlignmentDataset(Dataset):
         return filtered_samples, (kept_indices if num_filtered > 0 else None)
 
     def _load_text_embeddings(self) -> np.ndarray:
-        """Load pre-computed text embeddings from NPZ."""
+        """Load pre-computed text embeddings from NPZ.
+
+        Handles both old format (1 caption per sample) and new format (multiple captions per sample).
+        For new format, stores mapping for random caption selection during training.
+        """
         data = np.load(self.text_embeddings_path)
         embeddings = data['embeddings']
+
+        # Check if this is new multi-caption format
+        if 'caption_indices' in data and 'sample_ids' in data:
+            # New format: multiple captions per sample
+            sample_ids = data['sample_ids']
+            caption_indices = data['caption_indices']
+
+            # Build mapping: sample_id -> list of embedding indices
+            self.sample_to_embedding_indices = {}
+            for idx, (sample_id, cap_idx) in enumerate(zip(sample_ids, caption_indices)):
+                sample_id_str = str(sample_id)  # Ensure string key
+                if sample_id_str not in self.sample_to_embedding_indices:
+                    self.sample_to_embedding_indices[sample_id_str] = []
+                self.sample_to_embedding_indices[sample_id_str].append(idx)
+
+            print(f"   Loaded multi-caption embeddings: {len(embeddings)} total, {len(self.sample_to_embedding_indices)} unique samples")
+            print(f"   Average captions per sample: {len(embeddings) / len(self.sample_to_embedding_indices):.1f}")
+
+            self.multi_caption_mode = True
+        else:
+            # Old format: 1 caption per sample
+            self.sample_to_embedding_indices = None
+            self.multi_caption_mode = False
+            print(f"   Loaded single-caption embeddings: {len(embeddings)} samples")
 
         return embeddings
 
@@ -186,17 +245,42 @@ class AlignmentDataset(Dataset):
         num_sensor_samples = len(self.sensor_data)
 
         if self.text_embeddings is not None:
-            num_text_samples = len(self.text_embeddings)
+            # Check if we're in multi-caption mode
+            if self.multi_caption_mode and self.sample_to_embedding_indices is not None:
+                # In multi-caption mode, validate that we have embeddings for all sensor samples
+                missing_samples = []
+                for sample in self.sensor_data:
+                    sample_id = sample.get('sample_id', 'unknown')
+                    if sample_id not in self.sample_to_embedding_indices:
+                        missing_samples.append(sample_id)
+
+                if missing_samples:
+                    raise ValueError(
+                        f"Missing embeddings for {len(missing_samples)} sensor samples. "
+                        f"First few missing: {missing_samples[:5]}"
+                    )
+
+                print(f"   [OK] Validated multi-caption embeddings: {num_sensor_samples} sensor samples, "
+                      f"{len(self.text_embeddings)} total embeddings")
+            else:
+                # Old format: direct 1-to-1 matching
+                num_text_samples = len(self.text_embeddings)
+                if num_sensor_samples != num_text_samples:
+                    raise ValueError(
+                        f"Mismatch between sensor samples ({num_sensor_samples}) "
+                        f"and text samples ({num_text_samples}). "
+                        f"Sensor data and text data must have the same number of samples "
+                        f"and be ordered consistently."
+                    )
         else:
             num_text_samples = len(self.captions)
-
-        if num_sensor_samples != num_text_samples:
-            raise ValueError(
-                f"Mismatch between sensor samples ({num_sensor_samples}) "
-                f"and text samples ({num_text_samples}). "
-                f"Sensor data and text data must have the same number of samples "
-                f"and be ordered consistently."
-            )
+            if num_sensor_samples != num_text_samples:
+                raise ValueError(
+                    f"Mismatch between sensor samples ({num_sensor_samples}) "
+                    f"and text samples ({num_text_samples}). "
+                    f"Sensor data and text data must have the same number of samples "
+                    f"and be ordered consistently."
+                )
 
     def __len__(self) -> int:
         return len(self.sensor_data)
@@ -272,11 +356,38 @@ class AlignmentDataset(Dataset):
 
         # Get text embedding or caption (using same idx ensures alignment)
         if self.text_embeddings is not None:
-            text_embedding = torch.tensor(self.text_embeddings[idx], dtype=torch.float32)
+            # Check if we're in multi-caption mode
+            if self.multi_caption_mode and self.sample_to_embedding_indices is not None:
+                # Get sample_id for this data sample
+                sample_id = sensor_sample.get('sample_id', f'sample_{idx}')
+
+                # Get all embedding indices for this sample
+                if sample_id in self.sample_to_embedding_indices:
+                    embedding_indices = self.sample_to_embedding_indices[sample_id]
+                    # Randomly select one caption embedding
+                    import random
+                    selected_idx = random.choice(embedding_indices)
+                    text_embedding = torch.tensor(self.text_embeddings[selected_idx], dtype=torch.float32)
+                else:
+                    # Fallback: use idx directly if sample_id not found
+                    text_embedding = torch.tensor(self.text_embeddings[idx], dtype=torch.float32)
+            else:
+                # Old format: direct indexing
+                text_embedding = torch.tensor(self.text_embeddings[idx], dtype=torch.float32)
             caption = None
         else:
             text_embedding = None
             caption = self.captions[idx]
+
+        # Extract L1 activity label if available
+        activity_label_l1 = None
+        if 'metadata' in sensor_sample and 'ground_truth_labels' in sensor_sample['metadata']:
+            gt_labels = sensor_sample['metadata']['ground_truth_labels']
+            activity_label_l1 = gt_labels.get('primary_l1')
+        elif 'first_activity' in sensor_sample:
+            activity_label_l1 = sensor_sample['first_activity']
+        elif 'activity' in sensor_sample:
+            activity_label_l1 = sensor_sample['activity']
 
         return {
             'categorical_features': categorical_features,
@@ -284,7 +395,8 @@ class AlignmentDataset(Dataset):
             'time_deltas': time_deltas,
             'text_embedding': text_embedding,
             'caption': caption,
-            'sample_id': sensor_sample.get('sample_id', f'sample_{idx}')
+            'sample_id': sensor_sample.get('sample_id', f'sample_{idx}'),
+            'activity_label_l1': activity_label_l1
         }
 
     def collate_fn(self, batch: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
@@ -343,7 +455,8 @@ class AlignmentDataset(Dataset):
             },
             'text_embeddings': text_embeddings,
             'attention_mask': attention_mask,
-            'sample_ids': [item['sample_id'] for item in batch]
+            'sample_ids': [item['sample_id'] for item in batch],
+            'activity_label_l1': [item.get('activity_label_l1') for item in batch] if any(item.get('activity_label_l1') for item in batch) else None
         }
 
         # Apply MLM masking if span_masker is provided

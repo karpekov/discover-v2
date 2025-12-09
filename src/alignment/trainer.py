@@ -20,16 +20,16 @@ try:
 except ImportError:
     WANDB_AVAILABLE = False
 
-from src.alignment.config import AlignmentConfig
-from src.alignment.model import AlignmentModel
-from src.alignment.dataset import AlignmentDataset
-from src.alignment.wandb_utils import (
+from alignment.config import AlignmentConfig
+from alignment.model import AlignmentModel
+from alignment.dataset import AlignmentDataset
+from alignment.wandb_utils import (
     generate_wandb_run_name,
     generate_wandb_group,
     generate_wandb_tags
 )
-from src.utils.device_utils import get_optimal_device
-from src.utils.training_metrics import TrainingMetrics
+from utils.device_utils import get_optimal_device
+from utils.training_metrics import TrainingMetrics
 
 
 class AlignmentTrainer:
@@ -203,7 +203,8 @@ class AlignmentTrainer:
             captions_path=self.config.train_captions_path,
             text_encoder_config_path=self.config.text_encoder_config_path,
             vocab=vocab,
-            device=self.device
+            device=self.device,
+            categorical_fields=categorical_fields  # Pass filtered fields
         )
 
         train_loader = DataLoader(
@@ -224,7 +225,8 @@ class AlignmentTrainer:
                 captions_path=self.config.val_captions_path,
                 text_encoder_config_path=self.config.text_encoder_config_path,
                 vocab=vocab,
-                device=self.device
+                device=self.device,
+                categorical_fields=categorical_fields  # Pass filtered fields
             )
 
             val_loader = DataLoader(
@@ -356,51 +358,79 @@ class AlignmentTrainer:
         return optimizer, scheduler
 
     def _setup_span_masker(self):
-        """Setup span masker for MLM."""
+        """Setup span masker for MLM with flexible field configuration."""
         from src.models.mlm_heads import SpanMasker
 
-        # Define field-specific masking probabilities for our data
-        # Note on correlations:
-        #   - sensor ↔ room_id: PERFECTLY correlated (deterministic, sensor→room is fixed)
-        #   - sensor ↔ state: Can vary (same sensor can have different states over time)
-        #   - state is the only truly independent temporal signal
-        field_priors = {
-            'sensor': 0.20,    # Lower - will be masked via correlation with room_id anyway
-            'room_id': 0.20,   # Lower - will be masked via correlation with sensor anyway
-            'state': 0.35,     # Higher - only independent temporal field, most informative
+        # Get active categorical fields from encoder config
+        if self.config.encoder is not None:
+            encoder_config = self.config.encoder
+        else:
+            import yaml
+            with open(self.config.encoder_config_path, 'r') as f:
+                encoder_config = yaml.safe_load(f)
+
+        categorical_fields = set(encoder_config.get('metadata', {}).get('categorical_fields', []))
+
+        # Define default field-specific masking probabilities
+        all_field_priors = {
+            'sensor': 0.20,    # Lower - often correlated with room_id
+            'room_id': 0.20,   # Lower - often correlated with sensor
+            'state': 0.35,     # Higher - independent temporal field, most informative
         }
+
+        # Filter to only active fields
+        field_priors = {
+            field: prob for field, prob in all_field_priors.items()
+            if field in categorical_fields
+        }
+
+        # If no priors defined for a field, use default
+        for field in categorical_fields:
+            if field not in field_priors:
+                field_priors[field] = 0.25  # Default
 
         span_masker = SpanMasker(
             mask_prob=self.config.loss.mask_prob,
             mean_span_length=self.config.loss.mean_span_length,
-            field_priors=field_priors,  # Custom field names for our data
-            # Strict correlation to prevent memorization of deterministic field relationships
-            # (e.g., sensor ↔ room_id ↔ coordinates are fixed)
-            strict_corr_mask=True,  # Mask correlated fields together
-            correlated_field_prob=0.95,  # 95% of the time, mask all together; 5% independent
-            # Field blackout: zero out continuous features when correlated fields masked
-            # This prevents "cheating" via deterministic sensor→coordinates mapping
-            enable_field_blackout=True,  # Zero coordinates/time when sensor/room masked
-            p_transition_seed=0.3,  # Seed masks at activity/room transitions (harder task)
-            adaptive_mask=False  # Disabled for now
+            field_priors=field_priors,
+            strict_corr_mask=True,
+            correlated_field_prob=0.95,
+            enable_field_blackout=True,
+            p_transition_seed=0.3,
+            adaptive_mask=False
         )
 
-        # Override correlated groups to match actual field names in the data
-        # Rationale:
-        #   - sensor ↔ room_id are PERFECTLY correlated (M014 always in kitchen)
-        #     → Mask together 95% of time to force temporal reasoning
-        #   - state is INDEPENDENT (M014 can be ON or OFF over time)
-        #     → Keep separate to learn temporal state transitions
-        span_masker.correlated_groups = [
-            ['sensor', 'room_id'],  # Perfectly correlated → mask together
-            # 'state' is intentionally separate (varies over time for same sensor)
-        ]
+        # Define correlated fields (only if both are active)
+        # sensor ↔ room_id are perfectly correlated (same sensor always in same room)
+        correlated_groups = []
+        if 'sensor' in categorical_fields and 'room_id' in categorical_fields:
+            correlated_groups.append(['sensor', 'room_id'])
 
-        # Update blackout mapping if field_blackout is enabled
-        span_masker.blackout_mapping = {
-            'room_id': ['sensor', 'coordinates'],
-            'sensor': ['room_id', 'coordinates'],
-        }
+        span_masker.correlated_groups = correlated_groups
+
+        # Update blackout mapping (only include active fields)
+        blackout_mapping = {}
+        if 'room_id' in categorical_fields:
+            blackout_targets = []
+            if 'sensor' in categorical_fields:
+                blackout_targets.append('sensor')
+            blackout_targets.append('coordinates')  # Always blackout coordinates with room
+            blackout_mapping['room_id'] = blackout_targets
+
+        if 'sensor' in categorical_fields:
+            blackout_targets = []
+            if 'room_id' in categorical_fields:
+                blackout_targets.append('room_id')
+            blackout_targets.append('coordinates')  # Always blackout coordinates with sensor
+            blackout_mapping['sensor'] = blackout_targets
+
+        span_masker.blackout_mapping = blackout_mapping
+
+        self.logger.info(f"MLM span masker configured for fields: {sorted(categorical_fields)}")
+        if correlated_groups:
+            self.logger.info(f"  Correlated groups: {correlated_groups}")
+        if blackout_mapping:
+            self.logger.info(f"  Blackout mapping: {blackout_mapping}")
 
         return span_masker
 
@@ -542,6 +572,31 @@ class AlignmentTrainer:
 
             self.optimizer.step()
 
+        # Compute MLM accuracy (minimal overhead - just argmax + comparison)
+        if outputs.get('mlm_predictions') is not None:
+            mlm_predictions = outputs['mlm_predictions']
+            mlm_labels = batch.get('mlm_labels', {})
+            mlm_mask_positions = batch.get('mlm_mask_positions', {})
+
+            total_correct = 0
+            total_masked = 0
+            for field in mlm_predictions.keys():
+                if field not in mlm_labels or field not in mlm_mask_positions:
+                    continue
+                preds = mlm_predictions[field]
+                labels = mlm_labels[field]
+                mask_pos = mlm_mask_positions[field]
+                if mask_pos.sum() == 0:
+                    continue
+                masked_preds = preds[mask_pos]
+                masked_labels = labels[mask_pos]
+                pred_classes = masked_preds.argmax(dim=-1)
+                total_correct += (pred_classes == masked_labels).sum().item()
+                total_masked += masked_labels.numel()
+
+            if total_masked > 0:
+                loss_dict['mlm_acc'] = total_correct / total_masked
+
         # Update scheduler
         self.scheduler.step()
         self.global_step += 1
@@ -573,12 +628,13 @@ class AlignmentTrainer:
         num_batches = 0
         has_mlm = False
 
-        # Collect embeddings and outputs for comprehensive metrics
+        # Collect embeddings for alignment health
         all_sensor_embeddings = []
         all_text_embeddings = []
-        all_mlm_predictions = {}
-        all_mlm_labels = {}
-        all_mlm_mask_positions = {}
+
+        # Incremental MLM accuracy tracking (per-field)
+        mlm_correct_per_field = {}
+        mlm_total_per_field = {}
 
         with torch.no_grad():
             for batch in self.val_loader:
@@ -614,22 +670,38 @@ class AlignmentTrainer:
                 all_sensor_embeddings.append(outputs['sensor_embeddings_projected'])
                 all_text_embeddings.append(outputs['text_embeddings_projected'])
 
-                # Collect MLM outputs
+                # Compute MLM accuracy incrementally per-batch (avoids seq_len mismatch issues)
                 if outputs.get('mlm_predictions') is not None:
-                    for field, preds in outputs['mlm_predictions'].items():
-                        if field not in all_mlm_predictions:
-                            all_mlm_predictions[field] = []
-                        all_mlm_predictions[field].append(preds)
+                    mlm_predictions = outputs['mlm_predictions']
+                    mlm_labels = batch.get('mlm_labels', {})
+                    mlm_mask_positions = batch.get('mlm_mask_positions', {})
 
-                    for field, labels in batch.get('mlm_labels', {}).items():
-                        if field not in all_mlm_labels:
-                            all_mlm_labels[field] = []
-                        all_mlm_labels[field].append(labels)
+                    for field in mlm_predictions.keys():
+                        if field not in mlm_labels or field not in mlm_mask_positions:
+                            continue
 
-                    for field, mask_pos in batch.get('mlm_mask_positions', {}).items():
-                        if field not in all_mlm_mask_positions:
-                            all_mlm_mask_positions[field] = []
-                        all_mlm_mask_positions[field].append(mask_pos)
+                        preds = mlm_predictions[field]  # [batch_size, seq_len, vocab_size]
+                        labels = mlm_labels[field]  # [batch_size, seq_len]
+                        mask_pos = mlm_mask_positions[field]  # [batch_size, seq_len]
+
+                        if mask_pos.sum() == 0:
+                            continue
+
+                        # Get predictions and labels for masked positions only
+                        masked_preds = preds[mask_pos]  # [num_masked, vocab_size]
+                        masked_labels = labels[mask_pos]  # [num_masked]
+
+                        # Compute correct predictions
+                        pred_classes = masked_preds.argmax(dim=-1)
+                        correct = (pred_classes == masked_labels).sum().item()
+                        total = masked_labels.numel()
+
+                        # Accumulate
+                        if field not in mlm_correct_per_field:
+                            mlm_correct_per_field[field] = 0
+                            mlm_total_per_field[field] = 0
+                        mlm_correct_per_field[field] += correct
+                        mlm_total_per_field[field] += total
 
                 num_batches += 1
 
@@ -661,32 +733,19 @@ class AlignmentTrainer:
             except Exception as e:
                 self.logger.warning(f"Error computing alignment health: {e}")
 
-        # Compute MLM accuracy metrics
-        if all_mlm_predictions and all_mlm_labels and all_mlm_mask_positions:
-            try:
-                # Concatenate MLM outputs
-                combined_mlm_preds = {}
-                for field, pred_list in all_mlm_predictions.items():
-                    combined_mlm_preds[field] = torch.cat(pred_list, dim=0)
+        # Compute MLM accuracy from incrementally accumulated stats
+        if mlm_correct_per_field and mlm_total_per_field:
+            field_accuracies = []
+            for field in mlm_correct_per_field.keys():
+                if mlm_total_per_field[field] > 0:
+                    accuracy = mlm_correct_per_field[field] / mlm_total_per_field[field]
+                    metrics[f'val_mlm_accuracy/{field}'] = accuracy
+                    field_accuracies.append(accuracy)
 
-                combined_mlm_labels = {}
-                for field, label_list in all_mlm_labels.items():
-                    combined_mlm_labels[field] = torch.cat(label_list, dim=0)
-
-                combined_mlm_masks = {}
-                for field, mask_list in all_mlm_mask_positions.items():
-                    combined_mlm_masks[field] = torch.cat(mask_list, dim=0)
-
-                mlm_metrics = self.metrics_tracker.compute_mlm_accuracy(
-                    combined_mlm_preds,
-                    combined_mlm_labels,
-                    combined_mlm_masks
-                )
-                # Add 'val_' prefix to MLM metrics
-                for key, value in mlm_metrics.items():
-                    metrics[f'val_{key}'] = value
-            except Exception as e:
-                self.logger.warning(f"Error computing MLM accuracy: {e}")
+            # Overall MLM accuracy (macro average)
+            if field_accuracies:
+                metrics['val_mlm_accuracy/overall'] = sum(field_accuracies) / len(field_accuracies)
+                self.logger.debug(f"Computed MLM accuracy for fields: {list(mlm_correct_per_field.keys())}")
 
         self.model.train()
         return metrics
@@ -720,6 +779,7 @@ class AlignmentTrainer:
         all_sensor_embeddings = []
         all_text_embeddings = []
         all_ground_truth_labels = []
+        all_l1_labels = []
 
         batch_count = 0
         for batch in data_loader:
@@ -743,6 +803,15 @@ class AlignmentTrainer:
             # Collect ground truth labels if available (for per-class metrics)
             if 'activity_label' in batch:
                 all_ground_truth_labels.extend(batch['activity_label'])
+
+            # Collect L1 labels for label-recall metric (collect from all batches, even if some are None)
+            if 'activity_label_l1' in batch:
+                if batch['activity_label_l1'] is not None:
+                    all_l1_labels.extend(batch['activity_label_l1'])
+                else:
+                    # Batch has no labels - add None for each sample in batch
+                    batch_size = outputs['sensor_embeddings_projected'].size(0)
+                    all_l1_labels.extend([None] * batch_size)
 
             batch_count += 1
 
@@ -793,6 +862,22 @@ class AlignmentTrainer:
 
         except Exception as e:
             self.logger.warning(f"Error computing nDCG@K metrics: {e}")
+
+        # Compute Label-Recall@10 for L1 labels (lightweight)
+        # Only compute if we have labels and the count matches (function will filter None values)
+        if all_l1_labels and len(all_l1_labels) == combined_sensor_emb.size(0):
+            try:
+                label_recall_metrics = self.metrics_tracker.compute_label_recall_at_10(
+                    combined_sensor_emb,
+                    combined_text_emb,
+                    labels=all_l1_labels
+                )
+                # Add label-recall metrics (only if computation succeeded)
+                if label_recall_metrics:
+                    for key, value in label_recall_metrics.items():
+                        metrics[key] = value
+            except Exception as e:
+                self.logger.debug(f"Error computing label-recall@10 (skipping): {e}")
 
         # Add split prefix to all metrics
         prefixed_metrics = {}
@@ -882,6 +967,8 @@ class AlignmentTrainer:
 
                     if 'mlm_loss' in loss_dict:
                         log_msg += f" | MLM: {loss_dict['mlm_loss']:.4f}"
+                    if 'mlm_acc' in loss_dict:
+                        log_msg += f" | MLM Acc: {loss_dict['mlm_acc']:.3f}"
 
                     self.logger.info(log_msg)
 
@@ -900,6 +987,8 @@ class AlignmentTrainer:
 
                         if 'mlm_loss' in loss_dict:
                             wandb_dict['train/mlm_loss'] = loss_dict['mlm_loss']
+                        if 'mlm_acc' in loss_dict:
+                            wandb_dict['train/mlm_acc'] = loss_dict['mlm_acc']
 
                         wandb.log(wandb_dict, step=self.global_step)
 
@@ -927,6 +1016,15 @@ class AlignmentTrainer:
                         # Add overall MLM accuracy
                         if 'val_mlm_accuracy/overall' in val_metrics:
                             val_msg += f" | MLM Acc: {val_metrics['val_mlm_accuracy/overall']:.3f}"
+
+                            # Add per-field MLM accuracy for visibility
+                            field_accs = []
+                            for field in self.vocab_sizes.keys():  # Only check fields that actually have MLM
+                                key = f'val_mlm_accuracy/{field}'
+                                if key in val_metrics:
+                                    field_accs.append(f"{field}={val_metrics[key]:.3f}")
+                            if field_accs:
+                                val_msg += f" ({', '.join(field_accs)})"
 
                         self.logger.info(val_msg)
 
@@ -975,6 +1073,12 @@ class AlignmentTrainer:
                                 split = key.split('/')[0]  # Get 'train' or 'val'
                                 k_val = key.split('/')[1].replace('recall@', 'R@')  # Get 'R@1'
                                 key_metrics.append(f"{split}/{k_val}: {all_comprehensive_metrics[key]:.3f}")
+
+                        # Add label-recall@10 metrics if available
+                        for key in ['train/label_recall@10/average', 'val/label_recall@10/average']:
+                            if key in all_comprehensive_metrics:
+                                split = key.split('/')[0]
+                                key_metrics.append(f"{split}/LR@10: {all_comprehensive_metrics[key]:.3f}")
 
                         if key_metrics:
                             self.logger.info(f"Retrieval Metrics | {' | '.join(key_metrics)}")

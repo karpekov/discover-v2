@@ -54,7 +54,7 @@ class SmartHomeDataset(Dataset):
       'sensor_id', 'sensor', 'room_id', 'event_type', 'state', 'sensor_type',
       'tod_bucket', 'delta_t_bucket', 'floor_id', 'dow'
     ]
-    
+
     self.categorical_fields = [field for field in possible_fields if field in self.vocab]
 
     # Get vocabulary sizes
@@ -100,7 +100,7 @@ class SmartHomeDataset(Dataset):
             all_x.append(event['x'])
             all_y.append(event['y'])
       # If no coordinate data found, skip normalization
-      
+
     if not all_x or not all_y:
       # No coordinates found - disable normalization
       self.normalize_coords = False
@@ -183,7 +183,7 @@ class SmartHomeDataset(Dataset):
       elif 'timestamp' in events[i] and 'timestamp' in events[i-1]:
         curr_time = events[i]['timestamp']
         prev_time = events[i-1]['timestamp']
-        
+
         # Handle different timestamp formats
         if isinstance(curr_time, str):
           # String timestamp - parse it
@@ -233,7 +233,7 @@ class SmartHomeDataset(Dataset):
       events = sample_data['events']
     else:
       raise KeyError(f"Sample {idx} has neither 'events' nor 'sensor_sequence' key. Keys: {list(sample_data.keys())}")
-    
+
     # Normalize field names to match vocab expectations
     # New format uses: sensor_id, event_type, room
     # Old format uses: sensor, state, room_id
@@ -251,7 +251,7 @@ class SmartHomeDataset(Dataset):
       if 'room_id' in self.categorical_fields and 'room' in event:
         norm_event['room_id'] = event['room']
       normalized_events.append(norm_event)
-    
+
     events = normalized_events
 
     # Select appropriate caption type
@@ -332,6 +332,13 @@ class SmartHomeDataset(Dataset):
       'mask': mask,
       'captions': captions
     }
+
+    # Add sample_id for alignment purposes
+    if 'sample_id' in sample_data:
+      result['sample_id'] = sample_data['sample_id']
+    else:
+      # Fallback: use dataset index as sample_id
+      result['sample_id'] = f"sample_{idx}"
 
     # Add ground truth labels if present
     # New format: labels are in metadata.ground_truth_labels

@@ -699,6 +699,110 @@ class TrainingMetrics:
 
         return metrics
 
+    def compute_label_recall_at_10(
+        self,
+        sensor_embeddings: torch.Tensor,
+        text_embeddings: torch.Tensor,
+        labels: Optional[List[str]] = None
+    ) -> Dict[str, float]:
+        """
+        Compute Label-Recall@10 for L1 labels only.
+
+        Label-Recall@K measures: for each query, what proportion of top-K retrieved
+        neighbors share the same label as the query.
+
+        Args:
+            sensor_embeddings: [batch_size, embed_dim] L2-normalized sensor embeddings
+            text_embeddings: [batch_size, embed_dim] L2-normalized text embeddings
+            labels: List of L1 activity labels (one per sample)
+
+        Returns:
+            Dictionary with label-recall@10 metrics for both directions
+            Returns empty dict if labels are not available
+        """
+        if labels is None or len(labels) == 0:
+            return {}
+
+        batch_size = sensor_embeddings.size(0)
+        if len(labels) != batch_size:
+            return {}
+
+        # Filter out None/empty labels
+        valid_indices = [i for i, label in enumerate(labels) if label and label != 'Unknown']
+        if len(valid_indices) < 2:  # Need at least 2 samples to compute
+            return {}
+
+        # Use only valid samples
+        valid_sensor_emb = sensor_embeddings[valid_indices]
+        valid_text_emb = text_embeddings[valid_indices]
+        valid_labels = [labels[i] for i in valid_indices]
+
+        # Ensure embeddings are L2-normalized
+        valid_sensor_emb = F.normalize(valid_sensor_emb, p=2, dim=-1)
+        valid_text_emb = F.normalize(valid_text_emb, p=2, dim=-1)
+
+        k = 10
+        k_actual = min(k, len(valid_indices))
+
+        metrics = {}
+
+        # Compute similarity matrices
+        # Sensor-to-text: for each sensor embedding, find similar text embeddings
+        s2t_similarity = torch.matmul(valid_sensor_emb, valid_text_emb.t())  # [n_valid, n_valid]
+        # Text-to-sensor: for each text embedding, find similar sensor embeddings
+        t2s_similarity = torch.matmul(valid_text_emb, valid_sensor_emb.t())  # [n_valid, n_valid]
+
+        # Convert labels to numpy for easier comparison
+        labels_np = np.array(valid_labels)
+
+        # Sensor-to-text label-recall@10
+        _, s2t_top_k_indices = torch.topk(s2t_similarity, k=k_actual, dim=1)  # [n_valid, k]
+        s2t_label_recalls = []
+        s2t_per_label_recalls = defaultdict(list)  # For per-label metrics
+
+        for i in range(len(valid_indices)):
+            query_label = labels_np[i]
+            top_k_labels = labels_np[s2t_top_k_indices[i].cpu().numpy()]
+            n_matching = np.sum(top_k_labels == query_label)
+            recall = n_matching / k_actual
+            s2t_label_recalls.append(recall)
+            s2t_per_label_recalls[query_label].append(recall)
+
+        s2t_label_recall = float(np.mean(s2t_label_recalls))
+        metrics['label_recall@10/sensor_to_text'] = s2t_label_recall
+
+        # Text-to-sensor label-recall@10
+        _, t2s_top_k_indices = torch.topk(t2s_similarity, k=k_actual, dim=1)  # [n_valid, k]
+        t2s_label_recalls = []
+        t2s_per_label_recalls = defaultdict(list)  # For per-label metrics
+
+        for i in range(len(valid_indices)):
+            query_label = labels_np[i]
+            top_k_labels = labels_np[t2s_top_k_indices[i].cpu().numpy()]
+            n_matching = np.sum(top_k_labels == query_label)
+            recall = n_matching / k_actual
+            t2s_label_recalls.append(recall)
+            t2s_per_label_recalls[query_label].append(recall)
+
+        t2s_label_recall = float(np.mean(t2s_label_recalls))
+        metrics['label_recall@10/text_to_sensor'] = t2s_label_recall
+
+        # Overall average
+        metrics['label_recall@10/average'] = (s2t_label_recall + t2s_label_recall) / 2.0
+
+        # Per-label averages (average of sensor_to_text and text_to_sensor for each label)
+        for label in s2t_per_label_recalls.keys():
+            if label in t2s_per_label_recalls and len(s2t_per_label_recalls[label]) >= 1:
+                label_s2t_avg = float(np.mean(s2t_per_label_recalls[label]))
+                label_t2s_avg = float(np.mean(t2s_per_label_recalls[label]))
+                label_avg = (label_s2t_avg + label_t2s_avg) / 2.0
+
+                # Clean label name for metric key (remove spaces, special chars, lowercase)
+                clean_label = str(label).replace(' ', '_').replace('-', '_').lower()
+                metrics[f'label_recall@10/{clean_label}'] = label_avg
+
+        return metrics
+
     def compute_all_metrics(
         self,
         batch: Dict[str, Any],

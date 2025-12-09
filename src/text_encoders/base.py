@@ -239,9 +239,16 @@ class BaseTextEncoder(ABC):
         captions_path = Path(captions_path)
 
         # Extract split and style from filename
-        # Format: {split}_captions_{style}.json
+        # Format: {split}_captions_{style}.json OR {split}_llm_{backend}_{model}.json
         filename = captions_path.stem  # Remove .json
-        if '_captions_' in filename:
+        if '_llm_' in filename:
+            # LLM caption files: train_llm_gemini_gemini_2_5_flash.json
+            # split = "train", style = "llm_gemini_gemini_2_5_flash"
+            parts = filename.split('_llm_')
+            split = parts[0]
+            style = 'llm_' + parts[1]  # Reconstruct with llm_ prefix
+        elif '_captions_' in filename:
+            # Regular caption files: train_captions_baseline.json
             split, style = filename.split('_captions_')
         else:
             split = 'train'

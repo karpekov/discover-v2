@@ -12,9 +12,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import torch
-from src.alignment.config import AlignmentConfig
-from src.alignment.model import AlignmentModel
-from src.alignment.trainer import AlignmentTrainer
+from alignment.config import AlignmentConfig
+from alignment.model import AlignmentModel
+from alignment.trainer import AlignmentTrainer
 
 
 def example_1_load_config():

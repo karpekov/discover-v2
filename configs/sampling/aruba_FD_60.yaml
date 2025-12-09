@@ -8,7 +8,7 @@ strategy: "fixed_duration"
 
 # Duration windows to generate (in seconds)
 duration_seconds: [60]
-min_events_per_window: 1
+min_events_per_window: 3
 max_events_per_window: null
 max_sequence_length: 256
 

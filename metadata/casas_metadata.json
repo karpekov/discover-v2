@@ -20,7 +20,7 @@
       "Master_Bedroom_Activity": "Master Bedroom Activity takes place when a person moves in the master bedroom",
       "Meditate": "Meditate",
       "Morning_Meds": "Morning Medicines activity takes place when a person takes medicines from the kitchen cabinet in morning",
-      "Read": "Read activity takes place for minutes or hours when a person reads sitting on the living room sofa",
+      "Read": "Read activity takes place for minutes or hours when a person reads sitting on the living room armchair",
       "Sleep": "Sleep activity takes place for hours when a person sleeps on bed in the master bedroom",
       "Watch_TV": "Watch TV television activity takes place when a person watches TV television in the workspace and TV room on sofa",
       "Cook": "Kitchen Activity takes place when a person cooks a meal in the kitchen",
@@ -103,39 +103,39 @@
       "T002": [1213, 812]
     },
     "sensor_details": {
-      "D001": "entry doorway",
-      "D002": "coat cabinet in entryway",
-      "D003": "cabinet in kitchen",
-      "M001": "entryway motion sensor",
-      "M002": "entryway motion sensor",
-      "M003": "dining table motion sensor",
-      "M004": "armchair motion sensor",
-      "M005": "back of the living room motion sensor",
-      "M006": "motion sensor in the living room close to the workspace and tv room entrance",
-      "M007": "desk motion sensor",
-      "M008": "armchair motion sensor",
-      "M009": "motion sensor in the aisle in the middle of the house near the laundry room and guest bathroom entrance",
-      "M010": "aisle in the middle of the house near the kitchen, dining room and guest bathroom",
-      "M011": "aisle in the middle of the house near the kitchen, dining room and guest bathroom",
-      "M012": "kitchen motion sensor next to dining room entrance",
-      "M013": "master bathroom motion sensor near the sink, the toilet and the bathtub",
-      "M014": "medicine and pill cabinet sensor",
-      "M015": "kitchen motion sensor by the fridge",
-      "M016": "kitchen motion sensor by the hallway entrance",
-      "M017": "guest bathroom entrance motion sensor near the aisle in the middle of the house",
-      "M018": "guest bathroom motion sensor near the sink and the toilet",
-      "M019": "motion sensor in the hallway beween master bedroom, workspace and tvroom and center hallway",
-      "M020": "motion sensor in master bedroom between the bed, the bathroom and the hallway",
-      "M021": "bed sensor in master bedroom",
-      "M022": "kitchen motion sensor by the stove",
-      "M023": "large area motion sensor in the middle of kitchen",
-      "M024": "large area motion sensor in the middle of guest bedroom",
-      "M025": "large area motion sensor in the middle of master bathroom",
-      "M026": "large area motion sensor in the middle of workspace and tv room",
-      "M027": "large area motion sensor in bewteen dining room and living room",
-      "M028": "large area motion sensor in the middle of master bedroom",
-      "T001": "temperature sensor in the kitchen by the stove",
-      "T002": "temperature sensor in the hallway between kitchen and guest bathroom"
+      "D001": "entry door",
+      "D002": "coat cabinet",
+      "D003": "medicine and pill cabinet",
+      "M001": null,
+      "M002": null,
+      "M003": "dining table",
+      "M004": "armchair",
+      "M005": null,
+      "M006": null,
+      "M007": "desk",
+      "M008": "armchair",
+      "M009": null,
+      "M010": null,
+      "M011": null,
+      "M012": null,
+      "M013": null,
+      "M014": "medicine and pill cabinet",
+      "M015": "fridge",
+      "M016": null,
+      "M017": null,
+      "M018": null,
+      "M019": null,
+      "M020": null,
+      "M021": "bed sensor",
+      "M022": "stove",
+      "M023": null,
+      "M024": null,
+      "M025": null,
+      "M026": null,
+      "M027": null,
+      "M028": null,
+      "T001": null,
+      "T002": null
     },
     "sensor_type": {
       "D001": "door",
@@ -258,51 +258,171 @@
     "label_to_text": {
       "Kitchen_Activity": {
         "short_desc": "cooking and kitchen activities",
-        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."]
+        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."],
+        "multiple_desc": [
+          "General kitchen activity with movement between fridge, stove, and counters.",
+          "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
+          "Short visit to the kitchen involving opening the refrigerator and using the counter area.",
+          "Moderate time spent walking between sink, stove, and fridge in the kitchen.",
+          "Standing and moving around in the kitchen with occasional pauses near appliances.",
+          "Brief kitchen activity such as grabbing a snack or item from a cabinet.",
+          "Wandering around the kitchen with intermittent motion by the fridge and stove.",
+          "Mixed-purpose kitchen use, including standing, walking, and small tasks by the counter."
+          ]
       },
       "Sleep": {
         "short_desc": "sleeping in bed in master bedroom, usually at night time",
-        "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."]
+        "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."],
+        "multiple_desc": [
+          "Sleeping in the master bedroom with prolonged stillness in the bed area.",
+          "Nighttime rest in bed with minimal movement in the sleeping zone.",
+          "Long continuous presence in the master bedroom bed area consistent with sleep.",
+          "Intermittent small shifts in bed during the night while the person is sleeping.",
+          "Lying in bed in the master bedroom for an extended period, mostly motionless.",
+          "Nighttime inactivity in the bedroom representing the person sleeping.",
+          "Early morning lingering in bed with very low movement near the sleeping area.",
+          "Extended nighttime stay in the bed area with only minor position changes."
+        ]
       },
       "Read": {
         "short_desc": "reading a book or newspaper in a static position",
-        "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."]
+        "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."],
+        "multiple_desc": [
+          "Sitting quietly in the living room armchair while reading.",
+          "Prolonged stationary presence in a living room chair consistent with reading.",
+          "Low-movement activity in a seating area focused on reading material.",
+          "Remaining seated in one spot in the living room while reading.",
+          "Quiet leisure time in an armchair with minimal movement, indicative of reading.",
+          "Static presence near a favorite reading chair in the living room.",
+          "Evening reading session in the living room with little movement.",
+          "Relaxed reading in a sitting area with occasional posture adjustments."
+          ]
       },
       "Watch_TV": {
         "short_desc": "watching television",
-        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"]
+        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"],
+        "multiple_desc": [
+          "Sitting in the TV room watching television for an extended period.",
+          "Stationary presence on a couch or chair in front of the TV with minor movement.",
+          "Evening leisure in the TV room, staying mostly in one seat to watch a show.",
+          "Long duration sitting in the TV area suggesting continuous TV watching.",
+          "Minimal walking and mostly seated activity around the entertainment center.",
+          "Watching TV in the living or TV room with brief posture adjustments.",
+          "Nighttime TV session with the person staying in the same seating area.",
+          "Relaxed TV viewing while seated, with little movement away from the TV."
+        ]
       },
       "Master_Bedroom_Activity": {
         "short_desc": "activities and motion in the master bedroom",
-        "long_desc": ["General master bedroom bedroom activity during day or evening."]
+        "long_desc": ["General master bedroom bedroom activity during day or evening."],
+        "multiple_desc": [
+          "General activity in the master bedroom during the day, such as dressing or tidying.",
+          "Walking around the master bedroom, possibly organizing items or getting dressed.",
+          "Short to moderate stays in the bedroom not related to sleeping.",
+          "Moving between dresser, closet, and bed area in the master bedroom.",
+          "Daytime presence in the bedroom with intermittent walking and standing.",
+          "Entering and leaving the master bedroom for various small tasks.",
+          "Using the bedroom for non-sleep activities like changing clothes.",
+          "Light bedroom activity with motion near bed and storage furniture."
+        ]
       },
       "Master_Bathroom": {
         "short_desc": "using the master bathroom, shower, or bathtub",
-        "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."]
+        "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."],
+        "multiple_desc": [
+          "Using the master bathroom for toilet, sink, or shower-related tasks.",
+          "Short stay in the master bathroom consistent with a toilet visit.",
+          "Morning hygiene in the master bathroom such as brushing teeth.",
+          "Walking from the bedroom into the master bathroom and staying briefly.",
+          "Using the master bathroom shower or bathtub for bathing.",
+          "Evening hygiene routine with motion near sink and mirror.",
+          "Quick visit to the master bathroom then returning to the bedroom.",
+          "Moderate presence in the master bathroom for personal care activities."
+        ]
       },
       "Guest_Bathroom": {
         "short_desc": "using the guest bathroom, shower, or bathtub",
-        "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."]
+        "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."],
+        "multiple_desc": [
+          "Using the guest bathroom briefly for restroom needs.",
+          "Short visit to the guest bathroom with quick in-and-out movement.",
+          "Guest bathroom use with motion near toilet and sink.",
+          "Bathroom activity followed by return to hallway or living room.",
+          "Daytime use of the guest bathroom for short hygiene tasks.",
+          "Moderate presence in the guest bathroom for washing up.",
+          "Occasional restroom trip to the guest bathroom.",
+          "Quick bathroom trip via the hallway into the guest bathroom and back."
+        ]
       },
       "Dining_Rm_Activity": {
         "short_desc": "activity and motion in dining room",
-        "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."]
+        "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."],
+        "multiple_desc": [
+          "Spending time in the dining room with movement around the dining table.",
+          "Sitting at the dining table for a meal or seated activity.",
+          "Walking between kitchen and dining room then staying at the table.",
+          "Extended presence in the dining room chair while eating or working.",
+          "Short visits with brief seating at the dining table.",
+          "Activity near the dining table during meal or snack time.",
+          "Movement in and out of the dining room with time spent sitting.",
+          "Use of the dining table for eating, reading, or light tasks."
+        ]
       },
       "Desk_Activity": {
         "short_desc": "working at desk in workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."]
+        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
+        "multiple_desc": [
+          "Working at the desk in the workspace with repeated presence near the desk.",
+          "Sitting at a desk using a computer or work materials.",
+          "Prolonged activity in the workspace staying close to the desk.",
+          "Light movement between nearby areas and the desk but mostly sitting.",
+          "Focused desk work with relatively static posture.",
+          "Daytime office-like activity at a workstation.",
+          "Remaining in the workspace for a sustained period.",
+          "Using a desk for work, study, or computer use."
+        ]
       },
       "Leave_Home": {
         "short_desc": "leaving or entering the house through the door",
-        "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"]
+        "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"],
+        "multiple_desc": [
+          "Leaving the home through the main entrance door.",
+          "Short activity at the house entrance involving opening the front door.",
+          "Brief presence near the entryway then a long absence, indicating leaving.",
+          "Returning home and entering through the front door.",
+          "Quick pass from living room to entry door then exiting the house.",
+          "Preparing to go out with activity near the foyer followed by exit.",
+          "Coming back home and moving from the entrance into interior rooms.",
+          "Entry or exit behavior at the main doorway with very short duration."
+        ]
       },
       "Chores": {
         "short_desc": "doing household chores",
-        "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"]
+        "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"],
+        "multiple_desc": [
+          "Moving around multiple rooms to clean, tidy, or organize.",
+          "Walking between bedroom and bathroom areas performing housework.",
+          "Light cleaning causing scattered motion across nearby rooms.",
+          "Household chores involving repeated trips between rooms.",
+          "Short to moderate bursts of activity in several adjacent rooms.",
+          "Cleaning tasks such as wiping surfaces or picking up items.",
+          "General housework without a single fixed location.",
+          "Multi-room maintenance activities like laundry or tidying."
+        ]
       },
       "Meditate": {
         "short_desc": "meditation",
-        "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"]
+        "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"],
+        "multiple_desc": [
+          "Sitting quietly in the guest bedroom for an extended, still period.",
+          "Low-movement presence in the guest bedroom consistent with meditation.",
+          "Remaining in one spot in the guest bedroom motionless for several minutes.",
+          "Quiet, stationary activity in the guest bedroom, likely meditation.",
+          "Evening stillness in the guest bedroom with almost no walking.",
+          "Focused meditation session in a single location with minimal motion.",
+          "Seated meditation in the guest bedroom with prolonged stillness.",
+          "Calm, uninterrupted presence in the guest bedroom reflecting meditation."
+        ]
       },
       "no_activity": {
         "short_desc": "no specific activity or idle time",
@@ -310,15 +430,45 @@
       },
       "Bed_to_Toilet": {
         "short_desc": "going from bed to toilet at night",
-        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"]
+        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
+        "multiple_desc": [
+          "Nighttime trip from bed to the bathroom and back.",
+          "Short walk from sleeping area to toilet during the night.",
+          "Leaving bed at night to use the bathroom then returning.",
+          "Minimal-duration nighttime bathroom visit from the bedroom.",
+          "Late-night transition from bed to bathroom with a short stay.",
+          "Sleep interruption to use the toilet briefly.",
+          "Very short path from bed to bathroom and back at night.",
+          "Brief nighttime bathroom trip with no other activity."
+        ]
       },
       "Morning_Meds": {
         "short_desc": "taking morning medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"]
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"],
+        "multiple_desc": [
+          "Quick morning visit to the kitchen to take medication.",
+          "Short early-day activity focused on taking morning pills.",
+          "Morning routine involving accessing the medicine cabinet briefly.",
+          "Brief presence in the kitchen for morning medication.",
+          "Short kitchen stop after waking to take medicine.",
+          "Early-morning movement near fridge and medicine cabinet.",
+          "Minimal-duration kitchen activity centered on morning meds.",
+          "Regular morning medication-taking event in the kitchen."
+        ]
       },
       "Eve_Meds": {
         "short_desc": "taking evening medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"]
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"],
+        "multiple_desc": [
+          "Short evening or night visit to the kitchen to take medication.",
+          "Late-night activity at the medicine cabinet and fridge.",
+          "Quick kitchen stop before bed to take evening pills.",
+          "Nighttime movement focused on accessing medicine.",
+          "Brief kitchen presence late in the day for medication.",
+          "Minimal-duration nighttime activity near medicine cabinet.",
+          "Evening medicine routine in the kitchen.",
+          "Nighttime trip to the kitchen to take medicine and leave."
+        ]
       },
       "Cook": {
         "short_desc": "cooking and preparing food",
@@ -429,46 +579,42 @@
       "D004": "garage"
     },
     "sensor_details": {
-      "M001": "motion sensor in master bedroom",
-      "M002": "bed motion sensor in master bedroom on the right side",
-      "M003": "bed motion sensor in master bedroom on the left side",
-      "M004": "motion sensor in master bathroom entrance",
-      "M005": "motion sensor in master bedroom ",
-      "M006": "motion sensor in master bedroom near the door to the living room",
-      "M007": "large area motion sensor in the middle of master bedroom",
-      "M008": "motion sensor in hallway between master bedroom and living room",
-      "M009": "couch motion sensor in living room on the right side",
-      "M010": "couch motion sensor in living room on the left side",
-      "M011": "entry hallway motion sensor near the door to the living room",
-      "M012": "motion sensor in living room near the couch and the tv",
-      "M013": "motion sensor between living room and dining room",
-      "M014": "motion sensor in dining room near the table",
-      "M015": "motion sensor in the middle of the kitchen",
-      "M016": "motion sensor in the back of the kitchen near the back door",
-      "M017": "motion sensor in the back of the kitchen near the back door",
-      "M018": "motion sensor in the middle of the kitchen",
-      "M019": "large area motion sensor in the middle of kitchen",
-      "M020": "large area motion sensor in the middle of living room",
-      "M021": "motion sensor in hallway in the middle of the house between living, dining, kitchen rooms and the rest of the house",
-      "M022": "motion sensor in hallway in the middle of the house",
-      "M023": "motion sensor by the entrance to the guest bedroom",
-      "M024": "large area motion sensor in the middle of guest bedroom",
-      "M025": "motion sensor in the office",
-      "M026": "desk motion sensor in the office",
-      "M027": "large area motion sensor in the office",
-      "M028": "motion sensor by the entrance to the office",
-      "M029": "motion sensor by the guest bathroom door",
-      "M030": "motion sensor in the hallway by guest bathroom , office and garage door",
-      "M031": "motion sensor in guest bathroom",
-      "T001": "temperature sensor in master bedroom",
-      "T002": "temperature sensor in living room",
-      "T003": "temperature sensor in kitchen",
-      "T004": "temperature sensor in hallway",
-      "T005": "temperature sensor somewhere in the house",
-      "D001": "front door sensor by the living room",
-      "D002": "back door sensor in the kitchen",
-      "D003": "guest bathroom door sensor",
-      "D004": "garage door sensor"
+      "M001": null,
+      "M002": "right side of bed",
+      "M003": "left side of bed",
+      "M004": null,
+      "M005": null,
+      "M006": null,
+      "M007": null,
+      "M008": null,
+      "M009": "couch left side seat",
+      "M010": "couch right side seat",
+      "M011": "entrance hallway",
+      "M012": null,
+      "M013": null,
+      "M014": null,
+      "M015": "dining table area",
+      "M016": "kitchen back door",
+      "M017": null,
+      "M018": null,
+      "M019": null,
+      "M020": null,
+      "M021": null,
+      "M026": "desk",
+      "M027": null,
+      "M028": null,
+      "M029": "garage door",
+      "M030": null,
+      "M031": "closet",
+      "T001": null,
+      "T002": null,
+      "T003": null,
+      "T004": null,
+      "T005": null,
+      "D001": null,
+      "D002": null,
+      "D003": null,
+      "D004": null
     },
     "sensor_type": {
       "M001": "motion",
@@ -508,9 +654,9 @@
       "T004": "temperature",
       "T005": "temperature",
       "D001": "door",
-      "D002": "door",
-      "D003": "door",
-      "D004": "door"
+      "D002": "kitchen cabinet",
+      "D003": "closet door",
+      "D004": "garage door"
     },
     "sensor_coordinates": {
       "D001": [643, 70],
@@ -577,51 +723,171 @@
     "label_to_text": {
       "Kitchen_Activity": {
         "short_desc": "cooking and kitchen activities",
-        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."]
+        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."],
+        "multiple_desc": [
+          "General kitchen activity with movement between fridge, stove, and counters.",
+          "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
+          "Short visit to the kitchen involving opening the refrigerator and using the counter area.",
+          "Moderate time spent walking between sink, stove, and fridge in the kitchen.",
+          "Standing and moving around in the kitchen with occasional pauses near appliances.",
+          "Brief kitchen activity such as grabbing a snack or item from a cabinet.",
+          "Wandering around the kitchen with intermittent motion by the fridge and stove.",
+          "Mixed-purpose kitchen use, including standing, walking, and small tasks by the counter."
+          ]
       },
       "Sleep": {
         "short_desc": "sleeping in bed in master bedroom, usually at night time",
-        "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."]
+        "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."],
+        "multiple_desc": [
+          "Sleeping in the master bedroom with prolonged stillness in the bed area.",
+          "Nighttime rest in bed with minimal movement in the sleeping zone.",
+          "Long continuous presence in the master bedroom bed area consistent with sleep.",
+          "Intermittent small shifts in bed during the night while the person is sleeping.",
+          "Lying in bed in the master bedroom for an extended period, mostly motionless.",
+          "Nighttime inactivity in the bedroom representing the person sleeping.",
+          "Early morning lingering in bed with very low movement near the sleeping area.",
+          "Extended nighttime stay in the bed area with only minor position changes."
+        ]
       },
       "Read": {
         "short_desc": "reading a book or newspaper in a static position",
-        "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."]
+        "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."],
+        "multiple_desc": [
+          "Sitting quietly in the living room armchair while reading.",
+          "Prolonged stationary presence in a living room chair consistent with reading.",
+          "Low-movement activity in a seating area focused on reading material.",
+          "Remaining seated in one spot in the living room while reading.",
+          "Quiet leisure time in an armchair with minimal movement, indicative of reading.",
+          "Static presence near a favorite reading chair in the living room.",
+          "Evening reading session in the living room with little movement.",
+          "Relaxed reading in a sitting area with occasional posture adjustments."
+          ]
       },
       "Watch_TV": {
         "short_desc": "watching television",
-        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"]
+        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"],
+        "multiple_desc": [
+          "Sitting in the TV room watching television for an extended period.",
+          "Stationary presence on a couch or chair in front of the TV with minor movement.",
+          "Evening leisure in the TV room, staying mostly in one seat to watch a show.",
+          "Long duration sitting in the TV area suggesting continuous TV watching.",
+          "Minimal walking and mostly seated activity around the entertainment center.",
+          "Watching TV in the living or TV room with brief posture adjustments.",
+          "Nighttime TV session with the person staying in the same seating area.",
+          "Relaxed TV viewing while seated, with little movement away from the TV."
+        ]
       },
       "Master_Bedroom_Activity": {
         "short_desc": "activities and motion in the master bedroom",
-        "long_desc": ["General master bedroom bedroom activity during day or evening."]
+        "long_desc": ["General master bedroom bedroom activity during day or evening."],
+        "multiple_desc": [
+          "General activity in the master bedroom during the day, such as dressing or tidying.",
+          "Walking around the master bedroom, possibly organizing items or getting dressed.",
+          "Short to moderate stays in the bedroom not related to sleeping.",
+          "Moving between dresser, closet, and bed area in the master bedroom.",
+          "Daytime presence in the bedroom with intermittent walking and standing.",
+          "Entering and leaving the master bedroom for various small tasks.",
+          "Using the bedroom for non-sleep activities like changing clothes.",
+          "Light bedroom activity with motion near bed and storage furniture."
+        ]
       },
       "Master_Bathroom": {
         "short_desc": "using the master bathroom, shower, or bathtub",
-        "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."]
+        "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."],
+        "multiple_desc": [
+          "Using the master bathroom for toilet, sink, or shower-related tasks.",
+          "Short stay in the master bathroom consistent with a toilet visit.",
+          "Morning hygiene in the master bathroom such as brushing teeth.",
+          "Walking from the bedroom into the master bathroom and staying briefly.",
+          "Using the master bathroom shower or bathtub for bathing.",
+          "Evening hygiene routine with motion near sink and mirror.",
+          "Quick visit to the master bathroom then returning to the bedroom.",
+          "Moderate presence in the master bathroom for personal care activities."
+        ]
       },
       "Guest_Bathroom": {
         "short_desc": "using the guest bathroom, shower, or bathtub",
-        "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."]
+        "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."],
+        "multiple_desc": [
+          "Using the guest bathroom briefly for restroom needs.",
+          "Short visit to the guest bathroom with quick in-and-out movement.",
+          "Guest bathroom use with motion near toilet and sink.",
+          "Bathroom activity followed by return to hallway or living room.",
+          "Daytime use of the guest bathroom for short hygiene tasks.",
+          "Moderate presence in the guest bathroom for washing up.",
+          "Occasional restroom trip to the guest bathroom.",
+          "Quick bathroom trip via the hallway into the guest bathroom and back."
+        ]
       },
       "Dining_Rm_Activity": {
         "short_desc": "activity and motion in dining room",
-        "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."]
+        "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."],
+        "multiple_desc": [
+          "Spending time in the dining room with movement around the dining table.",
+          "Sitting at the dining table for a meal or seated activity.",
+          "Walking between kitchen and dining room then staying at the table.",
+          "Extended presence in the dining room chair while eating or working.",
+          "Short visits with brief seating at the dining table.",
+          "Activity near the dining table during meal or snack time.",
+          "Movement in and out of the dining room with time spent sitting.",
+          "Use of the dining table for eating, reading, or light tasks."
+        ]
       },
       "Desk_Activity": {
         "short_desc": "working at desk in workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."]
+        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
+        "multiple_desc": [
+          "Working at the desk in the workspace with repeated presence near the desk.",
+          "Sitting at a desk using a computer or work materials.",
+          "Prolonged activity in the workspace staying close to the desk.",
+          "Light movement between nearby areas and the desk but mostly sitting.",
+          "Focused desk work with relatively static posture.",
+          "Daytime office-like activity at a workstation.",
+          "Remaining in the workspace for a sustained period.",
+          "Using a desk for work, study, or computer use."
+        ]
       },
       "Leave_Home": {
         "short_desc": "leaving or entering the house through the door",
-        "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"]
+        "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"],
+        "multiple_desc": [
+          "Leaving the home through the main entrance door.",
+          "Short activity at the house entrance involving opening the front door.",
+          "Brief presence near the entryway then a long absence, indicating leaving.",
+          "Returning home and entering through the front door.",
+          "Quick pass from living room to entry door then exiting the house.",
+          "Preparing to go out with activity near the foyer followed by exit.",
+          "Coming back home and moving from the entrance into interior rooms.",
+          "Entry or exit behavior at the main doorway with very short duration."
+        ]
       },
       "Chores": {
         "short_desc": "doing household chores",
-        "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"]
+        "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"],
+        "multiple_desc": [
+          "Moving around multiple rooms to clean, tidy, or organize.",
+          "Walking between bedroom and bathroom areas performing housework.",
+          "Light cleaning causing scattered motion across nearby rooms.",
+          "Household chores involving repeated trips between rooms.",
+          "Short to moderate bursts of activity in several adjacent rooms.",
+          "Cleaning tasks such as wiping surfaces or picking up items.",
+          "General housework without a single fixed location.",
+          "Multi-room maintenance activities like laundry or tidying."
+        ]
       },
       "Meditate": {
         "short_desc": "meditation",
-        "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"]
+        "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"],
+        "multiple_desc": [
+          "Sitting quietly in the guest bedroom for an extended, still period.",
+          "Low-movement presence in the guest bedroom consistent with meditation.",
+          "Remaining in one spot in the guest bedroom motionless for several minutes.",
+          "Quiet, stationary activity in the guest bedroom, likely meditation.",
+          "Evening stillness in the guest bedroom with almost no walking.",
+          "Focused meditation session in a single location with minimal motion.",
+          "Seated meditation in the guest bedroom with prolonged stillness.",
+          "Calm, uninterrupted presence in the guest bedroom reflecting meditation."
+        ]
       },
       "no_activity": {
         "short_desc": "no specific activity or idle time",
@@ -629,15 +895,45 @@
       },
       "Bed_to_Toilet": {
         "short_desc": "going from bed to toilet at night",
-        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"]
+        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
+        "multiple_desc": [
+          "Nighttime trip from bed to the bathroom and back.",
+          "Short walk from sleeping area to toilet during the night.",
+          "Leaving bed at night to use the bathroom then returning.",
+          "Minimal-duration nighttime bathroom visit from the bedroom.",
+          "Late-night transition from bed to bathroom with a short stay.",
+          "Sleep interruption to use the toilet briefly.",
+          "Very short path from bed to bathroom and back at night.",
+          "Brief nighttime bathroom trip with no other activity."
+        ]
       },
       "Morning_Meds": {
         "short_desc": "taking morning medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"]
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"],
+        "multiple_desc": [
+          "Quick morning visit to the kitchen to take medication.",
+          "Short early-day activity focused on taking morning pills.",
+          "Morning routine involving accessing the medicine cabinet briefly.",
+          "Brief presence in the kitchen for morning medication.",
+          "Short kitchen stop after waking to take medicine.",
+          "Early-morning movement near fridge and medicine cabinet.",
+          "Minimal-duration kitchen activity centered on morning meds.",
+          "Regular morning medication-taking event in the kitchen."
+        ]
       },
       "Eve_Meds": {
         "short_desc": "taking evening medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"]
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"],
+        "multiple_desc": [
+          "Short evening or night visit to the kitchen to take medication.",
+          "Late-night activity at the medicine cabinet and fridge.",
+          "Quick kitchen stop before bed to take evening pills.",
+          "Nighttime movement focused on accessing medicine.",
+          "Brief kitchen presence late in the day for medication.",
+          "Minimal-duration nighttime activity near medicine cabinet.",
+          "Evening medicine routine in the kitchen.",
+          "Nighttime trip to the kitchen to take medicine and leave."
+        ]
       },
       "Cook": {
         "short_desc": "cooking and preparing food",
@@ -981,6 +1277,40 @@
       "T003": "temperature",
       "T004": "temperature",
       "T005": "temperature"
+    },
+    "sensor_details": {
+      "M001": null,
+      "M002": null,
+      "M003": null,
+      "M004": null,
+      "M005": null,
+      "M006": null,
+      "M007": null,
+      "M008": "bed",
+      "M009": "bed",
+      "M010": "second floor stairs",
+      "M011": "first floor stairs",
+      "M012": null,
+      "M013": "couch left seat",
+      "M014": "stairs toward basement",
+      "M015": "entry door",
+      "M016": null,
+      "M017": "couch right seat",
+      "M018": null,
+      "M019": null,
+      "M020": null,
+      "M021": "pantry",
+      "M022": null,
+      "M023": null,
+      "M024": "dining table",
+      "M025": null,
+      "M026": null,
+      "M027": "garage entrance door",
+      "T001": null,
+      "T002": null,
+      "T003": null,
+      "T004": null,
+      "T005": null
     },
     "label_l2": {
       "R1 sleep": "Sleep",

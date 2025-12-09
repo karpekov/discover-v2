@@ -10,12 +10,12 @@ Components:
 - Image sequence encoders (future): Process sequences of embeddings
 """
 
-from src.encoders.sensor.image.generate_images import (
+from encoders.sensor.image.generate_images import (
     generate_dataset_images,
     get_image_path,
     load_image_metadata,
 )
-from src.encoders.sensor.image.embed_images import (
+from encoders.sensor.image.embed_images import (
     embed_dataset_images,
     load_embeddings,
     get_sensor_embedding,

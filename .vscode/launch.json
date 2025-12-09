@@ -2,16 +2,40 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Current File",
+      "name": "Python: Run using Discover-v2 env",
       "type": "python",
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": false,
+      "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
     },
+
+    {
+        "name": "Debug: Generate Captions (milan FD_60 baseline)",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/captions/generate_captions.py",
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}"
+        },
+        "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python",
+        "justMyCode": false,
+        "args": [
+            "--data-dir",
+            "data/processed/casas/milan/FD_60",
+            "--caption-style",
+            "baseline",
+            "--dataset-name",
+            "milan"
+        ]
+    },
+
     {
       "name": "Run: training script",
       "type": "python",
@@ -35,7 +59,7 @@
         "console": "integratedTerminal",
         "args": [
             "--config",
-            "configs/sampling/milan_fixed_duration_60.yaml",
+            "configs/sampling/milan_FD_60.yaml",
             "--debug"
         ],
         "cwd": "${workspaceFolder}",
@@ -124,6 +148,32 @@
             "10000",
             "--filter_noisy_labels"
         ]
+    },
+
+    {
+        "name": "Debug: Evaluate Embeddings (RETRIEVAL)",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/evals/evaluate_embeddings.py",
+        "console": "integratedTerminal",
+        "justMyCode": false,
+        "args": [
+            "--checkpoint", "trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1/best_model.pt",
+            "--train_data", "data/processed/casas/milan/FD_60_p/train.json",
+            "--test_data", "data/processed/casas/milan/FD_60_p/test.json",
+            "--vocab", "data/processed/casas/milan/FD_60_p/vocab.json",
+            "--output_dir", "results/evals/milan/FD_60_p/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1",
+            "--train_text_embeddings", "data/processed/casas/milan/FD_60_p/train_embeddings_baseline_clip.npz",
+            "--test_text_embeddings", "data/processed/casas/milan/FD_60_p/test_embeddings_baseline_clip.npz",
+            "--max_samples", "100",
+            "--filter_noisy_labels",
+            "--only_retrieval"
+        ],
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}"
+        },
+        "python": "/Users/alexkarpekov/miniconda3/envs/discover-v2-env/bin/python",
     }
 
   ]

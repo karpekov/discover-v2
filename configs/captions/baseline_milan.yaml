@@ -1,7 +1,7 @@
 # Baseline caption generation config for Milan dataset
 
 caption_style: baseline
-num_captions_per_sample: 2
+num_captions_per_sample: 4
 random_seed: 42
 
 # Dataset information
@@ -12,7 +12,7 @@ sensor_details_path: metadata/casas_metadata.json
 
 # Caption generation options
 generate_long_captions: true
-generate_short_captions: true
+generate_short_captions: false
 include_temporal_context: true
 include_duration_details: true
 include_sensor_details: true

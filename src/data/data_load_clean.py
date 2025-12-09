@@ -337,7 +337,7 @@ def casas_end_to_end_preprocess(dataset_name, save_to_csv=True, force_download=F
 
   # Prefer local raw path under data/raw/casas/{folder_name}/ if present
   local_raw_dir = f'data/raw/casas/{folder_name}'
-  local_raw_file = f'{local_raw_dir}/data' if folder_name in ['milan', 'aruba', 'twor.2009'] else f'{local_raw_dir}/data.txt'
+  local_raw_file = f'{local_raw_dir}/data' if folder_name in ['milan', 'aruba', 'cairo', 'twor.2009'] else f'{local_raw_dir}/data.txt'
 
   # Check if processed data already exists:
   if os.path.exists(f'data/{data_processed_filename}') and not force_download:

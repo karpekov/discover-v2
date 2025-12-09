@@ -27,10 +27,10 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 import logging
 
-from src.encoders.base import SequenceEncoder, EncoderOutput
-from src.encoders.config import TransformerEncoderConfig
-from src.encoders.sensor.sequence.projection import create_projection_head
-from src.encoders.sensor.sequence.transformer import (
+from encoders.base import SequenceEncoder, EncoderOutput
+from encoders.config import TransformerEncoderConfig
+from encoders.sensor.sequence.projection import create_projection_head
+from encoders.sensor.sequence.transformer import (
     FourierFeatures,
     TransformerLayer
 )
@@ -172,12 +172,12 @@ class ImageEmbeddingLookup(nn.Module):
     def _normalize_state(self, state_str: str) -> str:
         """
         Normalize noisy state values to clean states.
-        
+
         Handles data quality issues like 'ON`' -> 'ON', 'ON0' -> 'ON', 'O' -> 'ON'
         """
         # Handle common typos and variations
         state_str = state_str.upper().strip()
-        
+
         # Map noisy states to clean states
         normalization_map = {
             'ON`': 'ON',   # Backtick typo
@@ -185,9 +185,9 @@ class ImageEmbeddingLookup(nn.Module):
             'O': 'ON',     # Abbreviation
             'UNK': 'OFF',  # Default unknown to OFF
         }
-        
+
         return normalization_map.get(state_str, state_str)
-    
+
     def get_embeddings_batch(
         self,
         sensor_ids: torch.Tensor,
@@ -196,51 +196,51 @@ class ImageEmbeddingLookup(nn.Module):
     ) -> torch.Tensor:
         """
         Get embeddings for a batch of sensor activations.
-        
+
         Args:
             sensor_ids: Tensor of sensor ID indices [batch_size, seq_len]
             states: Tensor of state indices [batch_size, seq_len]
             vocab: Vocabulary mapping (indices -> strings)
-        
+
         Returns:
             Batch of embeddings [batch_size, seq_len, embedding_dim]
         """
         batch_size, seq_len = sensor_ids.shape
         device = sensor_ids.device
-        
+
         # Create output tensor
         embeddings = torch.zeros(
             batch_size, seq_len, self.embedding_dim,
             device=device, dtype=self.embeddings_tensor.dtype
         )
-        
+
         # Reverse vocabulary lookups
         idx_to_sensor = {v: k for k, v in vocab['sensor'].items()}
         idx_to_state = {v: k for k, v in vocab['state'].items()}
-        
+
         # Track missing keys globally (class attribute)
         if not hasattr(self, '_missing_keys_logged'):
             self._missing_keys_logged = set()
             self._missing_count = 0
-        
+
         missing_keys = set()
-        
+
         # Fill in embeddings
         for b in range(batch_size):
             for t in range(seq_len):
                 sensor_idx = sensor_ids[b, t].item()
                 state_idx = states[b, t].item()
-                
+
                 # Convert indices to strings
                 sensor_id_str = idx_to_sensor.get(sensor_idx, f"UNK_{sensor_idx}")
                 state_str = idx_to_state.get(state_idx, f"UNK_{state_idx}")
-                
+
                 # Normalize state to handle noisy data
                 state_str_normalized = self._normalize_state(state_str)
-                
+
                 # Lookup embedding
                 key = f"{sensor_id_str}_{state_str_normalized}"
-                
+
                 if key in self.key_to_idx:
                     idx = self.key_to_idx[key]
                     embeddings[b, t] = self.embeddings_tensor[idx]
@@ -248,7 +248,7 @@ class ImageEmbeddingLookup(nn.Module):
                     # Track missing key
                     missing_keys.add(key)
                     self._missing_count += 1
-        
+
         # Only log warnings for new missing keys or if count is significant
         new_missing_keys = missing_keys - self._missing_keys_logged
         if new_missing_keys:
@@ -265,7 +265,7 @@ class ImageEmbeddingLookup(nn.Module):
                     f"Suppressing further missing embedding warnings. "
                     f"Total unique missing pairs: {len(self._missing_keys_logged)}"
                 )
-        
+
         return embeddings
 
     def forward(self, sensor_ids: torch.Tensor, states: torch.Tensor, vocab: Dict) -> torch.Tensor:

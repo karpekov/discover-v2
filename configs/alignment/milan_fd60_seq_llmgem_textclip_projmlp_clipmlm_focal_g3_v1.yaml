@@ -1,0 +1,109 @@
+# Milan Fixed-Duration 60s - Sequence Encoder
+# Projection: MLP
+# Loss: CLIP+MLM with Focal Sigmoid alignment (gamma=3.0 - aggressive hard example focus)
+# Text Embeddings: LLM Gemini (gemini-2.5-flash)
+# Version: 1
+
+encoder_type: transformer
+dataset: milan
+dataset_type: casas
+encoder:
+  d_model: 512
+  n_layers: 6
+  n_heads: 8
+  d_ff: 2048
+  max_seq_len: 512
+  dropout: 0.2
+  projection_dim: 512
+  use_alibi: true
+  use_learned_pe: false
+  fourier_bands: 12
+  metadata:
+    categorical_fields:
+    - sensor
+    - state
+    - room_id
+    use_coordinates: true
+    use_time_deltas: false
+    use_time_of_day: true
+    coord_norm_x_max: 10.0
+    coord_norm_y_max: 10.0
+    time_delta_max_seconds: 3600.0
+    time_delta_bins: 100
+  pooling: cls_mean
+  pooling_cls_weight: 0.5
+optimizer:
+  type: adamw
+  learning_rate: 0.0003
+  betas:
+  - 0.9
+  - 0.98
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  grad_clip_norm: 1.0
+training:
+  batch_size: 256
+  max_epochs: 100
+  max_steps: null  # Let epochs control duration
+  log_interval: 50
+  val_interval: 200
+  save_interval: 5000
+  metrics_interval: 500
+  use_amp: false  # Disabled for focal/sigmoid loss numerical stability
+  num_workers: 4
+  pin_memory: true
+  shuffle: true
+use_wandb: true
+wandb_project: discover-v2-newpipeline
+wandb_entity: null
+wandb_name: milan_fd60_seq_llmgem_textclip_projmlp_clipmlm_focal_g3
+wandb_tags: []
+wandb_group: null
+wandb_notes: Milan Fixed-Duration 60s - Sequence encoder with MLP projection and CLIP+MLM
+  using Focal Sigmoid alignment loss (gamma=3.0) with LLM Gemini captions
+experiment_name: milan_fd60_seq_llmgem_textclip_projmlp_clipmlm_focal_g3_v1
+output_dir: trained_models/milan/milan_fd60_seq_llmgem_textclip_projmlp_clipmlm_focal_g3_v1
+train_data_path: data/processed/casas/milan/FD_60/train.json
+val_data_path: data/processed/casas/milan/FD_60/val.json
+vocab_path: data/processed/casas/milan/FD_60/vocab.json
+train_text_embeddings_path: data/processed/casas/milan/FD_60/train_embeddings_llm_gemini_gemini_2_5_flash_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FD_60/val_embeddings_llm_gemini_gemini_2_5_flash_clip.npz
+sensor_projection:
+  type: mlp
+  dim: 512
+  num_layers: 2
+  hidden_dim: 512
+  dropout: 0.1
+  use_bn: false
+text_projection:
+  type: mlp
+  dim: 512
+  num_layers: 2
+  hidden_dim: 512
+  dropout: 0.1
+  use_bn: false
+loss:
+  clip_weight: 1.0
+  temperature_init: 0.07
+  learnable_temperature: true
+  mlm_weight: 0.5
+  use_hard_negatives: false
+  hard_negative_memory_size: 4096
+  hard_negative_ratio: 0.5
+  hard_negative_strategy: mixed
+  hard_negative_sampling_temperature: 0.1
+
+  # Alignment loss configuration
+  # Options: infonce (CLIP-style) | sigmoid (SigLIP-style) | focal_sigmoid (hard examples)
+  alignment_loss_type: focal_sigmoid  # Using Focal Sigmoid for hard example focus
+  focal_gamma: 3.0        # HIGHER gamma = more aggressive hard example focus
+  focal_alpha: 0.25       # Class-balancing weight for positives vs negatives
+mlm:
+  mask_prob: 0.3
+  mean_span_length: 4.0
+  enable_field_blackout: true
+  p_transition_seed: 0.3
+  strict_corr_mask: true
+
+
+

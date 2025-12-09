@@ -68,6 +68,11 @@ class BaseSampler(ABC):
         """
         self.config = config
         self._sample_id_counter = 0
+        self.sensor_details_map = None  # Will be loaded from metadata if available
+
+        # Load metadata if provided
+        if config.metadata_path and config.metadata_path.exists():
+            self._load_metadata()
 
     def sample_dataset(self) -> Tuple[SamplingResult, SamplingResult, SamplingResult]:
         """Main entry point for sampling a dataset.
@@ -167,6 +172,30 @@ class BaseSampler(ABC):
         """Get sampling parameters for this strategy."""
         pass
 
+    def _load_metadata(self):
+        """Load sensor metadata from JSON file."""
+        import json
+
+        print(f"  Loading metadata from: {self.config.metadata_path}")
+        with open(self.config.metadata_path, 'r') as f:
+            metadata = json.load(f)
+
+        # Extract sensor_details for the dataset
+        dataset_metadata = metadata.get(self.config.dataset_name, {})
+        sensor_location = dataset_metadata.get('sensor_location', {})
+        sensor_details = dataset_metadata.get('sensor_details', {})
+
+        # Build map: sensor_id -> sensor_detail (only if detail is different from location and not null)
+        self.sensor_details_map = {}
+        for sensor_id, detail in sensor_details.items():
+            # Include if detail exists, is not null, and is different from location
+            if detail and pd.notna(detail):
+                location = sensor_location.get(sensor_id, '')
+                if detail != location:
+                    self.sensor_details_map[sensor_id] = detail
+
+        print(f"  Found {len(self.sensor_details_map)} sensors with special details")
+
     def _load_raw_data(self) -> pd.DataFrame:
         """Load raw sensor data from file.
 
@@ -193,6 +222,12 @@ class BaseSampler(ABC):
         # Standardize column names for consistent usage downstream
         df = standardize_column_names(df)
 
+        # Add sensor_details column if metadata is available
+        if self.sensor_details_map is not None:
+            df['sensor_detail'] = df['sensor_id'].map(self.sensor_details_map)
+            num_with_details = df['sensor_detail'].notna().sum()
+            print(f"  Added sensor_detail column ({num_with_details} events with special sensors)")
+
         # Filter numeric sensors if requested
         if self.config.filter_numeric_sensors:
             df = self._filter_numeric_sensors(df)
@@ -216,7 +251,13 @@ class BaseSampler(ABC):
 
         # Get unique dates (timestamp column is now standardized)
         df['date'] = pd.to_datetime(df['timestamp']).dt.date
-        unique_dates = sorted(df['date'].unique())
+
+        # Filter out NaT values before sorting
+        valid_dates = df['date'].dropna().unique()
+        unique_dates = sorted(valid_dates)
+
+        # Remove rows with NaT dates
+        df = df[df['date'].notna()].copy()
 
         n_dates = len(unique_dates)
         n_train = int(n_dates * 0.7)  # 70% for training
@@ -316,7 +357,7 @@ class BaseSampler(ABC):
         if preserve_full:
             # Add all available metadata (column names are now standardized)
             optional_fields = [
-                'room', 'sensor_type', 'x', 'y', 'floor',
+                'room', 'sensor_type', 'sensor_detail', 'x', 'y', 'floor',
                 'activity_l1', 'activity_l2', 'activity_full'
             ]
 

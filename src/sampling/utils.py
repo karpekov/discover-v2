@@ -185,6 +185,30 @@ def compute_window_metadata(events_df: pd.DataFrame,
         for activity, count in Counter(activity_l1_list).items():
             activity_dist[activity] = count / total
 
+    # Special sensor information (sensors with details, not just room location)
+    special_sensors_info = {}
+    if 'sensor_detail' in events_df.columns:
+        # Get all special sensors triggered in this window
+        special_sensors = events_df['sensor_detail'].dropna().tolist()
+
+        if special_sensors:
+            # All special sensors (unique, preserving order)
+            special_sensors_list = list(dict.fromkeys(special_sensors))
+
+            # Count frequencies
+            sensor_counts = Counter(special_sensors)
+
+            # Find most frequent special sensor (if triggered at least 2 times)
+            most_common = sensor_counts.most_common(1)[0]
+            primary_special_sensor = most_common[0] if most_common[1] >= 2 else None
+
+            special_sensors_info = {
+                'special_sensors_triggered': special_sensors_list,
+                'num_special_sensors': len(special_sensors_list),
+                'primary_special_sensor': primary_special_sensor,
+                'special_sensor_counts': dict(sensor_counts)
+            }
+
     metadata = {
         'window_id': window_id,
         'start_time': str(start_time),
@@ -205,6 +229,10 @@ def compute_window_metadata(events_df: pd.DataFrame,
         },
         'presegmented': presegmented
     }
+
+    # Add special sensor info if available
+    if special_sensors_info:
+        metadata['special_sensors'] = special_sensors_info
 
     return metadata
 

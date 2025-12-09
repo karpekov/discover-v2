@@ -59,6 +59,7 @@ class SamplingConfig:
     preserve_full_metadata: bool = True  # Include all metadata for captions
     include_spatial_info: bool = True  # x, y coordinates
     include_sensor_types: bool = True  # Sensor type information
+    metadata_path: Optional[Path] = None  # Path to metadata JSON file (casas_metadata.json or marble_metadata.json)
 
     def __post_init__(self):
         """Validate configuration."""

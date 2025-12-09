@@ -1,0 +1,20 @@
+# LLM Caption Generation Config - OpenAI GPT-4o-mini
+# Use with: python src/captions/generate_llm_captions.py --config configs/captions/llm_openai.yaml --data-dir <path>
+
+# Backend settings
+backend_type: openai
+model_name: gpt-4o-mini
+
+# Generation settings
+num_captions_per_sample: 4
+temperature: 0.9
+
+# API key (optional - can also set via OPENAI_API_KEY env var or --api-key arg)
+# api_key: sk-...
+
+# Dataset info
+dataset_name: milan
+
+# Random seed for reproducibility
+random_seed: 42
+

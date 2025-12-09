@@ -27,6 +27,11 @@ class LossConfig:
     temperature_init: float = 0.02
     learnable_temperature: bool = True
 
+    # Alignment loss type (configurable)
+    alignment_loss_type: Literal['infonce', 'sigmoid', 'focal_sigmoid'] = 'infonce'
+    focal_gamma: float = 2.0  # Only used for focal_sigmoid
+    focal_alpha: Optional[float] = None  # Optional class-balancing for focal_sigmoid
+
     # MLM loss settings (optional)
     mlm_weight: float = 0.0
     mask_prob: float = 0.25

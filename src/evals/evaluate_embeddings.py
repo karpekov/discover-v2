@@ -9,23 +9,41 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 Embedding-based evaluation script for CASAS activity recognition.
 Computes nearest neighbor predictions in embedding space and evaluates against ground truth labels.
 
-Sample Usage:
+Supports three evaluation modes:
+1. Sensor embedding evaluation (default): Evaluates sensor embeddings against text prototypes
+2. Text embedding evaluation (--eval_text_embeddings): Evaluates text embeddings with/without projection
+3. Comprehensive evaluation (--eval_all): All three in one - sensor + text (with/without projection)
+
+Sample Usage (Comprehensive - RECOMMENDED):
 python src/evals/evaluate_embeddings.py \
-    --checkpoint trained_models/milan/tiny_50/best_model.pt \
-    --train_data data/processed/casas/milan/training_50/train.json \
-    --test_data data/processed/casas/milan/training_50/presegmented_test.json \
-    --vocab data/processed/casas/milan/training_50/vocab.json \
-    --output_dir results/evals/milan/tiny_50_TEST \
+    --checkpoint trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1/best_model.pt \
+    --train_data data/processed/casas/milan/FD_60_p/train.json \
+    --test_data data/processed/casas/milan/FD_60_p/test.json \
+    --vocab data/processed/casas/milan/FD_60_p/vocab.json \
+    --output_dir results/evals/milan/FD_60_p/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1 \
+    --eval_all \
+    --train_text_embeddings data/processed/casas/milan/FD_60_p/train_embeddings_baseline_clip.npz \
+    --test_text_embeddings data/processed/casas/milan/FD_60_p/test_embeddings_baseline_clip.npz \
     --max_samples 10000 \
-    --compare_filtering
+    --filter_noisy_labels
+
+Output Files:
+- combined_tsne_l1.png - 3-subplot t-SNE (text no proj | text proj | sensor)
+- combined_confusion_matrix_l1.png - 3-subplot confusion (L1 labels)
+- combined_confusion_matrix_l2.png - 3-subplot confusion (L2 labels)
+- combined_f1_analysis.png - 2-subplot bar chart (L1 | L2)
+- perclass_f1_weighted_l1.png - Per-class F1 weighted (L1)
+- perclass_f1_weighted_l2.png - Per-class F1 weighted (L2)
+- comprehensive_results.json - All metrics in JSON format
 """
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 import json
 import argparse
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Union
 from pathlib import Path
 from collections import defaultdict, Counter
 import warnings
@@ -48,6 +66,16 @@ from dataio.dataset import SmartHomeDataset
 from dataio.collate import create_data_loader
 from utils.device_utils import get_optimal_device, log_device_info
 from utils.label_utils import convert_labels_to_text
+
+# Retrieval metrics imports
+from evals.compute_retrieval_metrics import (
+    compute_label_recall_at_k,
+    load_text_prototypes_from_metadata,
+    encode_text_prototypes,
+    compute_prototype_retrieval_metrics,
+    compute_retrieval_confusion,
+    compute_cosine_similarity
+)
 
 
 class EmbeddingEvaluator:
@@ -104,7 +132,11 @@ class EmbeddingEvaluator:
         if 'model_state_dict' in checkpoint:
             # Load from AlignmentModel - need to extract sensor_encoder weights
             from alignment.model import AlignmentModel
-            full_model = AlignmentModel.load(self.config['checkpoint_path'], device=self.device)
+            full_model = AlignmentModel.load(
+                self.config['checkpoint_path'],
+                device=self.device,
+                vocab_path=self.config.get('vocab_path')
+            )
             self.sensor_encoder = full_model.sensor_encoder
         elif 'chronos_encoder_state_dict' in checkpoint or 'sensor_encoder_state_dict' in checkpoint:
             # Old format - individual state dicts
@@ -146,11 +178,39 @@ class EmbeddingEvaluator:
         """Load datasets."""
         self.datasets = {}
 
+        # Check if vocab_path is available - if not, we can't load datasets
+        # (but this is OK for text embedding evaluation modes)
+        if 'vocab_path' not in self.config or self.config.get('vocab_path') is None:
+            print("ℹ️  No vocab file provided - skipping dataset loading")
+            print("   (This is OK for text embedding evaluation modes)")
+            return
+
+        # Get sequence length from checkpoint config
+        # This ensures we use the same sequence length as during training
+        checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
+        raw_config = checkpoint.get('config', {})
+
+        # Try to extract sequence_length from config
+        if hasattr(raw_config, 'sequence_length'):
+            sequence_length = raw_config.sequence_length
+        elif hasattr(raw_config, 'data') and hasattr(raw_config.data, 'sequence_length'):
+            sequence_length = raw_config.data.sequence_length
+        elif isinstance(raw_config, dict) and 'sequence_length' in raw_config:
+            sequence_length = raw_config['sequence_length']
+        else:
+            # Fallback to reasonable default for FD_60 data
+            # Model supports up to max_seq_len=512, but 256 is good for 60-second windows
+            sequence_length = 256
+            print(f"⚠️  Could not find sequence_length in checkpoint, using default: {sequence_length}")
+            print(f"    (Model supports up to 512, but 256 is reasonable for FD_60 data)")
+
+        print(f"📏 Using sequence_length={sequence_length} from training config")
+
         if self.config['train_data_path'] and Path(self.config['train_data_path']).exists():
             self.datasets['train'] = SmartHomeDataset(
                 data_path=self.config['train_data_path'],
                 vocab_path=self.config['vocab_path'],
-                sequence_length=20,
+                sequence_length=sequence_length,
                 max_captions=1
             )
             print(f"📊 Train dataset: {len(self.datasets['train'])} samples")
@@ -159,7 +219,7 @@ class EmbeddingEvaluator:
             self.datasets['test'] = SmartHomeDataset(
                 data_path=self.config['test_data_path'],
                 vocab_path=self.config['vocab_path'],
-                sequence_length=20,
+                sequence_length=sequence_length,
                 max_captions=1
             )
             print(f"📊 Test dataset: {len(self.datasets['test'])} samples")
@@ -172,15 +232,15 @@ class EmbeddingEvaluator:
                 city_metadata = json.load(f)
 
             # Detect which dataset we're using from the data path
-            dataset_name = 'milan'  # default
+            self.dataset_name = 'milan'  # default
             if 'train_data_path' in self.config:
                 data_path = str(self.config['train_data_path'])
                 for name in ['milan', 'cairo', 'aruba', 'tulum', 'kyoto', 'aware_home']:
                     if name in data_path.lower():
-                        dataset_name = name
+                        self.dataset_name = name
                         break
 
-            dataset_metadata = city_metadata.get(dataset_name, {})
+            dataset_metadata = city_metadata.get(self.dataset_name, {})
 
             # Load L1 colors - different keys for different datasets
             # Milan uses 'label', others use 'label_color'
@@ -190,15 +250,15 @@ class EmbeddingEvaluator:
             self.label_colors_l2 = dataset_metadata.get('label_deepcasas_color', {})
 
             if self.label_colors:
-                print(f"🎨 Loaded {len(self.label_colors)} L1 label colors from {dataset_name} metadata")
+                print(f"🎨 Loaded {len(self.label_colors)} L1 label colors from {self.dataset_name} metadata")
             else:
-                print(f"⚠️  No L1 label colors found in {dataset_name} metadata, using default colors")
+                print(f"⚠️  No L1 label colors found in {self.dataset_name} metadata, using default colors")
                 self.label_colors = {}
 
             if self.label_colors_l2:
-                print(f"🎨 Loaded {len(self.label_colors_l2)} L2 label colors from {dataset_name} metadata")
+                print(f"🎨 Loaded {len(self.label_colors_l2)} L2 label colors from {self.dataset_name} metadata")
             else:
-                print(f"⚠️  No L2 label colors found in {dataset_name} metadata, using default colors")
+                print(f"⚠️  No L2 label colors found in {self.dataset_name} metadata, using default colors")
                 self.label_colors_l2 = {}
 
         except Exception as e:
@@ -206,8 +266,12 @@ class EmbeddingEvaluator:
             self.label_colors = {}
             self.label_colors_l2 = {}
 
-    def extract_embeddings_and_labels(self, split: str, max_samples: int = 10000) -> Tuple[np.ndarray, List[str], List[str]]:
-        """Extract embeddings and ground truth labels from dataset with random sampling."""
+    def extract_embeddings_and_labels(self, split: str, max_samples: int = 10000) -> Tuple[np.ndarray, List[str], List[str], List[str]]:
+        """Extract embeddings, ground truth labels, and sample IDs from dataset.
+
+        Returns:
+            Tuple of (embeddings, labels_l1, labels_l2, sample_ids)
+        """
         import random
         from torch.utils.data import Subset
 
@@ -238,22 +302,23 @@ class EmbeddingEvaluator:
         else:
             print(f"📊 Using all {len(dataset)} samples")
 
-        # Create data loader with shuffling
+        # Create data loader with NO SHUFFLING to maintain alignment
         data_loader = create_data_loader(
             dataset=dataset,
             text_encoder=self.text_encoder,
             span_masker=None,
             vocab_sizes=self.vocab_sizes,
             device=self.device,
-            batch_size=64,
-            shuffle=True,  # Always shuffle for good measure
-            num_workers=0,
+            batch_size=256,  # Much larger batch size for inference (was 64)
+            shuffle=False,  # NO SHUFFLING - maintain order for alignment
+            num_workers=0,  # Must be 0 due to unpicklable objects
             apply_mlm=False
         )
 
         embeddings = []
         labels_l1 = []
         labels_l2 = []
+        sample_ids = []
         samples_processed = 0
 
         with torch.no_grad():
@@ -275,12 +340,13 @@ class EmbeddingEvaluator:
 
                 embeddings.append(sensor_emb.cpu().numpy())
 
-                # Extract labels for this batch
+                # Extract labels and sample_ids for this batch
                 batch_size_actual = sensor_emb.shape[0]
 
                 # Get ground truth labels directly from the batch (much more reliable!)
                 batch_labels_l1 = batch.get('activity_labels', ['Unknown'] * batch_size_actual)
                 batch_labels_l2 = batch.get('activity_labels_l2', ['Unknown'] * batch_size_actual)
+                batch_sample_ids = batch.get('sample_ids', [f'unknown_{i}' for i in range(batch_size_actual)])
 
                 for i in range(batch_size_actual):
                     if samples_processed >= actual_samples:
@@ -289,9 +355,11 @@ class EmbeddingEvaluator:
                     # Use labels directly from the batch - this is the correct approach!
                     label_l1 = batch_labels_l1[i] if i < len(batch_labels_l1) else 'Unknown'
                     label_l2 = batch_labels_l2[i] if i < len(batch_labels_l2) else 'Unknown'
+                    sample_id = batch_sample_ids[i] if i < len(batch_sample_ids) else f'unknown_{samples_processed}'
 
                     labels_l1.append(label_l1)
                     labels_l2.append(label_l2)
+                    sample_ids.append(str(sample_id))
 
                     samples_processed += 1
 
@@ -304,8 +372,92 @@ class EmbeddingEvaluator:
         print(f"📈 Extracted {embeddings.shape[0]} embeddings")
         print(f"📊 L1 Labels: {len(set(labels_l1))} unique ({Counter(labels_l1).most_common(5)})")
         print(f"📊 L2 Labels: {len(set(labels_l2))} unique ({Counter(labels_l2).most_common(5)})")
+        print(f"🔑 Sample IDs: {len(sample_ids)} unique sample IDs extracted")
 
-        return embeddings, labels_l1, labels_l2
+        return embeddings, labels_l1, labels_l2, sample_ids
+
+    def align_embeddings_by_sample_id(
+        self,
+        sensor_emb: np.ndarray,
+        sensor_labels_l1: List[str],
+        sensor_labels_l2: List[str],
+        sensor_sample_ids: List[str],
+        text_emb: np.ndarray,
+        text_labels_l1: List[str],
+        text_labels_l2: List[str],
+        text_sample_ids: List[str]
+    ) -> Tuple[np.ndarray, np.ndarray, List[str], List[str], List[str]]:
+        """Align sensor and text embeddings by sample_id.
+
+        Args:
+            sensor_emb: Sensor embeddings (N_sensor, D)
+            sensor_labels_l1: L1 labels for sensor embeddings
+            sensor_labels_l2: L2 labels for sensor embeddings
+            sensor_sample_ids: Sample IDs for sensor embeddings
+            text_emb: Text embeddings (N_text, D)
+            text_labels_l1: L1 labels for text embeddings
+            text_labels_l2: L2 labels for text embeddings
+            text_sample_ids: Sample IDs for text embeddings
+
+        Returns:
+            Tuple of (aligned_sensor_emb, aligned_text_emb, aligned_labels_l1, aligned_labels_l2, aligned_sample_ids)
+        """
+        print(f"\n🔗 Aligning embeddings by sample_id...")
+        print(f"   Sensor: {len(sensor_sample_ids)} samples")
+        print(f"   Text: {len(text_sample_ids)} samples")
+
+        # Create dictionaries for fast lookup
+        sensor_dict = {}
+        for i, sample_id in enumerate(sensor_sample_ids):
+            sensor_dict[sample_id] = {
+                'emb': sensor_emb[i],
+                'l1': sensor_labels_l1[i],
+                'l2': sensor_labels_l2[i]
+            }
+
+        text_dict = {}
+        for i, sample_id in enumerate(text_sample_ids):
+            text_dict[sample_id] = {
+                'emb': text_emb[i],
+                'l1': text_labels_l1[i],
+                'l2': text_labels_l2[i]
+            }
+
+        # Find common sample_ids
+        sensor_ids_set = set(sensor_sample_ids)
+        text_ids_set = set(text_sample_ids)
+        common_ids = sensor_ids_set & text_ids_set
+
+        print(f"   Common sample_ids: {len(common_ids)}")
+        print(f"   Sensor-only: {len(sensor_ids_set - text_ids_set)}")
+        print(f"   Text-only: {len(text_ids_set - sensor_ids_set)}")
+
+        if len(common_ids) == 0:
+            raise ValueError("No common sample_ids found! Cannot align embeddings.")
+
+        # Create aligned arrays
+        aligned_sensor_emb = []
+        aligned_text_emb = []
+        aligned_labels_l1 = []
+        aligned_labels_l2 = []
+        aligned_sample_ids = []
+
+        for sample_id in sorted(common_ids):
+            aligned_sensor_emb.append(sensor_dict[sample_id]['emb'])
+            aligned_text_emb.append(text_dict[sample_id]['emb'])
+            # Use sensor labels as ground truth (they should match text labels)
+            aligned_labels_l1.append(sensor_dict[sample_id]['l1'])
+            aligned_labels_l2.append(sensor_dict[sample_id]['l2'])
+            aligned_sample_ids.append(sample_id)
+
+        aligned_sensor_emb = np.array(aligned_sensor_emb)
+        aligned_text_emb = np.array(aligned_text_emb)
+
+        print(f"✅ Aligned {len(aligned_sample_ids)} samples")
+        print(f"   Final L1 labels: {len(set(aligned_labels_l1))} unique")
+        print(f"   Final L2 labels: {len(set(aligned_labels_l2))} unique")
+
+        return aligned_sensor_emb, aligned_text_emb, aligned_labels_l1, aligned_labels_l2, aligned_sample_ids
 
     def filter_noisy_labels(self, embeddings: np.ndarray, labels_l1: List[str], labels_l2: List[str],
                            original_indices: List[int] = None) -> Tuple[np.ndarray, List[str], List[str], List[int]]:
@@ -361,10 +513,165 @@ class EmbeddingEvaluator:
 
         return filtered_embeddings, filtered_labels_l1, filtered_labels_l2, valid_original_indices
 
-    def create_text_prototypes(self, labels: List[str]) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
-        """Create text-based prototypes using the text encoder with multiple captions per label."""
+    def get_labels_from_metadata(self, dataset_name: str) -> Tuple[List[str], List[str]]:
+        """
+        Extract all L1 and L2 labels from metadata file without loading training data.
 
-        print(f"🔄 Creating text-based label prototypes...")
+        Args:
+            dataset_name: Name of dataset (e.g., 'milan', 'aruba')
+
+        Returns:
+            Tuple of (l1_labels, l2_labels)
+        """
+        import json
+        from pathlib import Path
+
+        metadata_path = Path(__file__).parent.parent.parent / 'metadata' / 'casas_metadata.json'
+
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+
+        if dataset_name not in metadata:
+            raise ValueError(f"Dataset {dataset_name} not found in metadata. Available: {list(metadata.keys())}")
+
+        dataset_meta = metadata[dataset_name]
+
+        # Get L1 labels from label_l2 mapping keys
+        if 'label_l2' in dataset_meta:
+            l1_labels = list(dataset_meta['label_l2'].keys())
+            # Get unique L2 labels from values
+            l2_labels = list(set(dataset_meta['label_l2'].values()))
+        else:
+            # Fallback to label_to_text if label_l2 not available
+            if 'label_to_text' in dataset_meta:
+                l1_labels = list(dataset_meta['label_to_text'].keys())
+                l2_labels = []
+            else:
+                raise ValueError(f"No label information found for dataset {dataset_name}")
+
+        # Filter out empty strings
+        l1_labels = [label for label in l1_labels if label and label.strip()]
+        l2_labels = [label for label in l2_labels if label and label.strip()]
+
+        print(f"📋 Extracted from metadata: {len(l1_labels)} L1 labels, {len(l2_labels)} L2 labels")
+
+        return l1_labels, l2_labels
+
+    def map_l1_to_l2_labels(self, l1_labels: List[str], house_name: str = "milan") -> List[str]:
+        """Map L1 (primary) labels to L2 (secondary) labels using metadata mapping.
+
+        Args:
+            l1_labels: List of L1 labels to map
+            house_name: Dataset name (e.g., 'milan', 'aruba')
+
+        Returns:
+            List of L2 labels corresponding to input L1 labels
+        """
+        try:
+            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+            with open(metadata_path, 'r') as f:
+                city_metadata = json.load(f)
+
+            dataset_metadata = city_metadata.get(house_name, {})
+            label_l2_mapping = dataset_metadata.get('label_l2', {})
+
+            # Also try label_deepcasas as alternative
+            if not label_l2_mapping:
+                label_l2_mapping = dataset_metadata.get('label_deepcasas', {})
+
+            # Map each L1 label to L2
+            l2_labels = []
+            for l1_label in l1_labels:
+                # Try direct mapping
+                l2_label = label_l2_mapping.get(l1_label, l1_label)
+                l2_labels.append(l2_label)
+
+            return l2_labels
+        except Exception as e:
+            print(f"⚠️  Could not load L1->L2 mapping from metadata: {e}")
+            # Return L1 labels as fallback
+            return l1_labels
+
+    def load_multiple_descriptions_from_metadata(self, labels: List[str], house_name: str = "milan") -> Dict[str, List[str]]:
+        """Load multiple descriptions per label from metadata's multiple_desc field.
+
+        Only includes labels that have multiple_desc field. Raises error if fewer than 5 labels found.
+
+        Returns:
+            Dict mapping label -> list of descriptions (only for labels with multiple_desc)
+
+        Raises:
+            ValueError: If fewer than 5 labels have multiple_desc field
+        """
+        try:
+            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+            with open(metadata_path, 'r') as f:
+                city_metadata = json.load(f)
+
+            dataset_metadata = city_metadata.get(house_name, {})
+            label_to_text = dataset_metadata.get('label_to_text', {})
+
+            label_descriptions = {}
+            labels_with_multiple_desc = []
+            labels_without_multiple_desc = []
+
+            for label in labels:
+                # Only use labels that have multiple_desc field
+                if label in label_to_text and 'multiple_desc' in label_to_text[label]:
+                    label_descriptions[label] = label_to_text[label]['multiple_desc']
+                    labels_with_multiple_desc.append(label)
+                else:
+                    labels_without_multiple_desc.append(label)
+
+            # Print statistics
+            print(f"\n📊 Multiple descriptions availability for {house_name}:")
+            print(f"   ✅ Labels WITH multiple_desc: {len(labels_with_multiple_desc)}")
+            if labels_with_multiple_desc:
+                print(f"   Labels: {', '.join(labels_with_multiple_desc)}")
+                # Print number of descriptions per label
+                for label in labels_with_multiple_desc:
+                    n_desc = len(label_descriptions[label])
+                    print(f"      - {label}: {n_desc} descriptions")
+
+            if labels_without_multiple_desc:
+                print(f"   ❌ Labels WITHOUT multiple_desc: {len(labels_without_multiple_desc)}")
+                print(f"   Labels: {', '.join(labels_without_multiple_desc)}")
+
+            # Enforce minimum requirement
+            if len(labels_with_multiple_desc) < 5:
+                raise ValueError(
+                    f"Insufficient labels with multiple_desc field!\n"
+                    f"   Found: {len(labels_with_multiple_desc)} labels\n"
+                    f"   Required: at least 5 labels\n"
+                    f"   Labels with multiple_desc: {labels_with_multiple_desc}\n"
+                    f"   Dataset: {house_name}\n"
+                    f"   Please ensure the metadata has multiple_desc field for at least 5 labels."
+                )
+
+            return label_descriptions
+
+        except ValueError:
+            # Re-raise ValueError (our custom error)
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Could not load descriptions from metadata: {e}")
+
+    def create_text_prototypes(self, labels: List[str], apply_projection: bool = True, use_multiple_prototypes: bool = False) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
+        """Create text-based prototypes using the text encoder with multiple captions per label.
+
+        Args:
+            labels: List of label strings
+            apply_projection: If True, uses encode_texts_clip (with projection).
+                            If False, encodes without projection.
+            use_multiple_prototypes: If True, create multiple prototypes per label (one per description).
+                                   If False, average descriptions into single prototype per label (default).
+
+        Returns:
+            If use_multiple_prototypes=False: Dict[label -> single averaged embedding]
+            If use_multiple_prototypes=True: Dict[label -> array of multiple embeddings, shape (n_descriptions, embedding_dim)]
+        """
+
+        print(f"🔄 Creating text-based label prototypes (projection={'ON' if apply_projection else 'OFF'}, multiple_prototypes={use_multiple_prototypes})...")
 
         # Get unique labels and their counts
         label_counts = Counter(labels)
@@ -372,28 +679,67 @@ class EmbeddingEvaluator:
 
         print(f"📝 Encoding {len(unique_labels)} unique labels with text encoder...")
 
-        # Convert labels to multiple natural language descriptions
-        label_descriptions_lists = convert_labels_to_text(unique_labels)
+        # Get descriptions based on mode
+        if use_multiple_prototypes:
+            # Load from metadata's multiple_desc field (only includes labels with multiple_desc)
+            label_descriptions_dict = self.load_multiple_descriptions_from_metadata(unique_labels, self.dataset_name)
+            # Filter unique_labels to only those with multiple_desc
+            unique_labels = [label for label in unique_labels if label in label_descriptions_dict]
+            print(f"   📋 Using {len(unique_labels)} labels with multiple_desc field")
+        else:
+            # Use existing convert_labels_to_text function
+            label_descriptions_lists = convert_labels_to_text(unique_labels)
+            label_descriptions_dict = {label: label_descriptions_lists[i] for i, label in enumerate(unique_labels)}
 
-        # Create prototypes dictionary by averaging embeddings for multiple captions
+        # Create prototypes dictionary
         prototypes = {}
+        total_prototypes = 0
         self.text_encoder.eval()
 
         with torch.no_grad():
-            for i, label in enumerate(unique_labels):
-                descriptions = label_descriptions_lists[i]
+            for label in unique_labels:
+                descriptions = label_descriptions_dict[label]
 
-                # Encode all descriptions for this label
-                caption_embeddings = self.text_encoder.encode_texts_clip(descriptions, self.device).cpu().numpy()
+                if apply_projection:
+                    # Use encode_texts_clip which includes projection
+                    caption_embeddings = self.text_encoder.encode_texts_clip(descriptions, self.device).cpu().numpy()
+                else:
+                    # Encode WITHOUT projection (raw CLIP embeddings)
+                    # Load CLIP model if needed
+                    if not hasattr(self.text_encoder, '_clip_model') or self.text_encoder._clip_model is None:
+                        from transformers import CLIPTextModel, CLIPTokenizer
+                        self.text_encoder._clip_model = CLIPTextModel.from_pretrained(self.text_encoder.model_name).to(self.device)
+                        self.text_encoder._clip_tokenizer = CLIPTokenizer.from_pretrained(self.text_encoder.model_name)
+                        self.text_encoder._clip_model.eval()
 
-                # Average the embeddings to create a single prototype
-                prototype_embedding = np.mean(caption_embeddings, axis=0)
-                prototypes[label] = prototype_embedding
+                    inputs = self.text_encoder._clip_tokenizer(descriptions, padding=True, truncation=True, return_tensors="pt").to(self.device)
+                    outputs = self.text_encoder._clip_model(**inputs)
+                    embeddings = outputs.pooler_output
+                    embeddings = F.normalize(embeddings, p=2, dim=-1)
+                    caption_embeddings = embeddings.cpu().numpy()
 
-        print(f"✅ Created {len(prototypes)} text-based prototypes")
-        for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
-            descriptions = label_descriptions_lists[unique_labels.index(label)]
-            print(f"    {label}: {count} samples → {len(descriptions)} captions (e.g., '{descriptions[0]}')")
+                if use_multiple_prototypes:
+                    # Keep all embeddings separate (shape: n_descriptions, embedding_dim)
+                    prototypes[label] = caption_embeddings
+                    total_prototypes += len(caption_embeddings)
+                else:
+                    # Average the embeddings to create a single prototype (original behavior)
+                    prototype_embedding = np.mean(caption_embeddings, axis=0)
+                    prototypes[label] = prototype_embedding
+                    total_prototypes += 1
+
+        if use_multiple_prototypes:
+            print(f"✅ Created {total_prototypes} text-based prototypes across {len(prototypes)} labels")
+            for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+                if label in prototypes:
+                    n_protos = len(prototypes[label])
+                    print(f"    {label}: {count} samples → {n_protos} prototypes")
+        else:
+            print(f"✅ Created {len(prototypes)} text-based prototypes")
+            for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+                if label in label_descriptions_dict:
+                    descriptions = label_descriptions_dict[label]
+                    print(f"    {label}: {count} samples → {len(descriptions)} captions (e.g., '{descriptions[0]}')")
 
         return prototypes, dict(label_counts)
 
@@ -503,16 +849,42 @@ class EmbeddingEvaluator:
 
     def predict_labels_knn(self, query_embeddings: np.ndarray,
                           prototypes: Dict[str, np.ndarray],
-                          k: int = 1) -> List[str]:
-        """Predict labels using k-nearest neighbors between sensor and text embeddings."""
+                          k: int = 1,
+                          use_multiple_prototypes: bool = False) -> List[str]:
+        """Predict labels using k-nearest neighbors between sensor and text embeddings.
+
+        Args:
+            query_embeddings: Query embeddings to classify (n_queries, embedding_dim)
+            prototypes: Dict mapping label -> prototype embedding(s)
+                       If use_multiple_prototypes=False: each value is (embedding_dim,)
+                       If use_multiple_prototypes=True: each value is (n_prototypes, embedding_dim)
+            k: Number of nearest neighbors to consider
+            use_multiple_prototypes: Whether prototypes dict contains multiple embeddings per label
+        """
 
         print(f"🔄 Predicting labels using {k}-NN cross-modal comparison...")
-        print(f"    Sensor embeddings: {query_embeddings.shape[0]} samples")
-        print(f"    Text prototypes: {len(prototypes)} activities")
+        print(f"    Query embeddings: {query_embeddings.shape[0]} samples")
 
-        # Convert prototypes to arrays
-        prototype_labels = list(prototypes.keys())
-        prototype_embeddings = np.array([prototypes[label] for label in prototype_labels])
+        if use_multiple_prototypes:
+            # Flatten all prototypes and keep track of which label each belongs to
+            all_prototype_embeddings = []
+            all_prototype_labels = []
+
+            for label, label_prototypes in prototypes.items():
+                # label_prototypes shape: (n_prototypes, embedding_dim)
+                for proto_emb in label_prototypes:
+                    all_prototype_embeddings.append(proto_emb)
+                    all_prototype_labels.append(label)
+
+            prototype_embeddings = np.array(all_prototype_embeddings)
+            prototype_labels = all_prototype_labels
+
+            print(f"    Total prototypes: {len(prototype_labels)} across {len(prototypes)} labels")
+        else:
+            # Original behavior: one prototype per label
+            prototype_labels = list(prototypes.keys())
+            prototype_embeddings = np.array([prototypes[label] for label in prototype_labels])
+            print(f"    Text prototypes: {len(prototypes)} activities")
 
         # Normalize embeddings for cosine similarity
         query_embeddings_norm = query_embeddings / (np.linalg.norm(query_embeddings, axis=1, keepdims=True) + 1e-8)
@@ -533,7 +905,7 @@ class EmbeddingEvaluator:
             for indices in top_k_indices:
                 # Get top-k labels and vote
                 top_labels = [prototype_labels[idx] for idx in indices]
-                # Simple majority vote (could be weighted by similarity)
+                # Majority vote
                 prediction = Counter(top_labels).most_common(1)[0][0]
                 predictions.append(prediction)
 
@@ -1730,7 +2102,7 @@ class EmbeddingEvaluator:
                 if np.any(mask):
                     ax.scatter(embeddings_2d[mask, 0], embeddings_2d[mask, 1],
                              c=[label_to_color[label]], label=label.replace('_', ' '),
-                             alpha=0.7, s=20)
+                             alpha=0.6, s=20, edgecolors='white', linewidth=0.3)
 
             ax.set_title(title_text, fontweight='bold', fontsize=12)
             ax.set_xlabel('t-SNE Component 1')
@@ -1916,10 +2288,10 @@ class EmbeddingEvaluator:
         print("1. EXTRACTING TRAINING AND TEST DATA")
         print("="*60)
 
-        train_embeddings, train_labels_l1, train_labels_l2 = self.extract_embeddings_and_labels(
+        train_embeddings, train_labels_l1, train_labels_l2, train_sample_ids = self.extract_embeddings_and_labels(
             train_split, max_samples
         )
-        test_embeddings, test_labels_l1, test_labels_l2 = self.extract_embeddings_and_labels(
+        test_embeddings, test_labels_l1, test_labels_l2, test_sample_ids = self.extract_embeddings_and_labels(
             test_split, max_samples
         )
 
@@ -2069,13 +2441,2302 @@ class EmbeddingEvaluator:
 
         return all_results
 
+    def load_text_embeddings_from_file(self, embeddings_path: str,
+                                       data_path: str,
+                                       max_samples: int = None) -> Tuple[np.ndarray, List[str], List[str], List[str]]:
+        """Load text embeddings from .npz file and match with labels.
+
+        For multi-caption embeddings (new format), uses only the FIRST caption per sample
+        for consistent evaluation metrics.
+
+        Returns:
+            Tuple of (embeddings, sample_ids, labels_l1, labels_l2)
+        """
+        print(f"\n📖 Loading text embeddings from: {embeddings_path}")
+        data = np.load(embeddings_path)
+        embeddings = data['embeddings']
+        sample_ids_from_emb = data['sample_ids']
+
+        # Check if this is multi-caption format
+        if 'caption_indices' in data:
+            caption_indices = data['caption_indices']
+            # Keep only first caption (caption_indices == 0) for evaluation
+            first_caption_mask = caption_indices == 0
+            embeddings = embeddings[first_caption_mask]
+            sample_ids_from_emb = sample_ids_from_emb[first_caption_mask]
+            print(f"   Multi-caption format detected: using first caption per sample for evaluation")
+            print(f"   Filtered to {embeddings.shape[0]} unique samples (from {len(caption_indices)} total embeddings)")
+
+        print(f"   Loaded {embeddings.shape[0]} embeddings of dimension {embeddings.shape[1]}")
+        if 'encoder_type' in data:
+            print(f"   Encoder: {data.get('encoder_type', ['unknown'])[0]}")
+        if 'model_name' in data:
+            print(f"   Model: {data.get('model_name', ['unknown'])[0]}")
+
+        # Load labels from data file
+        print(f"\n📖 Loading labels from: {data_path}")
+        with open(data_path, 'r') as f:
+            data_json = json.load(f)
+
+        samples_data = data_json.get('samples', data_json)
+
+        label_map = {}
+        for sample in samples_data:
+            sample_id = sample.get('sample_id')
+            if sample_id:
+                metadata = sample.get('metadata', {})
+                ground_truth = metadata.get('ground_truth_labels', {})
+                label_l1 = ground_truth.get('primary_l1', ground_truth.get('mode', 'Unknown'))
+                label_l2 = ground_truth.get('primary_l2', 'Unknown')
+                label_map[sample_id] = {'label_l1': label_l1, 'label_l2': label_l2}
+
+        print(f"   Loaded labels for {len(label_map)} samples")
+
+        # Match embeddings with labels
+        labels_l1 = []
+        labels_l2 = []
+        sample_ids = []
+        valid_indices = []
+
+        for i, sample_id in enumerate(sample_ids_from_emb):
+            sample_id_str = str(sample_id)
+            if sample_id_str in label_map:
+                labels_l1.append(label_map[sample_id_str]['label_l1'])
+                labels_l2.append(label_map[sample_id_str]['label_l2'])
+                sample_ids.append(sample_id_str)
+                valid_indices.append(i)
+
+        embeddings = embeddings[valid_indices]
+        print(f"   Matched {len(labels_l1)} samples with labels")
+
+        # Sample if needed
+        if max_samples and len(embeddings) > max_samples:
+            print(f"\n🎲 Sampling {max_samples} from {len(embeddings)} samples (seed=42)")
+            np.random.seed(42)
+            indices = np.random.choice(len(embeddings), max_samples, replace=False)
+            embeddings = embeddings[indices]
+            sample_ids = [sample_ids[i] for i in indices]
+            labels_l1 = [labels_l1[i] for i in indices]
+            labels_l2 = [labels_l2[i] for i in indices]
+
+        return embeddings, sample_ids, labels_l1, labels_l2
+
+    def apply_projection_to_embeddings(self, embeddings: np.ndarray,
+                                       normalize: bool = True) -> np.ndarray:
+        """Apply the projection head from the checkpoint to embeddings.
+
+        Args:
+            embeddings: Input embeddings (numpy array)
+            normalize: Whether to normalize after projection
+
+        Returns:
+            Projected embeddings (numpy array)
+        """
+        print(f"🔄 Applying projection head to {len(embeddings)} embeddings...")
+
+        # Convert to torch tensor
+        embeddings_torch = torch.from_numpy(embeddings).float().to(self.device)
+
+        # Apply projection using the text encoder's projection head
+        with torch.no_grad():
+            if normalize:
+                embeddings_torch = F.normalize(embeddings_torch, p=2, dim=-1)
+
+            # Apply the clip_proj from text_encoder
+            if hasattr(self.text_encoder, 'clip_proj'):
+                projected = self.text_encoder.clip_proj(embeddings_torch)
+            else:
+                print("   ⚠️  No projection head found, returning original embeddings")
+                projected = embeddings_torch
+
+            if normalize:
+                projected = F.normalize(projected, p=2, dim=-1)
+
+        # Convert back to numpy
+        projected_np = projected.cpu().numpy()
+        print(f"   Projected: {embeddings.shape[1]}-dim → {projected_np.shape[1]}-dim")
+
+        return projected_np
+
+    def run_text_embedding_evaluation(self,
+                                     train_embeddings_path: str,
+                                     test_embeddings_path: str,
+                                     train_data_path: str,
+                                     test_data_path: str,
+                                     max_samples: int = 10000,
+                                     k_neighbors: int = 1,
+                                     filter_noisy_labels: bool = False,
+                                     save_results: bool = True) -> Dict[str, Any]:
+        """Evaluate text embeddings with and without projection.
+
+        This loads pre-computed text embeddings and evaluates them against
+        label prototypes, both in the original space and after applying
+        the projection head from the trained model.
+
+        Args:
+            train_embeddings_path: Path to training text embeddings .npz file
+            test_embeddings_path: Path to test text embeddings .npz file
+            train_data_path: Path to training data JSON file (for labels)
+            test_data_path: Path to test data JSON file (for labels)
+        """
+        print("\n" + "="*80)
+        print("TEXT EMBEDDING EVALUATION (WITH AND WITHOUT PROJECTION)")
+        print("="*80)
+
+        # Load train embeddings to get label distribution
+        print("\n" + "="*60)
+        print("1. LOADING TRAINING TEXT EMBEDDINGS")
+        print("="*60)
+
+        train_embeddings, train_sample_ids, train_labels_l1, train_labels_l2 = \
+            self.load_text_embeddings_from_file(train_embeddings_path, train_data_path, max_samples)
+
+        # Filter noisy labels if requested
+        if filter_noisy_labels:
+            train_embeddings, train_labels_l1, train_labels_l2, _ = \
+                self.filter_noisy_labels(train_embeddings, train_labels_l1, train_labels_l2)
+
+        # Load test embeddings
+        print("\n" + "="*60)
+        print("2. LOADING TEST TEXT EMBEDDINGS")
+        print("="*60)
+
+        test_embeddings, test_sample_ids, test_labels_l1, test_labels_l2 = \
+            self.load_text_embeddings_from_file(test_embeddings_path, test_data_path, max_samples)
+
+        # Filter noisy labels if requested
+        if filter_noisy_labels:
+            test_embeddings, test_labels_l1, test_labels_l2, _ = \
+                self.filter_noisy_labels(test_embeddings, test_labels_l1, test_labels_l2)
+
+        # ===== EVALUATION WITHOUT PROJECTION =====
+        print("\n" + "="*60)
+        print("3. EVALUATION WITHOUT PROJECTION (Original Space)")
+        print("="*60)
+
+        # Create prototypes from training embeddings (without projection)
+        print("🔄 Creating prototypes from training text embeddings (no projection)...")
+        prototypes_l1_orig = self.create_prototypes_from_embeddings(train_embeddings, train_labels_l1)
+        prototypes_l2_orig = self.create_prototypes_from_embeddings(train_embeddings, train_labels_l2)
+
+        # Predict using original embeddings
+        pred_labels_l1_orig = self.predict_labels_knn(test_embeddings, prototypes_l1_orig, k_neighbors)
+        pred_labels_l2_orig = self.predict_labels_knn(test_embeddings, prototypes_l2_orig, k_neighbors)
+
+        # Evaluate
+        metrics_l1_orig = self.evaluate_predictions(test_labels_l1, pred_labels_l1_orig, "L1 (No Projection)")
+        metrics_l2_orig = self.evaluate_predictions(test_labels_l2, pred_labels_l2_orig, "L2 (No Projection)")
+
+        # ===== EVALUATION WITH PROJECTION =====
+        print("\n" + "="*60)
+        print("4. EVALUATION WITH PROJECTION (Aligned Space)")
+        print("="*60)
+
+        # Apply projection to train and test embeddings
+        train_embeddings_proj = self.apply_projection_to_embeddings(train_embeddings)
+        test_embeddings_proj = self.apply_projection_to_embeddings(test_embeddings)
+
+        # Create prototypes from projected training embeddings
+        print("🔄 Creating prototypes from projected text embeddings...")
+        prototypes_l1_proj = self.create_prototypes_from_embeddings(train_embeddings_proj, train_labels_l1)
+        prototypes_l2_proj = self.create_prototypes_from_embeddings(train_embeddings_proj, train_labels_l2)
+
+        # Predict using projected embeddings
+        pred_labels_l1_proj = self.predict_labels_knn(test_embeddings_proj, prototypes_l1_proj, k_neighbors)
+        pred_labels_l2_proj = self.predict_labels_knn(test_embeddings_proj, prototypes_l2_proj, k_neighbors)
+
+        # Evaluate
+        metrics_l1_proj = self.evaluate_predictions(test_labels_l1, pred_labels_l1_proj, "L1 (With Projection)")
+        metrics_l2_proj = self.evaluate_predictions(test_labels_l2, pred_labels_l2_proj, "L2 (With Projection)")
+
+        # ===== CREATE VISUALIZATIONS =====
+        if save_results:
+            print("\n" + "="*60)
+            print("5. CREATING VISUALIZATIONS")
+            print("="*60)
+
+            output_dir = Path(self.config.get('output_dir', './text_embedding_evaluation'))
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Confusion matrices - without projection
+            if 'confusion_matrix' in metrics_l1_orig:
+                self.create_confusion_matrix_plot(
+                    metrics_l1_orig['confusion_matrix'],
+                    metrics_l1_orig['unique_labels'],
+                    'L1 Primary Activities (No Projection)',
+                    str(output_dir / 'text_confusion_matrix_l1_noproj.png')
+                )
+
+            if 'confusion_matrix' in metrics_l2_orig:
+                self.create_confusion_matrix_plot(
+                    metrics_l2_orig['confusion_matrix'],
+                    metrics_l2_orig['unique_labels'],
+                    'L2 Secondary Activities (No Projection)',
+                    str(output_dir / 'text_confusion_matrix_l2_noproj.png')
+                )
+
+            # Confusion matrices - with projection
+            if 'confusion_matrix' in metrics_l1_proj:
+                self.create_confusion_matrix_plot(
+                    metrics_l1_proj['confusion_matrix'],
+                    metrics_l1_proj['unique_labels'],
+                    'L1 Primary Activities (With Projection)',
+                    str(output_dir / 'text_confusion_matrix_l1_proj.png')
+                )
+
+            if 'confusion_matrix' in metrics_l2_proj:
+                self.create_confusion_matrix_plot(
+                    metrics_l2_proj['confusion_matrix'],
+                    metrics_l2_proj['unique_labels'],
+                    'L2 Secondary Activities (With Projection)',
+                    str(output_dir / 'text_confusion_matrix_l2_proj.png')
+                )
+
+            # t-SNE plots - without projection
+            self.create_tsne_scatter_plots(
+                embeddings=test_embeddings,
+                true_labels_l1=test_labels_l1,
+                pred_labels_l1=pred_labels_l1_orig,
+                true_labels_l2=test_labels_l2,
+                pred_labels_l2=pred_labels_l2_orig,
+                title='Text Embeddings Evaluation (No Projection)',
+                subtitle=f'Original embedding space | {len(test_embeddings)} test samples',
+                save_path=str(output_dir / 'text_tsne_noproj.png')
+            )
+
+            # t-SNE plots - with projection
+            self.create_tsne_scatter_plots(
+                embeddings=test_embeddings_proj,
+                true_labels_l1=test_labels_l1,
+                pred_labels_l1=pred_labels_l1_proj,
+                true_labels_l2=test_labels_l2,
+                pred_labels_l2=pred_labels_l2_proj,
+                title='Text Embeddings Evaluation (With Projection)',
+                subtitle=f'Aligned embedding space | {len(test_embeddings_proj)} test samples',
+                save_path=str(output_dir / 'text_tsne_proj.png')
+            )
+
+            # Save results
+            results_summary = {
+                'no_projection': {
+                    'metrics_l1': {
+                        'accuracy': metrics_l1_orig.get('accuracy', 0),
+                        'f1_macro': metrics_l1_orig.get('f1_macro', 0),
+                        'f1_weighted': metrics_l1_orig.get('f1_weighted', 0),
+                        'num_classes': metrics_l1_orig.get('num_classes', 0),
+                        'num_samples': metrics_l1_orig.get('num_samples', 0),
+                    },
+                    'metrics_l2': {
+                        'accuracy': metrics_l2_orig.get('accuracy', 0),
+                        'f1_macro': metrics_l2_orig.get('f1_macro', 0),
+                        'f1_weighted': metrics_l2_orig.get('f1_weighted', 0),
+                        'num_classes': metrics_l2_orig.get('num_classes', 0),
+                        'num_samples': metrics_l2_orig.get('num_samples', 0),
+                    }
+                },
+                'with_projection': {
+                    'metrics_l1': {
+                        'accuracy': metrics_l1_proj.get('accuracy', 0),
+                        'f1_macro': metrics_l1_proj.get('f1_macro', 0),
+                        'f1_weighted': metrics_l1_proj.get('f1_weighted', 0),
+                        'num_classes': metrics_l1_proj.get('num_classes', 0),
+                        'num_samples': metrics_l1_proj.get('num_samples', 0),
+                    },
+                    'metrics_l2': {
+                        'accuracy': metrics_l2_proj.get('accuracy', 0),
+                        'f1_macro': metrics_l2_proj.get('f1_macro', 0),
+                        'f1_weighted': metrics_l2_proj.get('f1_weighted', 0),
+                        'num_classes': metrics_l2_proj.get('num_classes', 0),
+                        'num_samples': metrics_l2_proj.get('num_samples', 0),
+                    }
+                }
+            }
+
+            with open(output_dir / 'text_embedding_results.json', 'w') as f:
+                json.dump(results_summary, f, indent=2)
+
+            print(f"💾 Results saved: {output_dir / 'text_embedding_results.json'}")
+
+        # ===== SUMMARY =====
+        print("\n" + "="*80)
+        print("🎯 TEXT EMBEDDING EVALUATION SUMMARY")
+        print("="*80)
+
+        print("\n📊 WITHOUT PROJECTION (Original Space):")
+        print(f"   L1 - F1 Macro: {metrics_l1_orig.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l1_orig.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l1_orig.get('accuracy', 0):.4f}")
+        print(f"   L2 - F1 Macro: {metrics_l2_orig.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l2_orig.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l2_orig.get('accuracy', 0):.4f}")
+
+        print("\n📊 WITH PROJECTION (Aligned Space):")
+        print(f"   L1 - F1 Macro: {metrics_l1_proj.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l1_proj.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l1_proj.get('accuracy', 0):.4f}")
+        print(f"   L2 - F1 Macro: {metrics_l2_proj.get('f1_macro', 0):.4f} | "
+              f"F1 Weighted: {metrics_l2_proj.get('f1_weighted', 0):.4f} | "
+              f"Accuracy: {metrics_l2_proj.get('accuracy', 0):.4f}")
+
+        print(f"\n📈 IMPROVEMENT WITH PROJECTION:")
+        l1_improvement = metrics_l1_proj.get('f1_macro', 0) - metrics_l1_orig.get('f1_macro', 0)
+        l2_improvement = metrics_l2_proj.get('f1_macro', 0) - metrics_l2_orig.get('f1_macro', 0)
+        print(f"   L1 F1 Macro: {l1_improvement:+.4f} ({'improved' if l1_improvement > 0 else 'degraded'})")
+        print(f"   L2 F1 Macro: {l2_improvement:+.4f} ({'improved' if l2_improvement > 0 else 'degraded'})")
+
+        return {
+            'no_projection': {
+                'metrics_l1': metrics_l1_orig,
+                'metrics_l2': metrics_l2_orig,
+            },
+            'with_projection': {
+                'metrics_l1': metrics_l1_proj,
+                'metrics_l2': metrics_l2_proj,
+            }
+        }
+
+    def create_prototypes_from_embeddings(self, embeddings: np.ndarray,
+                                         labels: List[str]) -> Dict[str, np.ndarray]:
+        """Create prototypes by averaging embeddings for each label.
+
+        Args:
+            embeddings: Array of embeddings
+            labels: Corresponding labels
+
+        Returns:
+            Dictionary mapping label to prototype embedding
+        """
+        unique_labels = sorted(list(set(labels)))
+        prototypes = {}
+
+        for label in unique_labels:
+            # Get all embeddings for this label
+            mask = np.array(labels) == label
+            label_embeddings = embeddings[mask]
+
+            # Average to create prototype
+            prototype = np.mean(label_embeddings, axis=0)
+            prototypes[label] = prototype
+
+        print(f"✅ Created {len(prototypes)} prototypes from embeddings")
+
+        return prototypes
+
+    def create_combined_tsne_plot(self,
+                                 embeddings_dict: Dict[str, np.ndarray],
+                                 labels_dict: Dict[str, List[str]],
+                                 save_path: str = None,
+                                 max_samples_tsne: int = 5000) -> plt.Figure:
+        """Create combined t-SNE plot with 3 subplots showing different embedding types.
+
+        Args:
+            embeddings_dict: Dict with keys 'text_noproj', 'text_proj', 'sensor'
+            labels_dict: Dict with same keys containing L1 ground truth labels
+            save_path: Path to save plot
+            max_samples_tsne: Max samples for t-SNE computation
+        """
+        print(f"🔄 Creating combined t-SNE visualization (3 subplots)...")
+
+        # Sample each embedding type separately with its own labels
+        embeddings_sampled = {}
+        labels_sampled = {}
+
+        for key in embeddings_dict.keys():
+            embeddings = embeddings_dict[key]
+            labels = labels_dict[key]
+
+            if len(labels) > max_samples_tsne:
+                print(f"   Sampling {max_samples_tsne} from {len(labels)} samples for {key}")
+                np.random.seed(42)
+                indices = np.random.choice(len(labels), max_samples_tsne, replace=False)
+                embeddings_sampled[key] = embeddings[indices]
+                labels_sampled[key] = [labels[i] for i in indices]
+            else:
+                embeddings_sampled[key] = embeddings
+                labels_sampled[key] = labels
+
+        # Create figure with 3 subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(21, 6))
+        fig.suptitle('t-SNE Visualization Comparison (L1 Ground Truth Labels)',
+                     fontsize=16, fontweight='bold', y=0.98)
+
+        # Get all unique labels across all embedding types for consistent coloring
+        all_labels = []
+        for labels in labels_sampled.values():
+            all_labels.extend(labels)
+        unique_labels_all = sorted(list(set(all_labels)))
+        if len(unique_labels_all) > 15:
+            label_counts = Counter(all_labels)
+            unique_labels_all = [label for label, _ in label_counts.most_common(15)]
+
+        # Create consistent color mapping
+        label_to_color = {}
+        for i, label in enumerate(unique_labels_all):
+            if hasattr(self, 'label_colors') and label in self.label_colors:
+                label_to_color[label] = self.label_colors[label]
+            else:
+                label_to_color[label] = plt.cm.tab20(i % 20)
+
+        # Process each embedding type
+        axes = [ax1, ax2, ax3]
+        titles = ['Text Embeddings (No Projection)', 'Text Embeddings (With Projection)', 'Sensor Embeddings']
+        keys = ['text_noproj', 'text_proj', 'sensor']
+
+        for ax, title, key in zip(axes, titles, keys):
+            if key not in embeddings_sampled:
+                ax.text(0.5, 0.5, 'Not Available', ha='center', va='center', fontsize=14)
+                ax.set_title(title, fontweight='bold', fontsize=12)
+                continue
+
+            embeddings = embeddings_sampled[key]
+            labels_for_key = labels_sampled[key]
+
+            print(f"   Computing t-SNE for {title}...")
+            print(f"      Embeddings shape: {embeddings.shape}, Labels: {len(labels_for_key)}")
+            print(f"      Label distribution: {Counter(labels_for_key).most_common(5)}")
+
+            tsne = TSNE(n_components=2, random_state=42,
+                       perplexity=min(30, len(embeddings)//4))
+            embeddings_2d = tsne.fit_transform(embeddings)
+
+            # Get unique labels for this specific embedding type
+            unique_labels_key = sorted(list(set(labels_for_key)))
+            if len(unique_labels_key) > 15:
+                label_counts_key = Counter(labels_for_key)
+                unique_labels_key = [label for label, _ in label_counts_key.most_common(15)]
+
+            # Plot each label using the correct labels for this embedding type
+            for label in unique_labels_key:
+                mask = np.array(labels_for_key) == label
+                if np.any(mask):
+                    ax.scatter(embeddings_2d[mask, 0], embeddings_2d[mask, 1],
+                             c=[label_to_color[label]], label=label.replace('_', ' '),
+                             alpha=0.6, s=20, edgecolors='white', linewidth=0.3)
+
+            ax.set_title(title, fontweight='bold', fontsize=12)
+            ax.set_xlabel('t-SNE 1', fontsize=10)
+            ax.set_ylabel('t-SNE 2', fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+        # Create shared legend
+        handles, legend_labels = ax1.get_legend_handles_labels()
+        if handles:
+            fig.legend(handles, legend_labels, bbox_to_anchor=(0.5, -0.02),
+                      loc='upper center', fontsize=9, ncol=5, frameon=True,
+                      fancybox=True, shadow=True)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Combined t-SNE plot saved: {save_path}")
+
+        return fig
+
+    def create_combined_confusion_matrices(self,
+                                          confusion_matrices: Dict[str, np.ndarray],
+                                          unique_labels: Dict[str, List[str]],
+                                          label_level: str,
+                                          save_path: str = None) -> plt.Figure:
+        """Create combined confusion matrix plot with 3 subplots.
+
+        Args:
+            confusion_matrices: Dict with keys 'text_noproj', 'text_proj', 'sensor'
+            unique_labels: Dict with same keys containing label lists
+            label_level: 'L1' or 'L2'
+            save_path: Path to save plot
+        """
+        print(f"🔄 Creating combined confusion matrix plot ({label_level})...")
+
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(24, 7))
+        fig.suptitle(f'Confusion Matrix Comparison - {label_level} Labels',
+                     fontsize=16, fontweight='bold')
+
+        axes = [ax1, ax2, ax3]
+        titles = ['Text (No Projection)', 'Text (With Projection)', 'Sensor']
+        keys = ['text_noproj', 'text_proj', 'sensor']
+
+        for ax, title, key in zip(axes, titles, keys):
+            if key not in confusion_matrices:
+                ax.text(0.5, 0.5, 'Not Available', ha='center', va='center', fontsize=14)
+                ax.set_title(title, fontweight='bold', fontsize=12)
+                continue
+
+            cm = confusion_matrices[key]
+            labels = unique_labels[key]
+
+            # Limit to top 15 if too many
+            if len(labels) > 15:
+                cm = cm[:15, :15]
+                labels = labels[:15]
+
+            # Normalize
+            cm_normalized = cm.astype('float') / (cm.sum(axis=1)[:, np.newaxis] + 1e-8)
+
+            # Plot heatmap
+            sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues',
+                       xticklabels=labels, yticklabels=labels, ax=ax,
+                       cbar_kws={'label': 'Normalized Count'})
+
+            ax.set_title(title, fontweight='bold', fontsize=12)
+            ax.set_xlabel('Predicted Label', fontsize=10)
+            ax.set_ylabel('True Label', fontsize=10)
+            plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right', fontsize=8)
+            plt.setp(ax.yaxis.get_majorticklabels(), rotation=0, fontsize=8)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Combined confusion matrix plot saved: {save_path}")
+
+        return fig
+
+    def create_combined_f1_analysis(self,
+                                   metrics_dict: Dict[str, Dict],
+                                   save_path: str = None) -> plt.Figure:
+        """Create F1 analysis plot with 2 subplots (L1 and L2).
+        Grouped by metric (each metric shows all 3 models).
+
+        Args:
+            metrics_dict: Dict with keys 'text_noproj', 'text_proj', 'sensor',
+                         each containing 'metrics_l1' and 'metrics_l2'
+            save_path: Path to save plot
+        """
+        print(f"🔄 Creating combined F1 analysis plot...")
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        fig.suptitle('Performance Comparison Across Embedding Types',
+                     fontsize=16, fontweight='bold')
+
+        model_names = ['Text\n(No Proj)', 'Text\n(With Proj)', 'Sensor']
+        keys = ['text_noproj', 'text_proj', 'sensor']
+        colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
+
+        # Extract metrics for L1
+        l1_accuracy = [metrics_dict[k]['metrics_l1'].get('accuracy', 0) for k in keys if k in metrics_dict]
+        l1_f1_weighted = [metrics_dict[k]['metrics_l1'].get('f1_weighted', 0) for k in keys if k in metrics_dict]
+        l1_f1_macro = [metrics_dict[k]['metrics_l1'].get('f1_macro', 0) for k in keys if k in metrics_dict]
+
+        # Extract metrics for L2
+        l2_accuracy = [metrics_dict[k]['metrics_l2'].get('accuracy', 0) for k in keys if k in metrics_dict]
+        l2_f1_weighted = [metrics_dict[k]['metrics_l2'].get('f1_weighted', 0) for k in keys if k in metrics_dict]
+        l2_f1_macro = [metrics_dict[k]['metrics_l2'].get('f1_macro', 0) for k in keys if k in metrics_dict]
+
+        # Filter model names based on available data
+        available_models = [model_names[i] for i, k in enumerate(keys) if k in metrics_dict]
+        n_models = len(available_models)
+
+        # Metrics grouped together
+        metric_names = ['Accuracy', 'F1 Weighted', 'F1 Macro']
+        x = np.arange(len(metric_names))
+        width = 0.25
+
+        # L1 subplot - each metric has bars for all models
+        for i in range(n_models):
+            l1_values = [l1_accuracy[i], l1_f1_weighted[i], l1_f1_macro[i]]
+            bars = ax1.bar(x + (i - 1) * width, l1_values, width,
+                          label=available_models[i], alpha=0.8, color=colors[i])
+
+            # Add value labels
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0.02:
+                    ax1.annotate(f'{height:.3f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=8)
+
+        ax1.set_xlabel('Metric', fontsize=11)
+        ax1.set_ylabel('Score', fontsize=11)
+        ax1.set_title('L1 Primary Activities', fontweight='bold', fontsize=13)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(metric_names, fontsize=10)
+        ax1.legend(fontsize=10, loc='upper right')
+        ax1.grid(True, alpha=0.3, axis='y')
+        ax1.set_ylim(0, 1)
+
+        # L2 subplot - each metric has bars for all models
+        for i in range(n_models):
+            l2_values = [l2_accuracy[i], l2_f1_weighted[i], l2_f1_macro[i]]
+            bars = ax2.bar(x + (i - 1) * width, l2_values, width,
+                          label=available_models[i], alpha=0.8, color=colors[i])
+
+            # Add value labels
+            for bar in bars:
+                height = bar.get_height()
+                if height > 0.02:
+                    ax2.annotate(f'{height:.3f}',
+                               xy=(bar.get_x() + bar.get_width() / 2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=8)
+
+        ax2.set_xlabel('Metric', fontsize=11)
+        ax2.set_ylabel('Score', fontsize=11)
+        ax2.set_title('L2 Secondary Activities', fontweight='bold', fontsize=13)
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(metric_names, fontsize=10)
+        ax2.legend(fontsize=10, loc='upper right')
+        ax2.grid(True, alpha=0.3, axis='y')
+        ax2.set_ylim(0, 1)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Combined F1 analysis plot saved: {save_path}")
+
+        return fig
+
+    def create_perclass_f1_weighted_analysis(self,
+                                            metrics_dict: Dict[str, Dict],
+                                            label_level: str,
+                                            save_path: str = None) -> plt.Figure:
+        """Create per-class F1 weighted analysis plot.
+
+        Args:
+            metrics_dict: Dict with keys 'text_noproj', 'text_proj', 'sensor'
+            label_level: 'L1' or 'L2'
+            save_path: Path to save plot
+        """
+        print(f"🔄 Creating per-class F1 weighted analysis ({label_level})...")
+
+        # Get metrics key
+        metrics_key = 'metrics_l1' if label_level == 'L1' else 'metrics_l2'
+
+        # Get all unique labels across models
+        all_labels = set()
+        for key in ['text_noproj', 'text_proj', 'sensor']:
+            if key in metrics_dict and metrics_key in metrics_dict[key]:
+                per_class_f1 = metrics_dict[key][metrics_key].get('per_class_f1', {})
+                all_labels.update(per_class_f1.keys())
+
+        labels = sorted(list(all_labels))
+
+        # Extract F1 scores for each model
+        text_noproj_f1 = []
+        text_proj_f1 = []
+        sensor_f1 = []
+
+        for label in labels:
+            text_noproj_f1.append(
+                metrics_dict.get('text_noproj', {}).get(metrics_key, {}).get('per_class_f1', {}).get(label, 0)
+            )
+            text_proj_f1.append(
+                metrics_dict.get('text_proj', {}).get(metrics_key, {}).get('per_class_f1', {}).get(label, 0)
+            )
+            sensor_f1.append(
+                metrics_dict.get('sensor', {}).get(metrics_key, {}).get('per_class_f1', {}).get(label, 0)
+            )
+
+        # Create plot
+        fig, ax = plt.subplots(figsize=(max(12, len(labels) * 0.8), 8))
+
+        x = np.arange(len(labels))
+        width = 0.25
+
+        bars1 = ax.bar(x - width, text_noproj_f1, width, label='Text (No Projection)', alpha=0.8)
+        bars2 = ax.bar(x, text_proj_f1, width, label='Text (With Projection)', alpha=0.8, color='orange')
+        bars3 = ax.bar(x + width, sensor_f1, width, label='Sensor', alpha=0.8, color='green')
+
+        ax.set_xlabel('Activity Class', fontsize=12)
+        ax.set_ylabel('F1 Weighted Score', fontsize=12)
+        ax.set_title(f'Per-Class F1 Weighted Comparison - {label_level} Labels',
+                    fontweight='bold', fontsize=14)
+        ax.set_xticks(x)
+        ax.set_xticklabels([label.replace('_', ' ') for label in labels],
+                          rotation=45, ha='right', fontsize=9)
+        ax.legend(fontsize=11)
+        ax.grid(True, alpha=0.3, axis='y')
+        ax.set_ylim(0, 1)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-class F1 weighted analysis saved: {save_path}")
+
+        return fig
+
+    def create_retrieval_metrics_visualization(self,
+                                              retrieval_results: Dict[str, Dict[int, Union[float, Dict[str, float]]]],
+                                              save_path: str = None,
+                                              label_level: str = "L1") -> plt.Figure:
+        """Create visualization for retrieval metrics across all 4 variants.
+
+        Args:
+            retrieval_results: Dict with keys 'text2sensor', 'sensor2text',
+                             'prototype2sensor', 'prototype2text'
+                             Values are either floats or dicts with 'macro' and 'weighted' keys
+            save_path: Path to save the plot
+            label_level: Label level being used (L1 or L2)
+        """
+        print(f"🎨 Creating retrieval metrics visualization for {label_level} labels...")
+
+        fig, axes = plt.subplots(2, 2, figsize=(18, 12))
+        fig.suptitle(f'Cross-Modal Retrieval Performance ({label_level} Labels)',
+                     fontsize=18, fontweight='bold')
+
+        # Get all K values (should be same across all directions)
+        k_values_list = []
+        for direction, k_results in retrieval_results.items():
+            if k_results:
+                k_values_list = sorted(k_results.keys())
+                break
+
+        # Colors for different retrieval types
+        colors = {
+            'text2sensor': '#1f77b4',        # Blue
+            'sensor2text': '#ff7f0e',        # Orange
+            'prototype2sensor': '#2ca02c',   # Green
+            'prototype2text': '#d62728'      # Red
+        }
+
+        # Labels for legend
+        labels_map = {
+            'text2sensor': 'Text → Sensor',
+            'sensor2text': 'Sensor → Text',
+            'prototype2sensor': 'Prototype → Sensor',
+            'prototype2text': 'Prototype → Text'
+        }
+
+        # Helper function to extract metric
+        def get_metric(k_result, metric_type='macro'):
+            if isinstance(k_result, dict):
+                return k_result.get(metric_type, 0.0)
+            return k_result  # Backward compatibility
+
+        # Plot 1: Macro average across K values
+        ax1 = axes[0, 0]
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                recalls = [get_metric(k_results[k], 'macro') for k in k_values_list]
+
+                ax1.plot(k_values_list, recalls, 'o-',
+                        color=colors.get(direction, '#333333'),
+                        label=labels_map.get(direction, direction),
+                        linewidth=2.5, markersize=8, alpha=0.8)
+
+        ax1.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
+        ax1.set_ylabel('Label-Recall@K (Macro)', fontsize=12)
+        ax1.set_title('Macro Average (Equal Weight per Class)', fontweight='bold', fontsize=13)
+        ax1.legend(fontsize=10, loc='best')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_ylim(0, 1)
+        ax1.set_xticks(k_values_list)
+
+        # Plot 2: Weighted average across K values
+        ax2 = axes[0, 1]
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                recalls = [get_metric(k_results[k], 'weighted') for k in k_values_list]
+
+                ax2.plot(k_values_list, recalls, 'o-',
+                        color=colors.get(direction, '#333333'),
+                        label=labels_map.get(direction, direction),
+                        linewidth=2.5, markersize=8, alpha=0.8)
+
+        ax2.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
+        ax2.set_ylabel('Label-Recall@K (Weighted)', fontsize=12)
+        ax2.set_title('Weighted Average (By Class Prevalence)', fontweight='bold', fontsize=13)
+        ax2.legend(fontsize=10, loc='best')
+        ax2.grid(True, alpha=0.3)
+        ax2.set_ylim(0, 1)
+        ax2.set_xticks(k_values_list)
+
+        # Plot 3: Bar chart comparing macro at middle K
+        middle_k = k_values_list[len(k_values_list)//2] if k_values_list else 10
+        ax3 = axes[1, 0]
+
+        bar_data_macro = []
+        bar_labels = []
+        bar_colors = []
+
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                if middle_k in k_results:
+                    bar_data_macro.append(get_metric(k_results[middle_k], 'macro'))
+                    bar_labels.append(labels_map.get(direction, direction))
+                    bar_colors.append(colors.get(direction, '#333333'))
+
+        if bar_data_macro:
+            x = np.arange(len(bar_data_macro))
+            bars = ax3.bar(x, bar_data_macro, color=bar_colors, alpha=0.8, width=0.6)
+
+            ax3.set_ylabel('Label-Recall@K (Macro)', fontsize=12)
+            ax3.set_title(f'Macro Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
+            ax3.set_xticks(x)
+            ax3.set_xticklabels(bar_labels, rotation=15, ha='right', fontsize=10)
+            ax3.grid(True, alpha=0.3, axis='y')
+            ax3.set_ylim(0, 1)
+
+            for bar in bars:
+                height = bar.get_height()
+                ax3.annotate(f'{height:.3f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),
+                           textcoords="offset points",
+                           ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+        # Plot 4: Bar chart comparing weighted at middle K
+        ax4 = axes[1, 1]
+
+        bar_data_weighted = []
+        bar_labels2 = []
+        bar_colors2 = []
+
+        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            if direction in retrieval_results and retrieval_results[direction]:
+                k_results = retrieval_results[direction]
+                if middle_k in k_results:
+                    bar_data_weighted.append(get_metric(k_results[middle_k], 'weighted'))
+                    bar_labels2.append(labels_map.get(direction, direction))
+                    bar_colors2.append(colors.get(direction, '#333333'))
+
+        if bar_data_weighted:
+            x = np.arange(len(bar_data_weighted))
+            bars = ax4.bar(x, bar_data_weighted, color=bar_colors2, alpha=0.8, width=0.6)
+
+            ax4.set_ylabel('Label-Recall@K (Weighted)', fontsize=12)
+            ax4.set_title(f'Weighted Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
+            ax4.set_xticks(x)
+            ax4.set_xticklabels(bar_labels2, rotation=15, ha='right', fontsize=10)
+            ax4.grid(True, alpha=0.3, axis='y')
+            ax4.set_ylim(0, 1)
+
+            for bar in bars:
+                height = bar.get_height()
+                ax4.annotate(f'{height:.3f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),
+                           textcoords="offset points",
+                           ha='center', va='bottom', fontsize=10, fontweight='bold')
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Retrieval metrics visualization saved: {save_path}")
+
+        return fig
+
+    def create_per_label_retrieval_heatmap_instance(self,
+                                                   query_embeddings: np.ndarray,
+                                                   target_embeddings: np.ndarray,
+                                                   query_labels: np.ndarray,
+                                                   target_labels: np.ndarray,
+                                                   direction_name: str,
+                                                   k: int = 10,
+                                                   save_path: str = None) -> plt.Figure:
+        """Create heatmap showing per-label retrieval performance for instance-to-instance.
+
+        Args:
+            query_embeddings: Query embeddings (N_q, D)
+            target_embeddings: Target embeddings (N_t, D)
+            query_labels: Labels for queries (N_q,)
+            target_labels: Labels for targets (N_t,)
+            direction_name: Name of retrieval direction
+            k: K value for recall computation
+            save_path: Path to save plot
+        """
+        from evals.compute_retrieval_metrics import compute_per_label_recall_at_k, compute_macro_and_weighted_metrics
+
+        print(f"🎨 Creating per-label instance retrieval heatmap for {direction_name}...")
+
+        # Compute per-label recall and counts
+        per_label_recalls, per_label_counts = compute_per_label_recall_at_k(
+            query_embeddings=query_embeddings,
+            target_embeddings=target_embeddings,
+            query_labels=query_labels,
+            target_labels=target_labels,
+            k=k,
+            return_counts=True
+        )
+
+        # Compute macro and weighted metrics
+        macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
+            per_label_recalls, per_label_counts
+        )
+
+        # Convert to arrays for plotting
+        labels = list(per_label_recalls.keys())
+        recalls = [per_label_recalls[label] for label in labels]
+
+        # Create bar plot
+        fig, ax = plt.subplots(figsize=(max(12, len(labels) * 0.5), 8))
+
+        # Sort by recall for better visualization
+        sorted_indices = np.argsort(recalls)[::-1]
+        sorted_labels = np.array(labels)[sorted_indices]
+        sorted_recalls = np.array(recalls)[sorted_indices]
+
+        # Limit to top 20 for readability
+        if len(sorted_labels) > 20:
+            sorted_labels = sorted_labels[:20]
+            sorted_recalls = sorted_recalls[:20]
+
+        # Create horizontal bar chart
+        y_pos = np.arange(len(sorted_labels))
+        colors_bars = plt.cm.RdYlGn(sorted_recalls)  # Color based on performance
+
+        bars = ax.barh(y_pos, sorted_recalls, color=colors_bars, alpha=0.8)
+
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
+        ax.set_xlabel(f'Label-Recall@{k}', fontsize=12)
+        ax.set_title(f'Per-Label Instance Retrieval: {direction_name}',
+                    fontweight='bold', fontsize=14)
+        ax.set_xlim(0, 1)
+        ax.grid(True, alpha=0.3, axis='x')
+
+        # Add value labels
+        for i, (bar, recall) in enumerate(zip(bars, sorted_recalls)):
+            width = bar.get_width()
+            ax.annotate(f'{recall:.3f}',
+                       xy=(width, bar.get_y() + bar.get_height() / 2),
+                       xytext=(5, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=8)
+
+        # Add macro and weighted lines
+        ax.axvline(macro_recall, color='blue', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Macro: {macro_recall:.3f}')
+        ax.axvline(weighted_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Weighted: {weighted_recall:.3f}')
+        ax.legend(fontsize=10)
+
+        # Add text box with metrics in corner
+        textstr = f'Macro: {macro_recall:.4f}\nWeighted: {weighted_recall:.4f}\nN={len(labels)} classes'
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
+        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=11,
+                verticalalignment='top', bbox=props)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-label instance retrieval heatmap saved: {save_path}")
+
+        return fig
+
+    def create_per_label_retrieval_heatmap(self,
+                                          prototype_labels: np.ndarray,
+                                          target_embeddings: np.ndarray,
+                                          target_labels: np.ndarray,
+                                          prototype_embeddings: np.ndarray,
+                                          direction_name: str,
+                                          k: int = 10,
+                                          save_path: str = None) -> plt.Figure:
+        """Create heatmap showing per-label retrieval performance.
+
+        Args:
+            prototype_labels: Labels for prototypes (N_prototypes,)
+            target_embeddings: Target embeddings (N_targets, D)
+            target_labels: Labels for targets (N_targets,)
+            prototype_embeddings: Prototype embeddings (N_prototypes, D)
+            direction_name: Name of retrieval direction
+            k: K value for recall computation
+            save_path: Path to save plot
+        """
+        from evals.compute_retrieval_metrics import (
+            normalize_embeddings,
+            compute_cosine_similarity
+        )
+
+        print(f"🎨 Creating per-label retrieval heatmap for {direction_name}...")
+
+        # Normalize embeddings
+        prototype_embeddings_norm = normalize_embeddings(prototype_embeddings)
+        target_embeddings_norm = normalize_embeddings(target_embeddings)
+
+        # Compute similarity matrix
+        similarities = compute_cosine_similarity(prototype_embeddings_norm, target_embeddings_norm)
+
+        # For each prototype, compute recall@k
+        per_label_recalls = []
+        for i, proto_label in enumerate(prototype_labels):
+            proto_sims = similarities[i]
+            top_k_indices = np.argsort(proto_sims)[-k:][::-1]
+            top_k_labels = target_labels[top_k_indices]
+            n_matching = np.sum(top_k_labels == proto_label)
+            recall = n_matching / k
+            per_label_recalls.append(recall)
+
+        # Create bar plot
+        fig, ax = plt.subplots(figsize=(max(12, len(prototype_labels) * 0.5), 8))
+
+        # Sort by recall for better visualization
+        sorted_indices = np.argsort(per_label_recalls)[::-1]
+        sorted_labels = prototype_labels[sorted_indices]
+        sorted_recalls = np.array(per_label_recalls)[sorted_indices]
+
+        # Limit to top 20 for readability
+        if len(sorted_labels) > 20:
+            sorted_labels = sorted_labels[:20]
+            sorted_recalls = sorted_recalls[:20]
+
+        # Create horizontal bar chart
+        y_pos = np.arange(len(sorted_labels))
+        colors_bars = plt.cm.RdYlGn(sorted_recalls)  # Color based on performance
+
+        bars = ax.barh(y_pos, sorted_recalls, color=colors_bars, alpha=0.8)
+
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
+        ax.set_xlabel(f'Label-Recall@{k}', fontsize=12)
+        ax.set_title(f'Per-Label Retrieval Performance: {direction_name}',
+                    fontweight='bold', fontsize=14)
+        ax.set_xlim(0, 1)
+        ax.grid(True, alpha=0.3, axis='x')
+
+        # Add value labels
+        for i, (bar, recall) in enumerate(zip(bars, sorted_recalls)):
+            width = bar.get_width()
+            ax.annotate(f'{recall:.3f}',
+                       xy=(width, bar.get_y() + bar.get_height() / 2),
+                       xytext=(5, 0),
+                       textcoords="offset points",
+                       ha='left', va='center', fontsize=8)
+
+        # Add average line
+        avg_recall = np.mean(sorted_recalls)
+        ax.axvline(avg_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Average: {avg_recall:.3f}')
+        ax.legend(fontsize=10)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-label retrieval heatmap saved: {save_path}")
+
+        return fig
+
+    def create_retrieval_confusion_heatmap(self,
+                                          retrieval_confusion: Dict[str, Dict[str, float]],
+                                          direction_name: str,
+                                          k: int = 10,
+                                          save_path: str = None) -> plt.Figure:
+        """Create heatmap showing retrieval confusion (what labels are retrieved for each query label).
+
+        This is like a confusion matrix for retrieval - shows the distribution of
+        retrieved target labels for each query label.
+
+        Args:
+            retrieval_confusion: Nested dict {query_label: {target_label: proportion}}
+            direction_name: Name of retrieval direction
+            k: K value used
+            save_path: Path to save plot
+        """
+        print(f"🎨 Creating retrieval confusion heatmap for {direction_name}...")
+
+        # Get all unique query and target labels
+        query_labels = sorted(list(retrieval_confusion.keys()))
+        all_target_labels = set()
+        for target_dist in retrieval_confusion.values():
+            all_target_labels.update(target_dist.keys())
+        target_labels = sorted(list(all_target_labels))
+
+        # Create confusion matrix
+        confusion_matrix_data = np.zeros((len(query_labels), len(target_labels)))
+
+        for i, query_label in enumerate(query_labels):
+            target_dist = retrieval_confusion[query_label]
+            for j, target_label in enumerate(target_labels):
+                confusion_matrix_data[i, j] = target_dist.get(target_label, 0)
+
+        # Create figure
+        figsize_width = max(12, len(target_labels) * 0.6)
+        figsize_height = max(10, len(query_labels) * 0.6)
+        fig, ax = plt.subplots(figsize=(figsize_width, figsize_height))
+
+        # Determine font sizes based on matrix size
+        n_labels = max(len(query_labels), len(target_labels))
+        if n_labels <= 10:
+            annot_fontsize = 8
+            tick_fontsize = 9
+        elif n_labels <= 15:
+            annot_fontsize = 7
+            tick_fontsize = 8
+        else:
+            annot_fontsize = 6
+            tick_fontsize = 7
+
+        # Clean labels for display
+        query_labels_display = [label.replace('_', ' ') for label in query_labels]
+        target_labels_display = [label.replace('_', ' ') for label in target_labels]
+
+        # Create heatmap
+        im = ax.imshow(confusion_matrix_data, cmap='YlOrRd', aspect='auto', vmin=0, vmax=1)
+
+        # Set ticks
+        ax.set_xticks(np.arange(len(target_labels)))
+        ax.set_yticks(np.arange(len(query_labels)))
+        ax.set_xticklabels(target_labels_display, rotation=90, ha='center', fontsize=tick_fontsize)
+        ax.set_yticklabels(query_labels_display, fontsize=tick_fontsize)
+
+        # Add text annotations
+        for i in range(len(query_labels)):
+            for j in range(len(target_labels)):
+                value = confusion_matrix_data[i, j]
+                if value > 0.01:  # Only show non-negligible values
+                    text_color = "white" if value > 0.5 else "black"
+                    text = ax.text(j, i, f'{value:.2f}',
+                                 ha="center", va="center", color=text_color,
+                                 fontsize=annot_fontsize)
+
+        ax.set_xlabel('Retrieved Label (Target)', fontsize=11)
+        ax.set_ylabel('Query Label', fontsize=11)
+        ax.set_title(f'Retrieval Confusion @ K={k}: {direction_name}\n(Shows distribution of retrieved labels for each query)',
+                    fontweight='bold', fontsize=13, pad=15)
+
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, shrink=0.8)
+        cbar.set_label('Proportion of Retrieved Items', rotation=270, labelpad=20)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Retrieval confusion heatmap saved: {save_path}")
+
+        return fig
+
+    def run_comprehensive_evaluation(self,
+                                     train_text_embeddings_path: str,
+                                     test_text_embeddings_path: str,
+                                     max_samples: int = 10000,
+                                     k_neighbors: int = 1,
+                                     filter_noisy_labels: bool = False,
+                                     save_results: bool = True,
+                                     use_multiple_prototypes: bool = False) -> Dict[str, Any]:
+        """Run comprehensive evaluation: sensor + text embeddings (with/without projection).
+
+        Creates unified visualizations comparing all three embedding types.
+
+        Args:
+            use_multiple_prototypes: If True, use multiple prototypes per label with k-NN voting.
+        """
+        print("\n" + "="*80)
+        print("COMPREHENSIVE EMBEDDING EVALUATION")
+        print("Sensor Embeddings + Text Embeddings (with/without projection)")
+        print("="*80)
+
+        # Create output directory with subdirectory for multiple prototypes mode
+        base_output_dir = Path(self.config.get('output_dir', './comprehensive_evaluation'))
+        if use_multiple_prototypes:
+            output_dir = base_output_dir / f"multiproto_k{k_neighbors}"
+            print(f"ℹ️  Multiple prototypes mode: saving to {output_dir}")
+        else:
+            output_dir = base_output_dir
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create retrieval subdirectory for better organization
+        retrieval_dir = output_dir / 'retrieval'
+        retrieval_dir.mkdir(parents=True, exist_ok=True)
+
+        # ===== 1. GET LABELS FROM METADATA & LOAD TEST TEXT EMBEDDINGS =====
+        print("\n" + "="*60)
+        print("1. LOADING LABELS AND TEST TEXT EMBEDDINGS")
+        print("="*60)
+
+        # Get labels from metadata (efficient, no need to load training data)
+        train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
+        print(f"✅ Got {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels from metadata")
+
+        # Only load TEST text embeddings (we don't need train embeddings)
+        test_text_emb, test_text_sample_ids, test_labels_l1, test_labels_l2 = \
+            self.load_text_embeddings_from_file(
+                test_text_embeddings_path,
+                self.config['test_data_path'],
+                max_samples
+            )
+
+        # ===== 2. CREATE SYNTHETIC TEXT PROTOTYPES (L1 ONLY) =====
+        print("\n" + "="*60)
+        print("2. CREATING SYNTHETIC TEXT PROTOTYPES (L1 Only - L2 Derived)")
+        print("="*60)
+        print("ℹ️  Creating only L1 prototypes. L2 predictions will be derived from L1 using metadata mapping.")
+
+        # Create RAW prototypes (without projection) for "no projection" comparison
+        prototypes_l1_raw, _ = self.create_text_prototypes(train_labels_l1, apply_projection=False, use_multiple_prototypes=use_multiple_prototypes)
+
+        # Create PROJECTED prototypes for "with projection" and sensor comparisons
+        prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True, use_multiple_prototypes=use_multiple_prototypes)
+
+        # ===== 3. EVALUATE TEXT (NO PROJECTION) - DEFERRED =====
+        # Note: We'll evaluate text without projection AFTER alignment with sensor embeddings
+        # to ensure all three embedding types have the same samples
+
+        # ===== 4. EVALUATE TEXT (WITH PROJECTION) - DEFERRED =====
+        # Note: We'll evaluate text with projection AFTER alignment with sensor embeddings
+        # to ensure all three embedding types have the same samples
+
+        # ===== 5. EVALUATE SENSOR EMBEDDINGS =====
+        print("\n" + "="*60)
+        print("5. EVALUATING SENSOR EMBEDDINGS & ALIGNING WITH TEXT")
+        print("="*60)
+
+        # Extract TEST sensor embeddings only (we don't need train, we use prototypes)
+        test_sensor_emb, test_sensor_l1, test_sensor_l2, test_sensor_sample_ids = self.extract_embeddings_and_labels('test', max_samples)
+
+        # CRITICAL: Align sensor and text embeddings by sample_id BEFORE any processing
+        test_sensor_emb_aligned, test_text_emb_aligned, aligned_labels_l1, aligned_labels_l2, aligned_sample_ids = \
+            self.align_embeddings_by_sample_id(
+                sensor_emb=test_sensor_emb,
+                sensor_labels_l1=test_sensor_l1,
+                sensor_labels_l2=test_sensor_l2,
+                sensor_sample_ids=test_sensor_sample_ids,
+                text_emb=test_text_emb,
+                text_labels_l1=test_labels_l1,
+                text_labels_l2=test_labels_l2,
+                text_sample_ids=test_text_sample_ids
+            )
+
+        # Now use the aligned data for all subsequent processing
+        test_sensor_emb = test_sensor_emb_aligned
+        test_text_emb = test_text_emb_aligned
+        test_sensor_l1 = aligned_labels_l1
+        test_sensor_l2 = aligned_labels_l2
+        test_labels_l1 = aligned_labels_l1  # Same labels for both
+        test_labels_l2 = aligned_labels_l2  # Same labels for both
+
+        # Apply projection to ALIGNED text embeddings
+        test_text_emb_proj = self.apply_projection_to_embeddings(test_text_emb)
+
+        if filter_noisy_labels:
+            # Create a boolean mask for filtering based on labels
+            exclude_labels = {'no_activity'}
+
+            # Create mask - True means KEEP the sample
+            keep_mask = []
+            for l1, l2 in zip(test_sensor_l1, test_sensor_l2):
+                l1_lower = l1.lower().strip()
+                l2_lower = l2.lower().strip()
+                keep = (l1_lower not in exclude_labels) and (l2_lower not in exclude_labels)
+                keep_mask.append(keep)
+
+            keep_mask = np.array(keep_mask)
+            n_before = len(keep_mask)
+            n_after = keep_mask.sum()
+
+            print(f"🧹 Filtering noisy labels:")
+            print(f"   Before: {n_before} samples")
+            print(f"   After: {n_after} samples")
+            print(f"   Removed: {n_before - n_after} samples")
+
+            # Apply the same mask to ALL embeddings and labels
+            test_sensor_emb = test_sensor_emb[keep_mask]
+            test_text_emb = test_text_emb[keep_mask]
+            test_text_emb_proj = test_text_emb_proj[keep_mask]
+            test_sensor_l1 = [l for l, keep in zip(test_sensor_l1, keep_mask) if keep]
+            test_sensor_l2 = [l for l, keep in zip(test_sensor_l2, keep_mask) if keep]
+            test_labels_l1 = [l for l, keep in zip(test_labels_l1, keep_mask) if keep]
+            test_labels_l2 = [l for l, keep in zip(test_labels_l2, keep_mask) if keep]
+
+            # Verify all have the same length
+            assert len(test_sensor_emb) == len(test_text_emb) == len(test_text_emb_proj) == len(test_sensor_l1) == len(test_labels_l1), \
+                "Filtering resulted in misaligned data!"
+            print(f"✅ All embeddings and labels aligned: {len(test_sensor_l1)} samples")
+
+        # Now evaluate text embeddings WITHOUT projection (after alignment and filtering)
+        print("\n" + "="*60)
+        print("5a. EVALUATING TEXT EMBEDDINGS (NO PROJECTION) - After Alignment")
+        print("="*60)
+        # Predict L1 labels
+        pred_l1_text_noproj = self.predict_labels_knn(test_text_emb, prototypes_l1_raw, k_neighbors, use_multiple_prototypes)
+        # Derive L2 predictions from L1 using metadata mapping
+        pred_l2_text_noproj = self.map_l1_to_l2_labels(pred_l1_text_noproj, house_name=self.dataset_name)
+
+        metrics_l1_text_noproj = self.evaluate_predictions(test_labels_l1, pred_l1_text_noproj, "Text (No Proj) L1")
+        metrics_l2_text_noproj = self.evaluate_predictions(test_labels_l2, pred_l2_text_noproj, "Text (No Proj) L2")
+
+        # Now evaluate text embeddings WITH projection (after alignment and filtering)
+        print("\n" + "="*60)
+        print("5b. EVALUATING TEXT EMBEDDINGS (WITH PROJECTION) - After Alignment")
+        print("="*60)
+        # Predict L1 labels
+        pred_l1_text_proj = self.predict_labels_knn(test_text_emb_proj, prototypes_l1_projected, k_neighbors, use_multiple_prototypes)
+        # Derive L2 predictions from L1 using metadata mapping
+        pred_l2_text_proj = self.map_l1_to_l2_labels(pred_l1_text_proj, house_name=self.dataset_name)
+
+        metrics_l1_text_proj = self.evaluate_predictions(test_labels_l1, pred_l1_text_proj, "Text (With Proj) L1")
+        metrics_l2_text_proj = self.evaluate_predictions(test_labels_l2, pred_l2_text_proj, "Text (With Proj) L2")
+
+        # Evaluate sensor embeddings
+        print("\n" + "="*60)
+        print("5c. EVALUATING SENSOR EMBEDDINGS - After Alignment")
+        print("="*60)
+        # Sensor embeddings are already in projected/aligned space
+        # Predict L1 labels
+        pred_l1_sensor = self.predict_labels_knn(test_sensor_emb, prototypes_l1_projected, k_neighbors, use_multiple_prototypes)
+        # Derive L2 predictions from L1 using metadata mapping
+        pred_l2_sensor = self.map_l1_to_l2_labels(pred_l1_sensor, house_name=self.dataset_name)
+
+        metrics_l1_sensor = self.evaluate_predictions(test_sensor_l1, pred_l1_sensor, "Sensor L1")
+        metrics_l2_sensor = self.evaluate_predictions(test_sensor_l2, pred_l2_sensor, "Sensor L2")
+
+        # ===== 6. CREATE COMBINED VISUALIZATIONS =====
+        print("\n" + "="*60)
+        print("6. CREATING COMBINED VISUALIZATIONS")
+        print("="*60)
+
+        # Combined t-SNE (L1 ground truth only) - ALL use the same labels after alignment
+        embeddings_dict = {
+            'text_noproj': test_text_emb,
+            'text_proj': test_text_emb_proj,
+            'sensor': test_sensor_emb
+        }
+        # All three embedding types should use the SAME labels (they're aligned!)
+        # Using test_labels_l1 for all to ensure consistency
+        labels_dict = {
+            'text_noproj': test_labels_l1,
+            'text_proj': test_labels_l1,
+            'sensor': test_labels_l1  # Changed from test_sensor_l1 to test_labels_l1
+        }
+
+        # Sanity check: all embeddings should have same number of samples
+        print(f"\n📊 t-SNE Input Sanity Check:")
+        print(f"   text_noproj: {len(test_text_emb)} embeddings, {len(labels_dict['text_noproj'])} labels")
+        print(f"   text_proj: {len(test_text_emb_proj)} embeddings, {len(labels_dict['text_proj'])} labels")
+        print(f"   sensor: {len(test_sensor_emb)} embeddings, {len(labels_dict['sensor'])} labels")
+
+        self.create_combined_tsne_plot(
+            embeddings_dict=embeddings_dict,
+            labels_dict=labels_dict,
+            save_path=str(output_dir / 'combined_tsne_l1.png')
+        )
+
+        # Combined confusion matrices (L1)
+        confusion_matrices_l1 = {
+            'text_noproj': metrics_l1_text_noproj['confusion_matrix'],
+            'text_proj': metrics_l1_text_proj['confusion_matrix'],
+            'sensor': metrics_l1_sensor['confusion_matrix']
+        }
+        unique_labels_l1 = {
+            'text_noproj': metrics_l1_text_noproj['unique_labels'],
+            'text_proj': metrics_l1_text_proj['unique_labels'],
+            'sensor': metrics_l1_sensor['unique_labels']
+        }
+        self.create_combined_confusion_matrices(
+            confusion_matrices=confusion_matrices_l1,
+            unique_labels=unique_labels_l1,
+            label_level='L1',
+            save_path=str(output_dir / 'combined_confusion_matrix_l1.png')
+        )
+
+        # Combined confusion matrices (L2)
+        confusion_matrices_l2 = {
+            'text_noproj': metrics_l2_text_noproj['confusion_matrix'],
+            'text_proj': metrics_l2_text_proj['confusion_matrix'],
+            'sensor': metrics_l2_sensor['confusion_matrix']
+        }
+        unique_labels_l2 = {
+            'text_noproj': metrics_l2_text_noproj['unique_labels'],
+            'text_proj': metrics_l2_text_proj['unique_labels'],
+            'sensor': metrics_l2_sensor['unique_labels']
+        }
+        self.create_combined_confusion_matrices(
+            confusion_matrices=confusion_matrices_l2,
+            unique_labels=unique_labels_l2,
+            label_level='L2',
+            save_path=str(output_dir / 'combined_confusion_matrix_l2.png')
+        )
+
+        # Combined F1 analysis
+        metrics_dict = {
+            'text_noproj': {'metrics_l1': metrics_l1_text_noproj, 'metrics_l2': metrics_l2_text_noproj},
+            'text_proj': {'metrics_l1': metrics_l1_text_proj, 'metrics_l2': metrics_l2_text_proj},
+            'sensor': {'metrics_l1': metrics_l1_sensor, 'metrics_l2': metrics_l2_sensor}
+        }
+        self.create_combined_f1_analysis(
+            metrics_dict=metrics_dict,
+            save_path=str(output_dir / 'combined_f1_analysis.png')
+        )
+
+        # Per-class F1 weighted (L1)
+        self.create_perclass_f1_weighted_analysis(
+            metrics_dict=metrics_dict,
+            label_level='L1',
+            save_path=str(output_dir / 'perclass_f1_weighted_l1.png')
+        )
+
+        # Per-class F1 weighted (L2)
+        self.create_perclass_f1_weighted_analysis(
+            metrics_dict=metrics_dict,
+            label_level='L2',
+            save_path=str(output_dir / 'perclass_f1_weighted_l2.png')
+        )
+
+        # ===== 7. COMPUTE RETRIEVAL METRICS =====
+        print("\n" + "="*60)
+        print("7. COMPUTING RETRIEVAL METRICS (L1 and L2 Labels)")
+        print("="*60)
+
+        # Store results for both label levels
+        retrieval_results_by_level = {}
+
+        # Compute metrics for both L1 and L2 labels
+        for retrieval_label_level in ['L1', 'L2']:
+            print(f"\n{'='*70}")
+            print(f"Computing retrieval metrics for {retrieval_label_level} labels")
+            print(f"{'='*70}")
+
+            if retrieval_label_level == 'L1':
+                # Use L1 labels for all retrieval metrics
+                # Note: test_labels_l1 and test_sensor_l1 are NOW THE SAME after alignment
+                labels_for_retrieval = np.array(test_labels_l1)
+                print(f"📋 {len(set(test_labels_l1))} unique {retrieval_label_level} labels")
+            else:
+                # Use L2 labels for all retrieval metrics
+                # Note: test_labels_l2 and test_sensor_l2 are NOW THE SAME after alignment
+                labels_for_retrieval = np.array(test_labels_l2)
+                print(f"📋 {len(set(test_labels_l2))} unique {retrieval_label_level} labels")
+
+            # Instance-to-instance retrieval (text <-> sensor)
+            print("\n📊 Computing instance-to-instance retrieval...")
+            instance_retrieval_results, instance_per_label = compute_label_recall_at_k(
+                sensor_embeddings=test_sensor_emb,
+                text_embeddings=test_text_emb_proj,  # Use projected text embeddings
+                labels=labels_for_retrieval,  # Use THE SAME labels for both (aligned!)
+                k_values=[10, 50, 100],
+                directions=['text2sensor', 'sensor2text'],
+                normalize=True,
+                verbose=True,
+                return_per_label=True
+            )
+
+            # Initialize confusion data (will be populated later)
+            instance_confusion_data = {}
+
+            # Create instance per-label charts (always create these, even if prototype fails)
+            print("\n🎨 Creating instance-to-instance per-label retrieval heatmaps...")
+
+            # Instance-to-instance: Text -> Sensor
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_text_emb_proj,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
+                target_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'perlabel_text2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Instance-to-instance: Sensor -> Text
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_text_emb_proj,
+                query_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
+                target_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'perlabel_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Compute and visualize retrieval confusion (error analysis)
+            print("\n🎨 Creating retrieval confusion analysis (error analysis)...")
+
+            # Text -> Sensor confusion
+            text2sensor_confusion = compute_retrieval_confusion(
+                query_embeddings=test_text_emb_proj,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,  # SAME aligned labels
+                target_labels=labels_for_retrieval,  # SAME aligned labels
+                k=10
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=text2sensor_confusion,
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'confusion_text2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Sensor -> Text confusion
+            sensor2text_confusion = compute_retrieval_confusion(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_text_emb_proj,
+                query_labels=labels_for_retrieval,  # SAME aligned labels
+                target_labels=labels_for_retrieval,  # SAME aligned labels
+                k=10
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=sensor2text_confusion,
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'confusion_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Store confusion data for JSON export
+            instance_confusion_data = {
+                'text2sensor': text2sensor_confusion,
+                'sensor2text': sensor2text_confusion
+            }
+
+            # Prototype-based retrieval
+            print("\n📊 Computing prototype-based retrieval...")
+
+            # Initialize prototype data (will be populated if successful)
+            prototype_retrieval_results = {}
+            prototype_per_label = {}
+            prototype_confusion_data = {}
+
+            # Load text prototypes from metadata
+            try:
+                label_to_text = load_text_prototypes_from_metadata(
+                    metadata_path='metadata/casas_metadata.json',
+                    dataset_name=self.dataset_name,
+                    style='sourish'
+                )
+                print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
+
+                # Encode text prototypes
+                prototype_emb, prototype_labels = encode_text_prototypes(
+                    label_to_text=label_to_text,
+                    text_encoder=self.text_encoder,
+                    device=str(self.device),
+                    normalize=True
+                )
+                print(f"✅ Encoded {len(prototype_emb)} text prototypes")
+
+                # Compute label counts from the target dataset for weighted averaging
+                label_counts_dict = {}
+                for label in labels_for_retrieval:
+                    label_str = str(label)
+                    label_counts_dict[label_str] = label_counts_dict.get(label_str, 0) + 1
+
+                # Compute prototype retrieval metrics
+                # Note: Prototypes use their own labels from metadata, targets use consistent aligned labels
+                prototype_retrieval_results, prototype_per_label = compute_prototype_retrieval_metrics(
+                    prototype_embeddings=prototype_emb,
+                    prototype_labels=prototype_labels,
+                    sensor_embeddings=test_sensor_emb,
+                    text_embeddings=test_text_emb_proj,  # Use projected text embeddings
+                    target_labels=labels_for_retrieval,  # Use THE SAME aligned labels
+                    label_counts=label_counts_dict,  # Pass label prevalence for weighted averaging
+                    k_values=[10, 50, 100],
+                    directions=['prototype2sensor', 'prototype2text'],
+                    normalize=True,
+                    verbose=True,
+                    return_per_label=True
+                )
+
+                # Combine all retrieval results
+                all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
+
+                # Create retrieval visualizations
+                print(f"\n🎨 Creating retrieval metric visualizations for {retrieval_label_level}...")
+                self.create_retrieval_metrics_visualization(
+                    retrieval_results=all_retrieval_results,
+                    save_path=str(retrieval_dir / f'metrics_comparison_{retrieval_label_level.lower()}.png'),
+                    label_level=retrieval_label_level
+                )
+
+                # Create prototype per-label retrieval heatmaps
+                print("\n🎨 Creating prototype per-label retrieval heatmaps...")
+
+                # Prototype-based: Prototype -> Sensor
+                self.create_per_label_retrieval_heatmap(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_sensor_emb,
+                    target_labels=labels_for_retrieval,  # SAME aligned labels
+                    prototype_embeddings=prototype_emb,
+                    direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype-based: Prototype -> Text
+                self.create_per_label_retrieval_heatmap(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_text_emb_proj,
+                    target_labels=labels_for_retrieval,  # SAME aligned labels
+                    prototype_embeddings=prototype_emb,
+                    direction_name=f'Prototype → Text ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'perlabel_prototype2text_{retrieval_label_level.lower()}.png')
+                )
+
+                # Create prototype confusion heatmaps
+                print("\n🎨 Creating prototype retrieval confusion analysis...")
+
+                # Prototype -> Sensor confusion
+                # Treat each prototype as a single query
+                proto2sensor_confusion = {}
+                similarities = compute_cosine_similarity(prototype_emb, test_sensor_emb)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_labels = labels_for_retrieval[top_k_indices]
+
+                    # Count distribution
+                    label_counts = {}
+                    for label in top_k_labels:
+                        label_str = str(label)
+                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+                    # Convert to proportions
+                    total = len(top_k_labels)
+                    label_proportions = {
+                        label: count / total for label, count in label_counts.items()
+                    }
+                    proto2sensor_confusion[str(proto_label)] = label_proportions
+
+                self.create_retrieval_confusion_heatmap(
+                    retrieval_confusion=proto2sensor_confusion,
+                    direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype -> Text confusion
+                proto2text_confusion = {}
+                similarities = compute_cosine_similarity(prototype_emb, test_text_emb_proj)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_labels = labels_for_retrieval[top_k_indices]
+
+                    # Count distribution
+                    label_counts = {}
+                    for label in top_k_labels:
+                        label_str = str(label)
+                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+                    # Convert to proportions
+                    total = len(top_k_labels)
+                    label_proportions = {
+                        label: count / total for label, count in label_counts.items()
+                    }
+                    proto2text_confusion[str(proto_label)] = label_proportions
+
+                self.create_retrieval_confusion_heatmap(
+                    retrieval_confusion=proto2text_confusion,
+                    direction_name=f'Prototype → Text ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'confusion_prototype2text_{retrieval_label_level.lower()}.png')
+                )
+
+                # Store prototype confusion data for JSON export
+                prototype_confusion_data = {
+                    'prototype2sensor': proto2sensor_confusion,
+                    'prototype2text': proto2text_confusion
+                }
+
+            except Exception as e:
+                print(f"⚠️  Could not compute prototype retrieval metrics: {e}")
+                import traceback
+                traceback.print_exc()
+                all_retrieval_results = instance_retrieval_results
+
+                # Store results for this label level
+                retrieval_results_by_level[retrieval_label_level] = {
+                    'instance_to_instance': {
+                        'overall': instance_retrieval_results,
+                        'per_label': instance_per_label,
+                        'confusion': instance_confusion_data
+                    },
+                    'prototype_based': {
+                        'overall': {},
+                        'per_label': {},
+                        'confusion': {}
+                    }
+                }
+                continue  # Skip to next label level
+
+            # Store results for this label level (successful case)
+            retrieval_results_by_level[retrieval_label_level] = {
+                'instance_to_instance': {
+                    'overall': instance_retrieval_results,
+                    'per_label': instance_per_label,
+                    'confusion': instance_confusion_data
+                },
+                'prototype_based': {
+                    'overall': prototype_retrieval_results,
+                    'per_label': prototype_per_label,
+                    'confusion': prototype_confusion_data
+                }
+            }
+
+            print(f"\n✅ Completed retrieval metrics for {retrieval_label_level} labels")
+
+        # End of label level loop
+
+        # ===== 8. SAVE RESULTS =====
+        if save_results:
+            results_summary = {
+                'classification_metrics': {
+                'text_noproj': {
+                    'l1': {
+                        'accuracy': metrics_l1_text_noproj.get('accuracy', 0),
+                        'f1_weighted': metrics_l1_text_noproj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l1_text_noproj.get('f1_macro', 0),
+                    },
+                    'l2': {
+                        'accuracy': metrics_l2_text_noproj.get('accuracy', 0),
+                        'f1_weighted': metrics_l2_text_noproj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l2_text_noproj.get('f1_macro', 0),
+                    }
+                },
+                'text_proj': {
+                    'l1': {
+                        'accuracy': metrics_l1_text_proj.get('accuracy', 0),
+                        'f1_weighted': metrics_l1_text_proj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l1_text_proj.get('f1_macro', 0),
+                    },
+                    'l2': {
+                        'accuracy': metrics_l2_text_proj.get('accuracy', 0),
+                        'f1_weighted': metrics_l2_text_proj.get('f1_weighted', 0),
+                        'f1_macro': metrics_l2_text_proj.get('f1_macro', 0),
+                    }
+                },
+                'sensor': {
+                    'l1': {
+                        'accuracy': metrics_l1_sensor.get('accuracy', 0),
+                        'f1_weighted': metrics_l1_sensor.get('f1_weighted', 0),
+                        'f1_macro': metrics_l1_sensor.get('f1_macro', 0),
+                    },
+                    'l2': {
+                        'accuracy': metrics_l2_sensor.get('accuracy', 0),
+                        'f1_weighted': metrics_l2_sensor.get('f1_weighted', 0),
+                        'f1_macro': metrics_l2_sensor.get('f1_macro', 0),
+                    }
+                }
+                },
+                'retrieval_metrics': retrieval_results_by_level
+            }
+
+            with open(output_dir / 'comprehensive_results.json', 'w') as f:
+                json.dump(results_summary, f, indent=2)
+
+            print(f"💾 Results saved: {output_dir / 'comprehensive_results.json'}")
+
+        # ===== 9. PRINT SUMMARY WITH F1 WEIGHTED FOCUS =====
+        print("\n" + "="*80)
+        print("🎯 COMPREHENSIVE EVALUATION SUMMARY")
+        print("="*80)
+        print("Note: All evaluations use synthetic text prototypes (unprojected for 'No Proj', projected for others)")
+
+        # Classification Metrics Summary
+
+        # L1 Summary
+        print("\n📊 L1 PRIMARY ACTIVITIES:")
+        print(f"{'Model':<25} {'F1 Weighted':<15} {'Accuracy':<12} {'F1 Macro':<12}")
+        print("-" * 64)
+
+        text_noproj_l1_f1w = metrics_l1_text_noproj.get('f1_weighted', 0)
+        text_proj_l1_f1w = metrics_l1_text_proj.get('f1_weighted', 0)
+        sensor_l1_f1w = metrics_l1_sensor.get('f1_weighted', 0)
+
+        print(f"{'Text (No Projection)':<25} {text_noproj_l1_f1w:<15.4f} "
+              f"{metrics_l1_text_noproj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l1_text_noproj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Text (With Projection)':<25} {text_proj_l1_f1w:<15.4f} "
+              f"{metrics_l1_text_proj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l1_text_proj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Sensor':<25} {sensor_l1_f1w:<15.4f} "
+              f"{metrics_l1_sensor.get('accuracy', 0):<12.4f} "
+              f"{metrics_l1_sensor.get('f1_macro', 0):<12.4f}")
+
+        # L2 Summary
+        print("\n📊 L2 SECONDARY ACTIVITIES:")
+        print(f"{'Model':<25} {'F1 Weighted':<15} {'Accuracy':<12} {'F1 Macro':<12}")
+        print("-" * 64)
+
+        text_noproj_l2_f1w = metrics_l2_text_noproj.get('f1_weighted', 0)
+        text_proj_l2_f1w = metrics_l2_text_proj.get('f1_weighted', 0)
+        sensor_l2_f1w = metrics_l2_sensor.get('f1_weighted', 0)
+
+        print(f"{'Text (No Projection)':<25} {text_noproj_l2_f1w:<15.4f} "
+              f"{metrics_l2_text_noproj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l2_text_noproj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Text (With Projection)':<25} {text_proj_l2_f1w:<15.4f} "
+              f"{metrics_l2_text_proj.get('accuracy', 0):<12.4f} "
+              f"{metrics_l2_text_proj.get('f1_macro', 0):<12.4f}")
+        print(f"{'Sensor':<25} {sensor_l2_f1w:<15.4f} "
+              f"{metrics_l2_sensor.get('accuracy', 0):<12.4f} "
+              f"{metrics_l2_sensor.get('f1_macro', 0):<12.4f}")
+
+        # Deltas
+        print("\n📈 F1 WEIGHTED IMPROVEMENTS:")
+        print(f"{'Comparison':<50} {'L1 Delta':<12} {'L2 Delta':<12}")
+        print("-" * 74)
+
+        proj_vs_noproj_l1 = text_proj_l1_f1w - text_noproj_l1_f1w
+        proj_vs_noproj_l2 = text_proj_l2_f1w - text_noproj_l2_f1w
+        sensor_vs_noproj_l1 = sensor_l1_f1w - text_noproj_l1_f1w
+        sensor_vs_noproj_l2 = sensor_l2_f1w - text_noproj_l2_f1w
+        sensor_vs_proj_l1 = sensor_l1_f1w - text_proj_l1_f1w
+        sensor_vs_proj_l2 = sensor_l2_f1w - text_proj_l2_f1w
+
+        print(f"{'Text Projection vs No Projection':<50} {proj_vs_noproj_l1:+<12.4f} {proj_vs_noproj_l2:+<12.4f}")
+        print(f"{'Sensor vs Text (No Projection)':<50} {sensor_vs_noproj_l1:+<12.4f} {sensor_vs_noproj_l2:+<12.4f}")
+        print(f"{'Sensor vs Text (With Projection)':<50} {sensor_vs_proj_l1:+<12.4f} {sensor_vs_proj_l2:+<12.4f}")
+
+        # Retrieval Metrics Summary
+        print("\n" + "="*80)
+        print("📊 RETRIEVAL METRICS SUMMARY (Label-Recall@K)")
+        print("="*80)
+
+        # Display results for both L1 and L2 label levels
+        for label_level in ['L1', 'L2']:
+            if label_level in retrieval_results_by_level:
+                level_data = retrieval_results_by_level[label_level]
+
+                # Combine instance and prototype results for display
+                all_results = {}
+                if 'instance_to_instance' in level_data and 'overall' in level_data['instance_to_instance']:
+                    all_results.update(level_data['instance_to_instance']['overall'])
+                if 'prototype_based' in level_data and 'overall' in level_data['prototype_based']:
+                    all_results.update(level_data['prototype_based']['overall'])
+
+                if all_results:
+                    print(f"\n{label_level} Labels:")
+                    print("-" * 80)
+
+                    # Choose middle K value for summary
+                    k_vals = list(next(iter(all_results.values())).keys())
+                    middle_k = k_vals[len(k_vals)//2] if k_vals else 10
+
+                    print(f"\nLabel-Recall @ K={middle_k}:")
+                    print(f"{'Direction':<30} {'Macro':<15} {'Weighted':<15}")
+                    print("-" * 60)
+
+                    for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+                        if direction in all_results:
+                            metrics = all_results[direction].get(middle_k, {})
+                            # Handle both old format (single float) and new format (dict)
+                            if isinstance(metrics, dict):
+                                macro = metrics.get('macro', 0)
+                                weighted = metrics.get('weighted', 0)
+                            else:
+                                # Backward compatibility
+                                macro = weighted = metrics
+
+                            direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
+                            print(f"{direction_display:<30} {macro:<.4f} ({macro*100:>5.2f}%)  {weighted:<.4f} ({weighted*100:>5.2f}%)")
+
+        print(f"\n✅ All results saved in: {output_dir}")
+
+        return {
+            'text_noproj': metrics_dict['text_noproj'],
+            'text_proj': metrics_dict['text_proj'],
+            'sensor': metrics_dict['sensor']
+        }
+
+    def run_retrieval_only_evaluation(self,
+                                      train_text_embeddings_path: str,
+                                      test_text_embeddings_path: str,
+                                      max_samples: int = 10000,
+                                      filter_noisy_labels: bool = False,
+                                      save_results: bool = True) -> Dict[str, Any]:
+        """Run ONLY retrieval metrics evaluation (skip classification).
+
+        This is a lightweight version that only computes:
+        - Instance-to-instance retrieval (text <-> sensor)
+        - Prototype-based retrieval (prototype -> text, prototype -> sensor)
+        - Retrieval visualizations
+
+        Skips:
+        - Classification metrics (accuracy, F1, confusion matrices)
+        - Most visualizations (t-SNE, per-class F1 plots)
+        """
+        print("\n" + "="*80)
+        print("RETRIEVAL-ONLY EVALUATION")
+        print("Computing retrieval metrics without classification")
+        print("="*80)
+
+        output_dir = Path(self.config.get('output_dir', './retrieval_evaluation'))
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create retrieval subdirectory for better organization
+        retrieval_dir = output_dir / 'retrieval'
+        retrieval_dir.mkdir(parents=True, exist_ok=True)
+
+        # ===== 1. LOAD DATA =====
+        print("\n" + "="*60)
+        print("1. LOADING LABELS AND EMBEDDINGS")
+        print("="*60)
+
+        # Get labels from metadata
+        train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
+        print(f"✅ Got {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels from metadata")
+
+        # Load TEST text embeddings
+        test_text_emb, test_text_sample_ids, test_labels_l1, test_labels_l2 = \
+            self.load_text_embeddings_from_file(
+                test_text_embeddings_path,
+                self.config['test_data_path'],
+                max_samples
+            )
+
+        # Extract TEST sensor embeddings
+        test_sensor_emb, test_sensor_l1, test_sensor_l2, test_sensor_sample_ids = self.extract_embeddings_and_labels('test', max_samples)
+
+        # CRITICAL: Align sensor and text embeddings by sample_id BEFORE any processing
+        test_sensor_emb, test_text_emb, aligned_labels_l1, aligned_labels_l2, aligned_sample_ids = \
+            self.align_embeddings_by_sample_id(
+                sensor_emb=test_sensor_emb,
+                sensor_labels_l1=test_sensor_l1,
+                sensor_labels_l2=test_sensor_l2,
+                sensor_sample_ids=test_sensor_sample_ids,
+                text_emb=test_text_emb,
+                text_labels_l1=test_labels_l1,
+                text_labels_l2=test_labels_l2,
+                text_sample_ids=test_text_sample_ids
+            )
+
+        # Now use the aligned data for all subsequent processing
+        test_sensor_l1 = aligned_labels_l1
+        test_sensor_l2 = aligned_labels_l2
+        test_labels_l1 = aligned_labels_l1  # Same labels for both
+        test_labels_l2 = aligned_labels_l2  # Same labels for both
+
+        # Filter if needed
+        if filter_noisy_labels:
+            print("⚠️  Filtering noisy labels from test data...")
+            test_text_emb, test_labels_l1, test_labels_l2, _ = \
+                self.filter_noisy_labels(test_text_emb, test_labels_l1, test_labels_l2)
+            test_sensor_emb, test_sensor_l1, test_sensor_l2, _ = \
+                self.filter_noisy_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2)
+
+        # ===== 2. CREATE TEXT PROTOTYPES (PROJECTED) =====
+        print("\n" + "="*60)
+        print("2. CREATING TEXT PROTOTYPES (WITH PROJECTION)")
+        print("="*60)
+
+        prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True)
+        prototypes_l2_projected, _ = self.create_text_prototypes(train_labels_l2, apply_projection=True)
+
+        # ===== 3. APPLY PROJECTION TO TEXT EMBEDDINGS =====
+        print("\n" + "="*60)
+        print("3. PROJECTING TEXT EMBEDDINGS")
+        print("="*60)
+
+        test_text_emb_proj = self.apply_projection_to_embeddings(test_text_emb)
+
+        # ===== 4. COMPUTE RETRIEVAL METRICS =====
+        print("\n" + "="*60)
+        print("4. COMPUTING RETRIEVAL METRICS (L1 and L2 Labels)")
+        print("="*60)
+
+        retrieval_results_by_level = {}
+
+        # Compute metrics for both L1 and L2 labels
+        for retrieval_label_level in ['L1', 'L2']:
+            print(f"\n{'='*70}")
+            print(f"Computing retrieval metrics for {retrieval_label_level} labels")
+            print(f"{'='*70}")
+
+            if retrieval_label_level == 'L1':
+                # Note: test_labels_l1 and test_sensor_l1 are NOW THE SAME after alignment
+                labels_for_retrieval = np.array(test_labels_l1)
+                prototypes_projected = prototypes_l1_projected
+                print(f"📋 {len(set(test_labels_l1))} unique {retrieval_label_level} labels")
+            else:
+                # Note: test_labels_l2 and test_sensor_l2 are NOW THE SAME after alignment
+                labels_for_retrieval = np.array(test_labels_l2)
+                prototypes_projected = prototypes_l2_projected
+                print(f"📋 {len(set(test_labels_l2))} unique {retrieval_label_level} labels")
+
+            # Instance-to-instance retrieval (text <-> sensor)
+            print("\n📊 Computing instance-to-instance retrieval...")
+            instance_retrieval_results, instance_per_label = compute_label_recall_at_k(
+                sensor_embeddings=test_sensor_emb,
+                text_embeddings=test_text_emb_proj,
+                labels=labels_for_retrieval,  # Use THE SAME labels for both (aligned!)
+                k_values=[10, 50, 100],
+                directions=['text2sensor', 'sensor2text'],
+                return_per_label=True
+            )
+
+            # Prototype-based retrieval
+            print("\n📊 Computing prototype-based retrieval...")
+            try:
+                # Convert prototype dictionary to arrays
+                # prototypes_projected is a dict: {label: embedding_array}
+                if retrieval_label_level == 'L1':
+                    proto_dict = prototypes_l1_projected
+                else:
+                    proto_dict = prototypes_l2_projected
+
+                prototype_labels = np.array(list(proto_dict.keys()))
+                prototype_embeddings_array = np.vstack([proto_dict[label] for label in prototype_labels])
+
+                # Compute label counts from the target dataset for weighted averaging
+                label_counts_dict = {}
+                for label in labels_for_retrieval:
+                    label_str = str(label)
+                    label_counts_dict[label_str] = label_counts_dict.get(label_str, 0) + 1
+
+                prototype_retrieval_results, prototype_per_label = compute_prototype_retrieval_metrics(
+                    prototype_embeddings=prototype_embeddings_array,
+                    prototype_labels=prototype_labels,
+                    sensor_embeddings=test_sensor_emb,
+                    text_embeddings=test_text_emb_proj,
+                    target_labels=labels_for_retrieval,  # Use THE SAME aligned labels
+                    label_counts=label_counts_dict,  # Pass label prevalence for weighted averaging
+                    k_values=[10, 50, 100],
+                    directions=['prototype2sensor', 'prototype2text'],
+                    normalize=True,
+                    verbose=True,
+                    return_per_label=True
+                )
+
+                # Combine all retrieval results
+                all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
+                all_per_label = {**instance_per_label, **prototype_per_label}
+
+            except Exception as e:
+                print(f"⚠️  Warning: Prototype retrieval failed: {e}")
+                all_retrieval_results = instance_retrieval_results
+                all_per_label = instance_per_label
+
+            # Store results for this level
+            retrieval_results_by_level[retrieval_label_level] = {
+                'recall_at_k': all_retrieval_results,
+                'per_label': all_per_label
+            }
+
+            # ===== 5. CREATE RETRIEVAL VISUALIZATIONS =====
+            print(f"\n🎨 Creating retrieval visualizations for {retrieval_label_level}...")
+
+            # Main retrieval metrics visualization
+            self.create_retrieval_metrics_visualization(
+                retrieval_results=all_retrieval_results,
+                save_path=str(retrieval_dir / f'retrieval_metrics_{retrieval_label_level.lower()}.png'),
+                label_level=retrieval_label_level
+            )
+
+            # Per-label heatmaps for instance retrieval
+            print(f"\n🎨 Creating per-label retrieval heatmaps...")
+
+            # Text -> Sensor
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_text_emb_proj,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,  # SAME aligned labels
+                target_labels=labels_for_retrieval,  # SAME aligned labels
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'perlabel_text2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Sensor -> Text
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_text_emb_proj,
+                query_labels=labels_for_retrieval,  # SAME aligned labels
+                target_labels=labels_for_retrieval,  # SAME aligned labels
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'perlabel_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Retrieval confusion analysis (error analysis)
+            print(f"\n🎨 Creating retrieval confusion analysis...")
+
+            # Text -> Sensor confusion
+            text2sensor_confusion = compute_retrieval_confusion(
+                query_embeddings=test_text_emb_proj,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                k=10
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=text2sensor_confusion,
+                direction_name=f'Text → Sensor ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'confusion_text2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Sensor -> Text confusion
+            sensor2text_confusion = compute_retrieval_confusion(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_text_emb_proj,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                k=10
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=sensor2text_confusion,
+                direction_name=f'Sensor → Text ({retrieval_label_level})',
+                k=10,
+                save_path=str(retrieval_dir / f'confusion_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Prototype-based heatmaps (if available)
+            if 'prototype2sensor' in all_retrieval_results:
+                print(f"\n🎨 Creating prototype retrieval visualizations...")
+
+                # Prototype -> Sensor per-label heatmap
+                self.create_per_label_retrieval_heatmap(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_sensor_emb,
+                    target_labels=labels_for_retrieval,  # SAME aligned labels
+                    prototype_embeddings=prototype_embeddings_array,
+                    direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype -> Text per-label heatmap
+                self.create_per_label_retrieval_heatmap(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_text_emb_proj,
+                    target_labels=labels_for_retrieval,  # SAME aligned labels
+                    prototype_embeddings=prototype_embeddings_array,
+                    direction_name=f'Prototype → Text ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'perlabel_prototype2text_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype confusion heatmaps
+                print(f"\n🎨 Creating prototype retrieval confusion analysis...")
+
+                # Prototype -> Sensor confusion
+                proto2sensor_confusion = {}
+                similarities = compute_cosine_similarity(prototype_embeddings_array, test_sensor_emb)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_labels = labels_for_retrieval[top_k_indices]
+
+                    # Count distribution
+                    label_counts = {}
+                    for label in top_k_labels:
+                        label_str = str(label)
+                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+                    # Convert to proportions
+                    total = len(top_k_labels)
+                    label_proportions = {
+                        label: count / total for label, count in label_counts.items()
+                    }
+                    proto2sensor_confusion[str(proto_label)] = label_proportions
+
+                self.create_retrieval_confusion_heatmap(
+                    retrieval_confusion=proto2sensor_confusion,
+                    direction_name=f'Prototype → Sensor ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
+                # Prototype -> Text confusion
+                proto2text_confusion = {}
+                similarities = compute_cosine_similarity(prototype_embeddings_array, test_text_emb_proj)
+
+                for i, proto_label in enumerate(prototype_labels):
+                    proto_sims = similarities[i]
+                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_labels = labels_for_retrieval[top_k_indices]
+
+                    # Count distribution
+                    label_counts = {}
+                    for label in top_k_labels:
+                        label_str = str(label)
+                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
+
+                    # Convert to proportions
+                    total = len(top_k_labels)
+                    label_proportions = {
+                        label: count / total for label, count in label_counts.items()
+                    }
+                    proto2text_confusion[str(proto_label)] = label_proportions
+
+                self.create_retrieval_confusion_heatmap(
+                    retrieval_confusion=proto2text_confusion,
+                    direction_name=f'Prototype → Text ({retrieval_label_level})',
+                    k=10,
+                    save_path=str(retrieval_dir / f'confusion_prototype2text_{retrieval_label_level.lower()}.png')
+                )
+
+        # ===== 6. SAVE RESULTS =====
+        if save_results:
+            print("\n" + "="*60)
+            print("6. SAVING RESULTS")
+            print("="*60)
+
+            # Convert numpy types to Python types for JSON serialization
+            def convert_to_json_serializable(obj):
+                """Recursively convert numpy types to Python types."""
+                if isinstance(obj, dict):
+                    return {k: convert_to_json_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, (list, tuple)):
+                    return [convert_to_json_serializable(item) for item in obj]
+                elif isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, np.floating):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                else:
+                    return obj
+
+            results_summary = {
+                'retrieval_metrics': convert_to_json_serializable(retrieval_results_by_level),
+                'config': {
+                    'max_samples': max_samples,
+                    'filter_noisy_labels': filter_noisy_labels,
+                    'checkpoint': self.config.get('checkpoint_path', 'unknown'),
+                    'test_data': self.config.get('test_data_path', 'unknown')
+                }
+            }
+
+            results_file = retrieval_dir / 'retrieval_metrics.json'
+            with open(results_file, 'w') as f:
+                json.dump(results_summary, f, indent=2)
+
+            print(f"💾 Results saved: {results_file}")
+
+        # ===== 7. PRINT SUMMARY =====
+        print("\n" + "="*80)
+        print("🎯 RETRIEVAL-ONLY EVALUATION SUMMARY")
+        print("="*80)
+
+        middle_k = 50  # Use k=50 for summary
+        for retrieval_label_level in ['L1', 'L2']:
+            print(f"\n📊 {retrieval_label_level} RETRIEVAL METRICS (k={middle_k}):")
+            print(f"{'Direction':<30} {'Macro Recall':<20} {'Weighted Recall':<20}")
+            print("-" * 70)
+
+            all_results = retrieval_results_by_level[retrieval_label_level]['recall_at_k']
+
+            for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+                if direction in all_results and all_results[direction]:
+                    metrics = all_results[direction].get(middle_k, {})
+                    if isinstance(metrics, dict):
+                        macro = metrics.get('macro', 0)
+                        weighted = metrics.get('weighted', 0)
+                    else:
+                        macro = weighted = metrics
+
+                    direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
+                    print(f"{direction_display:<30} {macro:<.4f} ({macro*100:>5.2f}%)  {weighted:<.4f} ({weighted*100:>5.2f}%)")
+
+        print(f"\n✅ Retrieval-only evaluation complete! Results saved in: {output_dir}")
+
+        return retrieval_results_by_level
+
     def run_evaluation(self, max_samples: int = 10000,
                       train_split: str = 'train',
                       test_split: str = 'test',
                       k_neighbors: int = 1,
                       save_results: bool = True,
                       filter_noisy_labels: bool = False,
-                      compare_filtering: bool = True) -> Dict[str, Any]:
+                      compare_filtering: bool = False) -> Dict[str, Any]:
         """Run complete embedding evaluation pipeline."""
 
         print("🚀 Starting embedding evaluation...")
@@ -2086,21 +4747,19 @@ class EmbeddingEvaluator:
 
         results = {}
 
-        # 1. Extract training labels to get unique activities
+        # 1. Get labels from metadata (efficient, no need to load training data)
         print("\n" + "="*60)
-        print("1. EXTRACTING TRAINING LABELS")
+        print("1. EXTRACTING LABELS FROM METADATA")
         print("="*60)
 
-        # We only need labels to know which activities exist, not the embeddings
-        train_embeddings, train_labels_l1, train_labels_l2 = self.extract_embeddings_and_labels(
-            train_split, max_samples
-        )
+        # Get all labels from metadata without loading/processing training data
+        train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
 
-        # Filter out noisy labels from training data (if enabled)
+        print(f"✅ Found {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels")
+
+        # Note: filter_noisy_labels is not applicable here since we're getting labels from metadata
         if filter_noisy_labels:
-            _, train_labels_l1, train_labels_l2, _ = self.filter_noisy_labels(
-                train_embeddings, train_labels_l1, train_labels_l2
-            )
+            print("⚠️  Note: filter_noisy_labels is ignored when using metadata (no training data loaded)")
 
         # 2. Create text-based label prototypes
         print("\n" + "="*60)
@@ -2120,7 +4779,7 @@ class EmbeddingEvaluator:
         print("3. EXTRACTING TEST EMBEDDINGS")
         print("="*60)
 
-        test_embeddings, test_labels_l1, test_labels_l2 = self.extract_embeddings_and_labels(
+        test_embeddings, test_labels_l1, test_labels_l2, test_sample_ids = self.extract_embeddings_and_labels(
             test_split, max_samples
         )
 
@@ -2311,6 +4970,22 @@ def main():
                        help='Run comprehensive n-shot evaluation (0-shot, 1-shot, 2-shot, 5-shot)')
     parser.add_argument('--n_shot_values', type=int, nargs='+', default=[1, 2, 5],
                        help='N-shot values to evaluate (default: 1 2 5)')
+    parser.add_argument('--eval_text_embeddings', action='store_true',
+                       help='Evaluate text embeddings (from .npz files) instead of sensor embeddings')
+    parser.add_argument('--train_text_embeddings', type=str, default=None,
+                       help='Path to training text embeddings .npz file')
+    parser.add_argument('--test_text_embeddings', type=str, default=None,
+                       help='Path to test text embeddings .npz file')
+    parser.add_argument('--eval_all', action='store_true',
+                       help='Run comprehensive evaluation: sensor embeddings + text embeddings (with/without projection)')
+    parser.add_argument('--only_retrieval', action='store_true',
+                       help='Only compute retrieval metrics (skip classification and most visualizations)')
+    parser.add_argument('--skip_classification', action='store_true',
+                       help='Skip classification evaluation (only retrieval)')
+    parser.add_argument('--skip_visualizations', action='store_true',
+                       help='Skip visualization generation (faster evaluation)')
+    parser.add_argument('--use_multiple_prototypes', action='store_true',
+                       help='Use multiple prototypes per label from metadata (default: single averaged prototype)')
 
     args = parser.parse_args()
 
@@ -2319,14 +4994,64 @@ def main():
         'checkpoint_path': args.checkpoint,
         'train_data_path': args.train_data,
         'test_data_path': args.test_data,
-        'vocab_path': args.vocab,
         'output_dir': args.output_dir,
     }
+
+    # Only add vocab_path if the file exists
+    if args.vocab and os.path.exists(args.vocab):
+        config['vocab_path'] = args.vocab
 
     # Run evaluation
     evaluator = EmbeddingEvaluator(config)
 
-    if args.run_nshot:
+    if args.only_retrieval:
+        # Validate that text embeddings files are provided
+        if not args.train_text_embeddings or not args.test_text_embeddings:
+            raise ValueError("Both --train_text_embeddings and --test_text_embeddings must be provided when using --only_retrieval")
+
+        # Run retrieval-only evaluation (skip classification)
+        results = evaluator.run_retrieval_only_evaluation(
+            train_text_embeddings_path=args.train_text_embeddings,
+            test_text_embeddings_path=args.test_text_embeddings,
+            max_samples=args.max_samples,
+            filter_noisy_labels=args.filter_noisy_labels,
+            save_results=True
+        )
+        print(f"\n✅ Retrieval-only evaluation complete! Results saved in: {args.output_dir}")
+    elif args.eval_all:
+        # Validate that text embeddings files are provided
+        if not args.train_text_embeddings or not args.test_text_embeddings:
+            raise ValueError("Both --train_text_embeddings and --test_text_embeddings must be provided when using --eval_all")
+
+        # Run comprehensive evaluation (sensor + text with/without projection)
+        results = evaluator.run_comprehensive_evaluation(
+            train_text_embeddings_path=args.train_text_embeddings,
+            test_text_embeddings_path=args.test_text_embeddings,
+            max_samples=args.max_samples,
+            k_neighbors=args.k_neighbors,
+            filter_noisy_labels=args.filter_noisy_labels,
+            save_results=True,
+            use_multiple_prototypes=args.use_multiple_prototypes
+        )
+        print(f"\n✅ Comprehensive evaluation complete! Results saved in: {args.output_dir}")
+    elif args.eval_text_embeddings:
+        # Validate that text embeddings files are provided
+        if not args.train_text_embeddings or not args.test_text_embeddings:
+            raise ValueError("Both --train_text_embeddings and --test_text_embeddings must be provided when using --eval_text_embeddings")
+
+        # Run text embedding evaluation (with and without projection)
+        results = evaluator.run_text_embedding_evaluation(
+            train_embeddings_path=args.train_text_embeddings,
+            test_embeddings_path=args.test_text_embeddings,
+            train_data_path=args.train_data,
+            test_data_path=args.test_data,
+            max_samples=args.max_samples,
+            k_neighbors=args.k_neighbors,
+            filter_noisy_labels=args.filter_noisy_labels,
+            save_results=True
+        )
+        print(f"\n✅ Text embedding evaluation complete! Results saved in: {args.output_dir}")
+    elif args.run_nshot:
         # Run comprehensive n-shot evaluation
         results = evaluator.run_nshot_evaluation(
             max_samples=args.max_samples,
@@ -2344,7 +5069,7 @@ def main():
         )
         print(f"\n✅ Dual evaluation complete! Comparison results saved in: {args.output_dir}")
     else:
-        # Run single evaluation
+        # Run single evaluation (sensor embeddings)
         results = evaluator.run_evaluation(
             max_samples=args.max_samples,
             k_neighbors=args.k_neighbors,

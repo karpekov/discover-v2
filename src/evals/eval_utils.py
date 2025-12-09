@@ -31,30 +31,77 @@ def create_text_encoder_from_checkpoint(
     Raises:
         ValueError: If text encoder metadata indicates mismatch or unsupported encoder
     """
-    # Get projection head dimensions from checkpoint
-    proj_weight = None
-    if 'model_state_dict' in checkpoint and 'text_projection.proj.weight' in checkpoint['model_state_dict']:
-        proj_weight = checkpoint['model_state_dict']['text_projection.proj.weight']
-        proj_dim, base_dim = proj_weight.shape
-        print(f"📐 Detected projection dimensions from checkpoint: {base_dim} → {proj_dim}")
-    else:
-        print("⚠️  No text projection head found in checkpoint")
-        return None
+    # Get projection head dimensions and type from checkpoint
+    proj_state_dict = {}
+    proj_type = None
+    base_dim = None
+    proj_dim = None
+
+    if 'model_state_dict' in checkpoint:
+        model_state = checkpoint['model_state_dict']
+
+        # Try linear projection first: text_projection.proj.weight
+        if 'text_projection.proj.weight' in model_state:
+            proj_type = 'linear'
+            proj_weight = model_state['text_projection.proj.weight']
+            proj_dim, base_dim = proj_weight.shape
+            # nn.Linear expects 'weight' key, not 'proj.weight'
+            proj_state_dict = {'weight': proj_weight}
+            # Check for bias (optional)
+            if 'text_projection.proj.bias' in model_state:
+                proj_state_dict['bias'] = model_state['text_projection.proj.bias']
+            print(f"📐 Detected linear projection: {base_dim} → {proj_dim}")
+
+        # Try MLP projection: text_projection.mlp.*
+        elif any(k.startswith('text_projection.mlp.') for k in model_state.keys()):
+            proj_type = 'mlp'
+            # Extract all MLP weights and fix key names for Sequential module
+            mlp_keys = [k for k in model_state.keys() if k.startswith('text_projection.mlp.')]
+            for key in mlp_keys:
+                # Remove 'text_projection.mlp.' prefix to get '0.weight', '0.bias', '3.weight', etc.
+                short_key = key.replace('text_projection.mlp.', '')
+                proj_state_dict[short_key] = model_state[key]
+
+            # Get dimensions from first layer
+            first_layer_weight = model_state['text_projection.mlp.0.weight']
+            hidden_dim, base_dim = first_layer_weight.shape
+
+            # Get output dimension from last layer
+            last_layer_keys = [k for k in mlp_keys if '.weight' in k]
+            last_layer_key = sorted(last_layer_keys)[-1]
+            proj_dim, _ = model_state[last_layer_key].shape
+
+            print(f"📐 Detected MLP projection: {base_dim} → {hidden_dim} → {proj_dim}")
+            print(f"   Found {len(mlp_keys)} MLP parameters")
+
+        # Check if using pre-computed embeddings (no text projection needed)
+        elif 'text_encoder_metadata' in checkpoint:
+            # Get dimensions from metadata
+            metadata = checkpoint['text_encoder_metadata']
+            base_dim = metadata.get('embedding_dim', 512)
+            proj_dim = metadata.get('projection_dim', 0)
+            if proj_dim == 0:
+                proj_dim = base_dim  # No projection, just use base dimension
+            proj_type = 'none'
+            print(f"📐 Using text encoder metadata dimensions: {base_dim} (no projection)")
+        else:
+            print("⚠️  No text projection head found in checkpoint")
+            return None
 
     # ==== TIER 1: Try checkpoint metadata (saved during training) ====
     if 'text_encoder_metadata' in checkpoint:
         metadata = checkpoint['text_encoder_metadata']
         encoder_type = metadata.get('encoder_type', 'unknown')
         model_name = metadata.get('model_name', 'unknown')
-        embedding_dim = metadata.get('embedding_dim', base_dim)
+        embedding_dim = metadata.get('embedding_dim', base_dim if base_dim else 512)
 
         print(f"✅ Found text encoder metadata in checkpoint:")
         print(f"   Encoder type: {encoder_type}")
         print(f"   Model name: {model_name}")
         print(f"   Embedding dim: {embedding_dim}")
 
-        # Validate dimension match
-        if embedding_dim != base_dim:
+        # Validate dimension match (only if we have base_dim from projection)
+        if base_dim is not None and embedding_dim != base_dim:
             raise ValueError(
                 f"❌ DIMENSION MISMATCH! "
                 f"Checkpoint metadata says {embedding_dim}D embeddings, "
@@ -62,10 +109,17 @@ def create_text_encoder_from_checkpoint(
                 f"This checkpoint may be corrupted or from a different training run."
             )
 
+        # Use embedding_dim as both base and proj if no projection head
+        if base_dim is None:
+            base_dim = embedding_dim
+        if proj_dim is None:
+            proj_dim = embedding_dim
+
         # Create encoder based on type
-        text_encoder = _create_encoder_by_type(encoder_type, model_name, base_dim, proj_dim, device)
-        if text_encoder and proj_weight is not None:
-            text_encoder.clip_proj.weight.data = proj_weight.clone()
+        text_encoder = _create_encoder_by_type(
+            encoder_type, model_name, base_dim, proj_dim, device,
+            proj_type=proj_type, proj_state_dict=proj_state_dict
+        )
         return text_encoder
 
     # ==== TIER 2: Try .npz file metadata (fallback) ====
@@ -97,9 +151,10 @@ def create_text_encoder_from_checkpoint(
                             print(f"   Model name: {model_name}")
 
                             # Create encoder based on type
-                            text_encoder = _create_encoder_by_type(encoder_type, model_name, base_dim, proj_dim, device)
-                            if text_encoder and proj_weight is not None:
-                                text_encoder.clip_proj.weight.data = proj_weight.clone()
+                            text_encoder = _create_encoder_by_type(
+                                encoder_type, model_name, base_dim, proj_dim, device,
+                                proj_type=proj_type, proj_state_dict=proj_state_dict
+                            )
                             return text_encoder
                         else:
                             print(f"   ⏭️  Skipping {npz_path.name} (dimension mismatch: {embedding_dim}D ≠ {base_dim}D)")
@@ -119,9 +174,10 @@ def create_text_encoder_from_checkpoint(
     print("   Defaulting to CLIP (openai/clip-vit-base-patch32)")
     print("   This may give incorrect results if training used a different encoder!")
 
-    text_encoder = _create_encoder_by_type('clip', 'openai/clip-vit-base-patch32', base_dim, proj_dim, device)
-    if text_encoder and proj_weight is not None:
-        text_encoder.clip_proj.weight.data = proj_weight.clone()
+    text_encoder = _create_encoder_by_type(
+        'clip', 'openai/clip-vit-base-patch32', base_dim, proj_dim, device,
+        proj_type=proj_type, proj_state_dict=proj_state_dict
+    )
     return text_encoder
 
 
@@ -130,7 +186,9 @@ def _create_encoder_by_type(
     model_name: str,
     base_dim: int,
     proj_dim: int,
-    device: torch.device
+    device: torch.device,
+    proj_type: Optional[str] = None,
+    proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
 ) -> Optional[nn.Module]:
     """
     Create a text encoder based on type and model name.
@@ -143,11 +201,11 @@ def _create_encoder_by_type(
         model_name = 'openai/clip-vit-base-patch32'
 
     if encoder_type == 'clip':
-        return _create_clip_encoder(model_name, base_dim, proj_dim, device)
+        return _create_clip_encoder(model_name, base_dim, proj_dim, device, proj_type, proj_state_dict)
     elif encoder_type in ['llama', 'embedding_llama']:
-        return _create_llama_encoder(model_name, base_dim, proj_dim, device)
+        return _create_llama_encoder(model_name, base_dim, proj_dim, device, proj_type, proj_state_dict)
     elif encoder_type in ['gte', 'sentence-transformers']:
-        return _create_sentence_transformer_encoder(model_name, base_dim, proj_dim, device)
+        return _create_sentence_transformer_encoder(model_name, base_dim, proj_dim, device, proj_type, proj_state_dict)
     else:
         raise ValueError(
             f"❌ Unsupported encoder type: {encoder_type}\n"
@@ -156,19 +214,39 @@ def _create_encoder_by_type(
         )
 
 
-def _create_clip_encoder(model_name: str, base_dim: int, proj_dim: int, device: torch.device) -> nn.Module:
+def _create_clip_encoder(
+    model_name: str,
+    base_dim: int,
+    proj_dim: int,
+    device: torch.device,
+    proj_type: Optional[str] = None,
+    proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
+) -> nn.Module:
     """Create a CLIP-based text encoder."""
     from transformers import CLIPTextModel, CLIPTokenizer
 
     class CLIPTextEncoder(nn.Module):
-        def __init__(self, model_name, base_dim, proj_dim):
+        def __init__(self, model_name, base_dim, proj_dim, proj_type='linear'):
             super().__init__()
             self.base_dim = base_dim
             self.proj_dim = proj_dim
-            self.clip_proj = nn.Linear(base_dim, proj_dim, bias=False)
+            self.proj_type = proj_type
             self.model_name = model_name
             self._clip_model = None
             self._clip_tokenizer = None
+
+            # Create projection head based on type
+            if proj_type == 'mlp':
+                # MLP projection: Linear -> GELU -> Dropout -> Linear
+                self.clip_proj = nn.Sequential(
+                    nn.Linear(base_dim, base_dim),  # mlp.0
+                    nn.GELU(),  # mlp.1
+                    nn.Dropout(0.1),  # mlp.2
+                    nn.Linear(base_dim, proj_dim, bias=False)  # mlp.3
+                )
+            else:
+                # Linear projection
+                self.clip_proj = nn.Linear(base_dim, proj_dim, bias=False)
 
         def encode_texts_clip(self, texts, device):
             if self._clip_model is None:
@@ -188,22 +266,59 @@ def _create_clip_encoder(model_name: str, base_dim: int, proj_dim: int, device: 
             return embeddings
 
     print(f"   Creating CLIP encoder: {model_name}")
-    return CLIPTextEncoder(model_name, base_dim, proj_dim)
+    print(f"   Projection type: {proj_type or 'linear'}")
+    encoder = CLIPTextEncoder(model_name, base_dim, proj_dim, proj_type or 'linear')
+
+    # Load projection weights if provided
+    if proj_state_dict:
+        try:
+            missing_keys, unexpected_keys = encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
+            if not missing_keys and not unexpected_keys:
+                print(f"   ✅ Loaded {len(proj_state_dict)} projection weights from checkpoint")
+            else:
+                if missing_keys:
+                    print(f"   ⚠️  Missing keys in projection: {missing_keys}")
+                if unexpected_keys:
+                    print(f"   ⚠️  Unexpected keys in projection: {unexpected_keys}")
+        except Exception as e:
+            print(f"   ⚠️  Could not load projection weights: {e}")
+
+    return encoder
 
 
-def _create_llama_encoder(model_name: str, base_dim: int, proj_dim: int, device: torch.device) -> nn.Module:
+def _create_llama_encoder(
+    model_name: str,
+    base_dim: int,
+    proj_dim: int,
+    device: torch.device,
+    proj_type: Optional[str] = None,
+    proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
+) -> nn.Module:
     """Create a LLaMA-based text encoder."""
     from transformers import AutoModel, AutoTokenizer
 
     class LLaMATextEncoder(nn.Module):
-        def __init__(self, model_name, base_dim, proj_dim):
+        def __init__(self, model_name, base_dim, proj_dim, proj_type='linear'):
             super().__init__()
             self.base_dim = base_dim
             self.proj_dim = proj_dim
-            self.clip_proj = nn.Linear(base_dim, proj_dim, bias=False)
+            self.proj_type = proj_type
             self.model_name = model_name
             self._model = None
             self._tokenizer = None
+
+            # Create projection head based on type
+            if proj_type == 'mlp':
+                # MLP projection: Linear -> GELU -> Dropout -> Linear
+                self.clip_proj = nn.Sequential(
+                    nn.Linear(base_dim, base_dim),  # mlp.0
+                    nn.GELU(),  # mlp.1
+                    nn.Dropout(0.1),  # mlp.2
+                    nn.Linear(base_dim, proj_dim, bias=False)  # mlp.3
+                )
+            else:
+                # Linear projection
+                self.clip_proj = nn.Linear(base_dim, proj_dim, bias=False)
 
         def encode_texts_clip(self, texts, device):
             if self._model is None:
@@ -224,22 +339,59 @@ def _create_llama_encoder(model_name: str, base_dim: int, proj_dim: int, device:
             return embeddings
 
     print(f"   Creating LLaMA encoder: {model_name}")
-    return LLaMATextEncoder(model_name, base_dim, proj_dim)
+    print(f"   Projection type: {proj_type or 'linear'}")
+    encoder = LLaMATextEncoder(model_name, base_dim, proj_dim, proj_type or 'linear')
+
+    # Load projection weights if provided
+    if proj_state_dict:
+        try:
+            missing_keys, unexpected_keys = encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
+            if not missing_keys and not unexpected_keys:
+                print(f"   ✅ Loaded {len(proj_state_dict)} projection weights from checkpoint")
+            else:
+                if missing_keys:
+                    print(f"   ⚠️  Missing keys in projection: {missing_keys}")
+                if unexpected_keys:
+                    print(f"   ⚠️  Unexpected keys in projection: {unexpected_keys}")
+        except Exception as e:
+            print(f"   ⚠️  Could not load projection weights: {e}")
+
+    return encoder
 
 
-def _create_sentence_transformer_encoder(model_name: str, base_dim: int, proj_dim: int, device: torch.device) -> nn.Module:
+def _create_sentence_transformer_encoder(
+    model_name: str,
+    base_dim: int,
+    proj_dim: int,
+    device: torch.device,
+    proj_type: Optional[str] = None,
+    proj_state_dict: Optional[Dict[str, torch.Tensor]] = None
+) -> nn.Module:
     """Create a sentence-transformers-based encoder (GTE, MiniLM, etc.)."""
     from transformers import AutoModel, AutoTokenizer
 
     class SentenceTransformerEncoder(nn.Module):
-        def __init__(self, model_name, base_dim, proj_dim):
+        def __init__(self, model_name, base_dim, proj_dim, proj_type='linear'):
             super().__init__()
             self.base_dim = base_dim
             self.proj_dim = proj_dim
-            self.clip_proj = nn.Linear(base_dim, proj_dim, bias=False)
+            self.proj_type = proj_type
             self.model_name = model_name
             self._model = None
             self._tokenizer = None
+
+            # Create projection head based on type
+            if proj_type == 'mlp':
+                # MLP projection: Linear -> GELU -> Dropout -> Linear
+                self.clip_proj = nn.Sequential(
+                    nn.Linear(base_dim, base_dim),  # mlp.0
+                    nn.GELU(),  # mlp.1
+                    nn.Dropout(0.1),  # mlp.2
+                    nn.Linear(base_dim, proj_dim, bias=False)  # mlp.3
+                )
+            else:
+                # Linear projection
+                self.clip_proj = nn.Linear(base_dim, proj_dim, bias=False)
 
         def encode_texts_clip(self, texts, device):
             if self._model is None:
@@ -260,5 +412,22 @@ def _create_sentence_transformer_encoder(model_name: str, base_dim: int, proj_di
             return embeddings
 
     print(f"   Creating Sentence-Transformer encoder: {model_name}")
-    return SentenceTransformerEncoder(model_name, base_dim, proj_dim)
+    print(f"   Projection type: {proj_type or 'linear'}")
+    encoder = SentenceTransformerEncoder(model_name, base_dim, proj_dim, proj_type or 'linear')
+
+    # Load projection weights if provided
+    if proj_state_dict:
+        try:
+            missing_keys, unexpected_keys = encoder.clip_proj.load_state_dict(proj_state_dict, strict=False)
+            if not missing_keys and not unexpected_keys:
+                print(f"   ✅ Loaded {len(proj_state_dict)} projection weights from checkpoint")
+            else:
+                if missing_keys:
+                    print(f"   ⚠️  Missing keys in projection: {missing_keys}")
+                if unexpected_keys:
+                    print(f"   ⚠️  Unexpected keys in projection: {unexpected_keys}")
+        except Exception as e:
+            print(f"   ⚠️  Could not load projection weights: {e}")
+
+    return encoder
 

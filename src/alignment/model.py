@@ -9,11 +9,11 @@ from typing import Dict, Optional, Any, Tuple
 from pathlib import Path
 import yaml
 
-from src.alignment.config import AlignmentConfig
-from src.encoders import build_encoder
-from src.encoders.base import EncoderOutput
-from src.encoders.sensor.sequence.projection import create_projection_head
-from src.losses.clip import CLIPLoss
+from alignment.config import AlignmentConfig
+from encoders import build_encoder
+from encoders.base import EncoderOutput
+from encoders.sensor.sequence.projection import create_projection_head
+from losses.clip import CLIPLoss
 
 
 class AlignmentModel(nn.Module):
@@ -46,7 +46,7 @@ class AlignmentModel(nn.Module):
         # Build text projection head (optional)
         self.text_projection = self._build_text_projection()
 
-        # Build CLIP loss
+        # Build CLIP loss (with configurable alignment loss type)
         self.clip_loss = CLIPLoss(
             temperature_init=config.loss.temperature_init,
             learnable_temperature=config.loss.learnable_temperature,
@@ -56,7 +56,10 @@ class AlignmentModel(nn.Module):
                 'hard_negative_ratio': config.loss.hard_negative_ratio,
                 'sampling_strategy': config.loss.hard_negative_strategy,
                 'temperature_for_sampling': config.loss.hard_negative_sampling_temperature,
-            } if config.loss.use_hard_negatives else None
+            } if config.loss.use_hard_negatives else None,
+            alignment_loss_type=getattr(config.loss, 'alignment_loss_type', 'infonce'),
+            focal_gamma=getattr(config.loss, 'focal_gamma', 2.0),
+            focal_alpha=getattr(config.loss, 'focal_alpha', None)
         )
 
         # MLM heads (optional, only if mlm_weight > 0)
@@ -311,11 +314,25 @@ class AlignmentModel(nn.Module):
         torch.save(checkpoint, path)
 
     @classmethod
-    def load(cls, path: str, device: Optional[torch.device] = None):
-        """Load model from checkpoint."""
+    def load(cls, path: str, device: Optional[torch.device] = None, vocab_path: Optional[str] = None):
+        """
+        Load model from checkpoint.
+
+        Args:
+            path: Path to checkpoint file
+            device: Device to load model onto
+            vocab_path: Path to vocabulary JSON file (required for image-based encoders)
+        """
         checkpoint = torch.load(path, map_location=device or 'cpu', weights_only=False)
 
         config = checkpoint['config']
+
+        # Load vocabulary if provided (needed for image-based encoders)
+        vocab = None
+        if vocab_path is not None:
+            import json
+            with open(vocab_path, 'r') as f:
+                vocab = json.load(f)
 
         # Handle two checkpoint formats:
         # 1. AlignmentTrainer format: has 'model_state_dict' (full model) - need to extract vocab_sizes
@@ -342,13 +359,16 @@ class AlignmentModel(nn.Module):
             # So we can safely ignore it by using strict=False
 
             # Create model
-            model = cls(config, vocab_sizes)
+            model = cls(config, vocab_sizes, vocab=vocab)
 
             # Load the full model state dict (with strict=False to ignore text_projection if not in model)
             missing_keys, unexpected_keys = model.load_state_dict(model_state, strict=False)
 
-            if unexpected_keys:
-                print(f"⚠️  Warning: Ignored unexpected keys in checkpoint: {unexpected_keys[:5]}...")  # Show first 5
+            # Filter out expected unexpected keys (text_projection is loaded separately in evaluation)
+            unexpected_keys_filtered = [k for k in unexpected_keys if not k.startswith('text_projection.')]
+
+            if unexpected_keys_filtered:
+                print(f"⚠️  Warning: Ignored unexpected keys in checkpoint: {unexpected_keys_filtered[:5]}...")  # Show first 5
             if missing_keys:
                 print(f"⚠️  Warning: Missing keys in checkpoint: {missing_keys[:5]}...")  # Show first 5
 
@@ -357,7 +377,7 @@ class AlignmentModel(nn.Module):
             vocab_sizes = checkpoint['vocab_sizes']
 
             # Create model
-            model = cls(config, vocab_sizes)
+            model = cls(config, vocab_sizes, vocab=vocab)
 
             # Load state dicts
             model.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
