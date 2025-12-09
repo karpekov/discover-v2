@@ -1,7 +1,7 @@
 # Milan Fixed-Duration 60s - Sequence Encoder
 # Projection: MLP
 # Loss: CLIP+MLM
-# Text Embeddings: Combined RB (2 captions) + LLM (4 captions)
+# Text Embeddings: Combined RB (4) + LLM (4)
 # Version: 1
 
 encoder_type: transformer
@@ -56,18 +56,18 @@ training:
 use_wandb: true
 wandb_project: discover-v2-newpipeline
 wandb_entity: null
-wandb_name: milan_fd60_seq_rb2llm4_textclip_projmlp_clipmlm_6capts
+wandb_name: milan_fd60_seq_rb4llm4_textclip_projmlp_clipmlm
 wandb_tags: []
 wandb_group: null
 wandb_notes: Milan Fixed-Duration 60s - Sequence encoder with MLP projection and CLIP+MLM
-  loss using combined RB (2) + LLM (4) captions
-experiment_name: milan_fd60_seq_rb2llm4_textclip_projmlp_clipmlm_v1
-output_dir: trained_models/milan/milan_fd60_seq_rb2llm4_textclip_projmlp_clipmlm_v1
+  loss using combined RB (4) + LLM (4) captions
+experiment_name: milan_fd60_seq_rb4llm4_textclip_projmlp_clipmlm_v1
+output_dir: trained_models/milan/milan_fd60_seq_rb4llm4_textclip_projmlp_clipmlm_v1
 train_data_path: data/processed/casas/milan/FD_60/train.json
 val_data_path: data/processed/casas/milan/FD_60/val.json
 vocab_path: data/processed/casas/milan/FD_60/vocab.json
-train_text_embeddings_path: data/processed/casas/milan/FD_60/train_embeddings_rb2_llm4_clip.npz
-val_text_embeddings_path: data/processed/casas/milan/FD_60/val_embeddings_rb2_llm4_clip.npz
+train_text_embeddings_path: data/processed/casas/milan/FD_60/train_embeddings_rb_and_llm_clip.npz
+val_text_embeddings_path: data/processed/casas/milan/FD_60/val_embeddings_rb_and_llm_clip.npz
 sensor_projection:
   type: mlp
   dim: 512
