@@ -59,6 +59,19 @@ Sample Usage (CASAS):
     --max_samples 10000 \
     --filter_noisy_labels \
     --avg_captions
+
+  # Evaluate with MULTIPLE PROTOTYPES per label (from metadata's multiple_desc) + k-NN voting
+  python src/evals/evaluate_text_encoder_only.py \
+    --embeddings_dir data/processed/casas/milan/FD_60 \
+    --captions data/processed/casas/milan/FD_60/train_captions_baseline.json \
+    --data data/processed/casas/milan/FD_60/train.json \
+    --output_dir results/evals/milan/FD_60 \
+    --split train \
+    --description_style baseline \
+    --max_samples 10000 \
+    --filter_noisy_labels \
+    --use_multiple_prototypes \
+    --k_neighbors 5
 """
 
 import torch
@@ -368,14 +381,126 @@ def filter_noisy_labels(captions: List[str], labels_l1: List[str], labels_l2: Li
     return filtered_captions, filtered_labels_l1, filtered_labels_l2
 
 
+def load_multiple_descriptions_from_metadata(labels: List[str], house_name: str = "milan") -> Dict[str, List[str]]:
+    """Load multiple descriptions per label from metadata's multiple_desc field.
+
+    Only includes labels that have multiple_desc field. Raises error if fewer than 5 labels found.
+
+    Returns:
+        Dict mapping label -> list of descriptions (only for labels with multiple_desc)
+
+    Raises:
+        ValueError: If fewer than 5 labels have multiple_desc field
+    """
+    try:
+        metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+        with open(metadata_path, 'r') as f:
+            city_metadata = json.load(f)
+
+        dataset_metadata = city_metadata.get(house_name, {})
+        label_to_text = dataset_metadata.get('label_to_text', {})
+
+        label_descriptions = {}
+        labels_with_multiple_desc = []
+        labels_without_multiple_desc = []
+
+        for label in labels:
+            # Only use labels that have multiple_desc field
+            if label in label_to_text and 'multiple_desc' in label_to_text[label]:
+                label_descriptions[label] = label_to_text[label]['multiple_desc']
+                labels_with_multiple_desc.append(label)
+            else:
+                labels_without_multiple_desc.append(label)
+
+        # Print statistics
+        print(f"\n📊 Multiple descriptions availability for {house_name}:")
+        print(f"   ✅ Labels WITH multiple_desc: {len(labels_with_multiple_desc)}")
+        if labels_with_multiple_desc:
+            print(f"   Labels: {', '.join(labels_with_multiple_desc)}")
+            # Print number of descriptions per label
+            for label in labels_with_multiple_desc:
+                n_desc = len(label_descriptions[label])
+                print(f"      - {label}: {n_desc} descriptions")
+
+        if labels_without_multiple_desc:
+            print(f"   ❌ Labels WITHOUT multiple_desc: {len(labels_without_multiple_desc)}")
+            print(f"   Labels: {', '.join(labels_without_multiple_desc)}")
+
+        # Enforce minimum requirement
+        if len(labels_with_multiple_desc) < 5:
+            raise ValueError(
+                f"Insufficient labels with multiple_desc field!\n"
+                f"   Found: {len(labels_with_multiple_desc)} labels\n"
+                f"   Required: at least 5 labels\n"
+                f"   Labels with multiple_desc: {labels_with_multiple_desc}\n"
+                f"   Dataset: {house_name}\n"
+                f"   Please ensure the metadata has multiple_desc field for at least 5 labels."
+            )
+
+        return label_descriptions
+
+    except ValueError:
+        # Re-raise ValueError (our custom error)
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Could not load descriptions from metadata: {e}")
+
+
+def map_l1_to_l2_labels(l1_labels: List[str], house_name: str = "milan") -> List[str]:
+    """Map L1 (primary) labels to L2 (secondary) labels using metadata mapping.
+
+    Args:
+        l1_labels: List of L1 labels to map
+        house_name: Dataset name (e.g., 'milan', 'aruba')
+
+    Returns:
+        List of L2 labels corresponding to input L1 labels
+    """
+    try:
+        metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+        with open(metadata_path, 'r') as f:
+            city_metadata = json.load(f)
+
+        dataset_metadata = city_metadata.get(house_name, {})
+        label_l2_mapping = dataset_metadata.get('label_l2', {})
+
+        # Also try label_deepcasas as alternative
+        if not label_l2_mapping:
+            label_l2_mapping = dataset_metadata.get('label_deepcasas', {})
+
+        # Map each L1 label to L2
+        l2_labels = []
+        for l1_label in l1_labels:
+            # Try direct mapping
+            l2_label = label_l2_mapping.get(l1_label, l1_label)
+            l2_labels.append(l2_label)
+
+        return l2_labels
+    except Exception as e:
+        print(f"⚠️  Could not load L1->L2 mapping from metadata: {e}")
+        # Return L1 labels as fallback
+        return l1_labels
+
+
 def create_text_prototypes(labels: List[str], encoder_type: str, model_name: str,
                           embedding_dim: int,
                           description_style: str = "baseline",
                           house_name: str = "milan",
                           use_projection: bool = False,
-                          projection_dim: int = None) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
-    """Create text-based prototypes by encoding label descriptions."""
+                          projection_dim: int = None,
+                          use_multiple_prototypes: bool = False) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
+    """Create text-based prototypes by encoding label descriptions.
+
+    Args:
+        use_multiple_prototypes: If True, create multiple prototypes per label (one per description).
+                                If False, average descriptions into single prototype per label (original behavior).
+
+    Returns:
+        If use_multiple_prototypes=False: Dict[label -> single averaged embedding]
+        If use_multiple_prototypes=True: Dict[label -> array of multiple embeddings, shape (n_descriptions, embedding_dim)]
+    """
     print(f"🔄 Creating text-based label prototypes (style: {description_style}, encoder: {encoder_type})...")
+    print(f"   Multiple prototypes mode: {use_multiple_prototypes}")
     label_counts = Counter(labels)
     unique_labels = list(label_counts.keys())
 
@@ -385,9 +510,19 @@ def create_text_prototypes(labels: List[str], encoder_type: str, model_name: str
         description_style = 'sourish'
         print(f"   Using 'sourish' description style for MARBLE labels")
 
-    label_descriptions_lists = convert_labels_to_text(unique_labels, single_description=False,
-                                                      house_name=house_name,
-                                                      description_style=description_style)
+    # Get descriptions based on mode
+    if use_multiple_prototypes:
+        # Load from metadata's multiple_desc field (only includes labels with multiple_desc)
+        label_descriptions_dict = load_multiple_descriptions_from_metadata(unique_labels, house_name)
+        # Filter unique_labels to only those with multiple_desc
+        unique_labels = [label for label in unique_labels if label in label_descriptions_dict]
+        print(f"   📋 Using {len(unique_labels)} labels with multiple_desc field")
+    else:
+        # Use existing convert_labels_to_text function
+        label_descriptions_lists = convert_labels_to_text(unique_labels, single_description=False,
+                                                          house_name=house_name,
+                                                          description_style=description_style)
+        label_descriptions_dict = {label: label_descriptions_lists[i] for i, label in enumerate(unique_labels)}
 
     device = get_optimal_device()
 
@@ -428,30 +563,73 @@ def create_text_prototypes(labels: List[str], encoder_type: str, model_name: str
 
     # Encode descriptions and create prototypes
     prototypes = {}
-    for i, label in enumerate(unique_labels):
-        descriptions = label_descriptions_lists[i]
+    total_prototypes = 0
+
+    for label in unique_labels:
+        descriptions = label_descriptions_dict[label]
         # Use the encoder's encode method
         output = text_encoder.encode(descriptions)
         embeddings = output.embeddings
-        # Average all descriptions for this label
-        prototype_embedding = np.mean(embeddings, axis=0)
-        prototypes[label] = prototype_embedding
 
-    embedding_dim = embeddings.shape[1]
-    print(f"✅ Created {len(prototypes)} text-based prototypes ({embedding_dim}-dim)")
-    for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
-        descriptions = label_descriptions_lists[unique_labels.index(label)]
-        print(f"    {label}: {count} samples → {len(descriptions)} descriptions")
+        if use_multiple_prototypes:
+            # Keep all embeddings separate (shape: n_descriptions, embedding_dim)
+            prototypes[label] = embeddings
+            total_prototypes += len(embeddings)
+        else:
+            # Average all descriptions for this label (original behavior)
+            prototype_embedding = np.mean(embeddings, axis=0)
+            prototypes[label] = prototype_embedding
+            total_prototypes += 1
+
+    embedding_dim_actual = embeddings.shape[1]
+
+    if use_multiple_prototypes:
+        print(f"✅ Created {total_prototypes} text-based prototypes across {len(prototypes)} labels ({embedding_dim_actual}-dim)")
+        for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+            n_protos = len(prototypes[label])
+            print(f"    {label}: {count} samples → {n_protos} prototypes")
+    else:
+        print(f"✅ Created {len(prototypes)} text-based prototypes ({embedding_dim_actual}-dim)")
+        for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+            descriptions = label_descriptions_dict[label]
+            print(f"    {label}: {count} samples → {len(descriptions)} descriptions (averaged)")
 
     return prototypes, dict(label_counts)
 
 
-def predict_labels_knn(query_embeddings: np.ndarray, prototypes: Dict[str, np.ndarray], k: int = 1) -> List[str]:
-    """Predict labels using k-nearest neighbors."""
+def predict_labels_knn(query_embeddings: np.ndarray, prototypes: Dict[str, np.ndarray], k: int = 1,
+                       use_multiple_prototypes: bool = False) -> List[str]:
+    """Predict labels using k-nearest neighbors.
+
+    Args:
+        query_embeddings: Query embeddings to classify (n_queries, embedding_dim)
+        prototypes: Dict mapping label -> prototype embedding(s)
+                   If use_multiple_prototypes=False: each value is (embedding_dim,)
+                   If use_multiple_prototypes=True: each value is (n_prototypes, embedding_dim)
+        k: Number of nearest neighbors to consider
+        use_multiple_prototypes: Whether prototypes dict contains multiple embeddings per label
+    """
     print(f"🔄 Predicting labels using {k}-NN comparison...")
 
-    prototype_labels = list(prototypes.keys())
-    prototype_embeddings = np.array([prototypes[label] for label in prototype_labels])
+    if use_multiple_prototypes:
+        # Flatten all prototypes and keep track of which label each belongs to
+        all_prototype_embeddings = []
+        all_prototype_labels = []
+
+        for label, label_prototypes in prototypes.items():
+            # label_prototypes shape: (n_prototypes, embedding_dim)
+            for proto_emb in label_prototypes:
+                all_prototype_embeddings.append(proto_emb)
+                all_prototype_labels.append(label)
+
+        prototype_embeddings = np.array(all_prototype_embeddings)
+        prototype_labels = all_prototype_labels
+
+        print(f"   Total prototypes: {len(prototype_labels)} across {len(prototypes)} labels")
+    else:
+        # Original behavior: one prototype per label
+        prototype_labels = list(prototypes.keys())
+        prototype_embeddings = np.array([prototypes[label] for label in prototype_labels])
 
     query_embeddings_norm = query_embeddings / (np.linalg.norm(query_embeddings, axis=1, keepdims=True) + 1e-8)
     prototype_embeddings_norm = prototype_embeddings / (np.linalg.norm(prototype_embeddings, axis=1, keepdims=True) + 1e-8)
@@ -466,6 +644,7 @@ def predict_labels_knn(query_embeddings: np.ndarray, prototypes: Dict[str, np.nd
         predictions = []
         for indices in top_k_indices:
             top_labels = [prototype_labels[idx] for idx in indices]
+            # Majority voting
             prediction = Counter(top_labels).most_common(1)[0][0]
             predictions.append(prediction)
 
@@ -525,7 +704,7 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
                                 output_prefix: str, label_colors: Dict, label_colors_l2: Dict,
                                 sample_id_to_label_l1: Dict[str, str], sample_id_to_label_l2: Dict[str, str],
                                 selected_sample_ids: List[str], split: str, max_samples: int = 10000, perplexity: int = 30,
-                                avg_captions: bool = False):
+                                avg_captions: bool = False, use_multiple_prototypes: bool = False, k_neighbors: int = 1):
     """Create t-SNE comparison grids for embeddings from a specific split.
 
     Args:
@@ -575,14 +754,6 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
         embeddings = data['embeddings']
         file_sample_ids_raw = data['sample_ids']
 
-        # Check if this is multi-caption format
-        if 'caption_indices' in data:
-            caption_indices = data['caption_indices']
-            # Keep only first caption for evaluation
-            first_caption_mask = caption_indices == 0
-            embeddings = embeddings[first_caption_mask]
-            file_sample_ids_raw = file_sample_ids_raw[first_caption_mask]
-
         # Check if this is multi-caption format (for t-SNE)
         if 'caption_indices' in data:
             caption_indices = data['caption_indices']
@@ -623,7 +794,13 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
                 matching_indices.append(file_sample_id_to_idx[sid])
                 matched_sample_ids.append(sid)
 
-        matching_indices = np.array(matching_indices)
+        if len(matching_indices) == 0:
+            print(f"❌ ERROR: No matching samples found for {encoder_name}")
+            print(f"   This usually means the embeddings file and data file are from different splits")
+            print(f"   Skipping {encoder_name}...")
+            continue
+
+        matching_indices = np.array(matching_indices, dtype=np.int64)
         embeddings = embeddings[matching_indices]
 
         # Get labels for the matched samples by looking them up by sample_id
@@ -679,9 +856,11 @@ def create_tsne_comparison_grid(embeddings_dir: str, captions_path: str, data_pa
     else:
         style_text = f'{caption_style.capitalize()} Captions'
 
-    # Add averaging info if enabled
+    # Add averaging and multi-prototype info if enabled
     if avg_captions:
         style_text += ' (Averaged)'
+    if use_multiple_prototypes:
+        style_text += f' [Multi-Proto k={k_neighbors}]'
 
     fig_l1.suptitle(f'Caption Style Comparison: {dataset_name.capitalize()} ({split} - {preseg_text}), L1 Labels\n'
                     f'{style_text}',
@@ -736,12 +915,20 @@ def create_confusion_matrix_plot(confusion_matrix_data: np.ndarray, labels: List
     plt.close(fig)
 
 
-def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str, avg_captions: bool = False):
+def create_encoder_comparison_plot(all_results: Dict[str, Dict], save_path: str, avg_captions: bool = False,
+                                   use_multiple_prototypes: bool = False, k_neighbors: int = 1):
     """Create comparison plot across all encoder+caption combinations."""
     print("\n🔄 Creating encoder+caption comparison plot...")
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(18, 12))
-    title_suffix = ' (Averaged Captions)' if avg_captions else ''
-    fig.suptitle(f'Caption Style Comparison (Text Embeddings Only){title_suffix}', fontsize=16, fontweight='bold')
+
+    title_parts = ['Caption Style Comparison (Text Embeddings Only)']
+    if avg_captions:
+        title_parts.append('Averaged Captions')
+    if use_multiple_prototypes:
+        title_parts.append(f'Multi-Prototypes (k={k_neighbors})')
+
+    title = ' - '.join(title_parts)
+    fig.suptitle(title, fontsize=16, fontweight='bold')
 
     encoder_names = []
     display_labels = []
@@ -845,7 +1032,7 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
                                  output_dir: str, split: str = 'train', description_style: str = 'baseline',
                                  house_name: str = 'milan', max_samples: int = 10000, k_neighbors: int = 1,
                                  filter_noisy: bool = True, perplexity: int = 30, verbose: bool = False,
-                                 avg_captions: bool = False):
+                                 avg_captions: bool = False, use_multiple_prototypes: bool = False):
     """Run comprehensive evaluation for all encoders in a directory."""
     print("="*80)
     print("COMPREHENSIVE TEXT ENCODER EVALUATION")
@@ -859,13 +1046,22 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
     print(f"🔍 K-neighbors: {k_neighbors}")
     print(f"🧹 Filter noisy labels: {filter_noisy}")
     print(f"📊 Average all captions: {avg_captions}")
+    print(f"🎯 Multiple prototypes per label: {use_multiple_prototypes}")
 
     # Create output directory with text_only/description_style structure
-    # Add suffix if using averaged captions
+    # Add suffix if using averaged captions or multiple prototypes
+    suffix_parts = []
     if avg_captions:
-        output_path = Path(output_dir) / "text_only" / f"{description_style}_averaged"
+        suffix_parts.append("averaged")
+    if use_multiple_prototypes:
+        suffix_parts.append(f"multiproto_k{k_neighbors}")
+
+    if suffix_parts:
+        dir_name = f"{description_style}_{'_'.join(suffix_parts)}"
     else:
-        output_path = Path(output_dir) / "text_only" / description_style
+        dir_name = description_style
+
+    output_path = Path(output_dir) / "text_only" / dir_name
     output_path.mkdir(parents=True, exist_ok=True)
     print(f"📂 Full output path: {output_path}")
 
@@ -1065,12 +1261,11 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
         if use_projection and projection_dim:
             print(f"   Using projection: {embedding_dim}-dim → {projection_dim}-dim")
         try:
+            # Only create L1 prototypes - L2 will be derived from L1 predictions
             prototypes_l1, counts_l1 = create_text_prototypes(labels_l1_encoder, encoder_type, model_name,
                                                               embedding_dim, description_style, house_name,
-                                                              use_projection, projection_dim)
-            prototypes_l2, counts_l2 = create_text_prototypes(labels_l2_encoder, encoder_type, model_name,
-                                                              embedding_dim, description_style, house_name,
-                                                              use_projection, projection_dim)
+                                                              use_projection, projection_dim,
+                                                              use_multiple_prototypes=use_multiple_prototypes)
         except Exception as e:
             print(f"❌ Failed to create prototypes for {encoder_name}: {e}")
             print(f"   This usually means the model type is not supported by your transformers version.")
@@ -1080,7 +1275,13 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
         print(f"\n📊 Predicting labels for {encoder_name}...")
 
         # Check dimension compatibility
-        proto_dim_l1 = next(iter(prototypes_l1.values())).shape[0]
+        if use_multiple_prototypes:
+            # Get first prototype from first label to check dimensions
+            first_label_protos = next(iter(prototypes_l1.values()))
+            proto_dim_l1 = first_label_protos.shape[1]  # Shape is (n_prototypes, embedding_dim)
+        else:
+            proto_dim_l1 = next(iter(prototypes_l1.values())).shape[0]
+
         emb_dim = embeddings.shape[1]
 
         if proto_dim_l1 != emb_dim:
@@ -1090,8 +1291,34 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
             print(f"   Skipping {encoder_name}...")
             continue
 
-        pred_labels_l1 = predict_labels_knn(embeddings, prototypes_l1, k_neighbors)
-        pred_labels_l2 = predict_labels_knn(embeddings, prototypes_l2, k_neighbors)
+        # Predict L1 labels
+        pred_labels_l1 = predict_labels_knn(embeddings, prototypes_l1, k_neighbors,
+                                           use_multiple_prototypes=use_multiple_prototypes)
+
+        # Derive L2 predictions from L1 predictions using metadata mapping
+        pred_labels_l2 = map_l1_to_l2_labels(pred_labels_l1, house_name=dataset_name)
+
+        # If using multiple prototypes, filter evaluation to only samples with labels that have prototypes
+        if use_multiple_prototypes:
+            valid_label_mask = [label in prototypes_l1 for label in labels_l1_encoder]
+            n_valid = sum(valid_label_mask)
+            n_total = len(valid_label_mask)
+
+            if n_valid < n_total:
+                print(f"   ⚠️  Filtering: {n_valid}/{n_total} samples have L1 labels with multiple_desc prototypes")
+
+                # Filter all arrays to only valid samples
+                labels_l1_encoder_filtered = [l for l, valid in zip(labels_l1_encoder, valid_label_mask) if valid]
+                labels_l2_encoder_filtered = [l for l, valid in zip(labels_l2_encoder, valid_label_mask) if valid]
+                pred_labels_l1_filtered = [l for l, valid in zip(pred_labels_l1, valid_label_mask) if valid]
+                pred_labels_l2_filtered = [l for l, valid in zip(pred_labels_l2, valid_label_mask) if valid]
+
+                labels_l1_encoder = labels_l1_encoder_filtered
+                labels_l2_encoder = labels_l2_encoder_filtered
+                pred_labels_l1 = pred_labels_l1_filtered
+                pred_labels_l2 = pred_labels_l2_filtered
+            else:
+                print(f"   ✅ All {n_total} samples have L1 labels with multiple_desc prototypes")
 
         metrics_l1 = evaluate_predictions(labels_l1_encoder, pred_labels_l1, f"{encoder_name} L1")
         metrics_l2 = evaluate_predictions(labels_l2_encoder, pred_labels_l2, f"{encoder_name} L2")
@@ -1163,7 +1390,8 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
                                 label_colors=label_colors, label_colors_l2=label_colors_l2,
                                 sample_id_to_label_l1=sample_id_to_label_l1, sample_id_to_label_l2=sample_id_to_label_l2,
                                 selected_sample_ids=selected_sample_ids,
-                                split=split, max_samples=max_samples, perplexity=perplexity, avg_captions=avg_captions)
+                                split=split, max_samples=max_samples, perplexity=perplexity, avg_captions=avg_captions,
+                                use_multiple_prototypes=use_multiple_prototypes, k_neighbors=k_neighbors)
 
     print("\n" + "="*80)
     print("CREATING ENCODER COMPARISON PLOT")
@@ -1171,7 +1399,9 @@ def run_comprehensive_evaluation(embeddings_dir: str, captions_path: str, data_p
 
     create_encoder_comparison_plot(all_results=all_results,
                                    save_path=str(output_path / f"{split}_encoder_comparison.png"),
-                                   avg_captions=avg_captions)
+                                   avg_captions=avg_captions,
+                                   use_multiple_prototypes=use_multiple_prototypes,
+                                   k_neighbors=k_neighbors)
 
     summary = {
         'dataset': dataset_name,
@@ -1268,6 +1498,8 @@ Example usage:
                        help='Enable verbose output')
     parser.add_argument('--avg_captions', action='store_true',
                        help='Average all caption embeddings per sample (default: use only first caption)')
+    parser.add_argument('--use_multiple_prototypes', action='store_true',
+                       help='Use multiple prototypes per label from metadata (default: single averaged prototype)')
 
     args = parser.parse_args()
 
@@ -1284,7 +1516,8 @@ Example usage:
         filter_noisy=args.filter_noisy_labels,
         perplexity=args.perplexity,
         verbose=args.verbose,
-        avg_captions=args.avg_captions
+        avg_captions=args.avg_captions,
+        use_multiple_prototypes=args.use_multiple_prototypes
     )
 
     print(f"\n✅ Comprehensive evaluation complete! Results saved in: {args.output_dir}")

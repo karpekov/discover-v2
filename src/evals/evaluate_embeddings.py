@@ -178,6 +178,13 @@ class EmbeddingEvaluator:
         """Load datasets."""
         self.datasets = {}
 
+        # Check if vocab_path is available - if not, we can't load datasets
+        # (but this is OK for text embedding evaluation modes)
+        if 'vocab_path' not in self.config or self.config.get('vocab_path') is None:
+            print("ℹ️  No vocab file provided - skipping dataset loading")
+            print("   (This is OK for text embedding evaluation modes)")
+            return
+
         # Get sequence length from checkpoint config
         # This ensures we use the same sequence length as during training
         checkpoint = torch.load(self.config['checkpoint_path'], map_location=self.device, weights_only=False)
@@ -550,16 +557,121 @@ class EmbeddingEvaluator:
 
         return l1_labels, l2_labels
 
-    def create_text_prototypes(self, labels: List[str], apply_projection: bool = True) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
+    def map_l1_to_l2_labels(self, l1_labels: List[str], house_name: str = "milan") -> List[str]:
+        """Map L1 (primary) labels to L2 (secondary) labels using metadata mapping.
+
+        Args:
+            l1_labels: List of L1 labels to map
+            house_name: Dataset name (e.g., 'milan', 'aruba')
+
+        Returns:
+            List of L2 labels corresponding to input L1 labels
+        """
+        try:
+            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+            with open(metadata_path, 'r') as f:
+                city_metadata = json.load(f)
+
+            dataset_metadata = city_metadata.get(house_name, {})
+            label_l2_mapping = dataset_metadata.get('label_l2', {})
+
+            # Also try label_deepcasas as alternative
+            if not label_l2_mapping:
+                label_l2_mapping = dataset_metadata.get('label_deepcasas', {})
+
+            # Map each L1 label to L2
+            l2_labels = []
+            for l1_label in l1_labels:
+                # Try direct mapping
+                l2_label = label_l2_mapping.get(l1_label, l1_label)
+                l2_labels.append(l2_label)
+
+            return l2_labels
+        except Exception as e:
+            print(f"⚠️  Could not load L1->L2 mapping from metadata: {e}")
+            # Return L1 labels as fallback
+            return l1_labels
+
+    def load_multiple_descriptions_from_metadata(self, labels: List[str], house_name: str = "milan") -> Dict[str, List[str]]:
+        """Load multiple descriptions per label from metadata's multiple_desc field.
+
+        Only includes labels that have multiple_desc field. Raises error if fewer than 5 labels found.
+
+        Returns:
+            Dict mapping label -> list of descriptions (only for labels with multiple_desc)
+
+        Raises:
+            ValueError: If fewer than 5 labels have multiple_desc field
+        """
+        try:
+            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+            with open(metadata_path, 'r') as f:
+                city_metadata = json.load(f)
+
+            dataset_metadata = city_metadata.get(house_name, {})
+            label_to_text = dataset_metadata.get('label_to_text', {})
+
+            label_descriptions = {}
+            labels_with_multiple_desc = []
+            labels_without_multiple_desc = []
+
+            for label in labels:
+                # Only use labels that have multiple_desc field
+                if label in label_to_text and 'multiple_desc' in label_to_text[label]:
+                    label_descriptions[label] = label_to_text[label]['multiple_desc']
+                    labels_with_multiple_desc.append(label)
+                else:
+                    labels_without_multiple_desc.append(label)
+
+            # Print statistics
+            print(f"\n📊 Multiple descriptions availability for {house_name}:")
+            print(f"   ✅ Labels WITH multiple_desc: {len(labels_with_multiple_desc)}")
+            if labels_with_multiple_desc:
+                print(f"   Labels: {', '.join(labels_with_multiple_desc)}")
+                # Print number of descriptions per label
+                for label in labels_with_multiple_desc:
+                    n_desc = len(label_descriptions[label])
+                    print(f"      - {label}: {n_desc} descriptions")
+
+            if labels_without_multiple_desc:
+                print(f"   ❌ Labels WITHOUT multiple_desc: {len(labels_without_multiple_desc)}")
+                print(f"   Labels: {', '.join(labels_without_multiple_desc)}")
+
+            # Enforce minimum requirement
+            if len(labels_with_multiple_desc) < 5:
+                raise ValueError(
+                    f"Insufficient labels with multiple_desc field!\n"
+                    f"   Found: {len(labels_with_multiple_desc)} labels\n"
+                    f"   Required: at least 5 labels\n"
+                    f"   Labels with multiple_desc: {labels_with_multiple_desc}\n"
+                    f"   Dataset: {house_name}\n"
+                    f"   Please ensure the metadata has multiple_desc field for at least 5 labels."
+                )
+
+            return label_descriptions
+
+        except ValueError:
+            # Re-raise ValueError (our custom error)
+            raise
+        except Exception as e:
+            raise RuntimeError(f"Could not load descriptions from metadata: {e}")
+
+    def create_text_prototypes(self, labels: List[str], apply_projection: bool = True, use_multiple_prototypes: bool = False) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
         """Create text-based prototypes using the text encoder with multiple captions per label.
 
         Args:
             labels: List of label strings
             apply_projection: If True, uses encode_texts_clip (with projection).
                             If False, encodes without projection.
+            use_multiple_prototypes: If True, create multiple prototypes per label (one per description).
+                                   If False, average descriptions into single prototype per label (default).
+
+        Returns:
+            If use_multiple_prototypes=False: Dict[label -> single averaged embedding]
+            If use_multiple_prototypes=True: Dict[label -> array of multiple embeddings, shape (n_descriptions, embedding_dim)]
         """
 
-        print(f"🔄 Creating text-based label prototypes (projection={'ON' if apply_projection else 'OFF'})...")
+        print(f"🔄 Creating text-based label prototypes (projection={'ON' if apply_projection else 'OFF'}, multiple_prototypes={use_multiple_prototypes})...")
 
         # Get unique labels and their counts
         label_counts = Counter(labels)
@@ -567,16 +679,26 @@ class EmbeddingEvaluator:
 
         print(f"📝 Encoding {len(unique_labels)} unique labels with text encoder...")
 
-        # Convert labels to multiple natural language descriptions
-        label_descriptions_lists = convert_labels_to_text(unique_labels)
+        # Get descriptions based on mode
+        if use_multiple_prototypes:
+            # Load from metadata's multiple_desc field (only includes labels with multiple_desc)
+            label_descriptions_dict = self.load_multiple_descriptions_from_metadata(unique_labels, self.dataset_name)
+            # Filter unique_labels to only those with multiple_desc
+            unique_labels = [label for label in unique_labels if label in label_descriptions_dict]
+            print(f"   📋 Using {len(unique_labels)} labels with multiple_desc field")
+        else:
+            # Use existing convert_labels_to_text function
+            label_descriptions_lists = convert_labels_to_text(unique_labels)
+            label_descriptions_dict = {label: label_descriptions_lists[i] for i, label in enumerate(unique_labels)}
 
-        # Create prototypes dictionary by averaging embeddings for multiple captions
+        # Create prototypes dictionary
         prototypes = {}
+        total_prototypes = 0
         self.text_encoder.eval()
 
         with torch.no_grad():
-            for i, label in enumerate(unique_labels):
-                descriptions = label_descriptions_lists[i]
+            for label in unique_labels:
+                descriptions = label_descriptions_dict[label]
 
                 if apply_projection:
                     # Use encode_texts_clip which includes projection
@@ -596,14 +718,28 @@ class EmbeddingEvaluator:
                     embeddings = F.normalize(embeddings, p=2, dim=-1)
                     caption_embeddings = embeddings.cpu().numpy()
 
-                # Average the embeddings to create a single prototype
-                prototype_embedding = np.mean(caption_embeddings, axis=0)
-                prototypes[label] = prototype_embedding
+                if use_multiple_prototypes:
+                    # Keep all embeddings separate (shape: n_descriptions, embedding_dim)
+                    prototypes[label] = caption_embeddings
+                    total_prototypes += len(caption_embeddings)
+                else:
+                    # Average the embeddings to create a single prototype (original behavior)
+                    prototype_embedding = np.mean(caption_embeddings, axis=0)
+                    prototypes[label] = prototype_embedding
+                    total_prototypes += 1
 
-        print(f"✅ Created {len(prototypes)} text-based prototypes")
-        for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
-            descriptions = label_descriptions_lists[unique_labels.index(label)]
-            print(f"    {label}: {count} samples → {len(descriptions)} captions (e.g., '{descriptions[0]}')")
+        if use_multiple_prototypes:
+            print(f"✅ Created {total_prototypes} text-based prototypes across {len(prototypes)} labels")
+            for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+                if label in prototypes:
+                    n_protos = len(prototypes[label])
+                    print(f"    {label}: {count} samples → {n_protos} prototypes")
+        else:
+            print(f"✅ Created {len(prototypes)} text-based prototypes")
+            for label, count in sorted(label_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+                if label in label_descriptions_dict:
+                    descriptions = label_descriptions_dict[label]
+                    print(f"    {label}: {count} samples → {len(descriptions)} captions (e.g., '{descriptions[0]}')")
 
         return prototypes, dict(label_counts)
 
@@ -713,16 +849,42 @@ class EmbeddingEvaluator:
 
     def predict_labels_knn(self, query_embeddings: np.ndarray,
                           prototypes: Dict[str, np.ndarray],
-                          k: int = 1) -> List[str]:
-        """Predict labels using k-nearest neighbors between sensor and text embeddings."""
+                          k: int = 1,
+                          use_multiple_prototypes: bool = False) -> List[str]:
+        """Predict labels using k-nearest neighbors between sensor and text embeddings.
+
+        Args:
+            query_embeddings: Query embeddings to classify (n_queries, embedding_dim)
+            prototypes: Dict mapping label -> prototype embedding(s)
+                       If use_multiple_prototypes=False: each value is (embedding_dim,)
+                       If use_multiple_prototypes=True: each value is (n_prototypes, embedding_dim)
+            k: Number of nearest neighbors to consider
+            use_multiple_prototypes: Whether prototypes dict contains multiple embeddings per label
+        """
 
         print(f"🔄 Predicting labels using {k}-NN cross-modal comparison...")
-        print(f"    Sensor embeddings: {query_embeddings.shape[0]} samples")
-        print(f"    Text prototypes: {len(prototypes)} activities")
+        print(f"    Query embeddings: {query_embeddings.shape[0]} samples")
 
-        # Convert prototypes to arrays
-        prototype_labels = list(prototypes.keys())
-        prototype_embeddings = np.array([prototypes[label] for label in prototype_labels])
+        if use_multiple_prototypes:
+            # Flatten all prototypes and keep track of which label each belongs to
+            all_prototype_embeddings = []
+            all_prototype_labels = []
+
+            for label, label_prototypes in prototypes.items():
+                # label_prototypes shape: (n_prototypes, embedding_dim)
+                for proto_emb in label_prototypes:
+                    all_prototype_embeddings.append(proto_emb)
+                    all_prototype_labels.append(label)
+
+            prototype_embeddings = np.array(all_prototype_embeddings)
+            prototype_labels = all_prototype_labels
+
+            print(f"    Total prototypes: {len(prototype_labels)} across {len(prototypes)} labels")
+        else:
+            # Original behavior: one prototype per label
+            prototype_labels = list(prototypes.keys())
+            prototype_embeddings = np.array([prototypes[label] for label in prototype_labels])
+            print(f"    Text prototypes: {len(prototypes)} activities")
 
         # Normalize embeddings for cosine similarity
         query_embeddings_norm = query_embeddings / (np.linalg.norm(query_embeddings, axis=1, keepdims=True) + 1e-8)
@@ -743,7 +905,7 @@ class EmbeddingEvaluator:
             for indices in top_k_indices:
                 # Get top-k labels and vote
                 top_labels = [prototype_labels[idx] for idx in indices]
-                # Simple majority vote (could be weighted by similarity)
+                # Majority vote
                 prediction = Counter(top_labels).most_common(1)[0][0]
                 predictions.append(prediction)
 
@@ -3449,17 +3611,28 @@ class EmbeddingEvaluator:
                                      max_samples: int = 10000,
                                      k_neighbors: int = 1,
                                      filter_noisy_labels: bool = False,
-                                     save_results: bool = True) -> Dict[str, Any]:
+                                     save_results: bool = True,
+                                     use_multiple_prototypes: bool = False) -> Dict[str, Any]:
         """Run comprehensive evaluation: sensor + text embeddings (with/without projection).
 
         Creates unified visualizations comparing all three embedding types.
+
+        Args:
+            use_multiple_prototypes: If True, use multiple prototypes per label with k-NN voting.
         """
         print("\n" + "="*80)
         print("COMPREHENSIVE EMBEDDING EVALUATION")
         print("Sensor Embeddings + Text Embeddings (with/without projection)")
         print("="*80)
 
-        output_dir = Path(self.config.get('output_dir', './comprehensive_evaluation'))
+        # Create output directory with subdirectory for multiple prototypes mode
+        base_output_dir = Path(self.config.get('output_dir', './comprehensive_evaluation'))
+        if use_multiple_prototypes:
+            output_dir = base_output_dir / f"multiproto_k{k_neighbors}"
+            print(f"ℹ️  Multiple prototypes mode: saving to {output_dir}")
+        else:
+            output_dir = base_output_dir
+
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Create retrieval subdirectory for better organization
@@ -3483,46 +3656,25 @@ class EmbeddingEvaluator:
                 max_samples
             )
 
-        # ===== 2. CREATE SYNTHETIC TEXT PROTOTYPES (BOTH VERSIONS) =====
+        # ===== 2. CREATE SYNTHETIC TEXT PROTOTYPES (L1 ONLY) =====
         print("\n" + "="*60)
-        print("2. CREATING SYNTHETIC TEXT PROTOTYPES")
+        print("2. CREATING SYNTHETIC TEXT PROTOTYPES (L1 Only - L2 Derived)")
         print("="*60)
+        print("ℹ️  Creating only L1 prototypes. L2 predictions will be derived from L1 using metadata mapping.")
 
         # Create RAW prototypes (without projection) for "no projection" comparison
-        prototypes_l1_raw, _ = self.create_text_prototypes(train_labels_l1, apply_projection=False)
-        prototypes_l2_raw, _ = self.create_text_prototypes(train_labels_l2, apply_projection=False)
+        prototypes_l1_raw, _ = self.create_text_prototypes(train_labels_l1, apply_projection=False, use_multiple_prototypes=use_multiple_prototypes)
 
         # Create PROJECTED prototypes for "with projection" and sensor comparisons
-        prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True)
-        prototypes_l2_projected, _ = self.create_text_prototypes(train_labels_l2, apply_projection=True)
+        prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True, use_multiple_prototypes=use_multiple_prototypes)
 
-        # ===== 3. EVALUATE TEXT (NO PROJECTION) =====
-        print("\n" + "="*60)
-        print("3. EVALUATING TEXT EMBEDDINGS (NO PROJECTION)")
-        print("="*60)
+        # ===== 3. EVALUATE TEXT (NO PROJECTION) - DEFERRED =====
+        # Note: We'll evaluate text without projection AFTER alignment with sensor embeddings
+        # to ensure all three embedding types have the same samples
 
-        # Text embeddings from .npz are raw CLIP embeddings (no projection)
-        # Compare to raw synthetic prototypes (both in original CLIP space)
-        pred_l1_text_noproj = self.predict_labels_knn(test_text_emb, prototypes_l1_raw, k_neighbors)
-        pred_l2_text_noproj = self.predict_labels_knn(test_text_emb, prototypes_l2_raw, k_neighbors)
-
-        metrics_l1_text_noproj = self.evaluate_predictions(test_labels_l1, pred_l1_text_noproj, "Text (No Proj) L1")
-        metrics_l2_text_noproj = self.evaluate_predictions(test_labels_l2, pred_l2_text_noproj, "Text (No Proj) L2")
-
-        # ===== 4. EVALUATE TEXT (WITH PROJECTION) =====
-        print("\n" + "="*60)
-        print("4. EVALUATING TEXT EMBEDDINGS (WITH PROJECTION)")
-        print("="*60)
-
-        # Apply projection to text embeddings
-        test_text_emb_proj = self.apply_projection_to_embeddings(test_text_emb)
-
-        # Compare to projected synthetic prototypes (both in aligned space)
-        pred_l1_text_proj = self.predict_labels_knn(test_text_emb_proj, prototypes_l1_projected, k_neighbors)
-        pred_l2_text_proj = self.predict_labels_knn(test_text_emb_proj, prototypes_l2_projected, k_neighbors)
-
-        metrics_l1_text_proj = self.evaluate_predictions(test_labels_l1, pred_l1_text_proj, "Text (With Proj) L1")
-        metrics_l2_text_proj = self.evaluate_predictions(test_labels_l2, pred_l2_text_proj, "Text (With Proj) L2")
+        # ===== 4. EVALUATE TEXT (WITH PROJECTION) - DEFERRED =====
+        # Note: We'll evaluate text with projection AFTER alignment with sensor embeddings
+        # to ensure all three embedding types have the same samples
 
         # ===== 5. EVALUATE SENSOR EMBEDDINGS =====
         print("\n" + "="*60)
@@ -3553,17 +3705,77 @@ class EmbeddingEvaluator:
         test_labels_l1 = aligned_labels_l1  # Same labels for both
         test_labels_l2 = aligned_labels_l2  # Same labels for both
 
-        if filter_noisy_labels:
-            test_sensor_emb, test_sensor_l1, test_sensor_l2, _ = \
-                self.filter_noisy_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2)
-            # Also filter text embeddings with the same indices
-            test_text_emb, test_labels_l1, test_labels_l2, _ = \
-                self.filter_noisy_labels(test_text_emb, test_labels_l1, test_labels_l2)
+        # Apply projection to ALIGNED text embeddings
+        test_text_emb_proj = self.apply_projection_to_embeddings(test_text_emb)
 
+        if filter_noisy_labels:
+            # Create a boolean mask for filtering based on labels
+            exclude_labels = {'no_activity'}
+
+            # Create mask - True means KEEP the sample
+            keep_mask = []
+            for l1, l2 in zip(test_sensor_l1, test_sensor_l2):
+                l1_lower = l1.lower().strip()
+                l2_lower = l2.lower().strip()
+                keep = (l1_lower not in exclude_labels) and (l2_lower not in exclude_labels)
+                keep_mask.append(keep)
+
+            keep_mask = np.array(keep_mask)
+            n_before = len(keep_mask)
+            n_after = keep_mask.sum()
+
+            print(f"🧹 Filtering noisy labels:")
+            print(f"   Before: {n_before} samples")
+            print(f"   After: {n_after} samples")
+            print(f"   Removed: {n_before - n_after} samples")
+
+            # Apply the same mask to ALL embeddings and labels
+            test_sensor_emb = test_sensor_emb[keep_mask]
+            test_text_emb = test_text_emb[keep_mask]
+            test_text_emb_proj = test_text_emb_proj[keep_mask]
+            test_sensor_l1 = [l for l, keep in zip(test_sensor_l1, keep_mask) if keep]
+            test_sensor_l2 = [l for l, keep in zip(test_sensor_l2, keep_mask) if keep]
+            test_labels_l1 = [l for l, keep in zip(test_labels_l1, keep_mask) if keep]
+            test_labels_l2 = [l for l, keep in zip(test_labels_l2, keep_mask) if keep]
+
+            # Verify all have the same length
+            assert len(test_sensor_emb) == len(test_text_emb) == len(test_text_emb_proj) == len(test_sensor_l1) == len(test_labels_l1), \
+                "Filtering resulted in misaligned data!"
+            print(f"✅ All embeddings and labels aligned: {len(test_sensor_l1)} samples")
+
+        # Now evaluate text embeddings WITHOUT projection (after alignment and filtering)
+        print("\n" + "="*60)
+        print("5a. EVALUATING TEXT EMBEDDINGS (NO PROJECTION) - After Alignment")
+        print("="*60)
+        # Predict L1 labels
+        pred_l1_text_noproj = self.predict_labels_knn(test_text_emb, prototypes_l1_raw, k_neighbors, use_multiple_prototypes)
+        # Derive L2 predictions from L1 using metadata mapping
+        pred_l2_text_noproj = self.map_l1_to_l2_labels(pred_l1_text_noproj, house_name=self.dataset_name)
+
+        metrics_l1_text_noproj = self.evaluate_predictions(test_labels_l1, pred_l1_text_noproj, "Text (No Proj) L1")
+        metrics_l2_text_noproj = self.evaluate_predictions(test_labels_l2, pred_l2_text_noproj, "Text (No Proj) L2")
+
+        # Now evaluate text embeddings WITH projection (after alignment and filtering)
+        print("\n" + "="*60)
+        print("5b. EVALUATING TEXT EMBEDDINGS (WITH PROJECTION) - After Alignment")
+        print("="*60)
+        # Predict L1 labels
+        pred_l1_text_proj = self.predict_labels_knn(test_text_emb_proj, prototypes_l1_projected, k_neighbors, use_multiple_prototypes)
+        # Derive L2 predictions from L1 using metadata mapping
+        pred_l2_text_proj = self.map_l1_to_l2_labels(pred_l1_text_proj, house_name=self.dataset_name)
+
+        metrics_l1_text_proj = self.evaluate_predictions(test_labels_l1, pred_l1_text_proj, "Text (With Proj) L1")
+        metrics_l2_text_proj = self.evaluate_predictions(test_labels_l2, pred_l2_text_proj, "Text (With Proj) L2")
+
+        # Evaluate sensor embeddings
+        print("\n" + "="*60)
+        print("5c. EVALUATING SENSOR EMBEDDINGS - After Alignment")
+        print("="*60)
         # Sensor embeddings are already in projected/aligned space
-        # Compare to projected synthetic prototypes (both in aligned space)
-        pred_l1_sensor = self.predict_labels_knn(test_sensor_emb, prototypes_l1_projected, k_neighbors)
-        pred_l2_sensor = self.predict_labels_knn(test_sensor_emb, prototypes_l2_projected, k_neighbors)
+        # Predict L1 labels
+        pred_l1_sensor = self.predict_labels_knn(test_sensor_emb, prototypes_l1_projected, k_neighbors, use_multiple_prototypes)
+        # Derive L2 predictions from L1 using metadata mapping
+        pred_l2_sensor = self.map_l1_to_l2_labels(pred_l1_sensor, house_name=self.dataset_name)
 
         metrics_l1_sensor = self.evaluate_predictions(test_sensor_l1, pred_l1_sensor, "Sensor L1")
         metrics_l2_sensor = self.evaluate_predictions(test_sensor_l2, pred_l2_sensor, "Sensor L2")
@@ -3573,17 +3785,26 @@ class EmbeddingEvaluator:
         print("6. CREATING COMBINED VISUALIZATIONS")
         print("="*60)
 
-        # Combined t-SNE (L1 ground truth only) - use correct labels for each embedding type
+        # Combined t-SNE (L1 ground truth only) - ALL use the same labels after alignment
         embeddings_dict = {
             'text_noproj': test_text_emb,
             'text_proj': test_text_emb_proj,
             'sensor': test_sensor_emb
         }
+        # All three embedding types should use the SAME labels (they're aligned!)
+        # Using test_labels_l1 for all to ensure consistency
         labels_dict = {
             'text_noproj': test_labels_l1,
-            'text_proj': test_labels_l1,  # Same as text_noproj (same samples)
-            'sensor': test_sensor_l1      # Use sensor labels for sensor embeddings!
+            'text_proj': test_labels_l1,
+            'sensor': test_labels_l1  # Changed from test_sensor_l1 to test_labels_l1
         }
+
+        # Sanity check: all embeddings should have same number of samples
+        print(f"\n📊 t-SNE Input Sanity Check:")
+        print(f"   text_noproj: {len(test_text_emb)} embeddings, {len(labels_dict['text_noproj'])} labels")
+        print(f"   text_proj: {len(test_text_emb_proj)} embeddings, {len(labels_dict['text_proj'])} labels")
+        print(f"   sensor: {len(test_sensor_emb)} embeddings, {len(labels_dict['sensor'])} labels")
+
         self.create_combined_tsne_plot(
             embeddings_dict=embeddings_dict,
             labels_dict=labels_dict,
@@ -4763,6 +4984,8 @@ def main():
                        help='Skip classification evaluation (only retrieval)')
     parser.add_argument('--skip_visualizations', action='store_true',
                        help='Skip visualization generation (faster evaluation)')
+    parser.add_argument('--use_multiple_prototypes', action='store_true',
+                       help='Use multiple prototypes per label from metadata (default: single averaged prototype)')
 
     args = parser.parse_args()
 
@@ -4771,9 +4994,12 @@ def main():
         'checkpoint_path': args.checkpoint,
         'train_data_path': args.train_data,
         'test_data_path': args.test_data,
-        'vocab_path': args.vocab,
         'output_dir': args.output_dir,
     }
+
+    # Only add vocab_path if the file exists
+    if args.vocab and os.path.exists(args.vocab):
+        config['vocab_path'] = args.vocab
 
     # Run evaluation
     evaluator = EmbeddingEvaluator(config)
@@ -4804,7 +5030,8 @@ def main():
             max_samples=args.max_samples,
             k_neighbors=args.k_neighbors,
             filter_noisy_labels=args.filter_noisy_labels,
-            save_results=True
+            save_results=True,
+            use_multiple_prototypes=args.use_multiple_prototypes
         )
         print(f"\n✅ Comprehensive evaluation complete! Results saved in: {args.output_dir}")
     elif args.eval_text_embeddings:
