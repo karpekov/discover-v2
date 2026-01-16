@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Compute Label-Recall@K metrics for cross-modal retrieval between text and sensor embeddings.
+Compute Label-Precision@K metrics for cross-modal retrieval between text and sensor embeddings.
 
-Label-Recall@K measures the proportion of retrieved neighbors that share the same label as the query.
+Label-Precision@K measures the proportion of retrieved neighbors that share the same label as the query.
 For each query, we:
 1. Rank all targets by cosine similarity
 2. Take top K neighbors
@@ -46,6 +46,7 @@ from typing import Dict, List, Union, Tuple, Optional
 import json
 import torch
 import torch.nn.functional as F
+from collections import Counter
 
 
 def normalize_embeddings(embeddings: np.ndarray) -> np.ndarray:
@@ -178,15 +179,16 @@ def compute_per_label_recall_at_k(
     query_labels: np.ndarray,
     target_labels: np.ndarray,
     k: int,
-    return_counts: bool = False
+    return_counts: bool = False,
+    exclude_self: bool = False
 ) -> Union[Dict[str, float], Tuple[Dict[str, float], Dict[str, int]]]:
     """
-    Compute per-label Label-Recall@K for instance-to-instance retrieval.
+    Compute per-label Label-Precision@K for instance-to-instance retrieval.
 
     For each unique label:
     1. Get all queries with that label
     2. For each query, find top K targets
-    3. Compute recall for that query
+    3. Compute precision for that query
     4. Average across all queries with that label
 
     Args:
@@ -211,6 +213,8 @@ def compute_per_label_recall_at_k(
 
     # Compute similarity matrix (N_q, N_t)
     similarities = compute_cosine_similarity(query_embeddings, target_embeddings)
+    if exclude_self and n_queries == n_targets:
+        np.fill_diagonal(similarities, -np.inf)
 
     # Get unique labels
     unique_labels = sorted(list(set(query_labels)))
@@ -293,13 +297,13 @@ def compute_label_recall_at_k_single_direction(
     k: int
 ) -> float:
     """
-    Compute Label-Recall@K for a single retrieval direction.
+    Compute Label-Precision@K for a single retrieval direction.
 
     For each query:
     1. Compute similarity to all targets
     2. Rank targets by similarity (descending)
     3. Take top K targets
-    4. Compute recall: (# top-K targets with matching label) / K
+    4. Compute precision: (# top-K targets with matching label) / K
     5. Average across all queries
 
     Args:
@@ -310,7 +314,7 @@ def compute_label_recall_at_k_single_direction(
         k: Number of top neighbors to consider
 
     Returns:
-        Label-Recall@K averaged across all queries
+        Label-Precision@K averaged across all queries
     """
     n_queries = len(query_embeddings)
     n_targets = len(target_embeddings)
@@ -354,14 +358,14 @@ def compute_label_recall_at_k_with_prototypes(
     k: int
 ) -> float:
     """
-    Compute Label-Recall@K when queries are prototypes (one per label).
+    Compute Label-Precision@K when queries are prototypes (one per label).
 
     For each prototype:
     1. Compute similarity to all targets
     2. Rank targets by similarity (descending)
     3. Take top K targets
     4. Count how many of those K targets have the same label as the prototype
-    5. Divide by K to get the recall ratio
+    5. Divide by K to get the precision ratio
 
     The final metric is the average across all prototypes.
 
@@ -373,7 +377,7 @@ def compute_label_recall_at_k_with_prototypes(
         k: Number of top neighbors to consider
 
     Returns:
-        Label-Recall@K averaged across all prototypes
+        Label-Precision@K averaged across all prototypes
     """
     n_prototypes = len(prototype_embeddings)
     n_targets = len(target_embeddings)
@@ -416,10 +420,11 @@ def compute_label_recall_at_k(
     directions: List[str] = ['text2sensor', 'sensor2text'],
     normalize: bool = True,
     verbose: bool = True,
-    return_per_label: bool = False
+    return_per_label: bool = False,
+    exclude_self: bool = False
 ) -> Union[Dict[str, Dict[int, float]], Tuple[Dict[str, Dict[int, float]], Dict[str, Dict[int, Dict[str, float]]]]]:
     """
-    Compute Label-Recall@K for cross-modal retrieval.
+    Compute Label-Precision@K for cross-modal retrieval.
 
     Args:
         sensor_embeddings: Sensor embeddings of shape (N, D_sensor)
@@ -429,7 +434,9 @@ def compute_label_recall_at_k(
         directions: List of directions to evaluate. Options:
             - 'text2sensor': Text queries → Sensor targets
             - 'sensor2text': Sensor queries → Text targets
-            - 'both': Both directions (shorthand)
+            - 'text2text': Text queries → Text targets (self-check)
+            - 'sensor2sensor': Sensor queries → Sensor targets (self-check)
+            - 'both': Both directions (shorthand + text2text) [deprecated; use explicit list]
         normalize: Whether to L2-normalize embeddings before computing similarities
         verbose: Whether to print progress and results
         return_per_label: Whether to also return per-label metrics
@@ -438,14 +445,18 @@ def compute_label_recall_at_k(
         If return_per_label=False:
             Dictionary with structure:
             {
-                'text2sensor': {k1: recall_value1, k2: recall_value2, ...},
-                'sensor2text': {k1: recall_value1, k2: recall_value2, ...}
+                'text2sensor': {k1: score_value1, k2: score_value2, ...},
+                'sensor2text': {k1: score_value1, k2: score_value2, ...},
+                'sensor2sensor': {k1: score_value1, k2: score_value2, ...}  # if requested
+                'text2text': {k1: score_value1, k2: score_value2, ...}      # if requested
             }
         If return_per_label=True:
             Tuple of (overall_results, per_label_results) where per_label_results has structure:
             {
-                'text2sensor': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...},
-                'sensor2text': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...}
+                'text2sensor': {...},
+                'sensor2text': {...},
+                'sensor2sensor': {...},
+                'text2text': {...}
             }
     """
     # Validate inputs
@@ -473,22 +484,32 @@ def compute_label_recall_at_k(
 
     # Compute for each direction
     for direction in directions:
-        if direction not in ['text2sensor', 'sensor2text']:
+        if direction not in ['text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']:
             print(f"[WARNING] Unknown direction '{direction}', skipping...")
             continue
 
         if verbose:
-            print(f"\n[COMPUTING] Label-Recall@K for {direction}...")
+            print(f"\n[COMPUTING] Label-Precision@K for {direction}...")
 
         # Determine query and target embeddings
         if direction == 'text2sensor':
             query_emb = text_embeddings
             target_emb = sensor_embeddings
             direction_name = "Text → Sensor"
-        else:  # sensor2text
+        elif direction == 'sensor2text':
             query_emb = sensor_embeddings
             target_emb = text_embeddings
             direction_name = "Sensor → Text"
+        elif direction == 'sensor2sensor':
+            query_emb = sensor_embeddings
+            target_emb = sensor_embeddings
+            direction_name = "Sensor → Sensor"
+        elif direction == 'text2text':
+            query_emb = text_embeddings
+            target_emb = text_embeddings
+            direction_name = "Text → Text"
+        else:
+            raise RuntimeError(f"Unhandled direction '{direction}'")
 
         # Compute for each K
         results[direction] = {}
@@ -506,7 +527,8 @@ def compute_label_recall_at_k(
                 query_labels=labels,
                 target_labels=labels,
                 k=k,
-                return_counts=True
+                return_counts=True,
+                exclude_self=exclude_self and direction in {'sensor2sensor', 'text2text'}
             )
 
             # Compute macro and weighted averages
@@ -521,8 +543,8 @@ def compute_label_recall_at_k(
             }
 
             if verbose:
-                print(f"    Label-Recall@{k} (Macro): {macro_recall:.4f} ({macro_recall*100:.2f}%)")
-                print(f"    Label-Recall@{k} (Weighted): {weighted_recall:.4f} ({weighted_recall*100:.2f}%)")
+                print(f"    Label-Precision@{k} (Macro): {macro_recall:.4f} ({macro_recall*100:.2f}%)")
+                print(f"    Label-Precision@{k} (Weighted): {weighted_recall:.4f} ({weighted_recall*100:.2f}%)")
 
             # Store per-label metrics if requested
             if return_per_label:
@@ -542,7 +564,7 @@ def print_results_summary(results: Dict[str, Dict[int, Union[float, Dict[str, fl
                 Now includes both macro and weighted metrics
     """
     print("\n" + "="*80)
-    print("LABEL-RECALL@K RESULTS SUMMARY")
+    print("LABEL SCORE@K RESULTS SUMMARY (Instance recall + Prototype precision)")
     print("="*80)
 
     for direction, k_results in results.items():
@@ -551,6 +573,10 @@ def print_results_summary(results: Dict[str, Dict[int, Union[float, Dict[str, fl
             direction_name = "Text -> Sensor"
         elif direction == 'sensor2text':
             direction_name = "Sensor -> Text"
+        elif direction == 'sensor2sensor':
+            direction_name = "Sensor -> Sensor"
+        elif direction == 'text2text':
+            direction_name = "Text -> Text"
         elif direction == 'prototype2sensor':
             direction_name = "Text Prototype -> Sensor"
         elif direction == 'prototype2text':
@@ -572,7 +598,7 @@ def print_results_summary(results: Dict[str, Dict[int, Union[float, Dict[str, fl
                 print(f"  K={k:3d}  =>  Macro: {macro:.4f} ({macro*100:.2f}%)  |  Weighted: {weighted:.4f} ({weighted*100:.2f}%)")
             else:
                 # Backward compatibility
-                print(f"  K={k:3d}  =>  Label-Recall@K = {metrics:.4f} ({metrics*100:.2f}%)")
+                print(f"  K={k:3d}  =>  Label-Precision@K = {metrics:.4f} ({metrics*100:.2f}%)")
 
     print("\n" + "="*80)
 
@@ -665,7 +691,7 @@ def compute_prototype_retrieval_metrics(
     return_per_label: bool = False
 ) -> Union[Dict[str, Dict[int, float]], Tuple[Dict[str, Dict[int, float]], Dict[str, Dict[int, Dict[str, float]]]]]:
     """
-    Compute Label-Recall@K for prototype-based retrieval.
+    Compute Label-Precision@K for prototype-based retrieval.
 
     Prototypes are text descriptions of labels (one per label).
     Targets are actual embeddings (sensor or text) with many examples per label.
@@ -691,14 +717,14 @@ def compute_prototype_retrieval_metrics(
         If return_per_label=False:
             Dictionary with structure:
             {
-                'prototype2sensor': {k1: recall_value1, k2: recall_value2, ...},
-                'prototype2text': {k1: recall_value1, k2: recall_value2, ...}
+                'prototype2sensor': {k1: precision_value1, k2: precision_value2, ...},
+                'prototype2text': {k1: precision_value1, k2: precision_value2, ...}
             }
         If return_per_label=True:
             Tuple of (overall_results, per_label_results) where per_label_results has structure:
             {
-                'prototype2sensor': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...},
-                'prototype2text': {k1: {label1: recall, label2: recall, ...}, k2: {...}, ...}
+                'prototype2sensor': {k1: {label1: precision, label2: precision, ...}, k2: {...}, ...},
+                'prototype2text': {k1: {label1: precision, label2: precision, ...}, k2: {...}, ...}
             }
     """
     # Handle 'both' direction shorthand
@@ -742,8 +768,11 @@ def compute_prototype_retrieval_metrics(
         if target_labels is None:
             raise ValueError(f"target_labels must be provided for direction '{direction}'")
 
+        # Precompute counts for each label (used for k truncation and weighing)
+        target_label_counts = Counter(str(label) for label in target_labels)
+
         if verbose:
-            print(f"\n[COMPUTING] Label-Recall@K for {direction}...")
+            print(f"\n[COMPUTING] Label-Precision@K for {direction}...")
             print(f"  {len(prototype_embeddings)} prototypes, {len(target_emb)} targets")
             if label_counts is not None:
                 print(f"  Using label prevalence for weighted averaging (dataset has {sum(label_counts.values())} samples)")
@@ -757,43 +786,51 @@ def compute_prototype_retrieval_metrics(
             if verbose:
                 print(f"  Computing for K={k}...")
 
-            # Compute per-label recall for prototypes
-            per_label_recall = {}
+            # Compute per-label precision for prototypes (truncate K to available instances)
+            per_label_precision = {}
             per_label_count_dict = {}
             similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
 
             for i, proto_label in enumerate(prototype_labels):
+                proto_label_str = str(proto_label)
                 proto_sims = similarities[i]
-                top_k_indices = np.argsort(proto_sims)[-k:][::-1]
+
+                label_total = target_label_counts.get(proto_label_str, 0)
+                if label_counts is not None and proto_label_str in label_counts:
+                    label_total = max(label_total, label_counts[proto_label_str])
+
+                if label_total == 0:
+                    per_label_precision[proto_label_str] = 0.0
+                    per_label_count_dict[proto_label_str] = 0
+                    continue
+
+                k_effective = min(k, label_total)
+                top_k_indices = np.argsort(proto_sims)[-k_effective:][::-1]
                 top_k_labels = target_labels[top_k_indices]
                 n_matching = np.sum(top_k_labels == proto_label)
-                recall_label = n_matching / k
-                per_label_recall[str(proto_label)] = float(recall_label)
+                precision_label = n_matching / k_effective
+                per_label_precision[proto_label_str] = float(precision_label)
 
-                # Use actual label prevalence if provided, otherwise assume 1
-                if label_counts is not None and str(proto_label) in label_counts:
-                    per_label_count_dict[str(proto_label)] = label_counts[str(proto_label)]
-                else:
-                    per_label_count_dict[str(proto_label)] = 1
+                per_label_count_dict[proto_label_str] = label_total
 
             # Compute macro (unweighted) and weighted (by label prevalence) averages
-            macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
-                per_label_recall, per_label_count_dict
+            macro_precision, weighted_precision = compute_macro_and_weighted_metrics(
+                per_label_precision, per_label_count_dict
             )
 
             # Store both metrics
             results[direction][k] = {
-                'macro': macro_recall,
-                'weighted': weighted_recall
+                'macro': macro_precision,
+                'weighted': weighted_precision
             }
 
             if verbose:
-                print(f"    Label-Recall@{k} (Macro): {macro_recall:.4f} ({macro_recall*100:.2f}%)")
-                print(f"    Label-Recall@{k} (Weighted): {weighted_recall:.4f} ({weighted_recall*100:.2f}%)")
+                print(f"    Label-Precision@{k} (Macro): {macro_precision:.4f} ({macro_precision*100:.2f}%)")
+                print(f"    Label-Precision@{k} (Weighted): {weighted_precision:.4f} ({weighted_precision*100:.2f}%)")
 
             # Store per-label metrics if requested
             if return_per_label:
-                per_label_results[direction][k] = per_label_recall
+                per_label_results[direction][k] = per_label_precision
 
     if return_per_label:
         return results, per_label_results
@@ -893,7 +930,7 @@ def save_results(results: Dict[str, Dict[int, float]], output_path: str) -> None
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Compute Label-Recall@K for cross-modal retrieval",
+        description="Compute Label-Precision@K for cross-modal retrieval",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -1169,7 +1206,8 @@ def main():
                 k_values=args.k_values,
                 directions=args.directions,
                 normalize=args.normalize,
-                verbose=verbose
+                verbose=verbose,
+                exclude_self=('sensor2sensor' in args.directions)
             )
         except Exception as e:
             print(f"\n[ERROR] Error computing metrics: {e}")
