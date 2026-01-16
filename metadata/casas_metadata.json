@@ -379,7 +379,7 @@
       "Desk_Activity": {
         "short_desc": "working at desk in workspace",
         "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
-        "zeroshot_har_desc": "Desk Activity takes place when a person uses the desk in the workspace and TV room",
+        "zeroshot_har_desc": "Desk Activity takes place when a person uses the desk in the workspace",
         "multiple_desc": [
           "Working at the desk in the workspace with repeated presence near the desk.",
           "Sitting at a desk using a computer or work materials.",

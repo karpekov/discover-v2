@@ -25,7 +25,14 @@ python src/evals/evaluate_embeddings.py \
     --train_text_embeddings data/processed/casas/milan/FD_60_p/train_embeddings_baseline_clip.npz \
     --test_text_embeddings data/processed/casas/milan/FD_60_p/test_embeddings_baseline_clip.npz \
     --max_samples 10000 \
-    --filter_noisy_labels
+    --filter_noisy_labels \
+    --description_style long_desc
+
+Prototype Customization:
+- --description_style: Specifies which description field to use from metadata for text prototypes
+  Options: 'long_desc' (default), 'short_desc', 'zeroshot_har_desc', or any custom field
+  Example: --description_style zeroshot_har_desc
+- --use_multiple_prototypes: Create multiple prototypes per label (uses 'multiple_desc' field)
 
 Output Files:
 - combined_tsne_l1.png - 3-subplot t-SNE (text no proj | text proj | sensor)
@@ -85,6 +92,9 @@ class EmbeddingEvaluator:
         self.config = config
         self.device = get_optimal_device()
         log_device_info(self.device)
+
+        # Store description style (default to long_desc)
+        self.description_style = config.get('description_style', 'long_desc')
 
         # Load models and data
         self._load_models()
@@ -688,7 +698,7 @@ class EmbeddingEvaluator:
             print(f"   📋 Using {len(unique_labels)} labels with multiple_desc field")
         else:
             # Use existing convert_labels_to_text function
-            label_descriptions_lists = convert_labels_to_text(unique_labels)
+            label_descriptions_lists = convert_labels_to_text(unique_labels, house_name=self.dataset_name, description_style=self.description_style)
             label_descriptions_dict = {label: label_descriptions_lists[i] for i, label in enumerate(unique_labels)}
 
         # Create prototypes dictionary
@@ -786,7 +796,7 @@ class EmbeddingEvaluator:
 
                 if not captions:
                     # Fallback to generated descriptions if no captions available
-                    descriptions = convert_labels_to_text([label])[0]
+                    descriptions = convert_labels_to_text([label], house_name=self.dataset_name, description_style=self.description_style)[0]
                     captions = descriptions[:n_shots] if len(descriptions) >= n_shots else descriptions
 
                 # Encode captions and average
@@ -5198,6 +5208,8 @@ def main():
                        help='Skip visualization generation (faster evaluation)')
     parser.add_argument('--use_multiple_prototypes', action='store_true',
                        help='Use multiple prototypes per label from metadata (default: single averaged prototype)')
+    parser.add_argument('--description_style', type=str, default='long_desc',
+                       help='Description field to use from metadata (e.g., long_desc, short_desc, zeroshot_har_desc). Default: long_desc')
 
     args = parser.parse_args()
 
@@ -5207,6 +5219,7 @@ def main():
         'train_data_path': args.train_data,
         'test_data_path': args.test_data,
         'output_dir': args.output_dir,
+        'description_style': args.description_style,
     }
 
     # Only add vocab_path if the file exists
