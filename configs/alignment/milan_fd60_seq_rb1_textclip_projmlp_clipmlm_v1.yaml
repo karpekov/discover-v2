@@ -22,8 +22,6 @@ encoder:
     - sensor
     - state
     - room_id
-    - tod_bucket
-    - dow_bucket
     use_coordinates: true
     use_time_deltas: false
     use_time_of_day: true
