@@ -25,21 +25,24 @@ class SmartHomeDataset(Dataset):
     sequence_length: int = 20,
     max_captions: int = 3,
     normalize_coords: bool = True,
-    caption_types: str = 'long'  # 'long', 'short', 'both'
+    caption_types: str = 'long',  # 'long', 'short', 'both'
+    use_special_tokens: bool = True  # Use [TOD] and [DOW] special tokens
   ):
     """
     Args:
       data_path: Path to the dataset file (JSON or parquet)
       vocab_path: Path to vocabulary mappings (JSON)
-      sequence_length: Fixed sequence length T
+      sequence_length: Fixed sequence length T (includes special tokens if use_special_tokens=True)
       max_captions: Maximum number of captions per sequence
       normalize_coords: Whether to normalize coordinates to [0,1]
       caption_types: Which caption types to use ('long', 'short', 'both')
+      use_special_tokens: If True, prepend [TOD] and [DOW] special tokens to sequences
     """
     self.sequence_length = sequence_length
     self.max_captions = max_captions
     self.caption_types = caption_types
     self.normalize_coords = normalize_coords
+    self.use_special_tokens = use_special_tokens
 
     # Load vocabulary mappings
     with open(vocab_path, 'r') as f:
@@ -48,17 +51,29 @@ class SmartHomeDataset(Dataset):
     # Load data
     self.data = self._load_data(data_path)
 
-    # Categorical field names - use only fields that exist in vocab
-    # Common categorical fields across different data formats
-    possible_fields = [
+    # Categorical field names - separate event-level from sequence-level fields
+    # Sequence-level fields (tod_bucket, dow_bucket) will become special tokens
+    event_level_fields = [
       'sensor_id', 'sensor', 'room_id', 'event_type', 'state', 'sensor_type',
-      'tod_bucket', 'dow_bucket', 'delta_t_bucket', 'floor_id', 'dow'
+      'delta_t_bucket', 'floor_id'
     ]
 
-    self.categorical_fields = [field for field in possible_fields if field in self.vocab]
+    sequence_level_fields = ['tod_bucket', 'dow_bucket']
+
+    # Event-level categorical fields (applied to each event token)
+    self.event_categorical_fields = [field for field in event_level_fields if field in self.vocab]
+
+    # Sequence-level categorical fields (become special tokens)
+    self.sequence_categorical_fields = [field for field in sequence_level_fields if field in self.vocab]
+
+    # All categorical fields (for backward compatibility)
+    self.categorical_fields = self.event_categorical_fields + self.sequence_categorical_fields
 
     # Get vocabulary sizes
     self.vocab_sizes = {field: len(self.vocab[field]) for field in self.categorical_fields}
+
+    # Number of special tokens to prepend
+    self.num_special_tokens = len(self.sequence_categorical_fields) if self.use_special_tokens else 0
 
     # Coordinate normalization bounds (computed from data if needed)
     if self.normalize_coords:
@@ -238,6 +253,7 @@ class SmartHomeDataset(Dataset):
     # New format uses: sensor_id, event_type, room
     # Old format uses: sensor, state, room_id
     # We need to map to whatever is in the vocab
+    original_events = events  # Keep reference to original events before normalization
     normalized_events = []
     for event in events:
       norm_event = event.copy()
@@ -283,43 +299,100 @@ class SmartHomeDataset(Dataset):
     # Limit number of captions
     captions = captions[:self.max_captions]
 
-    # Pad or truncate sequence
-    events = self._pad_or_truncate_sequence(events)
+    # Extract sequence-level features (tod_bucket, dow_bucket) before processing events
+    sequence_level_values = {}
+    if self.use_special_tokens and len(original_events) > 0:
+      first_event = original_events[0]
+      for field in self.sequence_categorical_fields:
+        value = first_event.get(field, 'UNK')
+        sequence_level_values[field] = value
 
-    # Compute time deltas
+    # Adjust sequence length for event tokens (reserve space for special tokens)
+    event_sequence_length = self.sequence_length - self.num_special_tokens if self.use_special_tokens else self.sequence_length
+
+    # Pad or truncate sequence to event_sequence_length
+    if len(events) < event_sequence_length:
+      # Pad with dummy events
+      padding_needed = event_sequence_length - len(events)
+      dummy_event = {
+        'sensor_id': '<PAD>',
+        'event_type': '<PAD>',
+        'room': '<PAD>',
+        'x': 0.0,
+        'y': 0.0
+      }
+      events = events + [dummy_event] * padding_needed
+    else:
+      # Truncate
+      events = events[:event_sequence_length]
+
+    # Compute time deltas for events
     time_deltas = self._compute_delta_times(events)
 
-    # Create mask (True for valid events, False for padding)
-    # Use the original events list (before padding/truncation)
-    if 'sensor_sequence' in sample_data:
-      original_events = sample_data['sensor_sequence']
-    elif 'events' in sample_data:
-      original_events = sample_data['events']
-    else:
-      original_events = []
-    original_length = min(len(original_events), self.sequence_length)
-    mask = [True] * original_length + [False] * (self.sequence_length - original_length)
+    # Create mask for event tokens (True for valid events, False for padding)
+    original_length = min(len(original_events), event_sequence_length)
+    event_mask = [True] * original_length + [False] * (event_sequence_length - original_length)
 
-    # Process categorical features
+    # Process categorical features for event tokens
     categorical_features = {}
-    for field in self.categorical_fields:
+
+    # Event-level categorical features
+    for field in self.event_categorical_fields:
       field_values = []
       for event in events:
-        value = event.get(field, '<UNK>')
+        value = event.get(field, 'UNK')
         encoded_value = self._encode_categorical(field, str(value))
         field_values.append(encoded_value)
       categorical_features[field] = torch.tensor(field_values, dtype=torch.long)
 
-    # Process coordinates
-    coordinates = []
-    for event in events:
-      x, y = event.get('x', 0.0), event.get('y', 0.0)
-      x_norm, y_norm = self._normalize_coordinates(x, y)
-      coordinates.append([x_norm, y_norm])
-    coordinates = torch.tensor(coordinates, dtype=torch.float32)
+    # Add special tokens at the beginning if enabled
+    if self.use_special_tokens and len(self.sequence_categorical_fields) > 0:
+      # Create special token representations
+      # We'll have self.num_special_tokens positions at the start (one per sequence-level field)
 
-    # Process time deltas
-    time_deltas = torch.tensor(time_deltas, dtype=torch.float32)
+      # For each sequence-level field (tod_bucket, dow_bucket), create full-length tensor
+      for i, field in enumerate(self.sequence_categorical_fields):
+        value = sequence_level_values.get(field, 'UNK')
+        encoded_value = self._encode_categorical(field, str(value))
+
+        # Create tensor: position i has the value, all other positions are 0 (dummy)
+        full_tensor = torch.zeros(self.sequence_length, dtype=torch.long)
+        full_tensor[i] = encoded_value
+
+        categorical_features[field] = full_tensor
+
+      # For event-level fields, prepend dummy values for special token positions
+      for field in self.event_categorical_fields:
+        if field in categorical_features:
+          # Prepend dummy tokens (0) for special token positions
+          dummy_tokens = torch.zeros(self.num_special_tokens, dtype=torch.long)
+          categorical_features[field] = torch.cat([dummy_tokens, categorical_features[field]])
+
+      # Extend mask for special tokens (always True)
+      mask = [True] * self.num_special_tokens + event_mask
+
+      # Extend coordinates for special tokens (use zero coordinates)
+      special_coords = [[0.0, 0.0]] * self.num_special_tokens
+      event_coords = []
+      for event in events:
+        x, y = event.get('x', 0.0), event.get('y', 0.0)
+        x_norm, y_norm = self._normalize_coordinates(x, y)
+        event_coords.append([x_norm, y_norm])
+      coordinates = torch.tensor(special_coords + event_coords, dtype=torch.float32)
+
+      # Extend time deltas for special tokens (use zero)
+      special_time_deltas = [0.0] * self.num_special_tokens
+      time_deltas = torch.tensor(special_time_deltas + time_deltas, dtype=torch.float32)
+    else:
+      # No special tokens - use original logic
+      mask = event_mask
+      coordinates = []
+      for event in events:
+        x, y = event.get('x', 0.0), event.get('y', 0.0)
+        x_norm, y_norm = self._normalize_coordinates(x, y)
+        coordinates.append([x_norm, y_norm])
+      coordinates = torch.tensor(coordinates, dtype=torch.float32)
+      time_deltas = torch.tensor(time_deltas, dtype=torch.float32)
 
     # Create mask tensor
     mask = torch.tensor(mask, dtype=torch.bool)
