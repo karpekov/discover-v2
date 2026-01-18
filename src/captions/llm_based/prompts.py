@@ -81,8 +81,6 @@ def build_user_prompt(compact_json: Dict[str, Any], num_captions: int = 4) -> st
     if time_context:
         if 'day_of_week' in time_context:
             time_str = f"Time context: day of week {time_context['day_of_week']}"
-            if 'month' in time_context:
-                time_str += f", month {time_context['month']}"
             if 'period_of_day' in time_context:
                 time_str += f", period of day {time_context['period_of_day']}"
             lines.append(time_str)

@@ -132,9 +132,6 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         # Day of week
         dow = first_event['datetime'].strftime('%A')
 
-        # Month description
-        month_desc = self._generate_month_description(first_event['datetime'])
-
         # Time of day
         tod = metadata.get('tod_bucket', None)
         if tod is None:
@@ -169,7 +166,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Generate Layer A caption with special sensors (or None if not available)
         layer_a = self._generate_natural_caption(
-            dow, month_desc, tod, dur, unique_rooms, df, metadata,
+            dow, tod, dur, unique_rooms, df, metadata,
             special_sensors=special_sensors
         )
 
@@ -325,7 +322,6 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
     def _generate_natural_caption(self,
                                  dow: str,
-                                 month_desc: str,
                                  tod: str,
                                  dur: float,
                                  unique_rooms: List[str],
@@ -351,7 +347,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Time context
         temporal_at_start = self.random.choice([True, False])
-        time_context = f"on {dow} in {month_desc} {time_phrase}"
+        time_context = f"on {dow} {time_phrase}"
 
         if use_active_mode:
             resident_terms = ['resident', 'dweller', 'occupant', 'person', 'individual']
@@ -527,26 +523,6 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         phrases = time_phrases.get(tod_key, time_phrases['evening'])
         return self.random.choice(phrases)
 
-    def _generate_month_description(self, timestamp: datetime) -> str:
-        """Generate diverse month descriptions."""
-        month_num = timestamp.month
-
-        full_names = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ]
-        abbrev_names = [
-            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-        ]
-
-        style = self.random.choice(['full', 'abbrev'])
-
-        if style == 'full':
-            return full_names[month_num - 1]
-        else:
-            return abbrev_names[month_num - 1]
-
     def _generate_room_description(self, unique_rooms: List[str]) -> str:
         """Generate natural room transition description."""
         # Clean room names: replace underscores with spaces
@@ -676,8 +652,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Build base layer B
         layer_b = (f"span={start_time}-{end_time}; dur={dur}m; dow={dow}; "
-                  f"month={first_event['datetime'].month}; tod={tod}; "
-                  f"rooms={list(detail.keys())}; sensors={detail}")
+                  f"tod={tod}; rooms={list(detail.keys())}; sensors={detail}")
 
         # Add special sensor information if available
         if special_sensors:

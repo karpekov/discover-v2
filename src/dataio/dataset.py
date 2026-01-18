@@ -52,7 +52,7 @@ class SmartHomeDataset(Dataset):
     # Common categorical fields across different data formats
     possible_fields = [
       'sensor_id', 'sensor', 'room_id', 'event_type', 'state', 'sensor_type',
-      'tod_bucket', 'delta_t_bucket', 'floor_id', 'dow'
+      'tod_bucket', 'dow_bucket', 'delta_t_bucket', 'floor_id', 'dow'
     ]
 
     self.categorical_fields = [field for field in possible_fields if field in self.vocab]

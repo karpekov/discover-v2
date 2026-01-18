@@ -80,9 +80,6 @@ def _extract_time_context(start_time: str, end_time: str) -> Dict[str, Any]:
         # Day of week
         day_of_week = dt.strftime('%A')
 
-        # Month
-        month = dt.strftime('%B')
-
         # Period of day
         hour = dt.hour
         if 5 <= hour < 12:
@@ -98,7 +95,6 @@ def _extract_time_context(start_time: str, end_time: str) -> Dict[str, Any]:
             'start_time': start_time,
             'end_time': end_time,
             'day_of_week': day_of_week,
-            'month': month,
             'period_of_day': period_of_day
         }
     except Exception as e:
