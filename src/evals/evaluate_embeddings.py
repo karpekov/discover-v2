@@ -4097,14 +4097,26 @@ class EmbeddingEvaluator:
                 )
                 print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
 
+                # Filter prototypes based on retrieval label level
+                if retrieval_label_level == 'L1':
+                    # For L1: only use L1 labels (filter to keep only labels in train_labels_l1)
+                    l1_label_set = set(train_labels_l1)
+                    label_to_text_filtered = {k: v for k, v in label_to_text.items() if k in l1_label_set}
+                    print(f"🔍 Filtered to {len(label_to_text_filtered)} L1 prototypes (from {len(label_to_text)} total)")
+                else:
+                    # For L2: only use L2 labels (filter to keep only labels in train_labels_l2)
+                    l2_label_set = set(train_labels_l2)
+                    label_to_text_filtered = {k: v for k, v in label_to_text.items() if k in l2_label_set}
+                    print(f"🔍 Filtered to {len(label_to_text_filtered)} L2 prototypes (from {len(label_to_text)} total)")
+
                 # Encode text prototypes
                 prototype_emb, prototype_labels = encode_text_prototypes(
-                    label_to_text=label_to_text,
+                    label_to_text=label_to_text_filtered,
                     text_encoder=self.text_encoder,
                     device=str(self.device),
                     normalize=True
                 )
-                print(f"✅ Encoded {len(prototype_emb)} text prototypes")
+                print(f"✅ Encoded {len(prototype_emb)} text prototypes for {retrieval_label_level}")
 
                 # Compute label counts from the target dataset for weighted averaging
                 label_counts_dict = {}

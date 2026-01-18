@@ -264,7 +264,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         room_keywords = [
             "master bedroom", "master bathroom", "kitchen", "entryway", "dining room",
             "living room", "workspace", "tv room", "hallway", "guest bathroom",
-            "guest bedroom", "bathroom", "bedroom", "laundry"
+            "guest bedroom", "bathroom", "bedroom", "laundry", "office"
         ]
         room = next((r for r in room_keywords if r in desc_lower), "unknown")
 
@@ -272,7 +272,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         area_keywords = [
             "bed", "fridge", "stove", "toilet", "sink", "cabinet", "desk",
             "armchair", "chair", "island", "medicine", "bathtub", "shower", "table", "pill",
-            "entrance", "doorway"
+            "entrance", "doorway", "TV"
         ]
         tags = [k for k in area_keywords if k in desc_lower]
 
@@ -616,7 +616,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         elif 'stove' in detail_lower or 'cooking' in detail_lower:
             options = ['stove activity', 'cooking area motion', 'activity near stove', 'using stove']
         elif 'desk' in detail_lower:
-            options = ['desk activity', 'workspace motion', 'activity at desk', 'working at desk', 'using desk', 'sitting at desk']
+            options = ['working at desk', 'sitting and using desk', 'sitting at work desk']
         elif 'table' in detail_lower and 'dining' in detail_lower:
             options = ['dining table activity', 'movement at dining table', 'eating at dining table', 'sitting at dining table']
         elif 'table' in detail_lower:
@@ -633,6 +633,8 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
             options = ['door activity', 'door sensor activation']
         elif 'couch' in detail_lower or 'sofa' in detail_lower:
             options = ['couch activity', 'movement on sofa', 'sitting on sofa', 'using sofa']
+        elif 'tv' in detail_lower and 'armchair' in detail_lower:
+            options = ['sitting and watching TV', 'watching TV from the armchair', 'using TV from the armchair']
         elif 'armchair' in detail_lower or 'chair' in detail_lower:
             options = ['chair activity', 'seating area motion', 'sitting on chair', 'using chair']
         else:

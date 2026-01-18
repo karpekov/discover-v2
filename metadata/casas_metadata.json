@@ -41,9 +41,9 @@
       "M003": "living_room",
       "M004": "living_room",
       "M005": "living_room",
-      "M006": "workspace_and_tv_room",
-      "M007": "workspace_and_tv_room",
-      "M008": "workspace_and_tv_room",
+      "M006": "office",
+      "M007": "office",
+      "M008": "office",
       "M009": "aisle_near_laundry",
       "M010": "aisle_near_kitchen",
       "M011": "aisle_near_kitchen",
@@ -61,7 +61,7 @@
       "M023": "kitchen",
       "M024": "guest_bedroom",
       "M025": "master_bathroom",
-      "M026": "workspace_and_tv_room",
+      "M026": "office",
       "M027": "living_room",
       "M028": "master_bedroom",
       "T001": "kitchen",
@@ -112,8 +112,8 @@
       "M004": "armchair",
       "M005": null,
       "M006": null,
-      "M007": "desk",
-      "M008": "TV room armchair",
+      "M007": "working desk",
+      "M008": "TV armchair",
       "M009": null,
       "M010": null,
       "M011": null,
@@ -303,8 +303,8 @@
       },
       "Watch_TV": {
         "short_desc": "watching television",
-        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"],
-        "zeroshot_har_desc": "Watch TV television activity takes place when a person watches TV the workspace and TV room on armchair",
+        "long_desc": ["Watch TV activity with time spent in the armchair in the office, ranging from brief moments to extended periods"],
+        "zeroshot_har_desc": "Watch TV television activity takes place when a person watches TV the office armchair",
         "multiple_desc": [
           "Sitting in the TV room watching television for an extended period.",
           "Stationary presence on a couch or chair in front of the TV with minor movement.",
@@ -377,17 +377,17 @@
         ]
       },
       "Desk_Activity": {
-        "short_desc": "working at desk in workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
-        "zeroshot_har_desc": "Desk Activity takes place when a person uses the desk in the workspace",
+        "short_desc": "working at desk in the office",
+        "long_desc": ["Desk activity with brief to moderate durations in the office, centered on motion detection and presence near the desk area."],
+        "zeroshot_har_desc": "Desk Activity takes place when a person uses the desk in the office",
         "multiple_desc": [
-          "Working at the desk in the workspace with repeated presence near the desk.",
+          "Working at the desk in the office with repeated presence near the desk.",
           "Sitting at a desk using a computer or work materials.",
-          "Prolonged activity in the workspace staying close to the desk.",
+          "Prolonged activity in the office staying close to the desk.",
           "Light movement between nearby areas and the desk but mostly sitting.",
           "Focused desk work with relatively static posture.",
           "Daytime office-like activity at a workstation.",
-          "Remaining in the workspace for a sustained period.",
+          "Remaining in the office for a sustained period.",
           "Using a desk for work, study, or computer use."
         ]
       },
@@ -497,9 +497,9 @@
         "zeroshot_har_desc": "no specific activity or idle time"
       },
       "Work": {
-        "short_desc": "working at desk or workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
-        "zeroshot_har_desc": "Work activity takes place when a person uses the desk in the workspace and TV room"
+        "short_desc": "working at desk or office",
+        "long_desc": ["Desk activity with brief to moderate durations in the office, centered on motion detection and presence near the desk area."],
+        "zeroshot_har_desc": "Work activity takes place when a person uses the desk in the office"
       },
       "Eat": {
         "short_desc": "eating meals",
@@ -508,8 +508,8 @@
       },
       "Relax": {
         "short_desc": "relaxing, watching TV or reading",
-        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in tv room, ranging from brief moments to extended periods."],
-        "zeroshot_har_desc": "Relaxing activity takes place when a person watches TV the workspace and TV room on armchair or is reading sitting in the armchair in the living room"
+        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in the office, ranging from brief moments to extended periods."],
+        "zeroshot_har_desc": "Relaxing activity takes place when a person watches TV the office on armchair or is reading sitting in the armchair in the living room"
       },
       "Bathing": {
         "short_desc": "bathing or using bathroom",
