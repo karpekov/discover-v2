@@ -444,7 +444,7 @@
       "Bed_to_Toilet": {
         "short_desc": "going from bed to toilet at night",
         "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
-        "zeroshot_har_desc": "Bed to Toilet activity takes place between master bedroom and master bathroom toilet when a person goes to the master bedroom toilet or bathroom from the bed",
+        "zeroshot_har_desc": "Bed to Toilet activity takes place between master bedroom and master bathroom toilet in the middle of the night",
         "multiple_desc": [
           "Nighttime trip from bed to the bathroom and back.",
           "Short walk from sleeping area to toilet during the night.",
