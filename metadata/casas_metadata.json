@@ -41,9 +41,9 @@
       "M003": "living_room",
       "M004": "living_room",
       "M005": "living_room",
-      "M006": "workspace_and_tv_room",
-      "M007": "workspace_and_tv_room",
-      "M008": "workspace_and_tv_room",
+      "M006": "office",
+      "M007": "office",
+      "M008": "office",
       "M009": "aisle_near_laundry",
       "M010": "aisle_near_kitchen",
       "M011": "aisle_near_kitchen",
@@ -61,7 +61,7 @@
       "M023": "kitchen",
       "M024": "guest_bedroom",
       "M025": "master_bathroom",
-      "M026": "workspace_and_tv_room",
+      "M026": "office",
       "M027": "living_room",
       "M028": "master_bedroom",
       "T001": "kitchen",
@@ -103,30 +103,30 @@
       "T002": [1213, 812]
     },
     "sensor_details": {
-      "D001": "entry door",
-      "D002": "coat cabinet",
-      "D003": "medicine and pill cabinet",
-      "M001": null,
+      "D001": "entrance door",
+      "D002": null,
+      "D003": "garage door in kitchen",
+      "M001": "at home entrance ",
       "M002": null,
       "M003": "dining table",
       "M004": "armchair",
       "M005": null,
       "M006": null,
-      "M007": "desk",
-      "M008": "armchair",
+      "M007": "working desk",
+      "M008": "TV armchair",
       "M009": null,
       "M010": null,
       "M011": null,
       "M012": null,
       "M013": null,
-      "M014": "medicine and pill cabinet",
+      "M014": "medicine and pill cabinet in kitchen",
       "M015": "fridge",
       "M016": null,
       "M017": null,
       "M018": null,
       "M019": null,
       "M020": null,
-      "M021": "bed sensor",
+      "M021": "bed in master bedroom",
       "M022": "stove",
       "M023": null,
       "M024": null,
@@ -259,6 +259,7 @@
       "Kitchen_Activity": {
         "short_desc": "cooking and kitchen activities",
         "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."],
+        "zeroshot_har_desc": "Kitchen Activity takes place when a person cooks a meal in the kitchen",
         "multiple_desc": [
           "General kitchen activity with movement between fridge, stove, and counters.",
           "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
@@ -273,6 +274,7 @@
       "Sleep": {
         "short_desc": "sleeping in bed in master bedroom, usually at night time",
         "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."],
+        "zeroshot_har_desc": "Sleep activity takes place when a person sleeps on bed in the master bedroom",
         "multiple_desc": [
           "Sleeping in the master bedroom with prolonged stillness in the bed area.",
           "Nighttime rest in bed with minimal movement in the sleeping zone.",
@@ -287,6 +289,7 @@
       "Read": {
         "short_desc": "reading a book or newspaper in a static position",
         "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."],
+        "zeroshot_har_desc": "Read activity takes place when a person reads sitting in the living room armchair",
         "multiple_desc": [
           "Sitting quietly in the living room armchair while reading.",
           "Prolonged stationary presence in a living room chair consistent with reading.",
@@ -300,7 +303,8 @@
       },
       "Watch_TV": {
         "short_desc": "watching television",
-        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"],
+        "long_desc": ["Watch TV activity with time spent in the armchair in the office, ranging from brief moments to extended periods"],
+        "zeroshot_har_desc": "Watch TV television activity takes place when a person watches TV the office armchair",
         "multiple_desc": [
           "Sitting in the TV room watching television for an extended period.",
           "Stationary presence on a couch or chair in front of the TV with minor movement.",
@@ -315,6 +319,7 @@
       "Master_Bedroom_Activity": {
         "short_desc": "activities and motion in the master bedroom",
         "long_desc": ["General master bedroom bedroom activity during day or evening."],
+        "zeroshot_har_desc": "Master Bedroom Activity takes place when a person moves in the master bedroom",
         "multiple_desc": [
           "General activity in the master bedroom during the day, such as dressing or tidying.",
           "Walking around the master bedroom, possibly organizing items or getting dressed.",
@@ -329,6 +334,7 @@
       "Master_Bathroom": {
         "short_desc": "using the master bathroom, shower, or bathtub",
         "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."],
+        "zeroshot_har_desc": "Master Bathroom activity takes place when a person uses the master bathroom toilet",
         "multiple_desc": [
           "Using the master bathroom for toilet, sink, or shower-related tasks.",
           "Short stay in the master bathroom consistent with a toilet visit.",
@@ -343,6 +349,7 @@
       "Guest_Bathroom": {
         "short_desc": "using the guest bathroom, shower, or bathtub",
         "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."],
+        "zeroshot_har_desc": "Guest Bathroom activity takes place a person uses the guest bathroom toilet",
         "multiple_desc": [
           "Using the guest bathroom briefly for restroom needs.",
           "Short visit to the guest bathroom with quick in-and-out movement.",
@@ -357,6 +364,7 @@
       "Dining_Rm_Activity": {
         "short_desc": "activity and motion in dining room",
         "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."],
+        "zeroshot_har_desc": "Dining Room Activity takes place when a person eats a meal in the dining room at the dining table",
         "multiple_desc": [
           "Spending time in the dining room with movement around the dining table.",
           "Sitting at the dining table for a meal or seated activity.",
@@ -369,22 +377,24 @@
         ]
       },
       "Desk_Activity": {
-        "short_desc": "working at desk in workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
+        "short_desc": "working at desk in the office",
+        "long_desc": ["Desk activity with brief to moderate durations in the office, centered on motion detection and presence near the desk area."],
+        "zeroshot_har_desc": "Desk Activity takes place when a person uses the desk in the office",
         "multiple_desc": [
-          "Working at the desk in the workspace with repeated presence near the desk.",
+          "Working at the desk in the office with repeated presence near the desk.",
           "Sitting at a desk using a computer or work materials.",
-          "Prolonged activity in the workspace staying close to the desk.",
+          "Prolonged activity in the office staying close to the desk.",
           "Light movement between nearby areas and the desk but mostly sitting.",
           "Focused desk work with relatively static posture.",
           "Daytime office-like activity at a workstation.",
-          "Remaining in the workspace for a sustained period.",
+          "Remaining in the office for a sustained period.",
           "Using a desk for work, study, or computer use."
         ]
       },
       "Leave_Home": {
         "short_desc": "leaving or entering the house through the door",
         "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"],
+        "zeroshot_har_desc": "Leave Home activity takes place when a person exist or enters the home",
         "multiple_desc": [
           "Leaving the home through the main entrance door.",
           "Short activity at the house entrance involving opening the front door.",
@@ -399,6 +409,7 @@
       "Chores": {
         "short_desc": "doing household chores",
         "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"],
+        "zeroshot_har_desc": "Chores activity represents cleaning of the house which may occur anywhere in home",
         "multiple_desc": [
           "Moving around multiple rooms to clean, tidy, or organize.",
           "Walking between bedroom and bathroom areas performing housework.",
@@ -413,6 +424,7 @@
       "Meditate": {
         "short_desc": "meditation",
         "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"],
+        "zeroshot_har_desc": "Meditation activity with short and long periods in guest bedroom showing area motion",
         "multiple_desc": [
           "Sitting quietly in the guest bedroom for an extended, still period.",
           "Low-movement presence in the guest bedroom consistent with meditation.",
@@ -426,11 +438,13 @@
       },
       "no_activity": {
         "short_desc": "no specific activity or idle time",
-        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement."]
+        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement."],
+        "zeroshot_har_desc": "no specific activity or idle time"
       },
       "Bed_to_Toilet": {
         "short_desc": "going from bed to toilet at night",
         "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
+        "zeroshot_har_desc": "Bed to Toilet activity takes place between master bedroom and master bathroom toilet in the middle of the night",
         "multiple_desc": [
           "Nighttime trip from bed to the bathroom and back.",
           "Short walk from sleeping area to toilet during the night.",
@@ -445,6 +459,7 @@
       "Morning_Meds": {
         "short_desc": "taking morning medication",
         "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"],
+        "zeroshot_har_desc": "Morning Medicines activity takes place when a person takes medicines from the kitchen medicine cabinet in morning",
         "multiple_desc": [
           "Quick morning visit to the kitchen to take medication.",
           "Short early-day activity focused on taking morning pills.",
@@ -459,6 +474,7 @@
       "Eve_Meds": {
         "short_desc": "taking evening medication",
         "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"],
+        "zeroshot_har_desc": "Evening Medicines activity takes place when a person takes medicines from the kitchen medicine cabinet in evening",
         "multiple_desc": [
           "Short evening or night visit to the kitchen to take medication.",
           "Late-night activity at the medicine cabinet and fridge.",
@@ -472,39 +488,48 @@
       },
       "Cook": {
         "short_desc": "cooking and preparing food",
-        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."]
+        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."],
+        "zeroshot_har_desc": "Cooking and kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."
       },
       "No_Activity": {
         "short_desc": "no specific activity or idle time",
-        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement.", "Inactive state with no significant motion."]
+        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement.", "Inactive state with no significant motion."],
+        "zeroshot_har_desc": "no specific activity or idle time"
       },
       "Work": {
-        "short_desc": "working at desk or workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."]
+        "short_desc": "working at desk or office",
+        "long_desc": ["Desk activity with brief to moderate durations in the office, centered on motion detection and presence near the desk area."],
+        "zeroshot_har_desc": "Work activity takes place when a person uses the desk in the office"
       },
       "Eat": {
         "short_desc": "eating meals",
-        "long_desc": ["Activity spanning short and long periods in dining room, including movement around the dining room table."]
+        "long_desc": ["Activity spanning short and long periods in dining room, including movement around the dining room table."],
+        "zeroshot_har_desc": "Eating Activity takes place when a person eats a meal in the dining room at the dining table"
       },
       "Relax": {
         "short_desc": "relaxing, watching TV or reading",
-        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in tv room, ranging from brief moments to extended periods."]
+        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in the office, ranging from brief moments to extended periods."],
+        "zeroshot_har_desc": "Relaxing activity takes place when a person watches TV the office on armchair or is reading sitting in the armchair in the living room"
       },
       "Bathing": {
         "short_desc": "bathing or using bathroom",
-        "long_desc": ["Bathroom activity in guest or master bathroom, with short transitions through nearby areas and motions related to hygiene."]
+        "long_desc": ["Bathroom activity in guest or master bathroom, with short transitions through nearby areas and motions related to hygiene."],
+        "zeroshot_har_desc": "Bathroom activity takes place a person uses any bathroom toilet"
       },
       "Other": {
         "short_desc": "other miscellaneous activities",
-        "long_desc": ["Activity often happening in guest bedroom or master bedroom only."]
+        "long_desc": ["Activity often happening in guest bedroom or master bedroom only."],
+        "zeroshot_har_desc": "other miscellaneous activities"
       },
       "Take_medicine": {
         "short_desc": "taking medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"]
+        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"],
+        "zeroshot_har_desc": "Medicines activity takes place when a person takes medicines from the kitchen medicine cabinet"
       },
       "Bed_to_toilet": {
         "short_desc": "going from bed to toilet at night",
-        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"]
+        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
+        "zeroshot_har_desc": "Bed to Toilet activity takes place between master bedroom and master bathroom toilet when a person goes to the master bedroom toilet or bathroom from the bed"
       }
     }
   },
@@ -550,7 +575,7 @@
       "M011": "hallway",
       "M012": "living",
       "M013": "living",
-      "M014": "living",
+      "M014": "dining",
       "M015": "kitchen",
       "M016": "kitchen",
       "M017": "kitchen",
@@ -559,8 +584,8 @@
       "M020": "living",
       "M021": "hallway",
       "M022": "hallway",
-      "M023": "bedroom",
-      "M024": "bedroom",
+      "M023": "guest bedroom",
+      "M024": "guest bathroom",
       "M025": "office",
       "M026": "office",
       "M027": "office",
@@ -579,17 +604,17 @@
       "D004": "garage"
     },
     "sensor_details": {
-      "M001": null,
-      "M002": "right side of bed",
-      "M003": "left side of bed",
-      "M004": null,
+      "M001": "near closet",
+      "M002": "near the nightstand",
+      "M003": "near the nightstand close to the entrance",
+      "M004": "in the bedroom close to the toilet and bathroom",
       "M005": null,
-      "M006": null,
-      "M007": null,
+      "M006": "near the home entrance aisle",
+      "M007": "between the bed and the toilet and bathroom",
       "M008": null,
       "M009": "couch left side seat",
       "M010": "couch right side seat",
-      "M011": "entrance hallway",
+      "M011": "home entrance aisle near the front door",
       "M012": null,
       "M013": null,
       "M014": null,
@@ -600,21 +625,25 @@
       "M019": null,
       "M020": null,
       "M021": null,
+      "M022": null,
+      "M023": null,
+      "M024": null,
+      "M025": null,
       "M026": "desk",
       "M027": null,
       "M028": null,
       "M029": "garage door",
-      "M030": null,
-      "M031": "closet",
+      "M030": "near the garage door",
+      "M031": null,
       "T001": null,
       "T002": null,
       "T003": null,
       "T004": null,
       "T005": null,
-      "D001": null,
-      "D002": null,
-      "D003": null,
-      "D004": null
+      "D001": "on front door",
+      "D002": "on the back door",
+      "D003": "door",
+      "D004": "door"
     },
     "sensor_type": {
       "M001": "motion",
@@ -721,23 +750,10 @@
     "label_deepcasas": {
     },
     "label_to_text": {
-      "Kitchen_Activity": {
-        "short_desc": "cooking and kitchen activities",
-        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."],
-        "multiple_desc": [
-          "General kitchen activity with movement between fridge, stove, and counters.",
-          "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
-          "Short visit to the kitchen involving opening the refrigerator and using the counter area.",
-          "Moderate time spent walking between sink, stove, and fridge in the kitchen.",
-          "Standing and moving around in the kitchen with occasional pauses near appliances.",
-          "Brief kitchen activity such as grabbing a snack or item from a cabinet.",
-          "Wandering around the kitchen with intermittent motion by the fridge and stove.",
-          "Mixed-purpose kitchen use, including standing, walking, and small tasks by the counter."
-          ]
-      },
-      "Sleep": {
+      "Sleeping": {
         "short_desc": "sleeping in bed in master bedroom, usually at night time",
         "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."],
+        "zeroshot_har_desc": "Sleeping activity takes place for hours when the resident sleeps in the bedroom",
         "multiple_desc": [
           "Sleeping in the master bedroom with prolonged stillness in the bed area.",
           "Nighttime rest in bed with minimal movement in the sleeping zone.",
@@ -749,107 +765,10 @@
           "Extended nighttime stay in the bed area with only minor position changes."
         ]
       },
-      "Read": {
-        "short_desc": "reading a book or newspaper in a static position",
-        "long_desc": ["Reading activity with presence in living room near armchair ranging from brief moments to extended periods."],
-        "multiple_desc": [
-          "Sitting quietly in the living room armchair while reading.",
-          "Prolonged stationary presence in a living room chair consistent with reading.",
-          "Low-movement activity in a seating area focused on reading material.",
-          "Remaining seated in one spot in the living room while reading.",
-          "Quiet leisure time in an armchair with minimal movement, indicative of reading.",
-          "Static presence near a favorite reading chair in the living room.",
-          "Evening reading session in the living room with little movement.",
-          "Relaxed reading in a sitting area with occasional posture adjustments."
-          ]
-      },
-      "Watch_TV": {
-        "short_desc": "watching television",
-        "long_desc": ["Watch TV activity with time spent in tv room, ranging from brief moments to extended periods"],
-        "multiple_desc": [
-          "Sitting in the TV room watching television for an extended period.",
-          "Stationary presence on a couch or chair in front of the TV with minor movement.",
-          "Evening leisure in the TV room, staying mostly in one seat to watch a show.",
-          "Long duration sitting in the TV area suggesting continuous TV watching.",
-          "Minimal walking and mostly seated activity around the entertainment center.",
-          "Watching TV in the living or TV room with brief posture adjustments.",
-          "Nighttime TV session with the person staying in the same seating area.",
-          "Relaxed TV viewing while seated, with little movement away from the TV."
-        ]
-      },
-      "Master_Bedroom_Activity": {
-        "short_desc": "activities and motion in the master bedroom",
-        "long_desc": ["General master bedroom bedroom activity during day or evening."],
-        "multiple_desc": [
-          "General activity in the master bedroom during the day, such as dressing or tidying.",
-          "Walking around the master bedroom, possibly organizing items or getting dressed.",
-          "Short to moderate stays in the bedroom not related to sleeping.",
-          "Moving between dresser, closet, and bed area in the master bedroom.",
-          "Daytime presence in the bedroom with intermittent walking and standing.",
-          "Entering and leaving the master bedroom for various small tasks.",
-          "Using the bedroom for non-sleep activities like changing clothes.",
-          "Light bedroom activity with motion near bed and storage furniture."
-        ]
-      },
-      "Master_Bathroom": {
-        "short_desc": "using the master bathroom, shower, or bathtub",
-        "long_desc": ["Activity or motion in the master bathroom, can be related to sleep or hygiene."],
-        "multiple_desc": [
-          "Using the master bathroom for toilet, sink, or shower-related tasks.",
-          "Short stay in the master bathroom consistent with a toilet visit.",
-          "Morning hygiene in the master bathroom such as brushing teeth.",
-          "Walking from the bedroom into the master bathroom and staying briefly.",
-          "Using the master bathroom shower or bathtub for bathing.",
-          "Evening hygiene routine with motion near sink and mirror.",
-          "Quick visit to the master bathroom then returning to the bedroom.",
-          "Moderate presence in the master bathroom for personal care activities."
-        ]
-      },
-      "Guest_Bathroom": {
-        "short_desc": "using the guest bathroom, shower, or bathtub",
-        "long_desc": ["Guest bathroom activity with short transitions through nearby common areas."],
-        "multiple_desc": [
-          "Using the guest bathroom briefly for restroom needs.",
-          "Short visit to the guest bathroom with quick in-and-out movement.",
-          "Guest bathroom use with motion near toilet and sink.",
-          "Bathroom activity followed by return to hallway or living room.",
-          "Daytime use of the guest bathroom for short hygiene tasks.",
-          "Moderate presence in the guest bathroom for washing up.",
-          "Occasional restroom trip to the guest bathroom.",
-          "Quick bathroom trip via the hallway into the guest bathroom and back."
-        ]
-      },
-      "Dining_Rm_Activity": {
-        "short_desc": "activity and motion in dining room",
-        "long_desc": ["Dining room activity with motion across living room and adjacent areas, back-and-forth transitions, and related movements in surrounding areas."],
-        "multiple_desc": [
-          "Spending time in the dining room with movement around the dining table.",
-          "Sitting at the dining table for a meal or seated activity.",
-          "Walking between kitchen and dining room then staying at the table.",
-          "Extended presence in the dining room chair while eating or working.",
-          "Short visits with brief seating at the dining table.",
-          "Activity near the dining table during meal or snack time.",
-          "Movement in and out of the dining room with time spent sitting.",
-          "Use of the dining table for eating, reading, or light tasks."
-        ]
-      },
-      "Desk_Activity": {
-        "short_desc": "working at desk in workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
-        "multiple_desc": [
-          "Working at the desk in the workspace with repeated presence near the desk.",
-          "Sitting at a desk using a computer or work materials.",
-          "Prolonged activity in the workspace staying close to the desk.",
-          "Light movement between nearby areas and the desk but mostly sitting.",
-          "Focused desk work with relatively static posture.",
-          "Daytime office-like activity at a workstation.",
-          "Remaining in the workspace for a sustained period.",
-          "Using a desk for work, study, or computer use."
-        ]
-      },
       "Leave_Home": {
         "short_desc": "leaving or entering the house through the door",
         "long_desc": ["Leave home activity with short bursts of entry and exit and doorway motion, as well as longer periods in house entrance and nearby areas"],
+        "zeroshot_har_desc": "Leave Home activity takes place for seconds when a person exist the home from the aisle near garage door, kitchen, dining room, bedroom, or office",
         "multiple_desc": [
           "Leaving the home through the main entrance door.",
           "Short activity at the house entrance involving opening the front door.",
@@ -861,9 +780,25 @@
           "Entry or exit behavior at the main doorway with very short duration."
         ]
       },
-      "Chores": {
+      "Enter_Home": {
+        "short_desc": "entering the home through the door",
+        "long_desc": ["Enter Home activity takes place for seconds when a person enters the aisle near garage door from the garage door"],
+        "zeroshot_har_desc": "Enter Home activity takes place for seconds when a person enters the aisle near garage door from the garage door",
+        "multiple_desc": [
+          "Entering the home through the garage door.",
+          "Short activity at the garage door involving opening the garage door.",
+          "Brief presence near the garage door then a long absence, indicating entering.",
+          "Returning home and entering through the garage door.",
+          "Quick pass from living room to garage door then entering the home.",
+          "Preparing to come home with activity near the garage door followed by entry.",
+          "Coming back home and moving from the garage door into interior rooms.",
+          "Entry or exit behavior at the garage door with very short duration."
+        ]
+      },
+      "Housekeeping": {
         "short_desc": "doing household chores",
         "long_desc": ["Chores activity with both short and occasional longer periods in master bathroom and master bedroom, often showing restroom motion, activity near sink, bed area motion, and movement in master,"],
+        "zeroshot_har_desc": "Housekeeping activity represents cleaning of the house which takes place for minutes and may occur anywhere in home",
         "multiple_desc": [
           "Moving around multiple rooms to clean, tidy, or organize.",
           "Walking between bedroom and bathroom areas performing housework.",
@@ -875,20 +810,6 @@
           "Multi-room maintenance activities like laundry or tidying."
         ]
       },
-      "Meditate": {
-        "short_desc": "meditation",
-        "long_desc": ["Meditation activity with short and long periods in guest bedroom showing area motion"],
-        "multiple_desc": [
-          "Sitting quietly in the guest bedroom for an extended, still period.",
-          "Low-movement presence in the guest bedroom consistent with meditation.",
-          "Remaining in one spot in the guest bedroom motionless for several minutes.",
-          "Quiet, stationary activity in the guest bedroom, likely meditation.",
-          "Evening stillness in the guest bedroom with almost no walking.",
-          "Focused meditation session in a single location with minimal motion.",
-          "Seated meditation in the guest bedroom with prolonged stillness.",
-          "Calm, uninterrupted presence in the guest bedroom reflecting meditation."
-        ]
-      },
       "no_activity": {
         "short_desc": "no specific activity or idle time",
         "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement."]
@@ -896,6 +817,7 @@
       "Bed_to_Toilet": {
         "short_desc": "going from bed to toilet at night",
         "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
+        "zeroshot_har_desc": "Bed to Toilet activity takes place for seconds when a person goes to the toilet or bathroom from the bed",
         "multiple_desc": [
           "Nighttime trip from bed to the bathroom and back.",
           "Short walk from sleeping area to toilet during the night.",
@@ -907,37 +829,50 @@
           "Brief nighttime bathroom trip with no other activity."
         ]
       },
-      "Morning_Meds": {
-        "short_desc": "taking morning medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the morning time"],
+      "Meal_Preparation": {
+        "short_desc": "cooking and preparing food",
+        "long_desc": ["Meal Preparation activity takes place for seconds or minutes when a person prepares meal in the kitchen"],
+        "zeroshot_har_desc": "Meal Preparation activity takes place for seconds or minutes when a person prepares meal in the kitchen",
         "multiple_desc": [
-          "Quick morning visit to the kitchen to take medication.",
-          "Short early-day activity focused on taking morning pills.",
-          "Morning routine involving accessing the medicine cabinet briefly.",
-          "Brief presence in the kitchen for morning medication.",
-          "Short kitchen stop after waking to take medicine.",
-          "Early-morning movement near fridge and medicine cabinet.",
-          "Minimal-duration kitchen activity centered on morning meds.",
-          "Regular morning medication-taking event in the kitchen."
-        ]
-      },
-      "Eve_Meds": {
-        "short_desc": "taking evening medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"],
-        "multiple_desc": [
-          "Short evening or night visit to the kitchen to take medication.",
-          "Late-night activity at the medicine cabinet and fridge.",
-          "Quick kitchen stop before bed to take evening pills.",
-          "Nighttime movement focused on accessing medicine.",
-          "Brief kitchen presence late in the day for medication.",
-          "Minimal-duration nighttime activity near medicine cabinet.",
-          "Evening medicine routine in the kitchen.",
-          "Nighttime trip to the kitchen to take medicine and leave."
+          "Preparing a meal in the kitchen with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen.",
+          "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
+          "Short visit to the kitchen involving opening the refrigerator and using the counter area.",
+          "Moderate time spent walking between sink, stove, and fridge in the kitchen.",
+          "Standing and moving around in the kitchen with occasional pauses near appliances.",
+          "Brief kitchen activity such as grabbing a snack or item from a cabinet.",
+          "Wandering around the kitchen with intermittent motion by the fridge and stove.",
+          "Mixed-purpose kitchen use, including standing, walking, and small tasks by the counter."
         ]
       },
       "Cook": {
         "short_desc": "cooking and preparing food",
-        "long_desc": ["Kitchen activity with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen."]
+        "long_desc": ["Meal Preparation activity takes place for seconds or minutes when a person prepares meal in the kitchen"],
+        "zeroshot_har_desc": "Meal Preparation activity takes place for seconds or minutes when a person prepares meal in the kitchen",
+        "multiple_desc": [
+          "Preparing a meal in the kitchen with motion by refrigerator, cooking area activity, and brief movements near stove or within the kitchen.",
+          "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
+          "Short visit to the kitchen involving opening the refrigerator and using the counter area.",
+          "Moderate time spent walking between sink, stove, and fridge in the kitchen.",
+          "Standing and moving around in the kitchen with occasional pauses near appliances.",
+          "Brief kitchen activity such as grabbing a snack or item from a cabinet.",
+          "Wandering around the kitchen with intermittent motion by the fridge and stove.",
+          "Mixed-purpose kitchen use, including standing, walking, and small tasks by the counter."
+        ]
+      },
+      "Wash_Dishes": {
+        "short_desc": "washing dishes",
+        "long_desc": ["Wash Dishes activity takes place for seconds or minutes when a person collects dishes from dining table and washes dishes near the sink in the kitchen"],
+        "zeroshot_har_desc": "Wash Dishes activity takes place for seconds or minutes when a person collects dishes from dining table and washes dishes near the sink in the kitchen",
+        "multiple_desc": [
+          "Washing dishes in the kitchen with motion by sink, dishwasher, and brief movements near stove or within the kitchen.",
+          "Moving around the kitchen without a clearly defined task, light food prep or tidying.",
+          "Short visit to the kitchen involving opening the refrigerator and using the counter area.",
+          "Moderate time spent walking between sink, stove, and fridge in the kitchen.",
+          "Standing and moving around in the kitchen with occasional pauses near appliances.",
+          "Brief kitchen activity such as grabbing a snack or item from a cabinet.",
+          "Wandering around the kitchen with intermittent motion by the fridge and stove.",
+          "Mixed-purpose kitchen use, including standing, walking, and small tasks by the counter."
+        ]
       },
       "No_Activity": {
         "short_desc": "no specific activity or idle time",
@@ -945,31 +880,32 @@
       },
       "Work": {
         "short_desc": "working at desk or workspace",
-        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."]
+        "long_desc": ["Desk activity with brief to moderate durations in workspace, centered on motion detection and presence near the desk area."],
+        "zeroshot_har_desc": "Work activity takes place for seconds, minutes, or hours in the office"
       },
       "Eat": {
         "short_desc": "eating meals",
-        "long_desc": ["Activity spanning short and long periods in dining room, including movement around the dining room table."]
+        "long_desc": ["Activity spanning short and long periods in dining room, including movement around the dining room table."],
+        "zeroshot_har_desc": "Eat activity takes place for minutes when the person is eating near the dining area"
+      },
+      "Eating": {
+        "short_desc": "eating meals",
+        "long_desc": ["Activity spanning short and long periods in dining room, including movement around the dining room table."],
+        "zeroshot_har_desc": "Eat activity takes place for minutes when the person is eating near the dining area"
       },
       "Relax": {
         "short_desc": "relaxing, watching TV or reading",
-        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in tv room, ranging from brief moments to extended periods."]
-      },
-      "Bathing": {
-        "short_desc": "bathing or using bathroom",
-        "long_desc": ["Bathroom activity in guest or master bathroom, with short transitions through nearby areas and motions related to hygiene."]
+        "long_desc": ["Reading or watch TV activity with time spent in living room near armchair or in tv room, ranging from brief moments to extended periods."],
+        "zeroshot_har_desc": "Relax activity takes place for minutes and represents a person relaxing typically in the living room"
       },
       "Other": {
         "short_desc": "other miscellaneous activities",
         "long_desc": ["Activity often happening in guest bedroom or master bedroom only."]
       },
-      "Take_medicine": {
-        "short_desc": "taking medication",
-        "long_desc": ["Medication activity with very short spans in kitchen, typically under a minute, showing movement by medicine cabinet and doorway in the evening and night time"]
-      },
       "Bed_to_toilet": {
         "short_desc": "going from bed to toilet at night",
-        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"]
+        "long_desc": ["Leaving bed during night and moving to bathroom, including short transition from master bedroom bed to toilet"],
+        "zeroshot_har_desc": "Bed to Toilet activity takes place for seconds when a person goes to the toilet or bathroom from the bed"
       }
     },
     "label_color": {

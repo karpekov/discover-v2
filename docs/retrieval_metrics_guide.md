@@ -1,8 +1,8 @@
-# Label-Recall@K Retrieval Metrics Guide
+# Label Score@K Retrieval Metrics Guide
 
 ## Overview
 
-The `compute_retrieval_metrics.py` script computes Label-Recall@K metrics for cross-modal retrieval between text and sensor embeddings. This metric measures how well embeddings from one modality can retrieve relevant examples from another modality based on label similarity.
+The `compute_retrieval_metrics.py` script computes Label-Precision/Score@K metrics for cross-modal retrieval between text and sensor embeddings, plus an optional sensor → sensor sanity check. These metrics measure how well embeddings from one modality can retrieve relevant examples from another modality (or itself) based on label similarity.
 
 ## What is Label-Recall@K?
 
@@ -23,6 +23,8 @@ The final metric is the average across all queries.
 
 #### Instance-to-Instance Retrieval (Default)
 
+By default the `directions` parameter includes `text2sensor` and `sensor2text`. You can add `sensor2sensor` and/or `text2text` to compute self-retrieval sanity checks where each embedding dresses its nearest neighbors without returning itself.
+
 ```bash
 # Basic usage with both retrieval directions
 python src/evals/compute_retrieval_metrics.py \
@@ -30,7 +32,16 @@ python src/evals/compute_retrieval_metrics.py \
     --text_embeddings results/evals/text_emb.npy \
     --labels results/evals/labels.npy \
     --k_values 10 50 100 \
-    --directions both \
+    --directions text2sensor sensor2text \
+    --normalize
+
+# Add sensor/text self-checks
+python src/evals/compute_retrieval_metrics.py \
+    --sensor_embeddings results/evals/sensor_emb.npy \
+    --text_embeddings results/evals/text_emb.npy \
+    --labels results/evals/labels.npy \
+    --k_values 10 50 \
+    --directions text2sensor sensor2text sensor2sensor text2text \
     --normalize
 
 # Text-to-sensor retrieval only
@@ -113,6 +124,16 @@ results = compute_label_recall_at_k(
 # Print formatted results
 print_results_summary(results)
 
+# To include sensor/text self-checks, extend `directions`:
+results_self = compute_label_recall_at_k(
+    sensor_embeddings=sensor_embeddings,
+    text_embeddings=text_embeddings,
+    labels=labels,
+    k_values=[10, 50, 100],
+    directions=['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor'],
+    normalize=True,
+    verbose=True
+:)
 # Access results programmatically
 text2sensor_recall_at_10 = results['text2sensor'][10]
 sensor2text_recall_at_50 = results['sensor2text'][50]

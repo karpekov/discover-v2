@@ -132,9 +132,6 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         # Day of week
         dow = first_event['datetime'].strftime('%A')
 
-        # Month description
-        month_desc = self._generate_month_description(first_event['datetime'])
-
         # Time of day
         tod = metadata.get('tod_bucket', None)
         if tod is None:
@@ -169,7 +166,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Generate Layer A caption with special sensors (or None if not available)
         layer_a = self._generate_natural_caption(
-            dow, month_desc, tod, dur, unique_rooms, df, metadata,
+            dow, tod, dur, unique_rooms, df, metadata,
             special_sensors=special_sensors
         )
 
@@ -264,7 +261,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         room_keywords = [
             "master bedroom", "master bathroom", "kitchen", "entryway", "dining room",
             "living room", "workspace", "tv room", "hallway", "guest bathroom",
-            "guest bedroom", "bathroom", "bedroom", "laundry"
+            "guest bedroom", "bathroom", "bedroom", "laundry", "office"
         ]
         room = next((r for r in room_keywords if r in desc_lower), "unknown")
 
@@ -272,7 +269,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         area_keywords = [
             "bed", "fridge", "stove", "toilet", "sink", "cabinet", "desk",
             "armchair", "chair", "island", "medicine", "bathtub", "shower", "table", "pill",
-            "entrance", "doorway"
+            "entrance", "doorway", "TV"
         ]
         tags = [k for k in area_keywords if k in desc_lower]
 
@@ -325,7 +322,6 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
     def _generate_natural_caption(self,
                                  dow: str,
-                                 month_desc: str,
                                  tod: str,
                                  dur: float,
                                  unique_rooms: List[str],
@@ -351,7 +347,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Time context
         temporal_at_start = self.random.choice([True, False])
-        time_context = f"on {dow} in {month_desc} {time_phrase}"
+        time_context = f"on {dow} {time_phrase}"
 
         if use_active_mode:
             resident_terms = ['resident', 'dweller', 'occupant', 'person', 'individual']
@@ -527,26 +523,6 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         phrases = time_phrases.get(tod_key, time_phrases['evening'])
         return self.random.choice(phrases)
 
-    def _generate_month_description(self, timestamp: datetime) -> str:
-        """Generate diverse month descriptions."""
-        month_num = timestamp.month
-
-        full_names = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ]
-        abbrev_names = [
-            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-        ]
-
-        style = self.random.choice(['full', 'abbrev'])
-
-        if style == 'full':
-            return full_names[month_num - 1]
-        else:
-            return abbrev_names[month_num - 1]
-
     def _generate_room_description(self, unique_rooms: List[str]) -> str:
         """Generate natural room transition description."""
         # Clean room names: replace underscores with spaces
@@ -616,7 +592,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         elif 'stove' in detail_lower or 'cooking' in detail_lower:
             options = ['stove activity', 'cooking area motion', 'activity near stove', 'using stove']
         elif 'desk' in detail_lower:
-            options = ['desk activity', 'workspace motion', 'activity at desk', 'working at desk', 'using desk', 'sitting at desk']
+            options = ['working at desk', 'sitting and using desk', 'sitting at work desk']
         elif 'table' in detail_lower and 'dining' in detail_lower:
             options = ['dining table activity', 'movement at dining table', 'eating at dining table', 'sitting at dining table']
         elif 'table' in detail_lower:
@@ -633,6 +609,8 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
             options = ['door activity', 'door sensor activation']
         elif 'couch' in detail_lower or 'sofa' in detail_lower:
             options = ['couch activity', 'movement on sofa', 'sitting on sofa', 'using sofa']
+        elif 'tv' in detail_lower and 'armchair' in detail_lower:
+            options = ['sitting and watching TV', 'watching TV from the armchair', 'using TV from the armchair']
         elif 'armchair' in detail_lower or 'chair' in detail_lower:
             options = ['chair activity', 'seating area motion', 'sitting on chair', 'using chair']
         else:
@@ -674,8 +652,7 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
 
         # Build base layer B
         layer_b = (f"span={start_time}-{end_time}; dur={dur}m; dow={dow}; "
-                  f"month={first_event['datetime'].month}; tod={tod}; "
-                  f"rooms={list(detail.keys())}; sensors={detail}")
+                  f"tod={tod}; rooms={list(detail.keys())}; sensors={detail}")
 
         # Add special sensor information if available
         if special_sensors:

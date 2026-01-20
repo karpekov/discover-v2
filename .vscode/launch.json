@@ -151,21 +151,21 @@
     },
 
     {
-        "name": "Debug: Evaluate Embeddings (RETRIEVAL)",
+        "name": "Debug: Evaluate Embeddings (only_retrieval)",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder}/src/evals/evaluate_embeddings.py",
         "console": "integratedTerminal",
         "justMyCode": false,
         "args": [
-            "--checkpoint", "trained_models/milan/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1/best_model.pt",
+            "--checkpoint", "trained_models/milan/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v1/best_model.pt",
             "--train_data", "data/processed/casas/milan/FD_60_p/train.json",
             "--test_data", "data/processed/casas/milan/FD_60_p/test.json",
             "--vocab", "data/processed/casas/milan/FD_60_p/vocab.json",
-            "--output_dir", "results/evals/milan/FD_60_p/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1",
+            "--output_dir", "results/evals/milan/FD_60_p/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v1",
             "--train_text_embeddings", "data/processed/casas/milan/FD_60_p/train_embeddings_baseline_clip.npz",
             "--test_text_embeddings", "data/processed/casas/milan/FD_60_p/test_embeddings_baseline_clip.npz",
-            "--max_samples", "100",
+            "--max_samples", "10000",
             "--filter_noisy_labels",
             "--only_retrieval"
         ],

@@ -19,16 +19,12 @@ from evals.compute_retrieval_metrics import (
 
 ### 2. New Visualization Functions
 
-#### `create_retrieval_metrics_visualization()`
-Creates a comprehensive 2-subplot visualization:
-- **Left plot**: Line chart showing Label-Recall@K vs K for all 4 directions
+- **Left plot**: Line chart showing Label Score@K (instance recall + prototype precision) vs K for all 6 directions (text2sensor, sensor2text, text2text, sensor2sensor, prototype2sensor, prototype2text)
 - **Right plot**: Bar chart comparing all methods at a specific K value
 
 **Output**: `retrieval_metrics_comparison.png`
 
-#### `create_per_label_retrieval_heatmap()`
-Creates per-label performance visualization:
-- Horizontal bar chart showing retrieval recall for each activity label
+- Horizontal bar chart showing retrieval precision for each activity label
 - Color-coded by performance (red to green)
 - Sorted by performance for easy identification of strong/weak labels
 - Shows average performance line
@@ -48,8 +44,9 @@ instance_retrieval_results = compute_label_recall_at_k(
     text_embeddings=test_text_emb_proj,
     labels=np.array(test_labels_l1),
     k_values=[10, 50, 100],
-    directions=['text2sensor', 'sensor2text'],
-    normalize=True
+    directions=['text2sensor', 'sensor2text', 'sensor2sensor'],
+    normalize=True,
+    exclude_self=True
 )
 
 # Prototype-based retrieval
@@ -80,7 +77,9 @@ The results file now has two main sections:
   "retrieval_metrics": {
     "instance_to_instance": {
       "text2sensor": { "10": 0.XX, "50": 0.XX, "100": 0.XX },
-      "sensor2text": { "10": 0.XX, "50": 0.XX, "100": 0.XX }
+      "sensor2text": { "10": 0.XX, "50": 0.XX, "100": 0.XX },
+      "text2text": { "10": 0.XX, "50": 0.XX, "100": 0.XX },
+      "sensor2sensor": { "10": 0.XX, "50": 0.XX, "100": 0.XX }
     },
     "prototype_based": {
       "prototype2sensor": { "10": 0.XX, "50": 0.XX, "100": 0.XX },
@@ -96,11 +95,11 @@ Added detailed retrieval metrics summary to console output:
 
 ```
 ================================================================================
-📊 RETRIEVAL METRICS SUMMARY (Label-Recall@K)
+📊 RETRIEVAL METRICS SUMMARY (Instance Recall@K + Prototype Precision@K)
 ================================================================================
 
-Label-Recall @ K=50:
-Direction                      Recall
+Label Score @ K=50 (Instance recall, Prototype precision):
+Direction                      Score
 ------------------------------------------
 Text → Sensor                  0.7234      (72.34%)
 Sensor → Text                  0.7156      (71.56%)
@@ -115,8 +114,11 @@ Text → Sensor:
   K=100  =>  0.6923 (69.23%)
 ...
 ```
+The console summary now includes both the Sensor → Sensor and Text → Text directions so you have self-retrieval checks for each modality.
 
-## All 4 Retrieval Variants
+## Retrieval Variants
+
+In addition to the cross-modal combinations below, the evaluation now also reports self-retrieval sanity checks for both sensor and text embeddings.
 
 ### 1. Text → Sensor (Instance-to-Instance)
 - **Query**: Text embeddings of activity descriptions
@@ -128,12 +130,17 @@ Text → Sensor:
 - **Target**: Text embeddings of activity descriptions
 - **Use case**: Can sensor events find their text descriptions?
 
-### 3. Prototype → Sensor (Prototype-Based)
+### 3. Text → Text (Instance-to-Instance)
+- **Query**: Projected text embeddings
+- **Target**: Projected text embeddings (excluding the query itself)
+- **Use case**: Self-similarity sanity check to ensure text embeddings are not trivially identical and retrieval changes when the query is removed
+
+### 4. Prototype → Sensor (Prototype-Based)
 - **Query**: Text prototypes from metadata (canonical label descriptions)
 - **Target**: Sensor embeddings
 - **Use case**: Can label definitions retrieve all sensor examples of that activity?
 
-### 4. Prototype → Text (Prototype-Based)
+### 5. Prototype → Text (Prototype-Based)
 - **Query**: Text prototypes from metadata
 - **Target**: Text embeddings of activity descriptions
 - **Use case**: Can label definitions retrieve all text descriptions of that activity?

@@ -232,6 +232,9 @@ class BaseSampler(ABC):
         if self.config.filter_numeric_sensors:
             df = self._filter_numeric_sensors(df)
 
+        # Add temporal bucketing features (tod_bucket, time_delta_bucket)
+        df = self._add_temporal_features(df)
+
         return df
 
     def _filter_numeric_sensors(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -243,6 +246,85 @@ class BaseSampler(ABC):
                 print(f"  Filtered {len(df) - len(filtered_df)} numeric sensor events")
             return filtered_df
 
+        return df
+
+    def _add_temporal_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add temporal bucketing features (tod_bucket, day_of_week, time_delta_bucket).
+
+        Uses the same bucketing logic as the DataLoader class for consistency.
+        """
+        # Ensure we have a datetime column
+        if 'datetime' not in df.columns:
+            if 'timestamp' in df.columns:
+                df['datetime'] = pd.to_datetime(df['timestamp'])
+            else:
+                print("  Warning: No datetime/timestamp column found, skipping temporal features")
+                return df
+
+        # Extract hour if not already present
+        if 'hour' not in df.columns:
+            df['hour'] = df['datetime'].dt.hour
+
+        # Time of day bucketing (using parts_of_day bucketing style)
+        def _get_tod_bucket(hour):
+            """Convert hour to time-of-day bucket."""
+            if 5 <= hour < 8:
+                return 'early_morning'
+            elif 8 <= hour < 12:
+                return 'late_morning'
+            elif 12 <= hour < 17:
+                return 'afternoon'
+            elif 17 <= hour < 21:
+                return 'evening'
+            elif 21 <= hour < 24:
+                return 'night_before_midnight'
+            else:  # 0 <= hour < 5
+                return 'night_after_midnight'
+
+        df['tod_bucket'] = df['hour'].apply(_get_tod_bucket)
+
+        # Day of week bucketing (0=Monday, 6=Sunday)
+        def _get_dow_bucket(dow):
+            """Convert day of week to readable bucket."""
+            days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+            return days[dow] if 0 <= dow <= 6 else 'unknown'
+
+        if 'day_of_week' not in df.columns:
+            df['day_of_week'] = df['datetime'].dt.dayofweek
+
+        df['dow_bucket'] = df['day_of_week'].apply(_get_dow_bucket)
+
+        # Time delta bucketing
+        df['time_delta_sec'] = df['datetime'].diff().dt.total_seconds().fillna(0)
+
+        def _get_delta_t_bucket(delta_sec):
+            """Convert time delta to bucket."""
+            if pd.isna(delta_sec) or delta_sec <= 0:
+                return 'dt_0'
+
+            # Convert to minutes
+            delta_min = delta_sec / 60
+
+            # Cap at 60 minutes (max_delta_t_minutes default)
+            delta_min = min(delta_min, 60)
+
+            # Log-spaced buckets
+            if delta_min <= 1:
+                return 'dt_lt1min'
+            elif delta_min <= 2:
+                return 'dt_1-2min'
+            elif delta_min <= 5:
+                return 'dt_2-5min'
+            elif delta_min <= 10:
+                return 'dt_5-10min'
+            elif delta_min <= 30:
+                return 'dt_10-30min'
+            else:
+                return 'dt_gt30min'
+
+        df['time_delta_bucket'] = df['time_delta_sec'].apply(_get_delta_t_bucket)
+
+        print(f"  Added temporal features (tod_bucket, dow_bucket, time_delta_bucket)")
         return df
 
     def _split_by_days(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -358,7 +440,8 @@ class BaseSampler(ABC):
             # Add all available metadata (column names are now standardized)
             optional_fields = [
                 'room', 'sensor_type', 'sensor_detail', 'x', 'y', 'floor',
-                'activity_l1', 'activity_l2', 'activity_full'
+                'activity_l1', 'activity_l2', 'activity_full',
+                'tod_bucket', 'dow_bucket', 'time_delta_bucket'  # Temporal bucketed features
             ]
 
             for field in optional_fields:

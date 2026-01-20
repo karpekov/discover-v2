@@ -25,7 +25,14 @@ python src/evals/evaluate_embeddings.py \
     --train_text_embeddings data/processed/casas/milan/FD_60_p/train_embeddings_baseline_clip.npz \
     --test_text_embeddings data/processed/casas/milan/FD_60_p/test_embeddings_baseline_clip.npz \
     --max_samples 10000 \
-    --filter_noisy_labels
+    --filter_noisy_labels \
+    --description_style long_desc
+
+Prototype Customization:
+- --description_style: Specifies which description field to use from metadata for text prototypes
+  Options: 'long_desc' (default), 'short_desc', 'zeroshot_har_desc', or any custom field
+  Example: --description_style zeroshot_har_desc
+- --use_multiple_prototypes: Create multiple prototypes per label (uses 'multiple_desc' field)
 
 Output Files:
 - combined_tsne_l1.png - 3-subplot t-SNE (text no proj | text proj | sensor)
@@ -85,6 +92,9 @@ class EmbeddingEvaluator:
         self.config = config
         self.device = get_optimal_device()
         log_device_info(self.device)
+
+        # Store description style (default to long_desc)
+        self.description_style = config.get('description_style', 'long_desc')
 
         # Load models and data
         self._load_models()
@@ -465,10 +475,10 @@ class EmbeddingEvaluator:
 
         # Define labels to exclude (case-insensitive)
         exclude_labels = {
-            # 'other',
-            'no_activity',
-            # 'unknown', 'none', 'null', 'nan',
-            # 'no activity', 'other activity', 'miscellaneous', 'misc'
+            'other',
+            'no_activity', 'No_Activity',
+            'unknown', 'none', 'null', 'nan',
+            'no activity', 'other activity', 'miscellaneous', 'misc'
         }
 
         # If no original indices provided, create them
@@ -688,7 +698,7 @@ class EmbeddingEvaluator:
             print(f"   📋 Using {len(unique_labels)} labels with multiple_desc field")
         else:
             # Use existing convert_labels_to_text function
-            label_descriptions_lists = convert_labels_to_text(unique_labels)
+            label_descriptions_lists = convert_labels_to_text(unique_labels, house_name=self.dataset_name, description_style=self.description_style)
             label_descriptions_dict = {label: label_descriptions_lists[i] for i, label in enumerate(unique_labels)}
 
         # Create prototypes dictionary
@@ -786,7 +796,7 @@ class EmbeddingEvaluator:
 
                 if not captions:
                     # Fallback to generated descriptions if no captions available
-                    descriptions = convert_labels_to_text([label])[0]
+                    descriptions = convert_labels_to_text([label], house_name=self.dataset_name, description_style=self.description_style)[0]
                     captions = descriptions[:n_shots] if len(descriptions) >= n_shots else descriptions
 
                 # Encode captions and average
@@ -3184,10 +3194,14 @@ class EmbeddingEvaluator:
                 k_values_list = sorted(k_results.keys())
                 break
 
+        direction_order = ['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor', 'prototype2sensor', 'prototype2text']
+
         # Colors for different retrieval types
         colors = {
             'text2sensor': '#1f77b4',        # Blue
             'sensor2text': '#ff7f0e',        # Orange
+            'text2text': '#8c564b',          # Brown
+            'sensor2sensor': '#9467bd',      # Purple
             'prototype2sensor': '#2ca02c',   # Green
             'prototype2text': '#d62728'      # Red
         }
@@ -3196,6 +3210,8 @@ class EmbeddingEvaluator:
         labels_map = {
             'text2sensor': 'Text → Sensor',
             'sensor2text': 'Sensor → Text',
+            'text2text': 'Text → Text',
+            'sensor2sensor': 'Sensor → Sensor',
             'prototype2sensor': 'Prototype → Sensor',
             'prototype2text': 'Prototype → Text'
         }
@@ -3206,20 +3222,22 @@ class EmbeddingEvaluator:
                 return k_result.get(metric_type, 0.0)
             return k_result  # Backward compatibility
 
+        score_label = 'Label-Precision@K'
+
         # Plot 1: Macro average across K values
         ax1 = axes[0, 0]
-        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+        for direction in direction_order:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
-                recalls = [get_metric(k_results[k], 'macro') for k in k_values_list]
+                precisions = [get_metric(k_results[k], 'macro') for k in k_values_list]
 
-                ax1.plot(k_values_list, recalls, 'o-',
+                ax1.plot(k_values_list, precisions, 'o-',
                         color=colors.get(direction, '#333333'),
                         label=labels_map.get(direction, direction),
                         linewidth=2.5, markersize=8, alpha=0.8)
 
         ax1.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
-        ax1.set_ylabel('Label-Recall@K (Macro)', fontsize=12)
+        ax1.set_ylabel(score_label, fontsize=12)
         ax1.set_title('Macro Average (Equal Weight per Class)', fontweight='bold', fontsize=13)
         ax1.legend(fontsize=10, loc='best')
         ax1.grid(True, alpha=0.3)
@@ -3228,18 +3246,18 @@ class EmbeddingEvaluator:
 
         # Plot 2: Weighted average across K values
         ax2 = axes[0, 1]
-        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+        for direction in direction_order:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
-                recalls = [get_metric(k_results[k], 'weighted') for k in k_values_list]
+                precisions = [get_metric(k_results[k], 'weighted') for k in k_values_list]
 
-                ax2.plot(k_values_list, recalls, 'o-',
+                ax2.plot(k_values_list, precisions, 'o-',
                         color=colors.get(direction, '#333333'),
                         label=labels_map.get(direction, direction),
                         linewidth=2.5, markersize=8, alpha=0.8)
 
         ax2.set_xlabel('K (Number of Retrieved Neighbors)', fontsize=12)
-        ax2.set_ylabel('Label-Recall@K (Weighted)', fontsize=12)
+        ax2.set_ylabel(score_label, fontsize=12)
         ax2.set_title('Weighted Average (By Class Prevalence)', fontweight='bold', fontsize=13)
         ax2.legend(fontsize=10, loc='best')
         ax2.grid(True, alpha=0.3)
@@ -3254,7 +3272,7 @@ class EmbeddingEvaluator:
         bar_labels = []
         bar_colors = []
 
-        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+        for direction in direction_order:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
                 if middle_k in k_results:
@@ -3266,7 +3284,7 @@ class EmbeddingEvaluator:
             x = np.arange(len(bar_data_macro))
             bars = ax3.bar(x, bar_data_macro, color=bar_colors, alpha=0.8, width=0.6)
 
-            ax3.set_ylabel('Label-Recall@K (Macro)', fontsize=12)
+            ax3.set_ylabel(score_label, fontsize=12)
             ax3.set_title(f'Macro Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
             ax3.set_xticks(x)
             ax3.set_xticklabels(bar_labels, rotation=15, ha='right', fontsize=10)
@@ -3288,7 +3306,7 @@ class EmbeddingEvaluator:
         bar_labels2 = []
         bar_colors2 = []
 
-        for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+        for direction in direction_order:
             if direction in retrieval_results and retrieval_results[direction]:
                 k_results = retrieval_results[direction]
                 if middle_k in k_results:
@@ -3300,7 +3318,7 @@ class EmbeddingEvaluator:
             x = np.arange(len(bar_data_weighted))
             bars = ax4.bar(x, bar_data_weighted, color=bar_colors2, alpha=0.8, width=0.6)
 
-            ax4.set_ylabel('Label-Recall@K (Weighted)', fontsize=12)
+            ax4.set_ylabel(score_label, fontsize=12)
             ax4.set_title(f'Weighted Comparison @ K={middle_k}', fontweight='bold', fontsize=13)
             ax4.set_xticks(x)
             ax4.set_xticklabels(bar_labels2, rotation=15, ha='right', fontsize=10)
@@ -3339,15 +3357,15 @@ class EmbeddingEvaluator:
             query_labels: Labels for queries (N_q,)
             target_labels: Labels for targets (N_t,)
             direction_name: Name of retrieval direction
-            k: K value for recall computation
+            k: K value for precision computation
             save_path: Path to save plot
         """
         from evals.compute_retrieval_metrics import compute_per_label_recall_at_k, compute_macro_and_weighted_metrics
 
         print(f"🎨 Creating per-label instance retrieval heatmap for {direction_name}...")
 
-        # Compute per-label recall and counts
-        per_label_recalls, per_label_counts = compute_per_label_recall_at_k(
+        # Compute per-label precision and counts (note: function name is legacy, it computes precision)
+        per_label_precisions, per_label_counts = compute_per_label_recall_at_k(
             query_embeddings=query_embeddings,
             target_embeddings=target_embeddings,
             query_labels=query_labels,
@@ -3357,59 +3375,59 @@ class EmbeddingEvaluator:
         )
 
         # Compute macro and weighted metrics
-        macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
-            per_label_recalls, per_label_counts
+        macro_precision, weighted_precision = compute_macro_and_weighted_metrics(
+            per_label_precisions, per_label_counts
         )
 
         # Convert to arrays for plotting
-        labels = list(per_label_recalls.keys())
-        recalls = [per_label_recalls[label] for label in labels]
+        labels = list(per_label_precisions.keys())
+        precisions = [per_label_precisions[label] for label in labels]
 
         # Create bar plot
         fig, ax = plt.subplots(figsize=(max(12, len(labels) * 0.5), 8))
 
-        # Sort by recall for better visualization
-        sorted_indices = np.argsort(recalls)[::-1]
+        # Sort by precision for better visualization
+        sorted_indices = np.argsort(precisions)[::-1]
         sorted_labels = np.array(labels)[sorted_indices]
-        sorted_recalls = np.array(recalls)[sorted_indices]
+        sorted_precisions = np.array(precisions)[sorted_indices]
 
         # Limit to top 20 for readability
         if len(sorted_labels) > 20:
             sorted_labels = sorted_labels[:20]
-            sorted_recalls = sorted_recalls[:20]
+            sorted_precisions = sorted_precisions[:20]
 
         # Create horizontal bar chart
         y_pos = np.arange(len(sorted_labels))
-        colors_bars = plt.cm.RdYlGn(sorted_recalls)  # Color based on performance
+        colors_bars = plt.cm.RdYlGn(sorted_precisions)  # Color based on performance
 
-        bars = ax.barh(y_pos, sorted_recalls, color=colors_bars, alpha=0.8)
+        bars = ax.barh(y_pos, sorted_precisions, color=colors_bars, alpha=0.8)
 
         ax.set_yticks(y_pos)
         ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
-        ax.set_xlabel(f'Label-Recall@{k}', fontsize=12)
+        ax.set_xlabel(f'Label-Precision@{k}', fontsize=12)
         ax.set_title(f'Per-Label Instance Retrieval: {direction_name}',
                     fontweight='bold', fontsize=14)
         ax.set_xlim(0, 1)
         ax.grid(True, alpha=0.3, axis='x')
 
         # Add value labels
-        for i, (bar, recall) in enumerate(zip(bars, sorted_recalls)):
+        for i, (bar, precision) in enumerate(zip(bars, sorted_precisions)):
             width = bar.get_width()
-            ax.annotate(f'{recall:.3f}',
+            ax.annotate(f'{precision:.3f}',
                        xy=(width, bar.get_y() + bar.get_height() / 2),
                        xytext=(5, 0),
                        textcoords="offset points",
                        ha='left', va='center', fontsize=8)
 
         # Add macro and weighted lines
-        ax.axvline(macro_recall, color='blue', linestyle='--', linewidth=2, alpha=0.7,
-                  label=f'Macro: {macro_recall:.3f}')
-        ax.axvline(weighted_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
-                  label=f'Weighted: {weighted_recall:.3f}')
+        ax.axvline(macro_precision, color='blue', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Macro: {macro_precision:.3f}')
+        ax.axvline(weighted_precision, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Weighted: {weighted_precision:.3f}')
         ax.legend(fontsize=10)
 
         # Add text box with metrics in corner
-        textstr = f'Macro: {macro_recall:.4f}\nWeighted: {weighted_recall:.4f}\nN={len(labels)} classes'
+        textstr = f'Macro: {macro_precision:.4f}\nWeighted: {weighted_precision:.4f}\nN={len(labels)} classes'
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.9)
         ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=11,
                 verticalalignment='top', bbox=props)
@@ -3438,7 +3456,7 @@ class EmbeddingEvaluator:
             target_labels: Labels for targets (N_targets,)
             prototype_embeddings: Prototype embeddings (N_prototypes, D)
             direction_name: Name of retrieval direction
-            k: K value for recall computation
+        k: K value for precision computation
             save_path: Path to save plot
         """
         from evals.compute_retrieval_metrics import (
@@ -3455,56 +3473,64 @@ class EmbeddingEvaluator:
         # Compute similarity matrix
         similarities = compute_cosine_similarity(prototype_embeddings_norm, target_embeddings_norm)
 
-        # For each prototype, compute recall@k
-        per_label_recalls = []
+        # For each prototype, compute precision@k (truncate to available positives)
+        target_label_counts = Counter(str(label) for label in target_labels)
+        per_label_precisions = []
         for i, proto_label in enumerate(prototype_labels):
+            proto_label_str = str(proto_label)
             proto_sims = similarities[i]
-            top_k_indices = np.argsort(proto_sims)[-k:][::-1]
+            label_total = target_label_counts.get(proto_label_str, 0)
+            if label_total == 0:
+                per_label_precisions.append(0.0)
+                continue
+
+            k_effective = min(k, label_total)
+            top_k_indices = np.argsort(proto_sims)[-k_effective:][::-1]
             top_k_labels = target_labels[top_k_indices]
             n_matching = np.sum(top_k_labels == proto_label)
-            recall = n_matching / k
-            per_label_recalls.append(recall)
+            precision = n_matching / k_effective if k_effective > 0 else 0.0
+            per_label_precisions.append(precision)
 
         # Create bar plot
         fig, ax = plt.subplots(figsize=(max(12, len(prototype_labels) * 0.5), 8))
 
-        # Sort by recall for better visualization
-        sorted_indices = np.argsort(per_label_recalls)[::-1]
-        sorted_labels = prototype_labels[sorted_indices]
-        sorted_recalls = np.array(per_label_recalls)[sorted_indices]
+        # Sort by precision for better visualization
+        sorted_indices = np.argsort(per_label_precisions)[::-1]
+        sorted_labels = np.array(prototype_labels)[sorted_indices]
+        sorted_precisions = np.array(per_label_precisions)[sorted_indices]
 
         # Limit to top 20 for readability
         if len(sorted_labels) > 20:
             sorted_labels = sorted_labels[:20]
-            sorted_recalls = sorted_recalls[:20]
+            sorted_precisions = sorted_precisions[:20]
 
         # Create horizontal bar chart
         y_pos = np.arange(len(sorted_labels))
-        colors_bars = plt.cm.RdYlGn(sorted_recalls)  # Color based on performance
+        colors_bars = plt.cm.RdYlGn(sorted_precisions)  # Color based on performance
 
-        bars = ax.barh(y_pos, sorted_recalls, color=colors_bars, alpha=0.8)
+        bars = ax.barh(y_pos, sorted_precisions, color=colors_bars, alpha=0.8)
 
         ax.set_yticks(y_pos)
         ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
-        ax.set_xlabel(f'Label-Recall@{k}', fontsize=12)
-        ax.set_title(f'Per-Label Retrieval Performance: {direction_name}',
+        ax.set_xlabel(f'Label-Precision@{k}', fontsize=12)
+        ax.set_title(f'Per-Label Retrieval Precision: {direction_name}',
                     fontweight='bold', fontsize=14)
         ax.set_xlim(0, 1)
         ax.grid(True, alpha=0.3, axis='x')
 
         # Add value labels
-        for i, (bar, recall) in enumerate(zip(bars, sorted_recalls)):
+        for i, (bar, precision) in enumerate(zip(bars, sorted_precisions)):
             width = bar.get_width()
-            ax.annotate(f'{recall:.3f}',
+            ax.annotate(f'{precision:.3f}',
                        xy=(width, bar.get_y() + bar.get_height() / 2),
                        xytext=(5, 0),
                        textcoords="offset points",
                        ha='left', va='center', fontsize=8)
 
         # Add average line
-        avg_recall = np.mean(sorted_recalls)
-        ax.axvline(avg_recall, color='red', linestyle='--', linewidth=2, alpha=0.7,
-                  label=f'Average: {avg_recall:.3f}')
+        avg_precision = np.mean(sorted_precisions)
+        ax.axvline(avg_precision, color='red', linestyle='--', linewidth=2, alpha=0.7,
+                  label=f'Average: {avg_precision:.3f}')
         ax.legend(fontsize=10)
 
         plt.tight_layout()
@@ -3899,16 +3925,32 @@ class EmbeddingEvaluator:
 
             # Instance-to-instance retrieval (text <-> sensor)
             print("\n📊 Computing instance-to-instance retrieval...")
-            instance_retrieval_results, instance_per_label = compute_label_recall_at_k(
+            cross_instance_results, cross_instance_per_label = compute_label_recall_at_k(
                 sensor_embeddings=test_sensor_emb,
                 text_embeddings=test_text_emb_proj,  # Use projected text embeddings
-                labels=labels_for_retrieval,  # Use THE SAME labels for both (aligned!)
+                labels=labels_for_retrieval,
                 k_values=[10, 50, 100],
-                directions=['text2sensor', 'sensor2text'],
+                directions=['text2sensor', 'sensor2text', 'sensor2sensor'],
                 normalize=True,
                 verbose=True,
+                exclude_self=True,
                 return_per_label=True
             )
+
+            text_self_results, text_self_per_label = compute_label_recall_at_k(
+                sensor_embeddings=test_sensor_emb,  # Not used for text-only direction
+                text_embeddings=test_text_emb,  # Use original (non-projected) text embeddings
+                labels=labels_for_retrieval,
+                k_values=[10, 50, 100],
+                directions=['text2text'],
+                normalize=True,
+                verbose=True,
+                exclude_self=True,
+                return_per_label=True
+            )
+
+            instance_retrieval_results = {**cross_instance_results, **text_self_results}
+            instance_per_label = {**cross_instance_per_label, **text_self_per_label}
 
             # Initialize confusion data (will be populated later)
             instance_confusion_data = {}
@@ -3923,7 +3965,7 @@ class EmbeddingEvaluator:
                 query_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
                 target_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
                 direction_name=f'Text → Sensor ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'perlabel_text2sensor_{retrieval_label_level.lower()}.png')
             )
 
@@ -3934,8 +3976,30 @@ class EmbeddingEvaluator:
                 query_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
                 target_labels=labels_for_retrieval,  # SAME labels for both (aligned!)
                 direction_name=f'Sensor → Text ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'perlabel_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Instance-to-instance: Sensor -> Sensor
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                direction_name=f'Sensor → Sensor ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'perlabel_sensor2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Instance-to-instance: Text -> Text (non-projected)
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_text_emb,
+                target_embeddings=test_text_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                direction_name=f'Text → Text ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'perlabel_text2text_{retrieval_label_level.lower()}.png')
             )
 
             # Compute and visualize retrieval confusion (error analysis)
@@ -3947,13 +4011,13 @@ class EmbeddingEvaluator:
                 target_embeddings=test_sensor_emb,
                 query_labels=labels_for_retrieval,  # SAME aligned labels
                 target_labels=labels_for_retrieval,  # SAME aligned labels
-                k=10
+                k=50
             )
 
             self.create_retrieval_confusion_heatmap(
                 retrieval_confusion=text2sensor_confusion,
                 direction_name=f'Text → Sensor ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'confusion_text2sensor_{retrieval_label_level.lower()}.png')
             )
 
@@ -3963,13 +4027,13 @@ class EmbeddingEvaluator:
                 target_embeddings=test_text_emb_proj,
                 query_labels=labels_for_retrieval,  # SAME aligned labels
                 target_labels=labels_for_retrieval,  # SAME aligned labels
-                k=10
+                k=50
             )
 
             self.create_retrieval_confusion_heatmap(
                 retrieval_confusion=sensor2text_confusion,
                 direction_name=f'Sensor → Text ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'confusion_sensor2text_{retrieval_label_level.lower()}.png')
             )
 
@@ -3978,6 +4042,43 @@ class EmbeddingEvaluator:
                 'text2sensor': text2sensor_confusion,
                 'sensor2text': sensor2text_confusion
             }
+
+            # Sensor -> Sensor confusion
+            sensor2sensor_confusion = compute_retrieval_confusion(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                k=50
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=sensor2sensor_confusion,
+                direction_name=f'Sensor → Sensor ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'confusion_sensor2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Text -> Text confusion
+            text2text_confusion = compute_retrieval_confusion(
+                query_embeddings=test_text_emb,
+                target_embeddings=test_text_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                k=50
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=text2text_confusion,
+                direction_name=f'Text → Text ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'confusion_text2text_{retrieval_label_level.lower()}.png')
+            )
+
+            instance_confusion_data.update({
+                'sensor2sensor': sensor2sensor_confusion,
+                'text2text': text2text_confusion
+            })
 
             # Prototype-based retrieval
             print("\n📊 Computing prototype-based retrieval...")
@@ -3996,14 +4097,26 @@ class EmbeddingEvaluator:
                 )
                 print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
 
+                # Filter prototypes based on retrieval label level
+                if retrieval_label_level == 'L1':
+                    # For L1: only use L1 labels (filter to keep only labels in train_labels_l1)
+                    l1_label_set = set(train_labels_l1)
+                    label_to_text_filtered = {k: v for k, v in label_to_text.items() if k in l1_label_set}
+                    print(f"🔍 Filtered to {len(label_to_text_filtered)} L1 prototypes (from {len(label_to_text)} total)")
+                else:
+                    # For L2: only use L2 labels (filter to keep only labels in train_labels_l2)
+                    l2_label_set = set(train_labels_l2)
+                    label_to_text_filtered = {k: v for k, v in label_to_text.items() if k in l2_label_set}
+                    print(f"🔍 Filtered to {len(label_to_text_filtered)} L2 prototypes (from {len(label_to_text)} total)")
+
                 # Encode text prototypes
                 prototype_emb, prototype_labels = encode_text_prototypes(
-                    label_to_text=label_to_text,
+                    label_to_text=label_to_text_filtered,
                     text_encoder=self.text_encoder,
                     device=str(self.device),
                     normalize=True
                 )
-                print(f"✅ Encoded {len(prototype_emb)} text prototypes")
+                print(f"✅ Encoded {len(prototype_emb)} text prototypes for {retrieval_label_level}")
 
                 # Compute label counts from the target dataset for weighted averaging
                 label_counts_dict = {}
@@ -4048,7 +4161,7 @@ class EmbeddingEvaluator:
                     target_labels=labels_for_retrieval,  # SAME aligned labels
                     prototype_embeddings=prototype_emb,
                     direction_name=f'Prototype → Sensor ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
                 )
 
@@ -4059,7 +4172,7 @@ class EmbeddingEvaluator:
                     target_labels=labels_for_retrieval,  # SAME aligned labels
                     prototype_embeddings=prototype_emb,
                     direction_name=f'Prototype → Text ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'perlabel_prototype2text_{retrieval_label_level.lower()}.png')
                 )
 
@@ -4073,7 +4186,7 @@ class EmbeddingEvaluator:
 
                 for i, proto_label in enumerate(prototype_labels):
                     proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
                     top_k_labels = labels_for_retrieval[top_k_indices]
 
                     # Count distribution
@@ -4092,7 +4205,7 @@ class EmbeddingEvaluator:
                 self.create_retrieval_confusion_heatmap(
                     retrieval_confusion=proto2sensor_confusion,
                     direction_name=f'Prototype → Sensor ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
                 )
 
@@ -4102,7 +4215,7 @@ class EmbeddingEvaluator:
 
                 for i, proto_label in enumerate(prototype_labels):
                     proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
                     top_k_labels = labels_for_retrieval[top_k_indices]
 
                     # Count distribution
@@ -4121,7 +4234,7 @@ class EmbeddingEvaluator:
                 self.create_retrieval_confusion_heatmap(
                     retrieval_confusion=proto2text_confusion,
                     direction_name=f'Prototype → Text ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2text_{retrieval_label_level.lower()}.png')
                 )
 
@@ -4283,7 +4396,7 @@ class EmbeddingEvaluator:
 
         # Retrieval Metrics Summary
         print("\n" + "="*80)
-        print("📊 RETRIEVAL METRICS SUMMARY (Label-Recall@K)")
+        print("📊 RETRIEVAL METRICS SUMMARY (Instance Recall@K + Prototype Precision@K)")
         print("="*80)
 
         # Display results for both L1 and L2 label levels
@@ -4306,11 +4419,20 @@ class EmbeddingEvaluator:
                     k_vals = list(next(iter(all_results.values())).keys())
                     middle_k = k_vals[len(k_vals)//2] if k_vals else 10
 
-                    print(f"\nLabel-Recall @ K={middle_k}:")
+                    print(f"\nLabel Score @ K={middle_k} (Instance recall, Prototype precision):")
                     print(f"{'Direction':<30} {'Macro':<15} {'Weighted':<15}")
                     print("-" * 60)
 
-                    for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+                    display_map = {
+                        'text2sensor': 'Text → Sensor',
+                        'sensor2text': 'Sensor → Text',
+                        'text2text': 'Text → Text',
+                        'sensor2sensor': 'Sensor → Sensor',
+                        'prototype2sensor': 'Prototype → Sensor',
+                        'prototype2text': 'Prototype → Text'
+                    }
+
+                    for direction in ['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor', 'prototype2sensor', 'prototype2text']:
                         if direction in all_results:
                             metrics = all_results[direction].get(middle_k, {})
                             # Handle both old format (single float) and new format (dict)
@@ -4321,7 +4443,7 @@ class EmbeddingEvaluator:
                                 # Backward compatibility
                                 macro = weighted = metrics
 
-                            direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
+                            direction_display = display_map.get(direction, direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor'))
                             print(f"{direction_display:<30} {macro:<.4f} ({macro*100:>5.2f}%)  {weighted:<.4f} ({weighted*100:>5.2f}%)")
 
         print(f"\n✅ All results saved in: {output_dir}")
@@ -4402,16 +4524,23 @@ class EmbeddingEvaluator:
 
         # Filter if needed
         if filter_noisy_labels:
+            noisy_l1_labels = {'no_activity', 'No_Activity', 'Other', 'other', 'unknown', 'Unknown'}
+            noisy_l2_labels = {'no_activity', 'No_Activity', 'Other', 'other', 'unknown', 'Unknown'}
             print("⚠️  Filtering noisy labels from test data...")
             test_text_emb, test_labels_l1, test_labels_l2, _ = \
                 self.filter_noisy_labels(test_text_emb, test_labels_l1, test_labels_l2)
             test_sensor_emb, test_sensor_l1, test_sensor_l2, _ = \
                 self.filter_noisy_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2)
+            train_labels_l1 = [label for label in train_labels_l1 if label not in noisy_l1_labels]
+            train_labels_l2 = [label for label in train_labels_l2 if label not in noisy_l2_labels]
 
         # ===== 2. CREATE TEXT PROTOTYPES (PROJECTED) =====
         print("\n" + "="*60)
         print("2. CREATING TEXT PROTOTYPES (WITH PROJECTION)")
         print("="*60)
+
+        prototypes_l1, _ = self.create_text_prototypes(train_labels_l1, apply_projection=False)
+        prototypes_l2, _ = self.create_text_prototypes(train_labels_l2, apply_projection=False)
 
         prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True)
         prototypes_l2_projected, _ = self.create_text_prototypes(train_labels_l2, apply_projection=True)
@@ -4439,11 +4568,13 @@ class EmbeddingEvaluator:
             if retrieval_label_level == 'L1':
                 # Note: test_labels_l1 and test_sensor_l1 are NOW THE SAME after alignment
                 labels_for_retrieval = np.array(test_labels_l1)
+                prototypes = prototypes_l1
                 prototypes_projected = prototypes_l1_projected
                 print(f"📋 {len(set(test_labels_l1))} unique {retrieval_label_level} labels")
             else:
                 # Note: test_labels_l2 and test_sensor_l2 are NOW THE SAME after alignment
                 labels_for_retrieval = np.array(test_labels_l2)
+                prototypes = prototypes_l2
                 prototypes_projected = prototypes_l2_projected
                 print(f"📋 {len(set(test_labels_l2))} unique {retrieval_label_level} labels")
 
@@ -4454,22 +4585,39 @@ class EmbeddingEvaluator:
                 text_embeddings=test_text_emb_proj,
                 labels=labels_for_retrieval,  # Use THE SAME labels for both (aligned!)
                 k_values=[10, 50, 100],
-                directions=['text2sensor', 'sensor2text'],
+                directions=['text2sensor', 'sensor2text', 'sensor2sensor', 'text2text'],
+                exclude_self=True,
                 return_per_label=True
             )
 
             # Prototype-based retrieval
             print("\n📊 Computing prototype-based retrieval...")
+            proto_sensor_labels = None
+            proto_sensor_embeddings = None
+            proto_text_labels = None
+            proto_text_embeddings = None
             try:
-                # Convert prototype dictionary to arrays
-                # prototypes_projected is a dict: {label: embedding_array}
                 if retrieval_label_level == 'L1':
-                    proto_dict = prototypes_l1_projected
+                    proto_projected_dict = prototypes_l1_projected
+                    proto_non_projected_dict = prototypes_l1
                 else:
-                    proto_dict = prototypes_l2_projected
+                    proto_projected_dict = prototypes_l2_projected
+                    proto_non_projected_dict = prototypes_l2
 
-                prototype_labels = np.array(list(proto_dict.keys()))
-                prototype_embeddings_array = np.vstack([proto_dict[label] for label in prototype_labels])
+                projected_prototype_labels = np.array(list(proto_projected_dict.keys()))
+                projected_prototype_embeddings = np.vstack(
+                    [proto_projected_dict[label] for label in projected_prototype_labels]
+                )
+
+                non_projected_prototype_labels = np.array(list(proto_non_projected_dict.keys()))
+                non_projected_prototype_embeddings = np.vstack(
+                    [proto_non_projected_dict[label] for label in non_projected_prototype_labels]
+                )
+
+                proto_sensor_labels = projected_prototype_labels
+                proto_sensor_embeddings = projected_prototype_embeddings
+                proto_text_labels = non_projected_prototype_labels
+                proto_text_embeddings = non_projected_prototype_embeddings
 
                 # Compute label counts from the target dataset for weighted averaging
                 label_counts_dict = {}
@@ -4477,19 +4625,40 @@ class EmbeddingEvaluator:
                     label_str = str(label)
                     label_counts_dict[label_str] = label_counts_dict.get(label_str, 0) + 1
 
-                prototype_retrieval_results, prototype_per_label = compute_prototype_retrieval_metrics(
-                    prototype_embeddings=prototype_embeddings_array,
-                    prototype_labels=prototype_labels,
+                prototype_retrieval_results: Dict[str, Dict[int, float]] = {}
+                prototype_per_label: Dict[str, Dict[int, Dict[str, float]]] = {}
+
+                # Projected prototypes query sensor embeddings
+                sensor_results, sensor_per_label = compute_prototype_retrieval_metrics(
+                    prototype_embeddings=projected_prototype_embeddings,
+                    prototype_labels=projected_prototype_labels,
                     sensor_embeddings=test_sensor_emb,
-                    text_embeddings=test_text_emb_proj,
-                    target_labels=labels_for_retrieval,  # Use THE SAME aligned labels
-                    label_counts=label_counts_dict,  # Pass label prevalence for weighted averaging
+                    target_labels=labels_for_retrieval,
+                    label_counts=label_counts_dict,
                     k_values=[10, 50, 100],
-                    directions=['prototype2sensor', 'prototype2text'],
+                    directions=['prototype2sensor'],
                     normalize=True,
                     verbose=True,
                     return_per_label=True
                 )
+                prototype_retrieval_results.update(sensor_results)
+                prototype_per_label.update(sensor_per_label)
+
+                # Non-projected prototypes query non-projected text embeddings
+                text_results, text_per_label = compute_prototype_retrieval_metrics(
+                    prototype_embeddings=non_projected_prototype_embeddings,
+                    prototype_labels=non_projected_prototype_labels,
+                    text_embeddings=test_text_emb,
+                    target_labels=labels_for_retrieval,
+                    label_counts=label_counts_dict,
+                    k_values=[10, 50, 100],
+                    directions=['prototype2text'],
+                    normalize=True,
+                    verbose=True,
+                    return_per_label=True
+                )
+                prototype_retrieval_results.update(text_results)
+                prototype_per_label.update(text_per_label)
 
                 # Combine all retrieval results
                 all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
@@ -4509,6 +4678,9 @@ class EmbeddingEvaluator:
             # ===== 5. CREATE RETRIEVAL VISUALIZATIONS =====
             print(f"\n🎨 Creating retrieval visualizations for {retrieval_label_level}...")
 
+            # Ensure retrieval directory exists (safety check)
+            retrieval_dir.mkdir(parents=True, exist_ok=True)
+
             # Main retrieval metrics visualization
             self.create_retrieval_metrics_visualization(
                 retrieval_results=all_retrieval_results,
@@ -4526,7 +4698,7 @@ class EmbeddingEvaluator:
                 query_labels=labels_for_retrieval,  # SAME aligned labels
                 target_labels=labels_for_retrieval,  # SAME aligned labels
                 direction_name=f'Text → Sensor ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'perlabel_text2sensor_{retrieval_label_level.lower()}.png')
             )
 
@@ -4537,8 +4709,30 @@ class EmbeddingEvaluator:
                 query_labels=labels_for_retrieval,  # SAME aligned labels
                 target_labels=labels_for_retrieval,  # SAME aligned labels
                 direction_name=f'Sensor → Text ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'perlabel_sensor2text_{retrieval_label_level.lower()}.png')
+            )
+
+            # Sensor -> Sensor (self-retrieval)
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                direction_name=f'Sensor → Sensor ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'perlabel_sensor2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Text -> Text (self-retrieval, non-projected)
+            self.create_per_label_retrieval_heatmap_instance(
+                query_embeddings=test_text_emb,
+                target_embeddings=test_text_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                direction_name=f'Text → Text ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'perlabel_text2text_{retrieval_label_level.lower()}.png')
             )
 
             # Retrieval confusion analysis (error analysis)
@@ -4550,13 +4744,13 @@ class EmbeddingEvaluator:
                 target_embeddings=test_sensor_emb,
                 query_labels=labels_for_retrieval,
                 target_labels=labels_for_retrieval,
-                k=10
+                k=50
             )
 
             self.create_retrieval_confusion_heatmap(
                 retrieval_confusion=text2sensor_confusion,
                 direction_name=f'Text → Sensor ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'confusion_text2sensor_{retrieval_label_level.lower()}.png')
             )
 
@@ -4566,52 +4760,90 @@ class EmbeddingEvaluator:
                 target_embeddings=test_text_emb_proj,
                 query_labels=labels_for_retrieval,
                 target_labels=labels_for_retrieval,
-                k=10
+                k=50
             )
 
             self.create_retrieval_confusion_heatmap(
                 retrieval_confusion=sensor2text_confusion,
                 direction_name=f'Sensor → Text ({retrieval_label_level})',
-                k=10,
+                k=50,
                 save_path=str(retrieval_dir / f'confusion_sensor2text_{retrieval_label_level.lower()}.png')
             )
 
+            # Sensor -> Sensor confusion (self-retrieval)
+            sensor2sensor_confusion = compute_retrieval_confusion(
+                query_embeddings=test_sensor_emb,
+                target_embeddings=test_sensor_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                k=50
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=sensor2sensor_confusion,
+                direction_name=f'Sensor → Sensor ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'confusion_sensor2sensor_{retrieval_label_level.lower()}.png')
+            )
+
+            # Text -> Text confusion (self-retrieval, non-projected)
+            text2text_confusion = compute_retrieval_confusion(
+                query_embeddings=test_text_emb,
+                target_embeddings=test_text_emb,
+                query_labels=labels_for_retrieval,
+                target_labels=labels_for_retrieval,
+                k=50
+            )
+
+            self.create_retrieval_confusion_heatmap(
+                retrieval_confusion=text2text_confusion,
+                direction_name=f'Text → Text ({retrieval_label_level})',
+                k=50,
+                save_path=str(retrieval_dir / f'confusion_text2text_{retrieval_label_level.lower()}.png')
+            )
+
             # Prototype-based heatmaps (if available)
-            if 'prototype2sensor' in all_retrieval_results:
+            if ('prototype2sensor' in all_retrieval_results
+                    and proto_sensor_labels is not None
+                    and proto_sensor_embeddings is not None):
                 print(f"\n🎨 Creating prototype retrieval visualizations...")
 
                 # Prototype -> Sensor per-label heatmap
                 self.create_per_label_retrieval_heatmap(
-                    prototype_labels=prototype_labels,
+                    prototype_labels=proto_sensor_labels,
                     target_embeddings=test_sensor_emb,
                     target_labels=labels_for_retrieval,  # SAME aligned labels
-                    prototype_embeddings=prototype_embeddings_array,
+                    prototype_embeddings=proto_sensor_embeddings,
                     direction_name=f'Prototype → Sensor ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
                 )
 
-                # Prototype -> Text per-label heatmap
+            if ('prototype2text' in all_retrieval_results
+                    and proto_text_labels is not None
+                    and proto_text_embeddings is not None):
                 self.create_per_label_retrieval_heatmap(
-                    prototype_labels=prototype_labels,
-                    target_embeddings=test_text_emb_proj,
+                    prototype_labels=proto_text_labels,
+                    target_embeddings=test_text_emb,
                     target_labels=labels_for_retrieval,  # SAME aligned labels
-                    prototype_embeddings=prototype_embeddings_array,
+                    prototype_embeddings=proto_text_embeddings,
                     direction_name=f'Prototype → Text ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'perlabel_prototype2text_{retrieval_label_level.lower()}.png')
                 )
 
+            if (proto_sensor_embeddings is not None and
+                    'prototype2sensor' in all_retrieval_results):
                 # Prototype confusion heatmaps
                 print(f"\n🎨 Creating prototype retrieval confusion analysis...")
 
                 # Prototype -> Sensor confusion
                 proto2sensor_confusion = {}
-                similarities = compute_cosine_similarity(prototype_embeddings_array, test_sensor_emb)
+                similarities = compute_cosine_similarity(proto_sensor_embeddings, test_sensor_emb)
 
-                for i, proto_label in enumerate(prototype_labels):
+                for i, proto_label in enumerate(proto_sensor_labels):
                     proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
                     top_k_labels = labels_for_retrieval[top_k_indices]
 
                     # Count distribution
@@ -4630,17 +4862,19 @@ class EmbeddingEvaluator:
                 self.create_retrieval_confusion_heatmap(
                     retrieval_confusion=proto2sensor_confusion,
                     direction_name=f'Prototype → Sensor ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
                 )
 
+            if (proto_text_embeddings is not None and
+                    'prototype2text' in all_retrieval_results):
                 # Prototype -> Text confusion
                 proto2text_confusion = {}
-                similarities = compute_cosine_similarity(prototype_embeddings_array, test_text_emb_proj)
+                similarities = compute_cosine_similarity(proto_text_embeddings, test_text_emb)
 
-                for i, proto_label in enumerate(prototype_labels):
+                for i, proto_label in enumerate(proto_text_labels):
                     proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-10:][::-1]
+                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
                     top_k_labels = labels_for_retrieval[top_k_indices]
 
                     # Count distribution
@@ -4659,7 +4893,7 @@ class EmbeddingEvaluator:
                 self.create_retrieval_confusion_heatmap(
                     retrieval_confusion=proto2text_confusion,
                     direction_name=f'Prototype → Text ({retrieval_label_level})',
-                    k=10,
+                    k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2text_{retrieval_label_level.lower()}.png')
                 )
 
@@ -4709,12 +4943,12 @@ class EmbeddingEvaluator:
         middle_k = 50  # Use k=50 for summary
         for retrieval_label_level in ['L1', 'L2']:
             print(f"\n📊 {retrieval_label_level} RETRIEVAL METRICS (k={middle_k}):")
-            print(f"{'Direction':<30} {'Macro Recall':<20} {'Weighted Recall':<20}")
+            print(f"{'Direction':<30} {'Macro Precision':<20} {'Weighted Precision':<20}")
             print("-" * 70)
 
             all_results = retrieval_results_by_level[retrieval_label_level]['recall_at_k']
 
-            for direction in ['text2sensor', 'sensor2text', 'prototype2sensor', 'prototype2text']:
+            for direction in ['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor', 'prototype2sensor', 'prototype2text']:
                 if direction in all_results and all_results[direction]:
                     metrics = all_results[direction].get(middle_k, {})
                     if isinstance(metrics, dict):
@@ -4757,9 +4991,30 @@ class EmbeddingEvaluator:
 
         print(f"✅ Found {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels")
 
-        # Note: filter_noisy_labels is not applicable here since we're getting labels from metadata
+        # Filter noisy labels from metadata if requested
         if filter_noisy_labels:
-            print("⚠️  Note: filter_noisy_labels is ignored when using metadata (no training data loaded)")
+            print("⚠️  Filtering noisy labels from metadata before creating prototypes...")
+
+            # Define labels to exclude (case-insensitive)
+            exclude_labels = {
+                'other',
+                'no_activity', 'No_Activity',
+                'unknown', 'none', 'null', 'nan',
+                'no activity', 'other activity', 'miscellaneous', 'misc'
+            }
+
+            # Filter L1 labels
+            original_l1_count = len(train_labels_l1)
+            train_labels_l1 = [label for label in train_labels_l1
+                              if label.lower().strip() not in exclude_labels]
+
+            # Filter L2 labels
+            original_l2_count = len(train_labels_l2)
+            train_labels_l2 = [label for label in train_labels_l2
+                              if label.lower().strip() not in exclude_labels]
+
+            print(f"   L1 labels: {original_l1_count} → {len(train_labels_l1)} (removed {original_l1_count - len(train_labels_l1)})")
+            print(f"   L2 labels: {original_l2_count} → {len(train_labels_l2)} (removed {original_l2_count - len(train_labels_l2)})")
 
         # 2. Create text-based label prototypes
         print("\n" + "="*60)
@@ -4986,6 +5241,8 @@ def main():
                        help='Skip visualization generation (faster evaluation)')
     parser.add_argument('--use_multiple_prototypes', action='store_true',
                        help='Use multiple prototypes per label from metadata (default: single averaged prototype)')
+    parser.add_argument('--description_style', type=str, default='long_desc',
+                       help='Description field to use from metadata (e.g., long_desc, short_desc, zeroshot_har_desc). Default: long_desc')
 
     args = parser.parse_args()
 
@@ -4995,6 +5252,7 @@ def main():
         'train_data_path': args.train_data,
         'test_data_path': args.test_data,
         'output_dir': args.output_dir,
+        'description_style': args.description_style,
     }
 
     # Only add vocab_path if the file exists
