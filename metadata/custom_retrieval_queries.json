@@ -1,0 +1,26 @@
+{
+    "milan": {
+        "queries": [
+            {
+                "short_query": "Night wandering",
+                "long_query": "Night Wandering activity takes place when a person moves between master bedroom and master bathroom and kitchen and office and living room and guest bathroom and hallway areas during nighttime hours with multiple transitions"
+            },
+            {
+                "short_query": "Sedentary activity",
+                "long_query": "Sedentary activity takes place when a person sits quietly in the living room armchair or office chair or dining table with minimal movement for extended periods"
+            }
+        ]
+    },
+    "aruba": {
+        "queries": [
+            {
+                "short_query": "Night wandering",
+                "long_query": "Night Wandering activity takes place when a person moves between master bedroom and master bathroom and kitchen and office and living room and guest bathroom and hallway areas during nighttime hours with multiple transitions"
+            },
+            {
+                "short_query": "Sedentary activity",
+                "long_query": "Sedentary activity takes place when a person sits quietly in the living room armchair or office chair or dining table with minimal movement for extended periods"
+            }
+        ]
+    }
+}
