@@ -3674,6 +3674,31 @@ class EmbeddingEvaluator:
         train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
         print(f"✅ Got {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels from metadata")
 
+        # Filter noisy labels from metadata if requested (BEFORE creating prototypes)
+        if filter_noisy_labels:
+            print("\n⚠️  Filtering noisy labels from metadata before creating prototypes...")
+
+            # Define labels to exclude (case-insensitive)
+            exclude_labels = {
+                'other',
+                'no_activity', 'No_Activity',
+                'unknown', 'none', 'null', 'nan',
+                'no activity', 'other activity', 'miscellaneous', 'misc'
+            }
+
+            # Filter L1 labels
+            original_l1_count = len(train_labels_l1)
+            train_labels_l1 = [label for label in train_labels_l1
+                              if label.lower().strip() not in exclude_labels]
+
+            # Filter L2 labels
+            original_l2_count = len(train_labels_l2)
+            train_labels_l2 = [label for label in train_labels_l2
+                              if label.lower().strip() not in exclude_labels]
+
+            print(f"   L1 labels: {original_l1_count} → {len(train_labels_l1)} (removed {original_l1_count - len(train_labels_l1)})")
+            print(f"   L2 labels: {original_l2_count} → {len(train_labels_l2)} (removed {original_l2_count - len(train_labels_l2)})")
+
         # Only load TEST text embeddings (we don't need train embeddings)
         test_text_emb, test_text_sample_ids, test_labels_l1, test_labels_l2 = \
             self.load_text_embeddings_from_file(
@@ -3736,7 +3761,13 @@ class EmbeddingEvaluator:
 
         if filter_noisy_labels:
             # Create a boolean mask for filtering based on labels
-            exclude_labels = {'no_activity'}
+            # Use the same comprehensive exclude list as above
+            exclude_labels = {
+                'other',
+                'no_activity', 'No_Activity',
+                'unknown', 'none', 'null', 'nan',
+                'no activity', 'other activity', 'miscellaneous', 'misc'
+            }
 
             # Create mask - True means KEEP the sample
             keep_mask = []
