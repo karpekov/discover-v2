@@ -57,8 +57,7 @@ wandb_entity: null
 wandb_name: null
 wandb_tags: []
 wandb_group: null
-  wandb_notes: Milan Fixed-Length 20 - Sequence encoder with Linear projection and MLM only
-    loss
+wandb_notes: Milan Fixed-Length 20 - Sequence encoder with Linear projection and MLM only loss
 experiment_name: milan_fl20_seq_discover_v1_mlm_only
 output_dir: trained_models/milan/milan_fl20_seq_discover_v1_mlm_only
 train_data_path: data/processed/casas/milan/FL_20/train.json
