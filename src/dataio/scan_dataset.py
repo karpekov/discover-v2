@@ -130,6 +130,10 @@ def mine_nearest_neighbors(
 class SCANCollator:
     """
     Collate function for SCAN training that handles anchor-neighbor pairs.
+
+    Outputs data in the format expected by AlignmentModel/encoder:
+    - input_data: Dict with categorical_features, coordinates, time_deltas
+    - mask: attention mask tensor
     """
 
     def __init__(
@@ -148,7 +152,7 @@ class SCANCollator:
             batch: List of samples from SCANDataset
 
         Returns:
-            Collated batch with anchor and neighbor data
+            Collated batch with anchor and neighbor data in encoder-compatible format
         """
         # Separate anchor and neighbor samples
         anchor_samples = [item['anchor'] for item in batch]
@@ -172,6 +176,10 @@ class SCANCollator:
     def _collate_samples(self, samples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         """
         Collate a list of samples into batched tensors.
+
+        Returns format compatible with AlignmentModel encoder:
+        - input_data: Dict with categorical_features, coordinates, time_deltas
+        - mask: attention mask tensor
         """
         batch_size = len(samples)
 
@@ -192,10 +200,15 @@ class SCANCollator:
             field_tensors = [sample[field] for sample in all_categorical]
             categorical_features[field] = torch.stack(field_tensors).to(self.device)
 
-        return {
+        # Format for encoder compatibility
+        input_data = {
             'categorical_features': categorical_features,
             'coordinates': coordinates,
-            'time_deltas': time_deltas,
+            'time_deltas': time_deltas
+        }
+
+        return {
+            'input_data': input_data,
             'mask': masks
         }
 

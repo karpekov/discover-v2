@@ -2,7 +2,30 @@
 
 """
 SCAN Clustering Training Script for src pipeline.
-Performs clustering training on pre-trained sensor encoder embeddings.
+Performs clustering training on pre-trained AlignmentModel embeddings.
+
+Usage:
+    # Basic usage with pre-trained model (auto-detects data paths from model config)
+    python src/training/train_scan.py \
+        --pretrained_model trained_models/milan/milan_fl20_seq_rb0_textclip_projmlp_clipmlm_v1 \
+        --num_clusters 20 \
+        --output_dir trained_models/milan/milan_fl20_scan_20cl
+
+    # Full control with explicit paths
+    python src/training/train_scan.py \
+        --pretrained_model trained_models/milan/milan_fl20_seq_rb0_textclip_projmlp_clipmlm_v1 \
+        --train_data data/processed/casas/milan/FL_20/train.json \
+        --vocab data/processed/casas/milan/FL_20/vocab.json \
+        --num_clusters 20 \
+        --output_dir trained_models/milan/milan_fl20_scan_20cl
+
+    # With custom wandb settings
+    python src/training/train_scan.py \
+        --pretrained_model trained_models/milan/milan_fl20_seq_discover_v1_mlm_only \
+        --num_clusters 20 \
+        --output_dir trained_models/milan/scan_20cl_discover_v1 \
+        --wandb_project discover-v2-dv1-scan \
+        --max_epochs 50
 """
 
 import os
@@ -10,8 +33,9 @@ import json
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import numpy as np
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -28,18 +52,25 @@ except ImportError:
 # Add parent directory to path since we're in training/ subdirectory
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from models.scan_model import SCANClusteringModel
 from losses.scan_loss import SCANLoss
 from dataio.dataset import SmartHomeDataset
 from dataio.scan_dataset import create_scan_data_loader
 from utils.device_utils import get_optimal_device, log_device_info
-from utils.training_metrics import TrainingMetrics
 
 
 class SCANTrainer:
     """
-    Trainer for SCAN clustering using pre-trained sensor encoders.
+    Trainer for SCAN clustering using pre-trained AlignmentModel encoders.
+
+    Automatically handles:
+    - Loading pre-trained model
+    - Extracting data paths from pre-trained model config
+    - Creating SCAN dataset with KNN mining
+    - Training with SCAN loss
+    - Logging to wandb
     """
 
     def __init__(self, config: Dict[str, Any]):
@@ -61,10 +92,6 @@ class SCANTrainer:
 
         # Data loaders (initialized later)
         self.train_loader = None
-        self.val_loader = None
-
-        # Metrics tracking (initialized later after data loading)
-        self.metrics = None
 
     def setup_logging(self):
         """Setup logging configuration."""
@@ -73,7 +100,6 @@ class SCANTrainer:
         log_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate log filename with timestamp
-        from datetime import datetime
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         run_name = self.config.get('run_name', 'scan_training')
         log_file = log_dir / f'{run_name}_{timestamp}.log'
@@ -95,12 +121,12 @@ class SCANTrainer:
             wandb_dir.mkdir(parents=True, exist_ok=True)
 
             wandb.init(
-                project=self.config.get('wandb_project', 'discover-scan'),
+                project=self.config.get('wandb_project', 'discover-v2-dv1-scan'),
                 entity=self.config.get('wandb_entity', None),
                 name=self.config.get('wandb_name', run_name),
                 config=self.config,
                 tags=self.config.get('wandb_tags', ['scan', 'clustering']),
-                notes=self.config.get('wandb_notes', 'SCAN clustering training'),
+                notes=self.config.get('wandb_notes', 'SCAN clustering training on pre-trained AlignmentModel'),
                 group=self.config.get('wandb_group', None),
                 job_type='scan_clustering',
                 dir=str(wandb_dir),
@@ -123,34 +149,49 @@ class SCANTrainer:
 
         # Save hyperparameters
         with open(self.output_dir / 'hyperparameters.json', 'w') as f:
-            json.dump(self.config, f, indent=2)
+            # Convert config to JSON-serializable format
+            serializable_config = {k: v for k, v in self.config.items()
+                                   if isinstance(v, (str, int, float, bool, list, dict, type(None)))}
+            json.dump(serializable_config, f, indent=2)
 
         self.logger.info(f"Output directory: {self.output_dir}")
 
-    def setup_model(self, vocab_sizes: Dict[str, int]):
-        """Initialize SCAN model."""
+    def setup_model(self):
+        """Initialize SCAN model from pre-trained AlignmentModel."""
         self.logger.info("Setting up SCAN clustering model...")
+        self.logger.info(f"Loading pre-trained model from: {self.config['pretrained_model_path']}")
 
-        # Create model
+        # Create model - it will load the pre-trained AlignmentModel internally
         self.model = SCANClusteringModel(
             pretrained_model_path=self.config['pretrained_model_path'],
             num_clusters=self.config['num_clusters'],
             dropout=self.config.get('dropout', 0.1),
-            freeze_encoder=self.config.get('freeze_encoder', False)
+            freeze_encoder=self.config.get('freeze_encoder', False),
+            vocab_path=self.config.get('vocab_path'),
+            device=self.device
         )
-
-        # Update vocabulary sizes
-        self.model.update_vocab_sizes(vocab_sizes)
 
         # Move to device
         self.model = self.model.to(self.device)
 
-        # Setup optimizer
+        # Get data paths from pre-trained model if not provided
+        if self.config.get('train_data_path') is None:
+            data_paths = self.model.get_data_paths()
+            self.config['train_data_path'] = data_paths['train_data_path']
+            self.config['val_data_path'] = data_paths.get('val_data_path')
+            if self.config.get('vocab_path') is None:
+                self.config['vocab_path'] = data_paths['vocab_path']
+            self.logger.info(f"Auto-detected data paths from pre-trained model:")
+            self.logger.info(f"  train_data_path: {self.config['train_data_path']}")
+            self.logger.info(f"  vocab_path: {self.config['vocab_path']}")
+
+        # Setup optimizer (only for clustering head and optionally unfrozen encoder)
+        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
         self.optimizer = optim.Adam(
-            self.model.parameters(),
+            trainable_params,
             lr=self.config['learning_rate'],
             weight_decay=self.config.get('weight_decay', 1e-4),
-            betas=self.config.get('betas', [0.9, 0.999])
+            betas=self.config.get('betas', (0.9, 0.999))
         )
 
         # Setup loss function
@@ -160,8 +201,11 @@ class SCANTrainer:
 
         # Log model info
         total_params = sum(p.numel() for p in self.model.parameters())
-        trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-        self.logger.info(f"Model parameters: {total_params:,} total, {trainable_params:,} trainable")
+        trainable_params_count = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        self.logger.info(f"Model parameters: {total_params:,} total, {trainable_params_count:,} trainable")
+        self.logger.info(f"Encoder d_model: {self.model.d_model}")
+        self.logger.info(f"Number of clusters: {self.config['num_clusters']}")
+        self.logger.info(f"Freeze encoder: {self.config.get('freeze_encoder', False)}")
 
     def extract_embeddings(self, dataset: SmartHomeDataset) -> np.ndarray:
         """
@@ -169,9 +213,16 @@ class SCANTrainer:
         """
         self.logger.info("Extracting embeddings for KNN mining...")
 
-        # Create a simple collator that only handles sensor data
+        # Get categorical fields from the model config
+        encoder_config = self.model.alignment_config.encoder
+        if encoder_config and 'metadata' in encoder_config:
+            categorical_fields = encoder_config['metadata'].get('categorical_fields', ['sensor', 'state', 'room_id'])
+        else:
+            categorical_fields = ['sensor', 'state', 'room_id']
+
+        # Create a simple collator that handles encoder input format
         def simple_collate_fn(batch):
-            """Simple collator for sensor data only."""
+            """Simple collator for sensor data."""
             batch_size = len(batch)
 
             # Extract components
@@ -191,11 +242,16 @@ class SCANTrainer:
                 field_tensors = [sample[field] for sample in all_categorical]
                 categorical_features[field] = torch.stack(field_tensors).to(self.device)
 
-            return {
+            # Format input_data for encoder (same format as AlignmentModel expects)
+            input_data = {
                 'categorical_features': categorical_features,
                 'coordinates': coordinates,
-                'time_deltas': time_deltas,
-                'mask': masks
+                'time_deltas': time_deltas
+            }
+
+            return {
+                'input_data': input_data,
+                'attention_mask': masks
             }
 
         dataloader = DataLoader(
@@ -212,10 +268,8 @@ class SCANTrainer:
         with torch.no_grad():
             for batch in dataloader:
                 batch_embeddings = self.model.get_embeddings(
-                    categorical_features=batch['categorical_features'],
-                    coordinates=batch['coordinates'],
-                    time_deltas=batch['time_deltas'],
-                    mask=batch['mask']
+                    input_data=batch['input_data'],
+                    attention_mask=batch['attention_mask']
                 )
                 embeddings.append(batch_embeddings.cpu().numpy())
 
@@ -224,9 +278,32 @@ class SCANTrainer:
 
         return embeddings
 
+    def get_ground_truth_labels(self, dataset: SmartHomeDataset) -> Optional[List[str]]:
+        """Extract ground truth labels from dataset for evaluation."""
+        labels = []
+        for i in range(len(dataset)):
+            # Access raw sample data via dataset.data (not .samples)
+            sample = dataset.data[i]
+
+            # Try to get activity label from metadata
+            if 'metadata' in sample and 'ground_truth_labels' in sample['metadata']:
+                label = sample['metadata']['ground_truth_labels'].get('primary_l1', 'Unknown')
+            elif 'first_activity' in sample:
+                label = sample.get('first_activity', 'Unknown')
+            elif 'activity' in sample:
+                label = sample.get('activity', 'Unknown')
+            else:
+                label = 'Unknown'
+            labels.append(label)
+
+        return labels if any(l != 'Unknown' for l in labels) else None
+
     def setup_data(self):
-        """Setup data loaders."""
+        """Setup data loaders with SCAN dataset creation."""
         self.logger.info("Setting up data loaders...")
+
+        # Setup model first to get data paths
+        self.setup_model()
 
         # Load datasets
         train_dataset = SmartHomeDataset(
@@ -237,34 +314,32 @@ class SCANTrainer:
             caption_types='long'
         )
 
-        # Setup model with vocabulary sizes first
-        self.setup_model(train_dataset.vocab_sizes)
+        # Get ground truth labels for neighbor accuracy evaluation
+        labels = self.get_ground_truth_labels(train_dataset)
 
-        # Extract embeddings for KNN mining using the model
+        # Extract embeddings for KNN mining
         embeddings = self.extract_embeddings(train_dataset)
 
-        # Create SCAN data loader
+        # Create SCAN data loader with KNN mining
         self.train_loader, neighbor_accuracy = create_scan_data_loader(
             base_dataset=train_dataset,
             embeddings=embeddings,
-            vocab_sizes=train_dataset.vocab_sizes,
+            vocab_sizes=self.model.vocab_sizes,
             device=self.device,
             topk=self.config.get('num_neighbors', 20),
             batch_size=self.config['batch_size'],
             shuffle=True,
             num_workers=self.config.get('num_workers', 0),
-            labels=None  # Could add ground truth labels here for evaluation
+            labels=labels
         )
 
         self.logger.info(f"Training data: {len(train_dataset)} samples")
-        self.logger.info(f"Neighbor accuracy: {neighbor_accuracy:.4f}")
+        if neighbor_accuracy >= 0:
+            self.logger.info(f"Neighbor accuracy (same ground truth label): {neighbor_accuracy:.4f}")
 
-        # Log neighbor accuracy to wandb
-        if self.config.get('use_wandb', False) and WANDB_AVAILABLE:
-            wandb.log({'data/neighbor_accuracy': neighbor_accuracy})
-
-        # Initialize metrics tracking
-        self.metrics = TrainingMetrics(train_dataset.vocab_sizes)
+            # Log neighbor accuracy to wandb
+            if self.config.get('use_wandb', False) and WANDB_AVAILABLE:
+                wandb.log({'data/neighbor_accuracy': neighbor_accuracy})
 
     def compute_cluster_utilization(self) -> Dict[str, float]:
         """Compute cluster utilization metrics on training data."""
@@ -279,12 +354,10 @@ class SCANTrainer:
                 if num_samples_evaluated >= max_samples_for_eval:
                     break
 
-                # Forward pass on anchors only (more efficient)
+                # Forward pass on anchors only
                 anchor_logits = self.model(
-                    categorical_features=batch['anchor']['categorical_features'],
-                    coordinates=batch['anchor']['coordinates'],
-                    time_deltas=batch['anchor']['time_deltas'],
-                    mask=batch['anchor']['mask']
+                    input_data=batch['anchor']['input_data'],
+                    attention_mask=batch['anchor']['mask']
                 )
 
                 # Get cluster predictions
@@ -293,18 +366,9 @@ class SCANTrainer:
                 num_samples_evaluated += len(batch_predictions)
 
         if cluster_predictions:
-            import numpy as np
             cluster_predictions = np.array(cluster_predictions)
             unique_clusters = np.unique(cluster_predictions)
 
-            metrics = {
-                'active_clusters': len(unique_clusters),
-                'cluster_utilization': len(unique_clusters) / self.config['num_clusters'],
-                'samples_evaluated': len(cluster_predictions),
-                'total_clusters': self.config['num_clusters']
-            }
-
-            # Log cluster distribution for debugging
             from collections import Counter
             cluster_counts = Counter(cluster_predictions)
 
@@ -312,11 +376,15 @@ class SCANTrainer:
             most_common = cluster_counts.most_common(1)[0]
             least_common = min(cluster_counts.items(), key=lambda x: x[1])
 
-            metrics.update({
+            metrics = {
+                'active_clusters': len(unique_clusters),
+                'cluster_utilization': len(unique_clusters) / self.config['num_clusters'],
+                'samples_evaluated': len(cluster_predictions),
+                'total_clusters': self.config['num_clusters'],
                 'max_cluster_size': most_common[1],
                 'min_cluster_size': least_common[1],
                 'cluster_size_ratio': most_common[1] / least_common[1] if least_common[1] > 0 else float('inf')
-            })
+            }
 
             return metrics
         else:
@@ -343,18 +411,15 @@ class SCANTrainer:
 
         for batch_idx, batch in enumerate(self.train_loader):
             # Forward pass on anchors and neighbors
+            # The batch format from SCANCollator has nested structure
             anchor_logits = self.model(
-                categorical_features=batch['anchor']['categorical_features'],
-                coordinates=batch['anchor']['coordinates'],
-                time_deltas=batch['anchor']['time_deltas'],
-                mask=batch['anchor']['mask']
+                input_data=batch['anchor']['input_data'],
+                attention_mask=batch['anchor']['mask']
             )
 
             neighbor_logits = self.model(
-                categorical_features=batch['neighbor']['categorical_features'],
-                coordinates=batch['neighbor']['coordinates'],
-                time_deltas=batch['neighbor']['time_deltas'],
-                mask=batch['neighbor']['mask']
+                input_data=batch['neighbor']['input_data'],
+                attention_mask=batch['neighbor']['mask']
             )
 
             # Compute SCAN loss
@@ -404,7 +469,7 @@ class SCANTrainer:
                         'global_step': self.global_step
                     }
 
-                    # Add cluster utilization tracking every few log intervals for efficiency
+                    # Add cluster utilization tracking every few log intervals
                     if batch_idx % (self.config.get('log_interval', 50) * 5) == 0:
                         step_cluster_metrics = self.compute_cluster_utilization()
                         log_dict.update({
@@ -435,7 +500,18 @@ class SCANTrainer:
             'global_step': self.global_step,
             'current_epoch': self.current_epoch,
             'config': self.config,
-            'best_loss': self.best_loss
+            'best_loss': self.best_loss,
+            'num_clusters': self.config['num_clusters'],
+            'd_model': self.model.d_model,
+            'vocab_sizes': self.model.vocab_sizes,
+            # Store pre-trained model path for reference
+            'pretrained_model_path': self.config['pretrained_model_path'],
+            # Store alignment config for reference
+            'alignment_config_dict': {
+                'train_data_path': self.model.alignment_config.train_data_path,
+                'vocab_path': self.model.alignment_config.vocab_path,
+                'encoder': self.model.alignment_config.encoder
+            }
         }
 
         torch.save(checkpoint, checkpoint_path)
@@ -500,6 +576,9 @@ class SCANTrainer:
         # Save final model
         self.save_checkpoint('final_model.pt')
 
+        # Save config.yaml for reference
+        self._save_config_yaml()
+
         # Compute final cluster utilization
         final_cluster_metrics = self.compute_cluster_utilization()
 
@@ -527,6 +606,27 @@ class SCANTrainer:
 
         self.logger.info("SCAN clustering training completed!")
 
+    def _save_config_yaml(self):
+        """Save configuration as YAML for reference."""
+        import yaml
+
+        config_to_save = {
+            'pretrained_model_path': self.config['pretrained_model_path'],
+            'train_data_path': self.config['train_data_path'],
+            'vocab_path': self.config['vocab_path'],
+            'num_clusters': self.config['num_clusters'],
+            'learning_rate': self.config['learning_rate'],
+            'batch_size': self.config['batch_size'],
+            'max_epochs': self.config['max_epochs'],
+            'freeze_encoder': self.config.get('freeze_encoder', False),
+            'entropy_weight': self.config.get('entropy_weight', 2.0),
+            'num_neighbors': self.config.get('num_neighbors', 20),
+            'wandb_project': self.config.get('wandb_project', 'discover-v2-dv1-scan')
+        }
+
+        with open(self.output_dir / 'config.yaml', 'w') as f:
+            yaml.dump(config_to_save, f, default_flow_style=False)
+
 
 def get_default_config() -> Dict[str, Any]:
     """Get default SCAN training configuration."""
@@ -540,7 +640,7 @@ def get_default_config() -> Dict[str, Any]:
         'batch_size': 64,
         'learning_rate': 1e-4,
         'weight_decay': 1e-4,
-        'betas': [0.9, 0.999],
+        'betas': (0.9, 0.999),
         'max_epochs': 40,
         'grad_clip_norm': 1.0,
 
@@ -559,25 +659,64 @@ def get_default_config() -> Dict[str, Any]:
 
         # Wandb settings
         'use_wandb': True,
-        'wandb_project': 'discover-scan',
+        'wandb_project': 'discover-v2-dv1-scan',
         'wandb_tags': ['scan', 'clustering'],
-        'wandb_notes': 'SCAN clustering training on pre-trained sensor encoder'
+        'wandb_notes': 'SCAN clustering training on pre-trained AlignmentModel'
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Train SCAN clustering model')
-    parser.add_argument('--config', type=str, help='Path to config file')
+    parser = argparse.ArgumentParser(
+        description='Train SCAN clustering model on pre-trained AlignmentModel',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    # Basic usage (auto-detects data paths from pre-trained model)
+    python src/training/train_scan.py \\
+        --pretrained_model trained_models/milan/milan_fl20_seq_rb0_textclip_projmlp_clipmlm_v1 \\
+        --num_clusters 20 \\
+        --output_dir trained_models/milan/scan_20cl_v1
+
+    # With explicit data paths
+    python src/training/train_scan.py \\
+        --pretrained_model trained_models/milan/model_dir \\
+        --train_data data/processed/casas/milan/FL_20/train.json \\
+        --vocab data/processed/casas/milan/FL_20/vocab.json \\
+        --num_clusters 20 \\
+        --output_dir trained_models/milan/scan_20cl_v1
+
+    # Frozen encoder (only train clustering head)
+    python src/training/train_scan.py \\
+        --pretrained_model trained_models/milan/model_dir \\
+        --num_clusters 20 \\
+        --freeze_encoder \\
+        --output_dir trained_models/milan/scan_frozen_20cl
+        """
+    )
+
+    # Required arguments
     parser.add_argument('--pretrained_model', type=str, required=True,
-                       help='Path to pre-trained sensor encoder model')
-    parser.add_argument('--train_data', type=str, required=True,
-                       help='Path to training data')
-    parser.add_argument('--vocab', type=str, required=True,
-                       help='Path to vocabulary file')
+                       help='Path to pre-trained AlignmentModel directory')
     parser.add_argument('--output_dir', type=str, required=True,
-                       help='Output directory for models and logs')
+                       help='Output directory for trained model')
+
+    # Optional data paths (auto-detected from pre-trained model if not provided)
+    parser.add_argument('--train_data', type=str, default=None,
+                       help='Path to training data (auto-detected if not provided)')
+    parser.add_argument('--vocab', type=str, default=None,
+                       help='Path to vocabulary file (auto-detected if not provided)')
+    parser.add_argument('--config', type=str, default=None,
+                       help='Path to JSON config file (overrides other arguments)')
+
+    # Model settings
     parser.add_argument('--num_clusters', type=int, default=20,
                        help='Number of clusters')
+    parser.add_argument('--freeze_encoder', action='store_true',
+                       help='Freeze encoder weights (only train clustering head)')
+    parser.add_argument('--dropout', type=float, default=0.1,
+                       help='Dropout rate for clustering head')
+
+    # Training settings
     parser.add_argument('--batch_size', type=int, default=64,
                        help='Batch size')
     parser.add_argument('--learning_rate', type=float, default=1e-4,
@@ -590,9 +729,10 @@ def main():
                        help='Entropy weight in SCAN loss')
 
     # Wandb arguments
-    parser.add_argument('--wandb_project', type=str, default='discover-scan',
+    parser.add_argument('--wandb_project', type=str, default='discover-v2-dv1-scan',
                        help='W&B project name')
-    parser.add_argument('--wandb_name', type=str, help='W&B run name')
+    parser.add_argument('--wandb_name', type=str, default=None,
+                       help='W&B run name')
     parser.add_argument('--wandb_tags', type=str, nargs='+',
                        default=['scan', 'clustering'], help='W&B tags')
     parser.add_argument('--no_wandb', action='store_true',
@@ -600,60 +740,51 @@ def main():
 
     args = parser.parse_args()
 
-    # Load config
+    # Load config from file if provided
     if args.config:
         with open(args.config, 'r') as f:
             config = json.load(f)
     else:
         config = get_default_config()
 
-    # Override with command line arguments (only if provided)
-    # Always override required paths
+    # Override with command line arguments
     config.update({
         'pretrained_model_path': args.pretrained_model,
-        'train_data_path': args.train_data,
-        'vocab_path': args.vocab,
         'output_dir': args.output_dir,
         'use_wandb': not args.no_wandb,
     })
 
-    # Only override optional arguments if they differ from defaults
-    parser_defaults = {
-        'num_clusters': 20,
-        'batch_size': 64,
-        'learning_rate': 1e-4,
-        'max_epochs': 40,
-        'num_neighbors': 20,
-        'entropy_weight': 2.0,
-        'wandb_project': 'discover-scan',
-        'wandb_tags': ['scan', 'clustering']
-    }
+    # Optional paths
+    if args.train_data:
+        config['train_data_path'] = args.train_data
+    if args.vocab:
+        config['vocab_path'] = args.vocab
 
-    # Override only if different from parser default
-    if args.num_clusters != parser_defaults['num_clusters']:
-        config['num_clusters'] = args.num_clusters
-    if args.batch_size != parser_defaults['batch_size']:
-        config['batch_size'] = args.batch_size
-    if args.learning_rate != parser_defaults['learning_rate']:
-        config['learning_rate'] = args.learning_rate
-    if args.max_epochs != parser_defaults['max_epochs']:
-        config['max_epochs'] = args.max_epochs
-    if args.num_neighbors != parser_defaults['num_neighbors']:
-        config['num_neighbors'] = args.num_neighbors
-    if args.entropy_weight != parser_defaults['entropy_weight']:
-        config['entropy_weight'] = args.entropy_weight
-    if args.wandb_project != parser_defaults['wandb_project']:
-        config['wandb_project'] = args.wandb_project
-    if args.wandb_name is not None:
+    # Model settings
+    config['num_clusters'] = args.num_clusters
+    config['freeze_encoder'] = args.freeze_encoder
+    config['dropout'] = args.dropout
+
+    # Training settings
+    config['batch_size'] = args.batch_size
+    config['learning_rate'] = args.learning_rate
+    config['max_epochs'] = args.max_epochs
+    config['num_neighbors'] = args.num_neighbors
+    config['entropy_weight'] = args.entropy_weight
+
+    # Wandb settings
+    config['wandb_project'] = args.wandb_project
+    if args.wandb_name:
         config['wandb_name'] = args.wandb_name
-    if args.wandb_tags != parser_defaults['wandb_tags']:
-        config['wandb_tags'] = args.wandb_tags
+    config['wandb_tags'] = args.wandb_tags
 
     # Generate run name if not provided
     if not config.get('wandb_name'):
-        from datetime import datetime
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        config['wandb_name'] = f"scan_{config['num_clusters']}cl_{timestamp}"
+        model_name = Path(args.pretrained_model).name
+        config['wandb_name'] = f"scan_{args.num_clusters}cl_{model_name}_{timestamp}"
+        config['run_name'] = config['wandb_name']
+    else:
         config['run_name'] = config['wandb_name']
 
     # Create trainer and start training
