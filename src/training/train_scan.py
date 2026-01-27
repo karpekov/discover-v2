@@ -354,6 +354,9 @@ class SCANTrainer:
                 if num_samples_evaluated >= max_samples_for_eval:
                     break
 
+                # Move batch to device
+                batch = self._move_batch_to_device(batch)
+
                 # Forward pass on anchors only
                 anchor_logits = self.model(
                     input_data=batch['anchor']['input_data'],
@@ -398,6 +401,19 @@ class SCANTrainer:
                 'cluster_size_ratio': 0.0
             }
 
+    def _move_batch_to_device(self, batch: Dict[str, Any]) -> Dict[str, Any]:
+        """Move a batch of data to the target device."""
+        def move_to_device(obj):
+            if isinstance(obj, torch.Tensor):
+                return obj.to(self.device)
+            elif isinstance(obj, dict):
+                return {k: move_to_device(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [move_to_device(item) for item in obj]
+            else:
+                return obj
+        return move_to_device(batch)
+
     def train_epoch(self) -> Dict[str, float]:
         """Train for one epoch."""
         self.model.train_mode()
@@ -410,6 +426,9 @@ class SCANTrainer:
         }
 
         for batch_idx, batch in enumerate(self.train_loader):
+            # Move batch to device
+            batch = self._move_batch_to_device(batch)
+
             # Forward pass on anchors and neighbors
             # The batch format from SCANCollator has nested structure
             anchor_logits = self.model(
