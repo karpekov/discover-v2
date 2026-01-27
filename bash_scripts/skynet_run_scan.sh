@@ -8,7 +8,7 @@
 #SBATCH -J dv2-scan
 #SBATCH -p rail-lab
 
-# SCAN Clustering Training Script for Skynet
+# SCAN Clustering Training Script for Skynet (GPU-optimized)
 #
 # Usage:
 #   sbatch bash_scripts/skynet_run_scan.sh <pretrained_model> <output_dir> [num_clusters] [max_epochs]
@@ -38,6 +38,11 @@ OUTPUT_DIR=$2
 NUM_CLUSTERS=${3:-20}
 MAX_EPOCHS=${4:-40}
 
+# GPU-optimized settings
+BATCH_SIZE=256           # Larger batch for A40 (40GB VRAM)
+NUM_WORKERS=8            # Parallel data loading
+EMBEDDING_BATCH_SIZE=512 # Larger batch for embedding extraction
+
 # Validate arguments
 if [ -z "$PRETRAINED_MODEL" ] || [ -z "$OUTPUT_DIR" ]; then
     echo "Usage: sbatch skynet_run_scan.sh <pretrained_model> <output_dir> [num_clusters] [max_epochs]"
@@ -51,12 +56,15 @@ if [ -z "$PRETRAINED_MODEL" ] || [ -z "$OUTPUT_DIR" ]; then
 fi
 
 echo "========================================"
-echo "SCAN Clustering Training"
+echo "SCAN Clustering Training (GPU-optimized)"
 echo "========================================"
 echo "Pretrained model: $PRETRAINED_MODEL"
 echo "Output directory: $OUTPUT_DIR"
 echo "Number of clusters: $NUM_CLUSTERS"
 echo "Max epochs: $MAX_EPOCHS"
+echo "Batch size: $BATCH_SIZE"
+echo "Num workers: $NUM_WORKERS"
+echo "Embedding batch size: $EMBEDDING_BATCH_SIZE"
 echo "========================================"
 
 /coc/flash5/akarpekov3/anaconda3/envs/discover-v2-env/bin/python ./src/training/train_scan.py \
@@ -64,8 +72,10 @@ echo "========================================"
     --output_dir "$OUTPUT_DIR" \
     --num_clusters "$NUM_CLUSTERS" \
     --max_epochs "$MAX_EPOCHS" \
+    --batch_size "$BATCH_SIZE" \
+    --num_workers "$NUM_WORKERS" \
+    --embedding_batch_size "$EMBEDDING_BATCH_SIZE" \
     --wandb_project discover-v2-dv1-scan
 
 echo "SCAN training completed!"
 echo "Model saved to: $OUTPUT_DIR"
-

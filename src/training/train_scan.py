@@ -737,7 +737,7 @@ Examples:
 
     # Training settings
     parser.add_argument('--batch_size', type=int, default=64,
-                       help='Batch size')
+                       help='Batch size for training')
     parser.add_argument('--learning_rate', type=float, default=1e-4,
                        help='Learning rate')
     parser.add_argument('--max_epochs', type=int, default=40,
@@ -746,6 +746,12 @@ Examples:
                        help='Number of nearest neighbors for SCAN')
     parser.add_argument('--entropy_weight', type=float, default=2.0,
                        help='Entropy weight in SCAN loss')
+
+    # Performance settings
+    parser.add_argument('--num_workers', type=int, default=0,
+                       help='Number of data loader workers (use 8+ on server)')
+    parser.add_argument('--embedding_batch_size', type=int, default=128,
+                       help='Batch size for embedding extraction (can be larger than training batch)')
 
     # Wandb arguments
     parser.add_argument('--wandb_project', type=str, default='discover-v2-dv1-scan',
@@ -790,6 +796,10 @@ Examples:
     config['max_epochs'] = args.max_epochs
     config['num_neighbors'] = args.num_neighbors
     config['entropy_weight'] = args.entropy_weight
+
+    # Performance settings
+    config['num_workers'] = args.num_workers
+    config['embedding_batch_size'] = args.embedding_batch_size
 
     # Wandb settings
     config['wandb_project'] = args.wandb_project
