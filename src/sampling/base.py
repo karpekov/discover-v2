@@ -261,6 +261,13 @@ class BaseSampler(ABC):
                 print("  Warning: No datetime/timestamp column found, skipping temporal features")
                 return df
 
+        # Filter out rows with invalid/NaT datetime values
+        invalid_datetime_mask = df['datetime'].isna()
+        if invalid_datetime_mask.any():
+            num_invalid = invalid_datetime_mask.sum()
+            print(f"  Filtered {num_invalid} rows with invalid datetime values")
+            df = df[~invalid_datetime_mask].copy()
+
         # Extract hour if not already present
         if 'hour' not in df.columns:
             df['hour'] = df['datetime'].dt.hour
@@ -286,6 +293,9 @@ class BaseSampler(ABC):
         # Day of week bucketing (0=Monday, 6=Sunday)
         def _get_dow_bucket(dow):
             """Convert day of week to readable bucket."""
+            if pd.isna(dow):
+                return 'unknown'
+            dow = int(dow)
             days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
             return days[dow] if 0 <= dow <= 6 else 'unknown'
 
