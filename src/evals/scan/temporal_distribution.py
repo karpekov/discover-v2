@@ -127,9 +127,9 @@ class TemporalDistributionAnalyzer:
                     break
 
             model_name = self.model_dir.name
-            self.output_dir = Path('results/scan') / dataset_name / model_name
+            self.output_dir = Path('results/scan') / dataset_name / model_name / 'long_changes'
         else:
-            self.output_dir = Path(output_dir)
+            self.output_dir = Path(output_dir) / 'long_changes'
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         print(f"Output directory: {self.output_dir}")

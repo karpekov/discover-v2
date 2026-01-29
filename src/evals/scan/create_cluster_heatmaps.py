@@ -440,12 +440,12 @@ class ClusterHeatmapGenerator:
                 kernel = stats.gaussian_kde(values, bw_method=0.15)
                 Z = np.reshape(kernel(positions).T, X.shape)
 
-                # Plot KDE as contour lines only (not filled) to preserve floor plan visibility
-                levels = np.linspace(Z.max() * 0.1, Z.max(), 8)
-                ax.contour(X, Y, Z, levels=levels, cmap='Reds', linewidths=1.5, alpha=0.8)
+                # Plot KDE as filled contours with YlOrRd colormap
+                levels = np.linspace(Z.max() * 0.05, Z.max(), 12)
+                ax.contourf(X, Y, Z, levels=levels, cmap='YlOrRd', alpha=0.7, zorder=1)
 
                 # Add scatter points
-                ax.scatter(x_coords, y_coords, c='red', s=8, alpha=0.7, edgecolors='darkred', linewidths=0.5)
+                ax.scatter(x_coords, y_coords, c='darkred', s=10, alpha=0.8, edgecolors='black', linewidths=0.3, zorder=2)
 
             except Exception as e:
                 print(f"    KDE failed: {e}, using scatter plot")
@@ -524,16 +524,16 @@ class ClusterHeatmapGenerator:
                     kernel = stats.gaussian_kde(values, bw_method=0.12)
                     Z = np.reshape(kernel(positions).T, X.shape)
 
-                    # Use contour lines instead of filled contours
-                    levels = np.linspace(Z.max() * 0.1, Z.max(), 10)
-                    contour = ax.contour(X, Y, Z, levels=levels, cmap='Reds', linewidths=2, alpha=0.8)
-                    plt.colorbar(contour, ax=ax, label='Density')
+                    # Use filled contours with YlOrRd colormap
+                    levels = np.linspace(Z.max() * 0.05, Z.max(), 15)
+                    contourf = ax.contourf(X, Y, Z, levels=levels, cmap='YlOrRd', alpha=0.7, zorder=1)
+                    plt.colorbar(contourf, ax=ax, label='Density')
 
-                    ax.scatter(x_coords, y_coords, c='red', s=15, alpha=0.7, edgecolors='darkred', linewidths=0.5)
+                    ax.scatter(x_coords, y_coords, c='darkred', s=20, alpha=0.8, edgecolors='black', linewidths=0.3, zorder=2)
 
                 except Exception as e:
                     ax.scatter([c[0] for c in coords], [c[1] for c in coords],
-                              c='red', s=20, alpha=0.7, edgecolors='darkred', linewidths=0.5)
+                              c='darkred', s=25, alpha=0.8, edgecolors='black', linewidths=0.3)
 
             # Add sensor labels (flip Y from Cartesian to image coords)
             for sensor_id, (sx, sy) in self.sensor_coords.items():
