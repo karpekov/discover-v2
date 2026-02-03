@@ -6,23 +6,37 @@ Compares activity patterns between the first N weeks and last N weeks of data.
 
 Usage:
     # Basic usage (auto-detects first/last 2 weeks)
-    python src/evals/long/temporal_distribution.py \
+    python src/evals/scan/temporal_distribution.py \
         --model_dir trained_models/milan/scan_fl20_20cl_discover_v1
 
     # Specify number of weeks to compare
-    python src/evals/long/temporal_distribution.py \
+    python src/evals/scan/temporal_distribution.py \
         --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
         --weeks 2
 
     # Custom week start dates (compare week starting Nov 25 vs week starting Dec 23)
-    python src/evals/long/temporal_distribution.py \
+    python src/evals/scan/temporal_distribution.py \
         --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
         --first_start 2009-11-25 \
         --last_start 2009-12-23 \
         --weeks 1
 
+    # Aruba example
+    python src/evals/scan/temporal_distribution.py \
+        --model_dir trained_models/aruba/scan_fl20_20cl_discover_v1 \
+        --first_start 2011-02-10 \
+        --last_start 2011-05-20 \
+        --weeks 1
+
+    # Cairo example
+    python src/evals/scan/temporal_distribution.py \
+        --model_dir trained_models/cairo/scan_fl20_20cl_discover_v1 \
+        --first_start 2009-06-10 \
+        --last_start 2009-07-25 \
+        --weeks 1
+
     # Custom data directory
-    python src/evals/long/temporal_distribution.py \
+    python src/evals/scan/temporal_distribution.py \
         --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
         --data_dir data/processed/casas/milan/FL_20
 """
@@ -42,13 +56,13 @@ import seaborn as sns
 import torch
 from torch.utils.data import DataLoader, ConcatDataset, Subset
 
-# Add parent directories to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+# Add project root to path (for src module imports)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from models.scan_model import SCANClusteringModel
-from dataio.dataset import SmartHomeDataset
-from utils.device_utils import get_optimal_device
+from src.models.scan_model import SCANClusteringModel
+from src.dataio.dataset import SmartHomeDataset
+from src.utils.device_utils import get_optimal_device
 
 
 class TemporalDistributionAnalyzer:
@@ -145,7 +159,7 @@ class TemporalDistributionAnalyzer:
     def _load_label_colors(self):
         """Load label colors from metadata."""
         try:
-            metadata_path = Path(__file__).parent.parent.parent.parent / "metadata" / "casas_metadata.json"
+            metadata_path = PROJECT_ROOT / "metadata" / "casas_metadata.json"
             with open(metadata_path, 'r') as f:
                 city_metadata = json.load(f)
 

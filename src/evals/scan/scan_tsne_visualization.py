@@ -5,20 +5,21 @@ t-SNE visualization and evaluation of SCAN clustering results.
 Visualizes embeddings colored by ground truth labels and cluster predictions.
 
 Usage:
-    # Basic usage (auto-detects test data from model config)
-    python src/evals/scan_tsne_visualization.py \
-        --model_dir trained_models/milan/scan_fl20_20cl_discover_v1
 
-    # With explicit paths
-    python src/evals/scan_tsne_visualization.py \
-        --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
-        --data_path data/processed/casas/milan/FL_20/test.json \
-        --vocab_path data/processed/casas/milan/FL_20/vocab.json
+# Basic usage (auto-detects test data from model config)
+python src/evals/scan/scan_tsne_visualization.py \
+    --model_dir trained_models/milan/scan_fl20_20cl_discover_v1
 
-    # Custom output directory
-    python src/evals/scan_tsne_visualization.py \
-        --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
-        --output_dir results/scan/milan/scan_fl20_20cl_discover_v1
+# With explicit paths
+python src/evals/scan/scan_tsne_visualization.py \
+    --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
+    --data_path data/processed/casas/milan/FL_20/test.json \
+    --vocab_path data/processed/casas/milan/FL_20/vocab.json
+
+# Custom output directory
+python src/evals/scan/scan_tsne_visualization.py \
+    --model_dir trained_models/milan/scan_fl20_20cl_discover_v1 \
+    --output_dir results/scan/milan/scan_fl20_20cl_discover_v1
 """
 
 import os
@@ -44,13 +45,13 @@ import torch
 from torch.utils.data import DataLoader
 from collections import Counter
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Add project root to path (for src module imports)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from models.scan_model import SCANClusteringModel
-from dataio.dataset import SmartHomeDataset
-from utils.device_utils import get_optimal_device
+from src.models.scan_model import SCANClusteringModel
+from src.dataio.dataset import SmartHomeDataset
+from src.utils.device_utils import get_optimal_device
 
 
 class SCANEvaluator:
@@ -133,8 +134,10 @@ class SCANEvaluator:
         else:
             self.output_dir = Path(output_dir)
 
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        print(f"Output directory: {self.output_dir}")
+        # Create tsne subfolder for all outputs
+        self.tsne_dir = self.output_dir / 'tsne'
+        self.tsne_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Output directory: {self.tsne_dir}")
 
         # Initialize components
         self.model = None
@@ -150,7 +153,7 @@ class SCANEvaluator:
     def _load_label_colors(self):
         """Load label colors from city metadata."""
         try:
-            metadata_path = Path(__file__).parent.parent.parent / "metadata" / "casas_metadata.json"
+            metadata_path = PROJECT_ROOT / "metadata" / "casas_metadata.json"
             with open(metadata_path, 'r') as f:
                 city_metadata = json.load(f)
 
@@ -441,7 +444,7 @@ class SCANEvaluator:
         plt.tight_layout()
 
         # Save the plot
-        output_path = self.output_dir / f'tsne_visualization{self.label_suffix}.png'
+        output_path = self.tsne_dir / f'tsne_visualization{self.label_suffix}.png'
         plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         print(f"Saved: {output_path}")
@@ -475,7 +478,7 @@ class SCANEvaluator:
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.savefig(self.output_dir / f'tsne_ground_truth{self.label_suffix}.png', dpi=300, bbox_inches='tight', facecolor='white')
+        plt.savefig(self.tsne_dir / f'tsne_ground_truth{self.label_suffix}.png', dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
 
         # Cluster plot
@@ -502,11 +505,11 @@ class SCANEvaluator:
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.savefig(self.output_dir / f'tsne_clusters{self.label_suffix}.png', dpi=300, bbox_inches='tight', facecolor='white')
+        plt.savefig(self.tsne_dir / f'tsne_clusters{self.label_suffix}.png', dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
 
-        print(f"Saved: {self.output_dir / 'tsne_ground_truth.png'}")
-        print(f"Saved: {self.output_dir / 'tsne_clusters.png'}")
+        print(f"Saved: {self.tsne_dir / 'tsne_ground_truth.png'}")
+        print(f"Saved: {self.tsne_dir / 'tsne_clusters.png'}")
 
     def compute_clustering_metrics(self) -> Dict:
         """Compute clustering evaluation metrics."""
@@ -613,13 +616,13 @@ class SCANEvaluator:
             plt.xticks(rotation=45, ha='right')
             plt.tight_layout()
 
-            confusion_path = self.output_dir / f'confusion_matrix{self.label_suffix}.png'
+            confusion_path = self.tsne_dir / f'confusion_matrix{self.label_suffix}.png'
             plt.savefig(confusion_path, dpi=300, bbox_inches='tight', facecolor='white')
             plt.close()
             print(f"Saved: {confusion_path}")
 
             # Save CSV
-            csv_path = self.output_dir / f'confusion_matrix{self.label_suffix}.csv'
+            csv_path = self.tsne_dir / f'confusion_matrix{self.label_suffix}.csv'
             pivot_df.to_csv(csv_path)
             print(f"Saved: {csv_path}")
 
@@ -656,7 +659,7 @@ class SCANEvaluator:
         ax.grid(True, alpha=0.3, axis='y')
 
         plt.tight_layout()
-        output_path = self.output_dir / f'cluster_composition{self.label_suffix}.png'
+        output_path = self.tsne_dir / f'cluster_composition{self.label_suffix}.png'
         plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
         print(f"Saved: {output_path}")
@@ -694,13 +697,13 @@ class SCANEvaluator:
         }
 
         # Save JSON report
-        json_path = self.output_dir / f'evaluation_report{self.label_suffix}.json'
+        json_path = self.tsne_dir / f'evaluation_report{self.label_suffix}.json'
         with open(json_path, 'w') as f:
             json.dump(report, f, indent=2)
         print(f"Saved: {json_path}")
 
         # Save text report
-        txt_path = self.output_dir / f'evaluation_report{self.label_suffix}.txt'
+        txt_path = self.tsne_dir / f'evaluation_report{self.label_suffix}.txt'
         with open(txt_path, 'w') as f:
             f.write("="*70 + "\n")
             f.write("SCAN CLUSTERING EVALUATION REPORT\n")
@@ -756,7 +759,7 @@ class SCANEvaluator:
 
         print("\n" + "="*70)
         print("EVALUATION COMPLETED!")
-        print(f"Results saved to: {self.output_dir}")
+        print(f"Results saved to: {self.tsne_dir}")
         print("="*70)
 
         return metrics

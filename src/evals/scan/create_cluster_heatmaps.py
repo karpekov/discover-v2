@@ -37,13 +37,13 @@ from scipy import stats
 import torch
 from torch.utils.data import DataLoader, Subset
 
-# Add parent directories to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+# Add project root to path (for src module imports)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from models.scan_model import SCANClusteringModel
-from dataio.dataset import SmartHomeDataset
-from utils.device_utils import get_optimal_device
+from src.models.scan_model import SCANClusteringModel
+from src.dataio.dataset import SmartHomeDataset
+from src.utils.device_utils import get_optimal_device
 
 
 class ClusterHeatmapGenerator:
@@ -129,7 +129,7 @@ class ClusterHeatmapGenerator:
 
     def _load_metadata(self):
         """Load sensor coordinates and floor plan."""
-        metadata_path = Path(__file__).parent.parent.parent.parent / "metadata" / "casas_metadata.json"
+        metadata_path = PROJECT_ROOT / "metadata" / "casas_metadata.json"
 
         try:
             with open(metadata_path, 'r') as f:
@@ -151,7 +151,7 @@ class ClusterHeatmapGenerator:
             self.sensor_locations = {}
 
         # Load floor plan image
-        floor_plan_path = Path(__file__).parent.parent.parent.parent / "metadata" / "floor_plans_augmented" / f"{self.dataset_name}.png"
+        floor_plan_path = PROJECT_ROOT / "metadata" / "floor_plans_augmented" / f"{self.dataset_name}.png"
 
         if floor_plan_path.exists():
             try:
