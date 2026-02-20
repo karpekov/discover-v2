@@ -36,7 +36,7 @@
 PRETRAINED_MODEL=$1
 OUTPUT_DIR=$2
 NUM_CLUSTERS=${3:-20}
-MAX_EPOCHS=${4:-40}
+MAX_EPOCHS=${4:-100}
 
 # GPU-optimized settings
 BATCH_SIZE=256           # Larger batch for A40 (40GB VRAM)
