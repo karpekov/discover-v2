@@ -1533,6 +1533,62 @@
       "E01": [1385, 1145],
       "E02": [445, 882]
     },
+    "sensor_details": {
+      "M01": null, "M02": null, "M03": null, "M04": null, "M05": null,
+      "M06": null, "M07": null, "M08": null, "M09": null, "M10": null,
+      "M11": null, "M12": null, "M13": null, "M14": null, "M15": null,
+      "M16": null, "M17": null, "M18": null, "M19": null, "M20": null,
+      "M21": null, "M22": null, "M23": null, "M24": null, "M25": null,
+      "M26": null, "M27": null, "M28": null, "M29": null, "M30": null,
+      "M31": null, "M32": null, "M33": null, "M34": null, "M35": null,
+      "M36": null, "M37": null, "M38": null, "M39": null, "M40": null,
+      "M41": null, "M42": null, "M43": null, "M44": null, "M45": null,
+      "M46": null, "M47": null, "M48": null, "M49": null, "M50": null,
+      "M51": null,
+      "T01": null, "T02": null, "T03": null, "T04": null, "T05": null,
+      "D01": null, "D02": null, "D03": null, "D04": null, "D05": null,
+      "D06": null, "D07": null, "D08": null, "D09": null, "D10": null,
+      "D11": null, "D12": null, "D13": null, "D14": null, "D15": null,
+      "D16": null,
+      "L01": null, "L02": null, "L03": null, "L04": null, "L05": null,
+      "L06": null, "L07": null, "L08": null, "L09": null, "L10": null,
+      "L11": null,
+      "I01": null, "I02": null, "I03": null, "I04": null, "I05": null,
+      "I06": null, "I07": null, "I08": null, "I09": null, "I10": null,
+      "I11": null, "I12": null,
+      "AD1-A": null, "AD1-B": null, "AD1-C": null,
+      "R01": null, "R02": null,
+      "F01": null, "F02": null,
+      "E01": null, "E02": null
+    },
+    "sensor_type": {
+      "M01": "motion", "M02": "motion", "M03": "motion", "M04": "motion", "M05": "motion",
+      "M06": "motion", "M07": "motion", "M08": "motion", "M09": "motion", "M10": "motion",
+      "M11": "motion", "M12": "motion", "M13": "motion", "M14": "motion", "M15": "motion",
+      "M16": "motion", "M17": "motion", "M18": "motion", "M19": "motion", "M20": "motion",
+      "M21": "motion", "M22": "motion", "M23": "motion", "M24": "motion", "M25": "motion",
+      "M26": "motion", "M27": "motion", "M28": "motion", "M29": "motion", "M30": "motion",
+      "M31": "motion", "M32": "motion", "M33": "motion", "M34": "motion", "M35": "motion",
+      "M36": "motion", "M37": "motion", "M38": "motion", "M39": "motion", "M40": "motion",
+      "M41": "motion", "M42": "motion", "M43": "motion", "M44": "motion", "M45": "motion",
+      "M46": "motion", "M47": "motion", "M48": "motion", "M49": "motion", "M50": "motion",
+      "M51": "motion",
+      "T01": "temperature", "T02": "temperature", "T03": "temperature", "T04": "temperature", "T05": "temperature",
+      "D01": "door", "D02": "door", "D03": "door", "D04": "door", "D05": "door",
+      "D06": "door", "D07": "door", "D08": "door", "D09": "door", "D10": "door",
+      "D11": "door", "D12": "door", "D13": "door", "D14": "door", "D15": "door",
+      "D16": "door",
+      "L01": "unknown", "L02": "unknown", "L03": "unknown", "L04": "unknown", "L05": "unknown",
+      "L06": "unknown", "L07": "unknown", "L08": "unknown", "L09": "unknown", "L10": "unknown",
+      "L11": "unknown",
+      "I01": "item", "I02": "item", "I03": "item", "I04": "item", "I05": "item",
+      "I06": "item", "I07": "item", "I08": "item", "I09": "item", "I10": "item",
+      "I11": "item", "I12": "item",
+      "AD1-A": "unknown", "AD1-B": "unknown", "AD1-C": "unknown",
+      "R01": "unknown", "R02": "unknown",
+      "F01": "unknown", "F02": "unknown",
+      "E01": "unknown", "E02": "unknown"
+    },
     "label_l2": {
       "Meal_Preparation": "Cook",
       "R1_Sleep": "Sleep",
@@ -1590,7 +1646,203 @@
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
     },
-    "label_to_text": {}
+    "label_to_text": {
+      "Meal_Preparation": {
+        "short_desc": "cooking and preparing meals in the kitchen",
+        "long_desc": ["Sustained activity in the kitchen area with motion near the stove, counters, and food preparation zones, indicating meal cooking."],
+        "zeroshot_har_desc": "Meal Preparation activity takes place when a person cooks or prepares food in the kitchen",
+        "multiple_desc": [
+          "Moving around the kitchen preparing ingredients and cooking at the stove.",
+          "Sustained kitchen activity with motion near the stove, counter, and sink.",
+          "Cooking a meal with repeated movement between the refrigerator, counters, and stove.",
+          "Food preparation involving chopping, stirring, and using kitchen appliances.",
+          "Extended kitchen presence with activity near cooking surfaces and food storage areas.",
+          "Moderate kitchen activity such as reheating food or assembling a simple meal.",
+          "Standing and moving in the kitchen while preparing ingredients or cooking.",
+          "Meal preparation with intermittent pauses near the stove or counter area."
+        ]
+      },
+      "R1_Sleep": {
+        "short_desc": "resident 1 sleeping in the bedroom at night",
+        "long_desc": ["Prolonged stillness in the bedroom area for resident 1, typically at night, consistent with sleeping in bed."],
+        "zeroshot_har_desc": "R1 Sleep activity takes place when resident 1 sleeps in their bed in the bedroom",
+        "multiple_desc": [
+          "Resident 1 sleeping in bed with extended stillness in the bedroom.",
+          "Nighttime rest for resident 1 with minimal movement in the sleeping area.",
+          "Long continuous presence of resident 1 in the bedroom consistent with sleep.",
+          "Resident 1 lying in bed overnight with very low sensor activity.",
+          "Overnight sleep period for resident 1 in the bedroom.",
+          "Resident 1 settling in bed at night with occasional minor movements.",
+          "Early morning lingering in bed by resident 1 before waking up.",
+          "Extended nighttime sleep for resident 1 with only rare position changes."
+        ]
+      },
+      "R1_Work": {
+        "short_desc": "resident 1 working, typically at a desk or work area",
+        "long_desc": ["Sustained stationary presence of resident 1 in a work or study area, consistent with desk work, computer use, or office activity."],
+        "zeroshot_har_desc": "R1 Work activity takes place when resident 1 works at a desk or in a designated work area",
+        "multiple_desc": [
+          "Resident 1 sitting at a desk working on a computer or paperwork.",
+          "Sustained presence of resident 1 in the work area with minimal movement.",
+          "Resident 1 engaged in office or desk work for an extended period.",
+          "Low-movement activity for resident 1 in a stationary work or study location.",
+          "Resident 1 working at a desk with occasional brief movements nearby.",
+          "Extended concentration work by resident 1 with little displacement from the work area.",
+          "Resident 1 in the office or work zone for a prolonged period.",
+          "Desk-based work activity by resident 1 with rare movement to adjacent areas."
+        ]
+      },
+      "R1_Personal_Hygiene": {
+        "short_desc": "resident 1 personal hygiene in the bathroom",
+        "long_desc": ["Activity of resident 1 in the bathroom area consistent with personal hygiene such as washing, brushing teeth, or grooming."],
+        "zeroshot_har_desc": "R1 Personal Hygiene activity takes place when resident 1 performs personal hygiene in the bathroom",
+        "multiple_desc": [
+          "Resident 1 in the bathroom performing morning or evening hygiene routines.",
+          "Short bathroom visit by resident 1 for washing or grooming.",
+          "Resident 1 brushing teeth, washing face, or combing hair in the bathroom.",
+          "Personal hygiene activity for resident 1 with motion near the sink or mirror.",
+          "Moderate bathroom visit by resident 1 for showering or bathing.",
+          "Resident 1 engaged in grooming or hygiene routines before or after sleep.",
+          "Brief presence of resident 1 in the bathroom for a hygiene task.",
+          "Resident 1 completing a personal care routine in the bathroom."
+        ]
+      },
+      "Clean": {
+        "short_desc": "cleaning and housekeeping activities throughout the home",
+        "long_desc": ["Movement throughout multiple rooms of the home with activity patterns consistent with vacuuming, tidying, or general household cleaning."],
+        "zeroshot_har_desc": "Clean activity takes place when a person cleans or tidies the home",
+        "multiple_desc": [
+          "Moving through multiple rooms while vacuuming, dusting, or tidying.",
+          "Household cleaning with broad movement across the living areas.",
+          "Sweeping or mopping activity with sustained movement in one or more rooms.",
+          "Tidying up the home with short trips between rooms and common areas.",
+          "Cleaning the kitchen and living room with motion near furniture and appliances.",
+          "Thorough home cleaning with activity in most rooms of the house.",
+          "Light housekeeping activity such as wiping surfaces or organizing items.",
+          "Intermittent cleaning with movement between the kitchen, living room, and hallway."
+        ]
+      },
+      "R1_Bed_to_Toilet": {
+        "short_desc": "resident 1 moving from bed to toilet during the night",
+        "long_desc": ["Brief nighttime movement of resident 1 from the bedroom to the bathroom, consistent with a toilet visit during sleep hours."],
+        "zeroshot_har_desc": "R1 Bed to Toilet activity takes place when resident 1 moves from bed to the toilet during the night",
+        "multiple_desc": [
+          "Resident 1 making a brief trip from the bedroom to the toilet at night.",
+          "Short nighttime bathroom visit by resident 1 before returning to bed.",
+          "Resident 1 getting up from bed and going to the bathroom during sleep hours.",
+          "Brief nocturnal movement of resident 1 between the bedroom and bathroom.",
+          "Quick toilet visit by resident 1 during the night with a return to bed.",
+          "Resident 1 briefly leaving the bed to use the bathroom and coming back.",
+          "Nighttime bed-to-toilet transition for resident 1 lasting only a few minutes.",
+          "Resident 1 making a short bathroom trip in the middle of the night."
+        ]
+      },
+      "R2_Sleep": {
+        "short_desc": "resident 2 sleeping in the bedroom at night",
+        "long_desc": ["Prolonged stillness in the bedroom area for resident 2, typically at night, consistent with sleeping in bed."],
+        "zeroshot_har_desc": "R2 Sleep activity takes place when resident 2 sleeps in their bed in the bedroom",
+        "multiple_desc": [
+          "Resident 2 sleeping in bed with extended stillness in the bedroom.",
+          "Nighttime rest for resident 2 with minimal movement in the sleeping area.",
+          "Long continuous presence of resident 2 in the bedroom consistent with sleep.",
+          "Resident 2 lying in bed overnight with very low sensor activity.",
+          "Overnight sleep period for resident 2 in the bedroom.",
+          "Resident 2 settling in bed at night with occasional minor movements.",
+          "Early morning lingering in bed by resident 2 before waking up.",
+          "Extended nighttime sleep for resident 2 with only rare position changes."
+        ]
+      },
+      "R2_Work": {
+        "short_desc": "resident 2 working, typically at a desk or work area",
+        "long_desc": ["Sustained stationary presence of resident 2 in a work or study area, consistent with desk work, computer use, or office activity."],
+        "zeroshot_har_desc": "R2 Work activity takes place when resident 2 works at a desk or in a designated work area",
+        "multiple_desc": [
+          "Resident 2 sitting at a desk working on a computer or paperwork.",
+          "Sustained presence of resident 2 in the work area with minimal movement.",
+          "Resident 2 engaged in office or desk work for an extended period.",
+          "Low-movement activity for resident 2 in a stationary work or study location.",
+          "Resident 2 working at a desk with occasional brief movements nearby.",
+          "Extended concentration work by resident 2 with little displacement from the work area.",
+          "Resident 2 in the office or work zone for a prolonged period.",
+          "Desk-based work activity by resident 2 with rare movement to adjacent areas."
+        ]
+      },
+      "R2_Personal_Hygiene": {
+        "short_desc": "resident 2 personal hygiene in the bathroom",
+        "long_desc": ["Activity of resident 2 in the bathroom area consistent with personal hygiene such as washing, brushing teeth, or grooming."],
+        "zeroshot_har_desc": "R2 Personal Hygiene activity takes place when resident 2 performs personal hygiene in the bathroom",
+        "multiple_desc": [
+          "Resident 2 in the bathroom performing morning or evening hygiene routines.",
+          "Short bathroom visit by resident 2 for washing or grooming.",
+          "Resident 2 brushing teeth, washing face, or combing hair in the bathroom.",
+          "Personal hygiene activity for resident 2 with motion near the sink or mirror.",
+          "Moderate bathroom visit by resident 2 for showering or bathing.",
+          "Resident 2 engaged in grooming or hygiene routines before or after sleep.",
+          "Brief presence of resident 2 in the bathroom for a hygiene task.",
+          "Resident 2 completing a personal care routine in the bathroom."
+        ]
+      },
+      "Watch_TV": {
+        "short_desc": "watching television in the living room",
+        "long_desc": ["Prolonged stationary presence in the living room area consistent with sitting and watching television."],
+        "zeroshot_har_desc": "Watch TV activity takes place when a person watches television while sitting in the living room",
+        "multiple_desc": [
+          "Sitting in the living room watching television for an extended period.",
+          "Prolonged stationary presence near the TV area in the living room.",
+          "Evening leisure time watching TV with minimal movement from the sofa.",
+          "Extended TV watching session with occasional posture adjustments.",
+          "Relaxing in the living room while watching a show or movie on TV.",
+          "Low-movement presence in front of the television for a long duration.",
+          "Watching TV in the evening from a stationary position near the screen.",
+          "Quiet time in the living room watching television with very little movement."
+        ]
+      },
+      "Study": {
+        "short_desc": "studying or reading at a desk or table",
+        "long_desc": ["Sustained low-movement activity in a study or desk area consistent with reading, writing, or academic work."],
+        "zeroshot_har_desc": "Study activity takes place when a person studies, reads, or does academic work at a desk",
+        "multiple_desc": [
+          "Sitting at a desk or table engaged in reading or academic study.",
+          "Extended stationary presence at a study area with books or materials.",
+          "Focused study session with minimal movement from the desk or table.",
+          "Reading or writing activity at a desk for a sustained period.",
+          "Low-movement academic work at a study area lasting more than a few minutes.",
+          "Sitting quietly at a table working through study material or notes.",
+          "Evening study session with prolonged presence at a desk or reading area.",
+          "Sustained concentration activity at a desk consistent with studying."
+        ]
+      },
+      "R2_Bed_to_Toilet": {
+        "short_desc": "resident 2 moving from bed to toilet during the night",
+        "long_desc": ["Brief nighttime movement of resident 2 from the bedroom to the bathroom, consistent with a toilet visit during sleep hours."],
+        "zeroshot_har_desc": "R2 Bed to Toilet activity takes place when resident 2 moves from bed to the toilet during the night",
+        "multiple_desc": [
+          "Resident 2 making a brief trip from the bedroom to the toilet at night.",
+          "Short nighttime bathroom visit by resident 2 before returning to bed.",
+          "Resident 2 getting up from bed and going to the bathroom during sleep hours.",
+          "Brief nocturnal movement of resident 2 between the bedroom and bathroom.",
+          "Quick toilet visit by resident 2 during the night with a return to bed.",
+          "Resident 2 briefly leaving the bed to use the bathroom and coming back.",
+          "Nighttime bed-to-toilet transition for resident 2 lasting only a few minutes.",
+          "Resident 2 making a short bathroom trip in the middle of the night."
+        ]
+      },
+      "no_activity": {
+        "short_desc": "no labeled activity at this sensor reading",
+        "long_desc": ["Sensor reading with no associated activity annotation, indicating background or unlabeled sensor events."],
+        "zeroshot_har_desc": "No activity label is assigned to this sensor reading",
+        "multiple_desc": [
+          "No activity annotation present for this sensor event.",
+          "Sensor firing without a corresponding activity label.",
+          "Background sensor activity not associated with any labeled behavior.",
+          "Unlabeled moment in the data stream between two annotated activities.",
+          "Sensor event occurring outside any defined activity window.",
+          "Gap in activity labeling with sensor data present but no activity assigned.",
+          "Transition period between activities with no label assigned.",
+          "Sensor reading in an unannotated interval of the day."
+        ]
+      }
+    }
   },
 
   "aware_home":

@@ -220,6 +220,9 @@ Examples:
     print(f"Train ratio: {config_dict.get('train_ratio', 0.8)}")
     print(f"Split strategy: {config_dict.get('split_strategy', 'random')}")
 
+    if config_dict.get('multiresident_flatten'):
+        print(f"Multi-resident: flatten=True, split_by_resident={config_dict.get('multiresident_split_by_resident', False)}")
+
     if config_dict.get('strategy') == 'fixed_length':
         print(f"Window sizes: {config_dict.get('window_sizes')}")
     elif config_dict.get('strategy') == 'fixed_duration':
