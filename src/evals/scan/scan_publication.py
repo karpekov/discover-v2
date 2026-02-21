@@ -93,9 +93,9 @@ plt.rcParams.update({
 # (blues, reds, oranges, greens, pinks are all taken by activity labels)
 # ---------------------------------------------------------------------------
 RESIDENT_STYLE = {
-    'R1':      {'color': '#1a1a1a', 'marker': 'o',  'label': 'Resident 1'},   # near-black / charcoal
-    'R2':      {'color': '#e6ab02', 'marker': '^',  'label': 'Resident 2'},   # amber / gold
-    'both':    {'color': '#2ca5a5', 'marker': 'P',  'label': 'Both residents'},  # deep teal
+    'R1':      {'color': '#2166ac', 'marker': 'o',  'label': 'Resident 1'},   # blue
+    'R2':      {'color': '#d6604d', 'marker': '^',  'label': 'Resident 2'},   # red-orange
+    'both':    {'color': '#4dac26', 'marker': 'P',  'label': 'Both residents'},  # green
     'unknown': {'color': '#bbbbbb', 'marker': 's',  'label': 'Unknown'},
 }
 
