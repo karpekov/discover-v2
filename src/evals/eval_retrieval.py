@@ -51,38 +51,97 @@ class RetrievalEvaluator:
     checkpoint_path = self.config['checkpoint_path']
     self.logger.info(f"Loading checkpoint from {checkpoint_path}")
 
-    checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+    # Set up module namespace for backwards compatibility
+    import sys
+    import types
 
-    # Initialize text encoder
-    # Use text encoder factory to handle different encoder types
+    if 'src' not in sys.modules:
+      src_module = types.ModuleType('src')
+      src_module.__path__ = []
+      sys.modules['src'] = src_module
 
-    eval_config = model_config.copy() if "model_config" in locals() else {"text_model_name": self.config.get('text_model_name', 'thenlper/gte-base')}
+    # Import and map necessary modules
+    import encoders
+    import encoders.base
+    import encoders.config
+    import alignment
+    import alignment.config
+    import alignment.model
+    import losses
+    import losses.clip
 
-    eval_config["use_cached_embeddings"] = False  # Compute embeddings on-the-fly for eval
+    # Create mappings
+    for module_name in list(sys.modules.keys()):
+      if not module_name.startswith('src.') and not module_name.startswith('_'):
+        if any(module_name.startswith(pkg) for pkg in ['encoders', 'alignment', 'losses', 'models', 'dataio', 'utils']):
+          sys.modules[f'src.{module_name}'] = sys.modules[module_name]
+          # Also set as attribute on src module
+          parts = module_name.split('.')
+          if len(parts) == 1:
+            setattr(sys.modules['src'], parts[0], sys.modules[module_name])
 
-    self.text_encoder = build_text_encoder(eval_config)
-    self.text_encoder.to(self.device)
+    # Load the full alignment model
+    from alignment.model import AlignmentModel
 
-    # Initialize sensor encoder
-    vocab_sizes = checkpoint['vocab_sizes']
-    self.sensor_encoder = SensorEncoder(
-      vocab_sizes=vocab_sizes,
-      d_model=self.config.get('d_model', 768),
-      n_layers=self.config.get('n_layers', 6),
-      n_heads=self.config.get('n_heads', 8),
-      d_ff=self.config.get('d_ff', 3072),
-      max_seq_len=self.config.get('max_seq_len', 512),
-      dropout=0.0,  # No dropout during evaluation
-      fourier_bands=self.config.get('fourier_bands', 12),
-      use_rope_time=self.config.get('use_rope_time', False),
-      use_rope_2d=self.config.get('use_rope_2d', False)
+    full_model = AlignmentModel.load(
+      checkpoint_path,
+      device=self.device,
+      vocab_path=self.config['vocab_path']
     )
-    self.sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
-    self.sensor_encoder.to(self.device)
+
+    # Extract components
+    self.sensor_encoder = full_model.sensor_encoder
+    self.text_projection = full_model.text_projection
+    self.config_obj = full_model.config
+    self.vocab_sizes = full_model.vocab_sizes
+
+    # Sensor encoder is already loaded and on device
     self.sensor_encoder.eval()
 
-    self.vocab_sizes = vocab_sizes
-    self.logger.info("Models loaded successfully")
+    # Load checkpoint again for text encoder
+    checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+
+    # Use robust text encoder detection
+    from evals.eval_utils import create_text_encoder_from_checkpoint
+    train_data_path = None
+    if hasattr(self.config_obj, 'train_text_embeddings_path'):
+      train_data_path = self.config_obj.train_text_embeddings_path
+
+    self.text_encoder = create_text_encoder_from_checkpoint(
+      checkpoint=checkpoint,
+      device=self.device,
+      data_path=train_data_path
+    )
+
+    if self.text_encoder is None:
+      # Ultimate fallback
+      from models.text_encoder import TextEncoder
+      text_model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+      self.text_encoder = TextEncoder(text_model_name)
+      self.logger.warning(f"Using default text encoder: {text_model_name}")
+
+    self.text_encoder.to(self.device)
+    self.text_encoder.eval()
+
+    # Text projection
+    if self.text_projection is not None:
+      self.text_projection.eval()
+      self.logger.info("Text projection loaded from checkpoint")
+
+    # Get d_model from encoder config
+    if hasattr(self.config_obj, 'encoder'):
+      encoder_config = self.config_obj.encoder
+      if hasattr(encoder_config, 'd_model'):
+        d_model = encoder_config.d_model
+        n_layers = encoder_config.n_layers
+      else:
+        d_model = encoder_config.get('d_model', 768)
+        n_layers = encoder_config.get('n_layers', 6)
+    else:
+      d_model = self.config.get('d_model', 768)
+      n_layers = self.config.get('n_layers', 6)
+
+    self.logger.info(f"Models loaded successfully (d_model={d_model}, n_layers={n_layers})")
 
   def setup_data(self):
     """Setup evaluation dataset."""
@@ -127,16 +186,24 @@ class RetrievalEvaluator:
 
     with torch.no_grad():
       for batch_idx, batch in enumerate(self.eval_loader):
-        # Get sensor embeddings
-        sensor_emb = self.sensor_encoder(
-          categorical_features=batch['categorical_features'],
-          coordinates=batch['coordinates'],
-          time_deltas=batch['time_deltas'],
-          mask=batch['mask']
+        # Get sensor embeddings using forward_clip (applies projection + normalization)
+        input_data = {
+          'categorical_features': batch['categorical_features'],
+          'coordinates': batch['coordinates'],
+          'time_deltas': batch['time_deltas']
+        }
+        sensor_emb = self.sensor_encoder.forward_clip(
+          input_data=input_data,
+          attention_mask=batch['mask']
         )
 
         # Get text embeddings (already computed in collate)
         text_emb = batch['text_embeddings']
+
+        # Apply text projection if it exists
+        if self.text_projection is not None:
+          text_emb = self.text_projection(text_emb)
+          text_emb = torch.nn.functional.normalize(text_emb, p=2, dim=-1)
 
         # Convert to numpy and store
         sensor_embeddings.append(sensor_emb.cpu().numpy())
@@ -204,8 +271,14 @@ class RetrievalEvaluator:
     Returns:
       results: List of lists, each containing top-k retrieved sensor sequences
     """
-    # Encode query texts
-    query_embeddings = self.text_encoder.encode_texts(query_texts, self.device)
+    # Encode query texts using the CLIP method
+    query_embeddings = self.text_encoder.encode_texts_clip(query_texts, self.device)
+
+    # Apply text projection if it exists
+    if self.text_projection is not None:
+      query_embeddings = self.text_projection(query_embeddings)
+      query_embeddings = torch.nn.functional.normalize(query_embeddings, p=2, dim=-1)
+
     query_embeddings = query_embeddings.cpu().numpy().astype(np.float32)
 
     # Search in sensor index
@@ -346,19 +419,51 @@ class RetrievalEvaluator:
     results = self.text_to_sensor_retrieval(demo_queries, sensor_embeddings, metadata, k=5)
 
     for i, (query, query_results) in enumerate(zip(demo_queries, results)):
-      self.logger.info(f"\nQuery: '{query}'")
-      for j, result in enumerate(query_results[:3]):  # Show top 3
-        self.logger.info(f"  {j+1}. Score: {result['score']:.4f}, Metadata: {result['metadata']}")
+      self.logger.info(f"\n🔍 Query: '{query}'")
+      self.logger.info("=" * 80)
+      for j, result in enumerate(query_results[:5]):  # Show top 5
+        self.logger.info(f"\n🏆 RANK {j+1} | Score: {result['score']:.4f}")
+        self.logger.info("-" * 80)
+
+        meta = result['metadata']
+        self.logger.info(f"📊 Sample {meta.get('batch_idx', '?')}:{meta.get('sample_idx', '?')}")
+
+        # Metadata info
+        meta_parts = []
+        if 'sequence_length' in meta:
+          meta_parts.append(f"{meta['sequence_length']} valid events")
+        if 'total_time_span' in meta:
+          meta_parts.append(f"{meta['total_time_span']:.1f}s duration")
+        if 'num_rooms' in meta:
+          meta_parts.append(f"{meta['num_rooms']} rooms")
+
+        if meta_parts:
+          self.logger.info(f"⏰ {' | '.join(meta_parts)}")
+
+        # Location
+        if 'rooms_visited' in meta and meta['rooms_visited']:
+          rooms = meta['rooms_visited']
+          if len(rooms) <= 3:
+            self.logger.info(f"📍 Rooms: {', '.join(rooms)}")
+          else:
+            self.logger.info(f"📍 Rooms: {', '.join(rooms[:3])} +{len(rooms)-3} more")
+
+        # Time period
+        if 'time_periods' in meta and meta['time_periods']:
+          tod = [t for t in meta['time_periods'] if t != 'UNK']
+          if tod:
+            self.logger.info(f"🕐 Time of day: {', '.join(tod)}")
 
     # Sensor-to-text retrieval (using random sensor indices)
-    self.logger.info("\n=== Sensor-to-Text Retrieval ===")
+    self.logger.info("\n\n=== Sensor-to-Text Retrieval ===")
     random_sensor_indices = np.random.choice(len(metadata), size=3, replace=False).tolist()
     results = self.sensor_to_text_retrieval(random_sensor_indices, text_embeddings, captions, k=5)
 
     for i, (sensor_idx, query_results) in enumerate(zip(random_sensor_indices, results)):
-      self.logger.info(f"\nSensor sequence {sensor_idx}:")
-      for j, result in enumerate(query_results[:3]):  # Show top 3
-        self.logger.info(f"  {j+1}. Score: {result['score']:.4f}, Caption: '{result['caption']}'")
+      self.logger.info(f"\n🔍 Sensor sequence {sensor_idx}:")
+      self.logger.info("=" * 80)
+      for j, result in enumerate(query_results[:5]):  # Show top 5
+        self.logger.info(f"  {j+1}. Score: {result['score']:.4f} | Caption: '{result['caption']}'")
 
   def evaluate(self):
     """Run full evaluation."""

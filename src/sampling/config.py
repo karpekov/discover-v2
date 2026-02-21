@@ -61,6 +61,10 @@ class SamplingConfig:
     include_sensor_types: bool = True  # Sensor type information
     metadata_path: Optional[Path] = None  # Path to metadata JSON file (casas_metadata.json or marble_metadata.json)
 
+    # Multi-resident options
+    multiresident_flatten: bool = False  # Load pre-flattened CSV (data_processed_flattened.csv) instead of raw data
+    multiresident_split_by_resident: bool = False  # Split by resident_info before windowing so no window crosses resident boundaries
+
     def __post_init__(self):
         """Validate configuration."""
         if not 0 <= self.overlap_factor < 1:

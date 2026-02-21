@@ -85,30 +85,42 @@ class BaseSampler(ABC):
         print(f"Dataset: {self.config.dataset_name}")
         print(f"{'='*60}\n")
 
-        # Step 1: Load raw data
-        print("Step 1: Loading raw data...")
-        df = self._load_raw_data()
+        mr_flatten = getattr(self.config, 'multiresident_flatten', False)
+        mr_split = getattr(self.config, 'multiresident_split_by_resident', False)
+
+        # Step 1: Load data
+        if mr_flatten:
+            print("Step 1: Loading flattened multi-resident data...")
+            df = self._load_flattened_data()
+        else:
+            print("Step 1: Loading raw data...")
+            df = self._load_raw_data()
         print(f"  Loaded {len(df)} events")
 
-        # Step 2: Train/val/test split by days (70/10/20)
-        print("\nStep 2: Splitting into train/val/test...")
-        train_df, val_df, test_df = self._split_by_days(df)
-        print(f"  Train: {len(train_df)} events")
-        print(f"  Val: {len(val_df)} events")
-        print(f"  Test: {len(test_df)} events")
+        # Step 2: Split and create windows
+        if mr_flatten and mr_split:
+            print("\nStep 2: Splitting by resident, then by days (70/10/20) per resident...")
+            train_samples, val_samples, test_samples = self._sample_multiresident_splits(df)
+        else:
+            # Standard path: train/val/test split by days (70/10/20)
+            print("\nStep 2: Splitting into train/val/test...")
+            train_df, val_df, test_df = self._split_by_days(df)
+            print(f"  Train: {len(train_df)} events")
+            print(f"  Val: {len(val_df)} events")
+            print(f"  Test: {len(test_df)} events")
 
-        # Step 3: Apply sampling strategy
-        print("\nStep 3: Creating windows...")
-        train_samples = self._create_samples(train_df, split='train')
-        print(f"  Created {len(train_samples)} train samples")
+            # Step 3: Apply sampling strategy
+            print("\nStep 3: Creating windows...")
+            train_samples = self._create_samples(train_df, split='train')
+            print(f"  Created {len(train_samples)} train samples")
 
-        self._sample_id_counter = 0  # Reset for val set
-        val_samples = self._create_samples(val_df, split='val')
-        print(f"  Created {len(val_samples)} val samples")
+            self._sample_id_counter = 0  # Reset for val set
+            val_samples = self._create_samples(val_df, split='val')
+            print(f"  Created {len(val_samples)} val samples")
 
-        self._sample_id_counter = 0  # Reset for test set
-        test_samples = self._create_samples(test_df, split='test')
-        print(f"  Created {len(test_samples)} test samples")
+            self._sample_id_counter = 0  # Reset for test set
+            test_samples = self._create_samples(test_df, split='test')
+            print(f"  Created {len(test_samples)} test samples")
 
         # Step 4: Compute statistics
         print("\nStep 4: Computing statistics...")
@@ -261,6 +273,13 @@ class BaseSampler(ABC):
                 print("  Warning: No datetime/timestamp column found, skipping temporal features")
                 return df
 
+        # Filter out rows with invalid/NaT datetime values
+        invalid_datetime_mask = df['datetime'].isna()
+        if invalid_datetime_mask.any():
+            num_invalid = invalid_datetime_mask.sum()
+            print(f"  Filtered {num_invalid} rows with invalid datetime values")
+            df = df[~invalid_datetime_mask].copy()
+
         # Extract hour if not already present
         if 'hour' not in df.columns:
             df['hour'] = df['datetime'].dt.hour
@@ -286,6 +305,9 @@ class BaseSampler(ABC):
         # Day of week bucketing (0=Monday, 6=Sunday)
         def _get_dow_bucket(dow):
             """Convert day of week to readable bucket."""
+            if pd.isna(dow):
+                return 'unknown'
+            dow = int(dow)
             days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
             return days[dow] if 0 <= dow <= 6 else 'unknown'
 
@@ -427,6 +449,124 @@ class BaseSampler(ABC):
 
         return stats
 
+    def _load_flattened_data(self) -> pd.DataFrame:
+        """Load the pre-flattened multi-resident CSV and standardize columns.
+
+        Expects data_processed_flattened.csv in config.raw_data_path.
+        Maps activity_flattened → activity_l1 so downstream windowing uses the
+        stripped, resident-neutral activity label.
+        """
+        from .utils import standardize_column_names
+
+        flat_path = Path(self.config.raw_data_path) / 'data_processed_flattened.csv'
+        if not flat_path.exists():
+            raise FileNotFoundError(
+                f"Flattened CSV not found: {flat_path}\n"
+                "Run multiresident_flatten.py first to generate it."
+            )
+
+        print(f"  Reading {flat_path}")
+        df = pd.read_csv(flat_path)
+
+        # Copy activity_flattened → first_activity (stripped, resident-neutral label).
+        # This overwrites the original first_activity so downstream code uses the
+        # flattened label via standardize_column_names (first_activity → activity_l1).
+        if 'activity_flattened' in df.columns:
+            df['first_activity'] = df['activity_flattened']
+
+        # Sort by datetime — the flattened CSV is not time-sorted (single-activity
+        # rows come first, then exploded multi-activity rows), which would produce
+        # negative window durations and wrong time-delta features.
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df = df.sort_values('datetime').reset_index(drop=True)
+
+        df = standardize_column_names(df)
+
+        # Add sensor_details column if metadata is available
+        if self.sensor_details_map is not None:
+            df['sensor_detail'] = df['sensor_id'].map(self.sensor_details_map)
+            num_with_details = df['sensor_detail'].notna().sum()
+            print(f"  Added sensor_detail column ({num_with_details} events with special sensors)")
+
+        if self.config.filter_numeric_sensors:
+            df = self._filter_numeric_sensors(df)
+
+        df = self._add_temporal_features(df)
+
+        return df
+
+    def _sample_multiresident_splits(
+        self, df: pd.DataFrame
+    ) -> Tuple[List, List, List]:
+        """Split data by resident_info, day-split each subset, create windows, pool.
+
+        For each resident group (e.g. 'both', 'R1', 'R2'):
+          1. day-split into train/val/test (70/10/20)
+          2. create windows from each split
+        All groups' windows are then pooled into the final train/val/test sets.
+        This guarantees no window crosses resident boundaries.
+
+        Returns:
+            (train_samples, val_samples, test_samples)
+        """
+        if 'resident_info' not in df.columns:
+            print("  Warning: resident_info column not found, falling back to standard split")
+            train_df, val_df, test_df = self._split_by_days(df)
+            train_s = self._create_samples(train_df, 'train')
+            self._sample_id_counter = 0
+            val_s = self._create_samples(val_df, 'val')
+            self._sample_id_counter = 0
+            test_s = self._create_samples(test_df, 'test')
+            return train_s, val_s, test_s
+
+        resident_groups = sorted(df['resident_info'].dropna().unique())
+        print(f"  Resident groups found: {resident_groups}")
+
+        all_train, all_val, all_test = [], [], []
+
+        for resident in resident_groups:
+            group_df = df[df['resident_info'] == resident].copy()
+            # Ensure chronological order within this resident slice and recompute
+            # time_delta so it reflects gaps between this resident's own events
+            # (not the inter-resident gaps from the full sorted df).
+            group_df = group_df.sort_values('timestamp').reset_index(drop=True)
+            group_df['time_delta_sec'] = group_df['timestamp'].diff().dt.total_seconds().fillna(0)
+            group_df['time_delta_bucket'] = group_df['time_delta_sec'].apply(
+                lambda s: (
+                    'dt_0' if pd.isna(s) or s <= 0 else
+                    'dt_lt1min' if s / 60 <= 1 else
+                    'dt_1-2min' if s / 60 <= 2 else
+                    'dt_2-5min' if s / 60 <= 5 else
+                    'dt_5-10min' if s / 60 <= 10 else
+                    'dt_10-30min' if s / 60 <= 30 else
+                    'dt_gt30min'
+                )
+            )
+            print(f"\n  --- Resident: {resident} ({len(group_df)} events) ---")
+
+            train_df, val_df, test_df = self._split_by_days(group_df)
+            print(f"    Train: {len(train_df)}  Val: {len(val_df)}  Test: {len(test_df)}")
+
+            # Reset counter per resident so IDs encode resident context
+            self._sample_id_counter = 0
+            train_s = self._create_samples(train_df, split=f'train_{resident}')
+            print(f"    Train windows: {len(train_s)}")
+
+            self._sample_id_counter = 0
+            val_s = self._create_samples(val_df, split=f'val_{resident}')
+            print(f"    Val windows:   {len(val_s)}")
+
+            self._sample_id_counter = 0
+            test_s = self._create_samples(test_df, split=f'test_{resident}')
+            print(f"    Test windows:  {len(test_s)}")
+
+            all_train.extend(train_s)
+            all_val.extend(val_s)
+            all_test.extend(test_s)
+
+        print(f"\n  Total pooled — Train: {len(all_train)}  Val: {len(all_val)}  Test: {len(all_test)}")
+        return all_train, all_val, all_test
+
     def _event_to_dict(self, row: pd.Series, preserve_full: bool = True) -> Dict[str, Any]:
         """Convert a DataFrame row to an event dictionary."""
         # Use standardized column names
@@ -441,6 +581,7 @@ class BaseSampler(ABC):
             optional_fields = [
                 'room', 'sensor_type', 'sensor_detail', 'x', 'y', 'floor',
                 'activity_l1', 'activity_l2', 'activity_full',
+                'resident_info',  # Multi-resident: which resident this event belongs to
                 'tod_bucket', 'dow_bucket', 'time_delta_bucket'  # Temporal bucketed features
             ]
 

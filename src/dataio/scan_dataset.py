@@ -130,14 +130,22 @@ def mine_nearest_neighbors(
 class SCANCollator:
     """
     Collate function for SCAN training that handles anchor-neighbor pairs.
+
+    Outputs data in the format expected by AlignmentModel/encoder:
+    - input_data: Dict with categorical_features, coordinates, time_deltas
+    - mask: attention mask tensor
+
+    Note: Tensors are kept on CPU here. Move to device in training loop.
+    This is required for pin_memory to work correctly with DataLoader.
     """
 
     def __init__(
         self,
         vocab_sizes: Dict[str, int],
-        device: torch.device
+        device: torch.device = None  # Device is no longer used in collator
     ):
         self.vocab_sizes = vocab_sizes
+        # Device is stored but not used - tensors stay on CPU for pin_memory compatibility
         self.device = device
 
     def __call__(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -148,19 +156,20 @@ class SCANCollator:
             batch: List of samples from SCANDataset
 
         Returns:
-            Collated batch with anchor and neighbor data
+            Collated batch with anchor and neighbor data in encoder-compatible format
+            (all tensors on CPU - move to device in training loop)
         """
         # Separate anchor and neighbor samples
         anchor_samples = [item['anchor'] for item in batch]
         neighbor_samples = [item['neighbor'] for item in batch]
 
-        # Collate anchors and neighbors separately
+        # Collate anchors and neighbors separately (kept on CPU)
         anchors_batch = self._collate_samples(anchor_samples)
         neighbors_batch = self._collate_samples(neighbor_samples)
 
-        # Also include indices for debugging/evaluation
-        anchor_indices = torch.tensor([item['anchor_idx'] for item in batch], device=self.device)
-        neighbor_indices = torch.tensor([item['neighbor_idx'] for item in batch], device=self.device)
+        # Also include indices for debugging/evaluation (on CPU)
+        anchor_indices = torch.tensor([item['anchor_idx'] for item in batch])
+        neighbor_indices = torch.tensor([item['neighbor_idx'] for item in batch])
 
         return {
             'anchor': anchors_batch,
@@ -172,6 +181,12 @@ class SCANCollator:
     def _collate_samples(self, samples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
         """
         Collate a list of samples into batched tensors.
+
+        Returns format compatible with AlignmentModel encoder:
+        - input_data: Dict with categorical_features, coordinates, time_deltas
+        - mask: attention mask tensor
+
+        All tensors are kept on CPU for pin_memory compatibility.
         """
         batch_size = len(samples)
 
@@ -181,21 +196,26 @@ class SCANCollator:
         all_time_deltas = [sample['time_deltas'] for sample in samples]
         all_masks = [sample['mask'] for sample in samples]
 
-        # Stack tensors
-        coordinates = torch.stack(all_coordinates).to(self.device)
-        time_deltas = torch.stack(all_time_deltas).to(self.device)
-        masks = torch.stack(all_masks).to(self.device)
+        # Stack tensors (keep on CPU)
+        coordinates = torch.stack(all_coordinates)
+        time_deltas = torch.stack(all_time_deltas)
+        masks = torch.stack(all_masks)
 
-        # Stack categorical features
+        # Stack categorical features (keep on CPU)
         categorical_features = {}
         for field in all_categorical[0].keys():
             field_tensors = [sample[field] for sample in all_categorical]
-            categorical_features[field] = torch.stack(field_tensors).to(self.device)
+            categorical_features[field] = torch.stack(field_tensors)
 
-        return {
+        # Format for encoder compatibility
+        input_data = {
             'categorical_features': categorical_features,
             'coordinates': coordinates,
-            'time_deltas': time_deltas,
+            'time_deltas': time_deltas
+        }
+
+        return {
+            'input_data': input_data,
             'mask': masks
         }
 

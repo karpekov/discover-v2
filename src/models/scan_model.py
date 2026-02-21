@@ -1,21 +1,31 @@
 """
 SCAN Clustering Model for src pipeline.
-Uses pre-trained sensor encoder and adds clustering head.
+Uses pre-trained AlignmentModel sensor encoder and adds clustering head.
 """
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, Union
 import os
 from pathlib import Path
+import yaml
 
-from .sensor_encoder import SensorEncoder
+# For loading AlignmentModel
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from alignment.model import AlignmentModel
+from alignment.config import AlignmentConfig
 
 
 class SCANClusteringModel(nn.Module):
     """
-    SCAN clustering model that uses a pre-trained sensor encoder
+    SCAN clustering model that uses a pre-trained AlignmentModel's sensor encoder
     and adds a clustering classification head.
+
+    This model can load from:
+    1. A model directory containing best_model.pt and config.yaml
+    2. A direct checkpoint path (.pt file)
     """
 
     def __init__(
@@ -23,16 +33,35 @@ class SCANClusteringModel(nn.Module):
         pretrained_model_path: str,
         num_clusters: int,
         dropout: float = 0.1,
-        freeze_encoder: bool = False
+        freeze_encoder: bool = False,
+        vocab_path: Optional[str] = None,
+        device: Optional[torch.device] = None
     ):
+        """
+        Initialize SCAN clustering model.
+
+        Args:
+            pretrained_model_path: Path to model directory or checkpoint file
+            num_clusters: Number of clusters
+            dropout: Dropout rate for clustering head
+            freeze_encoder: Whether to freeze encoder weights
+            vocab_path: Path to vocabulary file (optional, auto-detected from config)
+            device: Device to load model onto
+        """
         super().__init__()
 
         self.num_clusters = num_clusters
         self.pretrained_model_path = pretrained_model_path
         self.freeze_encoder = freeze_encoder
+        self.device = device or torch.device('cpu')
 
-        # Load the pre-trained sensor encoder
-        self.sensor_encoder = self._load_pretrained_encoder(pretrained_model_path)
+        # Load the pre-trained AlignmentModel
+        self.alignment_model, self.alignment_config, self.vocab_sizes = self._load_pretrained_model(
+            pretrained_model_path, vocab_path, device
+        )
+
+        # Extract sensor encoder
+        self.sensor_encoder = self.alignment_model.sensor_encoder
 
         # Get the embedding dimension from the encoder
         self.d_model = self.sensor_encoder.d_model
@@ -51,93 +80,94 @@ class SCANClusteringModel(nn.Module):
             for param in self.sensor_encoder.parameters():
                 param.requires_grad = False
 
-    def _load_pretrained_encoder(self, model_path: str) -> SensorEncoder:
-        """Load pre-trained sensor encoder from checkpoint."""
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Pre-trained model not found at: {model_path}")
+    def _load_pretrained_model(
+        self,
+        model_path: str,
+        vocab_path: Optional[str] = None,
+        device: Optional[torch.device] = None
+    ) -> Tuple[AlignmentModel, AlignmentConfig, Dict[str, int]]:
+        """
+        Load pre-trained AlignmentModel from checkpoint.
 
-        # Load the checkpoint
-        checkpoint = torch.load(model_path, map_location='cpu')
+        Args:
+            model_path: Path to model directory or checkpoint file
+            vocab_path: Optional path to vocabulary file
+            device: Device to load model onto
 
-        # Extract configuration to reconstruct the model
-        if 'config' in checkpoint:
-            config = checkpoint['config']
-        elif 'hyperparameters' in checkpoint:
-            config = checkpoint['hyperparameters']
-        else:
-            # Try to load from hyperparameters.json in the same directory
-            model_dir = Path(model_path).parent
-            config_path = model_dir / 'hyperparameters.json'
+        Returns:
+            Tuple of (model, config, vocab_sizes)
+        """
+        model_path = Path(model_path)
+
+        # Determine if path is directory or file
+        if model_path.is_dir():
+            checkpoint_path = model_path / 'best_model.pt'
+            config_path = model_path / 'config.yaml'
+
+            if not checkpoint_path.exists():
+                # Try final_model.pt
+                checkpoint_path = model_path / 'final_model.pt'
+                if not checkpoint_path.exists():
+                    raise FileNotFoundError(f"No checkpoint found in {model_path}")
+
+            # Load config to get vocab path
             if config_path.exists():
-                import json
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-            else:
-                raise ValueError("Cannot find model configuration. Need config/hyperparameters in checkpoint or hyperparameters.json file.")
-
-        # Update vocab sizes from checkpoint if available
-        vocab_sizes = config.get('vocab_sizes', {})
-        if 'vocab_sizes' in checkpoint:
-            vocab_sizes = checkpoint['vocab_sizes']
-
-        # Create sensor encoder with the same configuration
-        sensor_encoder = SensorEncoder(
-            d_model=config['d_model'],
-            n_layers=config['n_layers'],
-            n_heads=config['n_heads'],
-            d_ff=config['d_ff'],
-            dropout=config['dropout'],
-            fourier_bands=config['fourier_bands'],
-            max_seq_len=config['max_seq_len'],
-            vocab_sizes=vocab_sizes
-        )
-
-        # Load the state dict
-        if 'sensor_encoder_state_dict' in checkpoint:
-            sensor_encoder.load_state_dict(checkpoint['sensor_encoder_state_dict'])
-        elif 'model_state_dict' in checkpoint:
-            # Try to extract sensor encoder weights from combined state dict
-            sensor_encoder_state = {}
-            for key, value in checkpoint['model_state_dict'].items():
-                if key.startswith('sensor_encoder.'):
-                    new_key = key.replace('sensor_encoder.', '')
-                    sensor_encoder_state[new_key] = value
-            sensor_encoder.load_state_dict(sensor_encoder_state)
+                config = AlignmentConfig.from_yaml(str(config_path))
+                if vocab_path is None:
+                    vocab_path = config.vocab_path
         else:
-            raise ValueError("Cannot find sensor encoder weights in checkpoint")
+            # Direct checkpoint path
+            checkpoint_path = model_path
+            config = None
 
-        return sensor_encoder
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
+
+        # Load model using AlignmentModel.load()
+        model = AlignmentModel.load(
+            str(checkpoint_path),
+            device=device,
+            vocab_path=vocab_path
+        )
+        model.eval()
+
+        # Get config from loaded model
+        config = model.config
+
+        # Get vocab_sizes
+        vocab_sizes = model.vocab_sizes
+
+        return model, config, vocab_sizes
 
     def forward(
         self,
-        categorical_features: Dict[str, torch.Tensor],
-        coordinates: torch.Tensor,
-        time_deltas: torch.Tensor,
-        mask: torch.Tensor,
+        input_data: Dict[str, torch.Tensor],
+        attention_mask: torch.Tensor,
         return_embeddings: bool = False
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Forward pass through the model.
 
         Args:
-            categorical_features: Dict of categorical feature tensors
-            coordinates: [batch_size, seq_len, 2] coordinate features
-            time_deltas: [batch_size, seq_len] time delta features
-            mask: [batch_size, seq_len] attention mask
+            input_data: Dict containing:
+                - categorical_features: Dict[str, Tensor] of [batch_size, seq_len]
+                - coordinates: [batch_size, seq_len, 2] coordinate features
+                - time_deltas: [batch_size, seq_len] time delta features
+            attention_mask: [batch_size, seq_len] attention mask
             return_embeddings: If True, return both logits and embeddings
 
         Returns:
             logits: [batch_size, num_clusters] cluster logits
             embeddings (optional): [batch_size, d_model] sensor embeddings
         """
-        # Get base embeddings from the sensor encoder (without CLIP projection)
-        # This returns [batch_size, d_model] pooled and normalized embeddings
-        seq_embeddings = self.sensor_encoder(
-            categorical_features=categorical_features,
-            coordinates=coordinates,
-            time_deltas=time_deltas,
-            mask=mask
+        # Get base embeddings from the sensor encoder
+        encoder_output = self.sensor_encoder(
+            input_data=input_data,
+            attention_mask=attention_mask
         )
+
+        # Use pooled embeddings (already L2 normalized in encoder)
+        seq_embeddings = encoder_output.embeddings  # [batch_size, d_model]
 
         # Pass through clustering head
         logits = self.clustering_head(seq_embeddings)  # [batch_size, num_clusters]
@@ -149,36 +179,47 @@ class SCANClusteringModel(nn.Module):
 
     def get_embeddings(
         self,
-        categorical_features: Dict[str, torch.Tensor],
-        coordinates: torch.Tensor,
-        time_deltas: torch.Tensor,
-        mask: torch.Tensor
+        input_data: Dict[str, torch.Tensor],
+        attention_mask: torch.Tensor
     ) -> torch.Tensor:
         """
         Extract embeddings without computing logits.
+
+        Args:
+            input_data: Dict containing encoder inputs
+            attention_mask: [batch_size, seq_len] attention mask
 
         Returns:
             embeddings: [batch_size, d_model] sequence-level embeddings
         """
         with torch.no_grad():
-            # Get base embeddings directly from sensor encoder (without CLIP projection)
-            embeddings = self.sensor_encoder(
-                categorical_features=categorical_features,
-                coordinates=coordinates,
-                time_deltas=time_deltas,
-                mask=mask
+            encoder_output = self.sensor_encoder(
+                input_data=input_data,
+                attention_mask=attention_mask
             )
-        return embeddings
+        return encoder_output.embeddings
 
-    def update_vocab_sizes(self, vocab_sizes: Dict[str, int]):
-        """Update vocabulary sizes in the sensor encoder."""
-        # Note: Vocabulary sizes are already set when loading the pre-trained model
-        # The sensor encoder embeddings are created with the correct vocab sizes from checkpoint
-        pass
+    def get_cluster_predictions(
+        self,
+        input_data: Dict[str, torch.Tensor],
+        attention_mask: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Get cluster predictions for input sequences.
+
+        Returns:
+            predictions: [batch_size] cluster indices
+        """
+        with torch.no_grad():
+            logits = self.forward(input_data, attention_mask)
+            predictions = torch.argmax(logits, dim=1)
+        return predictions
 
     def train_mode(self):
         """Set model to training mode."""
         self.train()
+        self.clustering_head.train()
+
         if not self.freeze_encoder:
             self.sensor_encoder.train()
         else:
@@ -188,3 +229,17 @@ class SCANClusteringModel(nn.Module):
         """Set model to evaluation mode."""
         self.eval()
         self.sensor_encoder.eval()
+        self.clustering_head.eval()
+
+    def get_data_paths(self) -> Dict[str, str]:
+        """
+        Get data paths from the pre-trained model's config.
+
+        Returns:
+            Dict with train_data_path, val_data_path, vocab_path
+        """
+        return {
+            'train_data_path': self.alignment_config.train_data_path,
+            'val_data_path': self.alignment_config.val_data_path,
+            'vocab_path': self.alignment_config.vocab_path
+        }

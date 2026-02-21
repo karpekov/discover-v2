@@ -60,7 +60,8 @@ class SmartHomeRetrieval:
     """General retrieval system for smart-home sensor sequences."""
 
     def __init__(self, checkpoint_path: str, vocab_path: str, test_data_path: str,
-                 captions_path: str = None, max_samples: int = 5000):
+                 captions_path: str = None, max_samples: int = 5000, debug: bool = False,
+                 metadata_path: str = None):
         self.device = get_optimal_device()
         self.checkpoint_path = checkpoint_path
         self.vocab_path = vocab_path
@@ -68,10 +69,14 @@ class SmartHomeRetrieval:
         self.captions_path = captions_path
         self.max_samples = max_samples
         self.captions_dict = {}
+        self.debug = debug
+        self.metadata_path = metadata_path
+        self.sensor_details = {}
 
         # Load models and data
         self._load_models()
         self._load_vocab()
+        self._load_metadata()
         self._load_captions()
         self._load_data()
         self._extract_embeddings()
@@ -191,6 +196,45 @@ class SmartHomeRetrieval:
 
         print(f"📚 Vocabulary loaded: {list(self.vocab.keys())}")
 
+    def _load_metadata(self):
+        """Load CASAS metadata for sensor details."""
+        if self.metadata_path is None:
+            # Try to infer metadata path from vocab path
+            # Assuming structure: data/processed/casas/{home}/vocab.json
+            # Metadata is at: metadata/casas_metadata.json
+            vocab_dir = os.path.dirname(self.vocab_path)
+            if 'milan' in vocab_dir.lower():
+                self.metadata_path = 'metadata/casas_metadata.json'
+            elif 'aruba' in vocab_dir.lower():
+                self.metadata_path = 'metadata/casas_metadata.json'
+            else:
+                print(f"⚠️  No metadata path provided and could not infer from vocab path")
+                return
+
+        if self.metadata_path and os.path.exists(self.metadata_path):
+            try:
+                with open(self.metadata_path, 'r') as f:
+                    metadata = json.load(f)
+
+                # Extract sensor_details for the appropriate home
+                # The metadata file has structure: {home: {sensor_details: {...}}}
+                for home_name, home_data in metadata.items():
+                    if isinstance(home_data, dict) and 'sensor_details' in home_data:
+                        # Merge all sensor details (handling multiple homes)
+                        details = home_data['sensor_details']
+                        for sensor_id, description in details.items():
+                            if description is not None:  # Only store sensors with actual details
+                                self.sensor_details[sensor_id] = description
+
+                special_count = len(self.sensor_details)
+                print(f"🗂️  Loaded metadata: {special_count} sensors with special details")
+
+            except Exception as e:
+                print(f"⚠️  Could not load metadata from {self.metadata_path}: {e}")
+                self.sensor_details = {}
+        else:
+            print(f"⚠️  Metadata file not found: {self.metadata_path}")
+
     def _load_captions(self):
         """Load captions from separate JSON file if provided."""
         if self.captions_path is None:
@@ -201,18 +245,66 @@ class SmartHomeRetrieval:
             with open(self.captions_path, 'r') as f:
                 captions_data = json.load(f)
 
-            # Build a dictionary mapping sample_id to full caption data (captions array + metadata)
-            for item in captions_data:
-                if 'sample_id' in item:
-                    self.captions_dict[item['sample_id']] = {
-                        'captions': item.get('captions', []),
-                        'layer_b': item.get('metadata', {}).get('layer_b', ''),
-                        'caption_type': item.get('metadata', {}).get('caption_type', ''),
-                    }
+            # Handle different caption file formats
+            if isinstance(captions_data, dict):
+                # Check if this is a wrapper dict with "captions" key containing the actual list
+                if 'captions' in captions_data and isinstance(captions_data['captions'], list):
+                    # Format: {"captions": [{"sample_id": ..., "captions": [...], ...}, ...]}
+                    captions_list = captions_data['captions']
+                    for item in captions_list:
+                        if isinstance(item, dict) and 'sample_id' in item:
+                            self.captions_dict[item['sample_id']] = {
+                                'captions': item.get('captions', []),
+                                'layer_b': item.get('metadata', {}).get('layer_b', '') or item.get('layer_b', ''),
+                                'caption_type': item.get('metadata', {}).get('caption_type', '') or item.get('caption_type', ''),
+                            }
+                else:
+                    # Format 1: Dictionary with sample_ids as keys
+                    for sample_id, data in captions_data.items():
+                        if isinstance(data, dict):
+                            self.captions_dict[sample_id] = {
+                                'captions': data.get('captions', []),
+                                'layer_b': data.get('layer_b', ''),
+                                'caption_type': data.get('caption_type', ''),
+                            }
+                        elif isinstance(data, list):
+                            # Direct list of captions
+                            self.captions_dict[sample_id] = {
+                                'captions': data,
+                                'layer_b': '',
+                                'caption_type': '',
+                            }
+            elif isinstance(captions_data, list):
+                # Format 2: List of items with sample_id field
+                for item in captions_data:
+                    if isinstance(item, dict) and 'sample_id' in item:
+                        self.captions_dict[item['sample_id']] = {
+                            'captions': item.get('captions', []),
+                            'layer_b': item.get('metadata', {}).get('layer_b', '') or item.get('layer_b', ''),
+                            'caption_type': item.get('metadata', {}).get('caption_type', '') or item.get('caption_type', ''),
+                        }
 
             print(f"📖 Loaded {len(self.captions_dict)} captions from {self.captions_path}")
+
+            # Debug: Show sample of loaded captions
+            if len(self.captions_dict) > 0:
+                sample_id = list(self.captions_dict.keys())[0]
+                sample_data = self.captions_dict[sample_id]
+                num_caps = len(sample_data.get('captions', []))
+                if num_caps > 0:
+                    first_cap = sample_data['captions'][0]
+                    print(f"   Sample: {sample_id} has {num_caps} caption(s)")
+                    print(f"   First caption: {first_cap[:80]}..." if len(first_cap) > 80 else f"   First caption: {first_cap}")
+                else:
+                    print(f"   Sample: {sample_id} -> {num_caps} captions")
+            else:
+                print(f"   ⚠️  Warning: No captions found in file. File might be empty or in wrong format.")
+                print(f"   File structure: {list(captions_data.keys()) if isinstance(captions_data, dict) else 'list'}")
+
         except Exception as e:
             print(f"⚠️  Could not load captions from {self.captions_path}: {e}")
+            import traceback
+            traceback.print_exc()
             self.captions_dict = {}
 
     def _load_data(self):
@@ -364,14 +456,33 @@ class SmartHomeRetrieval:
 
             # Decode categorical features
             event = {}
+            # Map common field names (handle both old and new naming conventions)
+            field_mapping = {
+                'sensor': 'sensor_id',
+                'state': 'event_type',
+                'room_id': 'room_id',
+                'sensor_type': 'sensor_type',
+                'sensor_detail': 'sensor_detail',
+                'tod_bucket': 'tod_bucket',
+                'time_delta_bucket': 'delta_t_bucket',
+                'dow_bucket': 'day_of_week'
+            }
+
+            for vocab_field, event_field in field_mapping.items():
+                if vocab_field in categorical_features:
+                    idx_val = categorical_features[vocab_field][i].item()
+                    decoded_val = self.reverse_vocab[vocab_field].get(idx_val, f"UNK_{idx_val}")
+                    event[event_field] = decoded_val
+
+            # Legacy support for old field names
             for field in ['sensor_id', 'room_id', 'event_type', 'sensor_type', 'tod_bucket', 'delta_t_bucket']:
-                if field in categorical_features:
+                if field in categorical_features and field not in event:
                     idx_val = categorical_features[field][i].item()
                     decoded_val = self.reverse_vocab[field].get(idx_val, f"UNK_{idx_val}")
                     event[field] = decoded_val
 
-            # Add day of week if available
-            if 'dow' in categorical_features:
+            # Add day of week if available (handle both naming conventions)
+            if 'dow_bucket' not in event and 'dow' in categorical_features:
                 dow_idx = categorical_features['dow'][i].item()
                 event['day_of_week'] = self.reverse_vocab.get('dow', {}).get(dow_idx, f"UNK_{dow_idx}")
 
@@ -408,6 +519,19 @@ class SmartHomeRetrieval:
                     # Use first caption as primary
                     if caption_data['captions']:
                         caption_data['primary_caption'] = caption_data['captions'][0]
+
+                # Fallback: check if captions are in the original sample data
+                if not caption_data['captions'] and 'captions' in original_sample:
+                    caption_data['captions'] = original_sample['captions']
+                    if caption_data['captions']:
+                        caption_data['primary_caption'] = caption_data['captions'][0]
+
+                # Another fallback: check for 'caption' (singular) field
+                if not caption_data['captions'] and 'caption' in original_sample:
+                    caption_text = original_sample['caption']
+                    if caption_text:
+                        caption_data['captions'] = [caption_text]
+                        caption_data['primary_caption'] = caption_text
 
                 if not caption_data['primary_caption']:
                     caption_data['primary_caption'] = f"Sample {sample_id}"
@@ -508,6 +632,14 @@ class SmartHomeRetrieval:
             # Get caption data and labels
             caption_data, labels_info = self._get_caption_and_labels(batch_idx, sample_idx)
 
+            # Debug: Show caption and event data for first result
+            if rank == 0 and self.debug:
+                print(f"[DEBUG] Caption data: {caption_data}")
+                print(f"[DEBUG] Labels info keys: {labels_info.keys()}")
+                print(f"[DEBUG] First event fields: {events[0].keys() if events else 'No events'}")
+                if events:
+                    print(f"[DEBUG] First 3 events: {events[:3]}")
+
             # Decode sequence and get metadata
             events, metadata = self._decode_sequence(batch_idx, sample_idx)
 
@@ -524,78 +656,129 @@ class SmartHomeRetrieval:
 
             results.append(result)
 
-            # Display result
-            print(f"\n🏆 RANK {rank + 1} | Score: {score:.4f}")
-            print("-" * 60)
+            # Display result - COMPACT FORMAT
+            # Rank line with sample ID
+            sample_id = labels_info.get('sample_id', f"sample_{idx}")
+            print(f"\n🏆 RANK {rank + 1} | Score: {score:.4f} | {sample_id}")
+            print("-" * 80)
 
-            # Display sample info
-            if 'sample_id' in labels_info:
-                print(f"🆔 Sample: {labels_info['sample_id']}")
-            if 'window_id' in labels_info and labels_info['window_id']:
-                print(f"   Window ID: {labels_info['window_id']}")
-
-            # Display captions
-            if caption_data['captions']:
-                print(f"\n📝 Captions:")
-                for i, cap in enumerate(caption_data['captions'][:2], 1):  # Show first 2
-                    print(f"   {i}. {cap}")
-            else:
-                print(f"\n📝 Caption: {caption_data['primary_caption']}")
-
-            # Display layer_b summary if available
-            if caption_data['layer_b']:
-                print(f"\n📊 Summary: {caption_data['layer_b']}")
-
-            # Display ground truth labels and metadata
+            # CASAS Labels (Ground Truth)
             if labels_info:
-                print(f"\n🏷️  Ground Truth:")
+                labels_parts = []
                 if 'activity_l1' in labels_info and labels_info['activity_l1']:
-                    print(f"    Activity (L1): {labels_info['activity_l1']}")
+                    labels_parts.append(f"L1: {labels_info['activity_l1']}")
                 if 'activity_l2' in labels_info and labels_info['activity_l2']:
-                    print(f"    Activity (L2): {labels_info['activity_l2']}")
-                if 'all_labels_l1' in labels_info and len(labels_info['all_labels_l1']) > 1:
-                    print(f"    All L1 labels: {', '.join(labels_info['all_labels_l1'])}")
+                    labels_parts.append(f"L2: {labels_info['activity_l2']}")
+                if labels_parts:
+                    print(f"🏷️  CASAS Labels: {' | '.join(labels_parts)}")
+                    if 'all_labels_l1' in labels_info and len(labels_info['all_labels_l1']) > 1:
+                        print(f"   All L1: {', '.join(labels_info['all_labels_l1'])}")
 
-                # Time and location info
-                if 'start_time' in labels_info and labels_info['start_time']:
-                    print(f"\n⏰ Time:")
-                    print(f"    Start: {labels_info['start_time']}")
-                    if 'duration_seconds' in labels_info:
-                        print(f"    Duration: {labels_info['duration_seconds']:.1f}s")
+            # Time info (duration, time of day, day of week)
+            time_parts = []
+            if 'num_events' in labels_info:
+                time_parts.append(f"{labels_info['num_events']} events")
+            if 'duration_seconds' in labels_info:
+                time_parts.append(f"{labels_info['duration_seconds']:.1f}s duration")
 
-                if 'primary_room' in labels_info and labels_info['primary_room']:
-                    print(f"\n📍 Location:")
-                    print(f"    Primary room: {labels_info['primary_room']}")
-                    if 'rooms_visited' in labels_info and len(labels_info['rooms_visited']) > 1:
-                        print(f"    Rooms visited: {', '.join(labels_info['rooms_visited'])}")
-                    if 'room_transitions' in labels_info:
-                        print(f"    Room transitions: {labels_info['room_transitions']}")
+            # Get time of day and day of week from events
+            tod_str = None
+            dow_str = None
+            if events:
+                first_event = events[0]
+                if 'tod_bucket' in first_event:
+                    tod_str = first_event['tod_bucket']
+                if 'day_of_week' in first_event:
+                    dow_str = first_event['day_of_week']
 
-                if 'num_events' in labels_info:
-                    print(f"\n📈 Events: {labels_info['num_events']} total")
+            if tod_str and tod_str != 'UNK':
+                time_parts.append(f"ToD: {tod_str}")
+            if dow_str and dow_str not in ['UNK', 'unknown']:
+                time_parts.append(f"DoW: {dow_str}")
 
-                if 'error' in labels_info:
-                    print(f"    ⚠️  Error: {labels_info['error']}")
+            # Format start time to just hours and minutes
+            if 'start_time' in labels_info and labels_info['start_time']:
+                start_time_str = labels_info['start_time']
+                # Parse and format time (handle format like "2009-12-15 15:05:24.000033")
+                try:
+                    from datetime import datetime
+                    # Try parsing with microseconds
+                    if '.' in start_time_str:
+                        dt = datetime.strptime(start_time_str.split('.')[0], '%Y-%m-%d %H:%M:%S')
+                    else:
+                        dt = datetime.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
+                    time_parts.append(f"Start: {dt.strftime('%Y-%m-%d %H:%M')}")
+                except:
+                    # Fallback if parsing fails
+                    time_parts.append(f"Start: {start_time_str}")
 
-            if show_details:
-                print(f"🔧 Sensor Sequence ({len(events)} events):")
-                for i, event in enumerate(events):
-                    parts = []
-                    for field in ['sensor_id', 'room_id', 'event_type', 'tod_bucket']:
-                        if field in event:
-                            parts.append(f"{field}={event[field]}")
+            if time_parts:
+                print(f"⏰ {' | '.join(time_parts)}")
 
-                    # Add day of week if available
-                    if 'day_of_week' in event:
-                        parts.append(f"dow={event['day_of_week']}")
+            # Location info
+            location_parts = []
+            if 'primary_room' in labels_info and labels_info['primary_room']:
+                location_parts.append(f"Primary: {labels_info['primary_room']}")
 
-                    coords = f"({event['x']:.2f},{event['y']:.2f})"
-                    parts.append(f"coords={coords}")
+            if 'rooms_visited' in labels_info and labels_info['rooms_visited']:
+                rooms = labels_info['rooms_visited']
+                if len(rooms) <= 3:
+                    location_parts.append(f"Visited: {', '.join(rooms)}")
+                else:
+                    location_parts.append(f"Visited: {', '.join(rooms[:3])} +{len(rooms)-3} more")
 
-                    if 'time_delta' in event:
-                        parts.append(f"Δt={event['time_delta']:.1f}s")
+            if 'room_transitions' in labels_info:
+                location_parts.append(f"{labels_info['room_transitions']} transitions")
 
-                    print(f"    Event {i+1:2d}: {' | '.join(parts)}")
+            if location_parts:
+                print(f"📍 {' | '.join(location_parts)}")
+
+            # Special sensors (only show sensors with metadata details)
+            special_sensors = []
+            sensor_seen = set()
+
+            for event in events:
+                # Try multiple field names for sensor ID
+                sensor_id = event.get('sensor_id') or event.get('sensor_detail') or event.get('sensor')
+                event_type = event.get('event_type') or event.get('state')
+
+                # Only show sensors that have special details in metadata
+                if sensor_id and sensor_id not in sensor_seen and sensor_id != 'UNK':
+                    if sensor_id in self.sensor_details:
+                        sensor_seen.add(sensor_id)
+                        # Get the description
+                        description = self.sensor_details[sensor_id]
+
+                        # Include state if meaningful (ON/OPEN/PRESENT)
+                        if event_type and event_type.upper() in ['ON', 'OPEN', 'PRESENT']:
+                            special_sensors.append(f"{sensor_id} ({description})")
+                        else:
+                            special_sensors.append(f"{sensor_id} ({description})")
+
+            if special_sensors:
+                # Show up to 5 special sensors
+                special_list = special_sensors[:5]
+                print(f"🔧 Special sensors: {', '.join(special_list)}")
+
+            # Caption at the end - show actual caption text if available
+            caption_text = None
+            if caption_data.get('captions') and len(caption_data['captions']) > 0:
+                # Get first non-empty caption
+                for cap in caption_data['captions']:
+                    if cap and cap.strip() and not cap.startswith('Sample '):
+                        caption_text = cap
+                        break
+
+            # Fallback to layer_b if no caption found
+            if not caption_text and caption_data.get('layer_b'):
+                caption_text = caption_data['layer_b']
+
+            # Always show caption if we have something meaningful
+            if caption_text:
+                # Truncate long captions
+                if len(caption_text) > 150:
+                    caption_text = caption_text[:147] + "..."
+                print(f"📝 Caption: {caption_text}")
 
         return results
 
@@ -615,8 +798,10 @@ class SmartHomeRetrieval:
                     all_rooms.append(event['room_id'])
                 if 'tod_bucket' in event:
                     all_tod.append(event['tod_bucket'])
-                if 'sensor_id' in event:
-                    all_sensors.append(event['sensor_id'])
+                # Handle both sensor_id and sensor_detail fields
+                sensor = event.get('sensor_id') or event.get('sensor_detail')
+                if sensor:
+                    all_sensors.append(sensor)
 
         # Top patterns
         from collections import Counter
@@ -645,10 +830,14 @@ def main():
     parser.add_argument('--captions', type=str,
                        default='data/processed/casas/milan/FD_60/test_captions_baseline.json',
                        help='Path to captions JSON file')
+    parser.add_argument('--metadata', type=str,
+                       default='metadata/casas_metadata.json',
+                       help='Path to CASAS metadata file with sensor details')
     parser.add_argument('--query', type=str, help='Query text (e.g., "cooking", "night wandering")')
-    parser.add_argument('--top_k', type=int, default=3, help='Number of top results')
+    parser.add_argument('--top_k', type=int, default=5, help='Number of top results')
     parser.add_argument('--max_samples', type=int, default=5000, help='Max samples to process')
     parser.add_argument('--interactive', action='store_true', help='Interactive mode')
+    parser.add_argument('--debug', action='store_true', help='Enable debug output')
 
     args = parser.parse_args()
 
@@ -659,7 +848,9 @@ def main():
         vocab_path=args.vocab,
         test_data_path=args.test_data,
         captions_path=args.captions,
-        max_samples=args.max_samples
+        max_samples=args.max_samples,
+        debug=args.debug,
+        metadata_path=args.metadata
     )
 
     print(f"\n✅ System ready! Loaded {retrieval.sensor_index.ntotal} sequences")
@@ -699,7 +890,7 @@ def main():
         ]
 
         for query in demo_queries:
-            results = retrieval.query(query, top_k=2, show_details=False)
+            results = retrieval.query(query, top_k=5, show_details=False)
             retrieval.analyze_query_results(query, results)
             print()
 
