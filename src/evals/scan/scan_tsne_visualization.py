@@ -145,6 +145,7 @@ class SCANEvaluator:
         self.embeddings = None
         self.cluster_predictions = None
         self.ground_truth_labels = None
+        self.resident_infos = None
         self.tsne_embeddings = None
 
         # Load label colors from metadata
@@ -157,22 +158,32 @@ class SCANEvaluator:
             with open(metadata_path, 'r') as f:
                 city_metadata = json.load(f)
 
-            # Try to detect dataset from data path
+            # Detect dataset name from data path — check all known datasets
+            data_path_lower = self.data_path.lower()
+            known_datasets = list(city_metadata.keys())
             dataset_name = 'milan'  # default
-            if 'aruba' in self.data_path.lower():
-                dataset_name = 'aruba'
-            elif 'cairo' in self.data_path.lower():
-                dataset_name = 'cairo'
+            for name in known_datasets:
+                if name in data_path_lower:
+                    dataset_name = name
+                    break
 
             dataset_metadata = city_metadata.get(dataset_name, {})
 
-            # Load L1 colors - Milan uses 'label', others use 'label_color'
-            self.label_colors = dataset_metadata.get('label',
-                                dataset_metadata.get('label_color',
-                                dataset_metadata.get('lable', {})))
+            # Load L1 colors — try all known key variants across datasets
+            self.label_colors = (
+                dataset_metadata.get('label_color') or
+                dataset_metadata.get('label') or
+                dataset_metadata.get('lable') or
+                {}
+            )
 
             # Load L2 colors from label_deepcasas_color
             self.label_colors_l2 = dataset_metadata.get('label_deepcasas_color', {})
+
+            # Store dataset name for multi-resident logic
+            self.dataset_name = dataset_name
+            dataset_meta = city_metadata.get(dataset_name, {})
+            self.num_residents = dataset_meta.get('num_residents', 1)
 
             if self.label_colors:
                 print(f"Loaded {len(self.label_colors)} L1 label colors from {dataset_name} metadata")
@@ -183,10 +194,14 @@ class SCANEvaluator:
             if self.label_colors_l2:
                 print(f"Loaded {len(self.label_colors_l2)} L2 label colors from {dataset_name} metadata")
 
+            print(f"Dataset: {dataset_name}, num_residents: {self.num_residents}")
+
         except Exception as e:
             print(f"Could not load label colors: {e}")
             self.label_colors = {}
             self.label_colors_l2 = {}
+            self.dataset_name = 'unknown'
+            self.num_residents = 1
 
     def load_model_and_data(self):
         """Load the trained SCAN model and test dataset."""
@@ -265,16 +280,19 @@ class SCANEvaluator:
                 'time_deltas': time_deltas
             }
 
-            # Also extract ground truth labels
+            # Also extract ground truth labels and resident info
             gt_labels = []
+            resident_infos = []
             for sample in batch:
                 label = sample.get('first_activity', sample.get('activity', 'Unknown'))
                 gt_labels.append(label)
+                resident_infos.append(sample.get('resident_info', None))
 
             return {
                 'input_data': input_data,
                 'mask': masks,
-                'gt_labels': gt_labels
+                'gt_labels': gt_labels,
+                'resident_infos': resident_infos
             }
 
         # Filter out "No_Activity" samples (unless keep_all_labels is True)
@@ -314,6 +332,7 @@ class SCANEvaluator:
         embeddings = []
         cluster_predictions = []
         ground_truth_labels = []
+        resident_infos = []
 
         with torch.no_grad():
             for batch_idx, batch in enumerate(dataloader):
@@ -333,6 +352,7 @@ class SCANEvaluator:
                 embeddings.append(batch_embeddings.cpu().numpy())
                 cluster_predictions.append(batch_predictions.cpu().numpy())
                 ground_truth_labels.extend(batch['gt_labels'])
+                resident_infos.extend(batch['resident_infos'])
 
                 if (batch_idx + 1) % 20 == 0:
                     print(f"  Processed {batch_idx + 1}/{len(dataloader)} batches")
@@ -340,6 +360,7 @@ class SCANEvaluator:
         self.embeddings = np.vstack(embeddings)
         self.cluster_predictions = np.concatenate(cluster_predictions)
         self.ground_truth_labels = np.array(ground_truth_labels)
+        self.resident_infos = np.array([r if r is not None else 'unknown' for r in resident_infos])
 
         print(f"\nExtracted embeddings shape: {self.embeddings.shape}")
         print(f"Unique ground truth labels: {len(np.unique(self.ground_truth_labels))}")
@@ -369,6 +390,56 @@ class SCANEvaluator:
         self.tsne_embeddings = tsne.fit_transform(self.embeddings)
         print("t-SNE computation completed")
 
+    def _get_resident_marker_map(self):
+        """Return a marker map for resident groups (used for multi-resident datasets)."""
+        return {
+            'R1': 'o',
+            'R2': '^',
+            'both': 'P',
+            'unknown': 's',
+        }
+
+    def _is_multiresident(self):
+        """True when resident_info is meaningful (more than one distinct resident)."""
+        if self.resident_infos is None:
+            return False
+        unique = set(self.resident_infos) - {'unknown', None}
+        return len(unique) > 1
+
+    def _scatter_with_resident_markers(
+        self, ax, mask, color, label, resident_infos, marker_map, size=25
+    ):
+        """Scatter plot that varies marker shape by resident when multi-resident."""
+        if self._is_multiresident():
+            first = True
+            for resident, marker in marker_map.items():
+                res_mask = mask & (resident_infos == resident)
+                if not np.any(res_mask):
+                    continue
+                ax.scatter(
+                    self.tsne_embeddings[res_mask, 0],
+                    self.tsne_embeddings[res_mask, 1],
+                    c=[color],
+                    marker=marker,
+                    label=label if first else f'_nolegend_',
+                    alpha=0.7,
+                    s=size,
+                    edgecolors='white',
+                    linewidth=0.3
+                )
+                first = False
+        else:
+            ax.scatter(
+                self.tsne_embeddings[mask, 0],
+                self.tsne_embeddings[mask, 1],
+                c=[color],
+                label=label,
+                alpha=0.7,
+                s=size,
+                edgecolors='white',
+                linewidth=0.3
+            )
+
     def create_visualizations(self):
         """Create t-SNE visualizations colored by ground truth and cluster predictions."""
         print("\n" + "="*60)
@@ -376,6 +447,8 @@ class SCANEvaluator:
         print("="*60)
 
         plt.style.use('default')
+        marker_map = self._get_resident_marker_map()
+        is_mr = self._is_multiresident()
 
         # Create figure with subplots
         fig, axes = plt.subplots(1, 2, figsize=(24, 10))
@@ -395,18 +468,14 @@ class SCANEvaluator:
             else:
                 color = plt.cm.tab20(i / max(len(unique_gt_labels), 1))
 
-            ax1.scatter(
-                self.tsne_embeddings[mask, 0],
-                self.tsne_embeddings[mask, 1],
-                c=[color],
-                label=label.replace('_', ' '),
-                alpha=0.7,
-                s=25,
-                edgecolors='white',
-                linewidth=0.3
+            self._scatter_with_resident_markers(
+                ax1, mask, color, label.replace('_', ' '), self.resident_infos, marker_map
             )
 
-        ax1.set_title('t-SNE by Ground Truth Activities', fontsize=16, fontweight='bold', pad=15)
+        title1 = 't-SNE by Ground Truth Activities'
+        if is_mr:
+            title1 += '\n(shape = resident: ○R1  △R2  ◇both)'
+        ax1.set_title(title1, fontsize=16, fontweight='bold', pad=15)
         ax1.set_xlabel('t-SNE Dimension 1', fontsize=12)
         ax1.set_ylabel('t-SNE Dimension 2', fontsize=12)
         ax1.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=9, framealpha=0.9)
@@ -417,25 +486,19 @@ class SCANEvaluator:
         # ========================================
         ax2 = axes[1]
         unique_clusters = sorted(np.unique(self.cluster_predictions))
-
-        # Create categorical cluster labels
-        cluster_labels = [f'Cluster {c}' for c in unique_clusters]
         colors_cluster = plt.cm.tab20(np.linspace(0, 1, len(unique_clusters)))
 
         for i, cluster_id in enumerate(unique_clusters):
             mask = self.cluster_predictions == cluster_id
-            ax2.scatter(
-                self.tsne_embeddings[mask, 0],
-                self.tsne_embeddings[mask, 1],
-                c=[colors_cluster[i]],
-                label=f'Cluster {cluster_id}',  # Categorical label
-                alpha=0.7,
-                s=25,
-                edgecolors='white',
-                linewidth=0.3
+            self._scatter_with_resident_markers(
+                ax2, mask, colors_cluster[i], f'Cluster {cluster_id}',
+                self.resident_infos, marker_map
             )
 
-        ax2.set_title('t-SNE by SCAN Cluster Predictions', fontsize=16, fontweight='bold', pad=15)
+        title2 = 't-SNE by SCAN Cluster Predictions'
+        if is_mr:
+            title2 += '\n(shape = resident: ○R1  △R2  ◇both)'
+        ax2.set_title(title2, fontsize=16, fontweight='bold', pad=15)
         ax2.set_xlabel('t-SNE Dimension 1', fontsize=12)
         ax2.set_ylabel('t-SNE Dimension 2', fontsize=12)
         ax2.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=9, framealpha=0.9)
@@ -454,6 +517,9 @@ class SCANEvaluator:
 
     def _save_individual_plots(self):
         """Save individual t-SNE plots."""
+        marker_map = self._get_resident_marker_map()
+        is_mr = self._is_multiresident()
+
         # Ground truth plot
         fig, ax = plt.subplots(figsize=(14, 12))
         unique_gt_labels = sorted(np.unique(self.ground_truth_labels))
@@ -461,18 +527,14 @@ class SCANEvaluator:
         for i, label in enumerate(unique_gt_labels):
             mask = self.ground_truth_labels == label
             color = self.label_colors.get(label, plt.cm.tab20(i / max(len(unique_gt_labels), 1)))
-            ax.scatter(
-                self.tsne_embeddings[mask, 0],
-                self.tsne_embeddings[mask, 1],
-                c=[color],
-                label=label.replace('_', ' '),
-                alpha=0.7,
-                s=30,
-                edgecolors='white',
-                linewidth=0.3
+            self._scatter_with_resident_markers(
+                ax, mask, color, label.replace('_', ' '), self.resident_infos, marker_map, size=30
             )
 
-        ax.set_title('t-SNE Embeddings by Ground Truth Activity', fontsize=16, fontweight='bold')
+        title = 't-SNE Embeddings by Ground Truth Activity'
+        if is_mr:
+            title += '\n(shape = resident: ○R1  △R2  ◇both)'
+        ax.set_title(title, fontsize=16, fontweight='bold')
         ax.set_xlabel('t-SNE Dimension 1', fontsize=12)
         ax.set_ylabel('t-SNE Dimension 2', fontsize=12)
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
@@ -488,18 +550,15 @@ class SCANEvaluator:
 
         for i, cluster_id in enumerate(unique_clusters):
             mask = self.cluster_predictions == cluster_id
-            ax.scatter(
-                self.tsne_embeddings[mask, 0],
-                self.tsne_embeddings[mask, 1],
-                c=[colors_cluster[i]],
-                label=f'Cluster {cluster_id}',
-                alpha=0.7,
-                s=30,
-                edgecolors='white',
-                linewidth=0.3
+            self._scatter_with_resident_markers(
+                ax, mask, colors_cluster[i], f'Cluster {cluster_id}',
+                self.resident_infos, marker_map, size=30
             )
 
-        ax.set_title('t-SNE Embeddings by SCAN Cluster', fontsize=16, fontweight='bold')
+        title = 't-SNE Embeddings by SCAN Cluster'
+        if is_mr:
+            title += '\n(shape = resident: ○R1  △R2  ◇both)'
+        ax.set_title(title, fontsize=16, fontweight='bold')
         ax.set_xlabel('t-SNE Dimension 1', fontsize=12)
         ax.set_ylabel('t-SNE Dimension 2', fontsize=12)
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=10)
@@ -508,8 +567,53 @@ class SCANEvaluator:
         plt.savefig(self.tsne_dir / f'tsne_clusters{self.label_suffix}.png', dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
 
-        print(f"Saved: {self.tsne_dir / 'tsne_ground_truth.png'}")
-        print(f"Saved: {self.tsne_dir / 'tsne_clusters.png'}")
+        print(f"Saved: {self.tsne_dir / f'tsne_ground_truth{self.label_suffix}.png'}")
+        print(f"Saved: {self.tsne_dir / f'tsne_clusters{self.label_suffix}.png'}")
+
+        # Resident plot — only generated for multi-resident datasets
+        if is_mr:
+            self._save_resident_plot()
+
+    def _save_resident_plot(self):
+        """Save a t-SNE plot colored by resident (R1 / R2 / both)."""
+        resident_color_map = {
+            'R1':      '#2166ac',   # blue
+            'R2':      '#d6604d',   # red-orange
+            'both':    '#4dac26',   # green
+            'unknown': '#aaaaaa',   # grey
+        }
+        marker_map = self._get_resident_marker_map()
+
+        fig, ax = plt.subplots(figsize=(14, 12))
+        unique_residents = sorted(set(self.resident_infos))
+
+        for resident in unique_residents:
+            mask = self.resident_infos == resident
+            color = resident_color_map.get(resident, '#aaaaaa')
+            marker = marker_map.get(resident, 'o')
+            ax.scatter(
+                self.tsne_embeddings[mask, 0],
+                self.tsne_embeddings[mask, 1],
+                c=[color],
+                marker=marker,
+                label=resident,
+                alpha=0.7,
+                s=30,
+                edgecolors='white',
+                linewidth=0.3
+            )
+
+        ax.set_title('t-SNE Embeddings by Resident', fontsize=16, fontweight='bold')
+        ax.set_xlabel('t-SNE Dimension 1', fontsize=12)
+        ax.set_ylabel('t-SNE Dimension 2', fontsize=12)
+        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', fontsize=12, framealpha=0.9)
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        output_path = self.tsne_dir / f'tsne_resident{self.label_suffix}.png'
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        print(f"Saved: {output_path}")
 
     def compute_clustering_metrics(self) -> Dict:
         """Compute clustering evaluation metrics."""
@@ -685,9 +789,14 @@ class SCANEvaluator:
                 for c, count in sorted(Counter(self.cluster_predictions).items())
             },
             'output_files': [
+                f'tsne_data{self.label_suffix}.csv',
                 f'tsne_visualization{self.label_suffix}.png',
                 f'tsne_ground_truth{self.label_suffix}.png',
                 f'tsne_clusters{self.label_suffix}.png',
+                *(
+                    [f'tsne_resident{self.label_suffix}.png']
+                    if self._is_multiresident() else []
+                ),
                 f'confusion_matrix{self.label_suffix}.png',
                 f'confusion_matrix{self.label_suffix}.csv',
                 f'cluster_composition{self.label_suffix}.png',
@@ -742,6 +851,31 @@ class SCANEvaluator:
 
         print(f"Saved: {txt_path}")
 
+    def save_tsne_data(self):
+        """Save t-SNE coordinates and all labels to CSV for downstream publication plots."""
+        print("Saving t-SNE data to CSV...")
+
+        data = {
+            'tsne_x': self.tsne_embeddings[:, 0],
+            'tsne_y': self.tsne_embeddings[:, 1],
+            'ground_truth': self.ground_truth_labels,
+            'cluster': self.cluster_predictions,
+        }
+
+        # Include resident_info column when present
+        if self.resident_infos is not None:
+            data['resident'] = self.resident_infos
+
+        # Include metadata colors so the publication script can use them directly
+        df = pd.DataFrame(data)
+        df['gt_color'] = df['ground_truth'].map(
+            lambda lbl: self.label_colors.get(lbl, '')
+        )
+
+        csv_path = self.tsne_dir / f'tsne_data{self.label_suffix}.csv'
+        df.to_csv(csv_path, index=False)
+        print(f"Saved: {csv_path}  ({len(df)} rows, columns: {list(df.columns)})")
+
     def run_full_evaluation(self, max_samples: int = 5000, perplexity: int = 30):
         """Run the complete evaluation pipeline."""
         print("\n" + "="*70)
@@ -752,6 +886,7 @@ class SCANEvaluator:
         self.extract_embeddings_and_predictions(max_samples=max_samples)
         self.compute_tsne(perplexity=perplexity)
         self.create_visualizations()
+        self.save_tsne_data()
         metrics = self.compute_clustering_metrics()
         self.create_confusion_matrix()
         self.create_cluster_composition_chart()

@@ -185,6 +185,13 @@ def compute_window_metadata(events_df: pd.DataFrame,
         for activity, count in Counter(activity_l1_list).items():
             activity_dist[activity] = count / total
 
+    # Multi-resident info: capture the dominant resident_info for this window
+    resident_info = None
+    if 'resident_info' in events_df.columns:
+        resident_values = events_df['resident_info'].dropna()
+        if len(resident_values) > 0:
+            resident_info = Counter(resident_values).most_common(1)[0][0]
+
     # Special sensor information (sensors with details, not just room location)
     special_sensors_info = {}
     if 'sensor_detail' in events_df.columns:
@@ -229,6 +236,10 @@ def compute_window_metadata(events_df: pd.DataFrame,
         },
         'presegmented': presegmented
     }
+
+    # Add resident_info if available (multi-resident datasets only)
+    if resident_info is not None:
+        metadata['resident_info'] = resident_info
 
     # Add special sensor info if available
     if special_sensors_info:

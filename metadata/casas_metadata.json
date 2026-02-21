@@ -1621,7 +1621,12 @@
       "Study": "#de77ae",
       "R2_Bed_to_Toilet": "#4B68C9",
       "no_activity": "#878787",
-      "no_sensor_readings": "#bababa"
+      "no_sensor_readings": "#bababa",
+      "Sleep": "#2F6397",
+      "Personal_Hygiene": "#0570b0",
+      "Bed_to_Toilet": "#4B68C9",
+      "Work": "#C53A32"
+
     },
     "label_deepcasas_color": {
       "Sleep": "#2F6397",

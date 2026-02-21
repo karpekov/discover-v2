@@ -429,6 +429,21 @@ class SmartHomeDataset(Dataset):
       if 'first_activity_l2' in sample_data:
         result['first_activity_l2'] = sample_data['first_activity_l2']
 
+    # Add resident_info for multi-resident datasets (kyoto, cairo).
+    # Priority 1: metadata.resident_info (newly generated data via compute_window_metadata).
+    # Priority 2: first event's resident_info (existing data where it was stored per-event).
+    resident_info = None
+    if 'metadata' in sample_data and 'resident_info' in sample_data['metadata']:
+      resident_info = sample_data['metadata']['resident_info']
+    else:
+      # Fall back to first event that has resident_info
+      for event in original_events:
+        if 'resident_info' in event and event['resident_info']:
+          resident_info = event['resident_info']
+          break
+    if resident_info is not None:
+      result['resident_info'] = resident_info
+
     return result
 
 

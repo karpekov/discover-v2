@@ -222,7 +222,8 @@ class TemporalDiffPublicationChart:
         last_start: Optional[str] = None,
         checkpoint: str = 'best_model.pt',
         device: Optional[str] = None,
-        label_level: str = 'l1'
+        label_level: str = 'l1',
+        resident: Optional[str] = None
     ):
         self.model_dir = Path(model_dir)
         self.weeks = weeks
@@ -230,6 +231,7 @@ class TemporalDiffPublicationChart:
         self.last_start = last_start
         self.checkpoint = checkpoint
         self.label_level = label_level  # 'l1' or 'l2'
+        self.resident = resident  # None = all residents
 
         # Setup device
         if device:
@@ -242,16 +244,25 @@ class TemporalDiffPublicationChart:
             self.device = torch.device('cpu')
         print(f"Using device: {self.device}")
 
-        # Load model config (try YAML first, then JSON)
+        # Load model config: try YAML → JSON → embedded in checkpoint
         config_path = self.model_dir / 'config.yaml'
         if not config_path.exists():
             config_path = self.model_dir / 'config.json'
 
-        with open(config_path, 'r') as f:
-            if config_path.suffix == '.yaml':
-                self.config = yaml.safe_load(f)
-            else:
-                self.config = json.load(f)
+        if config_path.exists():
+            with open(config_path, 'r') as f:
+                if config_path.suffix == '.yaml':
+                    self.config = yaml.safe_load(f)
+                else:
+                    self.config = json.load(f)
+        else:
+            # Fall back to config embedded in the checkpoint
+            checkpoint_path = self.model_dir / checkpoint
+            if not checkpoint_path.exists():
+                raise FileNotFoundError(f"Neither a config file nor a checkpoint was found in {self.model_dir}")
+            print(f"No config file found — loading config from checkpoint: {checkpoint_path}")
+            ckpt = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            self.config = ckpt.get('config', {})
 
         self.num_clusters = self.config.get('num_clusters', 20)
 
@@ -384,6 +395,18 @@ class TemporalDiffPublicationChart:
                 return sample['metadata']['ground_truth_labels'].get('primary_l1', 'Unknown')
             return sample.get('first_activity', sample.get('activity', 'Unknown'))
 
+    def _get_resident_info(self, sample: Dict) -> Optional[str]:
+        """Extract resident_info from a raw sample. Tries metadata first, then first event."""
+        meta = sample.get('metadata', {})
+        if 'resident_info' in meta:
+            return meta['resident_info']
+        seq = sample.get('sensor_sequence', sample.get('events', []))
+        for event in seq:
+            ri = event.get('resident_info')
+            if ri:
+                return ri
+        return None
+
     def filter_by_time_periods(
         self,
         samples: List[Dict]
@@ -424,9 +447,15 @@ class TemporalDiffPublicationChart:
         print(f"First period: {first_start.date()} to {first_end.date()}")
         print(f"Last period: {last_start.date()} to {last_end.date()}")
 
-        # Filter samples
+        # Filter samples by time window
         first_period = [s for s, ts in samples_with_ts if first_start <= ts < first_end]
         last_period = [s for s, ts in samples_with_ts if last_start <= ts < last_end]
+
+        # Apply resident filter when requested
+        if self.resident:
+            first_period = [s for s in first_period if self._get_resident_info(s) == self.resident]
+            last_period  = [s for s in last_period  if self._get_resident_info(s) == self.resident]
+            print(f"After resident='{self.resident}' filter:")
 
         print(f"First period samples: {len(first_period)}")
         print(f"Last period samples: {len(last_period)}")
@@ -577,7 +606,8 @@ class TemporalDiffPublicationChart:
 
         suffix = '_normalized' if normalized else ''
         suffix += '_all_labels' if keep_all_labels else ''
-        suffix += f'_{self.label_level}'  # Add label level (l1 or l2)
+        suffix += f'_{self.label_level}'
+        suffix += f'_{self.resident}' if self.resident else ''
 
         # Period labels for legend
         p1_label = f"Week 1 ({first_period[0].strftime('%b %d')})"
@@ -761,8 +791,9 @@ class TemporalDiffPublicationChart:
 
         # Main title
         norm_text = 'Normalized ' if normalized else ''
+        resident_text = f'  ·  Resident: {self.resident}' if self.resident else ''
         fig.suptitle(
-            f'{norm_text}Temporal Distribution Comparison — {self.dataset_name.capitalize()} Dataset\n'
+            f'{norm_text}Temporal Distribution Comparison — {self.dataset_name.capitalize()} Dataset{resident_text}\n'
             f'{first_period[0].strftime("%b %d, %Y")} vs {last_period[0].strftime("%b %d, %Y")} ({self.weeks}-week periods)',
             fontsize=14, fontweight='bold', y=0.98
         )
@@ -1080,6 +1111,10 @@ Examples:
                        help='Checkpoint file name (default: best_model.pt)')
     parser.add_argument('--label_level', type=str, default='l1', choices=['l1', 'l2'],
                        help='Label granularity: l1 (coarse) or l2 (fine-grained) (default: l1)')
+    parser.add_argument('--resident', type=str, default=None,
+                       choices=['R1', 'R2', 'both'],
+                       help='Filter to a specific resident context: R1, R2, or both (simultaneous). '
+                            'Default: use all samples regardless of resident.')
 
     args = parser.parse_args()
 
@@ -1091,7 +1126,8 @@ Examples:
         first_start=args.first_start,
         last_start=args.last_start,
         checkpoint=args.checkpoint,
-        label_level=args.label_level
+        label_level=args.label_level,
+        resident=args.resident
     )
 
     analyzer.run()

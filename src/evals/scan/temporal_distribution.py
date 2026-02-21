@@ -79,7 +79,8 @@ class TemporalDistributionAnalyzer:
         weeks: int = 2,
         first_start: Optional[str] = None,
         last_start: Optional[str] = None,
-        keep_all_labels: bool = False
+        keep_all_labels: bool = False,
+        resident: Optional[str] = None
     ):
         """
         Initialize temporal distribution analyzer.
@@ -93,13 +94,17 @@ class TemporalDistributionAnalyzer:
             first_start: Optional start date for first period (YYYY-MM-DD format)
             last_start: Optional start date for last period (YYYY-MM-DD format)
             keep_all_labels: If True, include all labels including No_Activity/Unknown
+            resident: Filter to a specific resident ('R1', 'R2', 'both') or None for all
         """
         self.model_dir = Path(model_dir)
         self.checkpoint_name = checkpoint_name
         self.checkpoint_path = self.model_dir / checkpoint_name
         self.weeks = weeks
         self.keep_all_labels = keep_all_labels
-        self.label_suffix = '_all_labels' if keep_all_labels else ''
+        self.resident = resident  # None = all residents combined
+
+        resident_suffix = f'_{resident}' if resident else ''
+        self.label_suffix = ('_all_labels' if keep_all_labels else '') + resident_suffix
 
         # Parse custom start dates if provided
         self.first_start = datetime.strptime(first_start, '%Y-%m-%d') if first_start else None
@@ -163,17 +168,21 @@ class TemporalDistributionAnalyzer:
             with open(metadata_path, 'r') as f:
                 city_metadata = json.load(f)
 
-            # Detect dataset
-            dataset_name = 'milan'
+            # Detect dataset — check all known keys against the data path
             data_str = str(self.data_dir).lower()
-            if 'aruba' in data_str:
-                dataset_name = 'aruba'
-            elif 'cairo' in data_str:
-                dataset_name = 'cairo'
+            dataset_name = 'milan'  # default
+            for name in city_metadata.keys():
+                if name in data_str:
+                    dataset_name = name
+                    break
 
             dataset_metadata = city_metadata.get(dataset_name, {})
-            self.label_colors = dataset_metadata.get('label',
-                                dataset_metadata.get('label_color', {}))
+            self.label_colors = (
+                dataset_metadata.get('label_color') or
+                dataset_metadata.get('label') or
+                dataset_metadata.get('lable') or
+                {}
+            )
 
             if self.label_colors:
                 print(f"Loaded {len(self.label_colors)} label colors from {dataset_name} metadata")
@@ -234,7 +243,8 @@ class TemporalDistributionAnalyzer:
                             'datetime': ts_info,
                             'split': split,
                             'idx': idx,
-                            'sample': sample
+                            'sample': sample,
+                            'resident_info': self._get_resident_info(sample)
                         })
 
                 # Also create SmartHomeDataset for this split
@@ -249,6 +259,11 @@ class TemporalDistributionAnalyzer:
                 print(f"  {split}.json not found, skipping")
 
         print(f"\nTotal samples with valid timestamps: {len(self.raw_samples)}")
+
+        if self.resident:
+            resident_count = sum(1 for s in self.raw_samples if s.get('resident_info') == self.resident)
+            print(f"Samples matching resident='{self.resident}': {resident_count} "
+                  f"({100*resident_count/max(len(self.raw_samples),1):.1f}%)")
 
         if self.raw_samples:
             # Get date range
@@ -292,6 +307,20 @@ class TemporalDistributionAnalyzer:
         except Exception:
             pass
 
+        return None
+
+    def _get_resident_info(self, sample: Dict) -> Optional[str]:
+        """Extract resident_info from a raw sample dict.
+        Tries metadata first (newly sampled data), then first event fallback."""
+        meta = sample.get('metadata', {})
+        if 'resident_info' in meta:
+            return meta['resident_info']
+        # Fallback: read from first event in sensor_sequence
+        seq = sample.get('sensor_sequence', sample.get('events', []))
+        for event in seq:
+            ri = event.get('resident_info')
+            if ri:
+                return ri
         return None
 
     def _get_ground_truth_label(self, sample: Dict) -> str:
@@ -381,6 +410,10 @@ class TemporalDistributionAnalyzer:
                 end = max_date
                 start = end - weeks_delta
             filtered = [s for s in self.raw_samples if start <= s['datetime'] <= end]
+
+        # Apply resident filter when requested
+        if self.resident:
+            filtered = [s for s in filtered if s.get('resident_info') == self.resident]
 
         # Compute actual date range from filtered samples
         if filtered:
@@ -660,8 +693,9 @@ class TemporalDistributionAnalyzer:
         )
 
         # Add main title
+        resident_label = f'  ·  Resident: {self.resident}' if self.resident else ''
         fig.suptitle(
-            f'Temporal Activity Distribution Comparison\n'
+            f'Temporal Activity Distribution Comparison{resident_label}\n'
             f'First {self.weeks} Weeks ({len(first_gt)} samples) vs Last {self.weeks} Weeks ({len(last_gt)} samples)',
             fontsize=18, fontweight='bold', y=1.02
         )
@@ -952,8 +986,9 @@ class TemporalDistributionAnalyzer:
         self._plot_delta_chart(axes[2, 3], majority_delta, all_gt_labels,
             f"Change in Majority Label\n(Last - First, pp)", is_cluster=False)
 
+        resident_label = f'  ·  Resident: {self.resident}' if self.resident else ''
         fig.suptitle(
-            f'Temporal Activity Distribution (Normalized)\n'
+            f'Temporal Activity Distribution (Normalized){resident_label}\n'
             f'First {self.weeks} Weeks vs Last {self.weeks} Weeks',
             fontsize=18, fontweight='bold', y=1.02
         )
@@ -1154,6 +1189,10 @@ Examples:
                        help='Start date for last period (YYYY-MM-DD). If not provided, uses (data end - weeks).')
     parser.add_argument('--keep_all_labels', action='store_true',
                        help='Include all labels (including No_Activity/Unknown). Default: exclude them.')
+    parser.add_argument('--resident', type=str, default=None,
+                       choices=['R1', 'R2', 'both'],
+                       help='Filter to a specific resident context: R1, R2, or both (simultaneous). '
+                            'Default: use all samples regardless of resident.')
 
     args = parser.parse_args()
 
@@ -1165,7 +1204,8 @@ Examples:
         weeks=args.weeks,
         first_start=args.first_start,
         last_start=args.last_start,
-        keep_all_labels=args.keep_all_labels
+        keep_all_labels=args.keep_all_labels,
+        resident=args.resident
     )
 
     analyzer.run_analysis()
