@@ -223,6 +223,9 @@ Each sentence must:
 - Be anchored to a specific room / sensor detail from the list above.
 - Describe what the sensors in that location would observe.
 - Contain NO activity label names.
+- Preserve ALL temporal, frequency, and contextual qualifiers from the user's
+  query (e.g. time of day, day of week, duration, recurrence). If the user says
+  "during the night", every sentence must reflect that time-of-day context.
 
 Format your response as:
 REASONING: <your reasoning here>
