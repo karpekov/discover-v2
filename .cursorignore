@@ -9,7 +9,6 @@ results/**
 
 # Notebooks and HTML reports
 *.ipynb
-*.html
 .ipynb_checkpoints/**
 
 # Binary/large artifacts

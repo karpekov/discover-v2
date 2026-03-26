@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HAR Discover</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0f2040; --navymid: #1a3356;
+      --sky: #0ea5e9; --amber: #f59e0b; --green: #16a34a;
+      --bg: #f0f4f8; --surface: #fff; --surf2: #f8fafc;
+      --border: #e2e8f0; --bord2: #cbd5e1;
+      --text: #1e293b; --mid: #475569; --muted: #94a3b8;
+      --w: 310px; --r: 10px;
+      --sh: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+    body { font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text);
+           background: var(--bg); height: 100vh; overflow: hidden; display: flex; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: var(--bord2); border-radius: 3px; }
+
+    /* sidebar */
+    #sidebar { width: var(--w); min-width: var(--w); height: 100vh;
+               background: var(--navy); display: flex; flex-direction: column; }
+    #main    { flex: 1; height: 100vh; overflow-y: auto; padding: 24px; }
+    .s-head  { padding: 22px 20px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .s-head h1 { font-size: 17px; font-weight: 700; color: #fff; }
+    .s-head p  { font-size: 10.5px; color: rgba(255,255,255,.4); margin-top: 3px;
+                 text-transform: uppercase; letter-spacing: .8px; }
+    #fscroll { flex: 1; overflow-y: auto; padding: 14px 18px 16px; }
+
+    .fg { margin-bottom: 13px; }
+    .fg label { display: block; font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,.5);
+                text-transform: uppercase; letter-spacing: .6px; margin-bottom: 5px; }
+    .fg select, .fg input[type="number"], .fg textarea {
+      width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 7px; color: #fff; font-family: inherit; font-size: 13px; padding: 7px 10px;
+      outline: none; transition: border-color .15s; -webkit-appearance: none; appearance: none; }
+    .fg select:focus, .fg input[type="number"]:focus, .fg textarea:focus { border-color: var(--sky); }
+    .fg select option { background: var(--navymid); color: #fff; }
+    .fg textarea { resize: vertical; min-height: 76px; line-height: 1.5; }
+    .fg input[type="number"] { -moz-appearance: textfield; }
+    .fg input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .pills { display: flex; background: rgba(255,255,255,.07); border-radius: 7px; padding: 3px; gap: 3px; }
+    .pill  { flex: 1; border: none; background: transparent; color: rgba(255,255,255,.5);
+             font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 0;
+             border-radius: 5px; cursor: pointer; transition: background .15s, color .15s; }
+    .pill.on { background: var(--sky); color: #fff; }
+
+    .srow { display: flex; align-items: center; gap: 8px; }
+    .srow input[type="range"] { flex: 1; -webkit-appearance: none; height: 4px;
+      background: rgba(255,255,255,.2); border-radius: 2px; cursor: pointer; }
+    .srow input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;
+      width: 13px; height: 13px; border-radius: 50%; background: var(--sky); cursor: pointer; }
+    .sval { font-size: 12px; font-weight: 600; color: var(--sky); min-width: 22px; text-align: right; }
+
+    .sep { border: none; border-top: 1px solid rgba(255,255,255,.08); margin: 12px 0; }
+
+    .adv-btn { background: none; border: none; color: rgba(255,255,255,.38);
+      font-family: inherit; font-size: 10.5px; font-weight: 600; letter-spacing: .5px;
+      text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
+    .adv-btn .arr { display: inline-block; transition: transform .2s; }
+    .adv-btn.open .arr { transform: rotate(90deg); }
+    .adv-body { display: none; margin-top: 10px; }
+    .adv-body.open { display: block; }
+    .crow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .crow input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--sky); cursor: pointer; }
+    .crow label { font-size: 12px; color: rgba(255,255,255,.55); cursor: pointer; margin: 0; }
+
+    #s-foot { padding: 12px 18px 16px; border-top: 1px solid rgba(255,255,255,.08); }
+    #btn-go { width: 100%; padding: 11px; border: none; border-radius: 8px;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff;
+      font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: opacity .15s, transform .1s; box-shadow: 0 4px 12px rgba(14,165,233,.4); }
+    #btn-go:hover { opacity: .91; }
+    #btn-go:active { transform: scale(.98); }
+    #btn-go:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .spin { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.35);
+            border-top-color: #fff; border-radius: 50%; animation: rot .7s linear infinite; display: none; }
+    .spin.on { display: block; }
+    @keyframes rot { to { transform: rotate(360deg); } }
+    #cache-note { display: none; margin-top: 7px; font-size: 10.5px;
+                  color: rgba(255,255,255,.38); text-align: center; }
+    #cache-note.on { display: block; }
+    .chit { background: rgba(34,197,94,.18); color: #4ade80; border-radius: 4px;
+            padding: 1px 6px; font-size: 10px; font-weight: 600; margin-left: 3px; }
+
+    /* states */
+    .state { display: none; flex-direction: column; align-items: center; justify-content: center;
+             min-height: calc(100vh - 48px); text-align: center; gap: 14px; }
+    .state.on { display: flex; }
+    #st-results { display: none; }
+    #st-results.on { display: block; }
+    #st-welcome .ico { font-size: 52px; opacity: .4; }
+    #st-welcome h2  { font-size: 20px; font-weight: 600; color: var(--mid); }
+    #st-welcome p   { font-size: 13.5px; max-width: 360px; line-height: 1.6; color: var(--muted); }
+    .big-spin { width: 42px; height: 42px; border: 3px solid var(--border);
+                border-top-color: var(--sky); border-radius: 50%; animation: rot .8s linear infinite; }
+    #st-load h3 { font-size: 15px; font-weight: 600; color: var(--mid); }
+    #st-load p  { font-size: 13px; color: var(--muted); max-width: 300px; }
+    .steps { display: flex; flex-direction: column; gap: 5px; }
+    .step  { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--bord2); flex-shrink: 0; }
+    .dot.run  { background: var(--sky); animation: pulse 1s infinite; }
+    .dot.done { background: var(--green); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* cards */
+    .card { background: var(--surface); border-radius: var(--r);
+            border: 1px solid var(--border); box-shadow: var(--sh); margin-bottom: 18px; overflow: hidden; }
+    .card-head { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .card-head h3 { font-size: 12px; font-weight: 600; color: var(--mid);
+                    text-transform: uppercase; letter-spacing: .5px; }
+    .card-body { padding: 14px 16px; }
+
+    #stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
+                 gap: 12px; margin-bottom: 18px; }
+    .sc { background: var(--surface); border: 1px solid var(--border);
+          border-radius: var(--r); padding: 13px 15px; box-shadow: var(--sh); }
+    .sc-lbl { font-size: 10.5px; font-weight: 600; color: var(--muted);
+              text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .sc-val { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+    .sc-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .sc.c-sky   .sc-val { color: var(--sky); }
+    .sc.c-amber .sc-val { color: var(--amber); }
+    .sc.c-green .sc-val { color: var(--green); }
+    .squal { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+    .squal.ex { background: #f0fdf4; color: #166534; }
+    .squal.ok { background: #fffbeb; color: #92400e; }
+    .squal.lo { background: #fef2f2; color: #991b1b; }
+
+    .q-text { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
+    .chips  { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+    .chip   { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px;
+              background: var(--surf2); border: 1px solid var(--border); color: var(--mid); }
+    .chip.hit { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .reason { background: var(--surf2); border-left: 3px solid var(--sky);
+              border-radius: 0 6px 6px 0; padding: 9px 13px; font-size: 12.5px; color: var(--mid);
+              line-height: 1.6; margin-bottom: 12px; max-height: 150px; overflow-y: auto; }
+    .sent-list { display: flex; flex-direction: column; gap: 5px; }
+    .sent-row  { display: flex; gap: 9px; align-items: flex-start; }
+    .sent-num  { min-width: 19px; height: 19px; background: var(--navy); color: #fff;
+                 border-radius: 50%; font-size: 10px; font-weight: 700;
+                 display: flex; align-items: center; justify-content: center;
+                 flex-shrink: 0; margin-top: 2px; }
+    .sent-txt  { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--mid);
+                 line-height: 1.5; background: var(--surf2); border: 1px solid var(--border);
+                 border-radius: 5px; padding: 5px 10px; flex: 1; }
+
+    .tab-nav { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+    .tab-btn { padding: 10px 15px; background: none; border: none;
+               border-bottom: 2px solid transparent; margin-bottom: -1px;
+               font-family: inherit; font-size: 13px; font-weight: 500;
+               color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s; }
+    .tab-btn:hover { color: var(--mid); }
+    .tab-btn.on { color: var(--sky); border-bottom-color: var(--sky); }
+    .tab-pane { display: none; padding: 18px 16px; }
+    .tab-pane.on { display: block; }
+    .clabel { font-size: 11px; font-weight: 600; color: var(--muted);
+              text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+
+    #hm-canvas { display: block; width: 100%; height: auto;
+                 border-radius: 6px; border: 1px solid var(--border); cursor: crosshair; }
+    #hm-tip { position: fixed; background: var(--navy); color: #fff; padding: 7px 11px;
+              border-radius: 7px; font-size: 12px; pointer-events: none; display: none;
+              z-index: 200; box-shadow: 0 4px 20px rgba(0,0,0,.2); line-height: 1.7; }
+    #hm-tip strong { color: var(--sky); display: block; }
+    .hm-ctrl { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+    .hm-chk  { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--mid); cursor: pointer; }
+    .hm-chk input { accent-color: var(--sky); cursor: pointer; }
+    .hm-leg  { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-left: auto; }
+    .hm-bar  { width: 72px; height: 7px; border-radius: 4px; border: 1px solid var(--border);
+               background: linear-gradient(to right, rgba(253,224,71,.25), rgba(239,68,68,.9)); }
+
+    .dist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 18px; }
+    .dist-sec h4 { font-size: 11px; font-weight: 600; color: var(--muted);
+                   text-transform: uppercase; letter-spacing: .5px; margin-bottom: 9px; }
+    .dist-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+    .dist-lbl { font-size: 11.5px; color: var(--mid); width: 160px; min-width: 160px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dist-bw  { flex: 1; background: var(--border); border-radius: 3px; height: 6px; overflow: hidden; }
+    .dist-b   { height: 100%; border-radius: 3px; background: var(--sky); transition: width .4s; }
+    .dist-b.morning   { background: #fbbf24; }
+    .dist-b.afternoon { background: #f97316; }
+    .dist-b.evening   { background: #8b5cf6; }
+    .dist-b.night     { background: #3b82f6; }
+    .dist-b.weekend   { background: #22c55e; }
+    .dist-cnt { font-size: 11px; font-weight: 600; color: var(--muted); min-width: 30px; text-align: right; }
+
+    /* collapsible reasoning */
+    .coll { margin-bottom: 12px; }
+    .coll summary {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px;
+      list-style: none; user-select: none;
+      padding: 6px 10px; border-radius: 6px;
+      background: var(--surf2); border: 1px solid var(--border);
+      transition: background .15s;
+    }
+    .coll summary::-webkit-details-marker { display: none; }
+    .coll summary:hover { background: var(--border); }
+    .coll summary .arr { display: inline-block; transition: transform .2s; font-style: normal; }
+    .coll[open] summary .arr { transform: rotate(90deg); }
+    .coll-body { margin-top: 6px; background: var(--surf2); border-left: 3px solid var(--sky);
+                 border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 12.5px;
+                 color: var(--mid); line-height: 1.7; max-height: 260px; overflow-y: auto;
+                 white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="s-head">
+    <h1>HAR Discover</h1>
+    <p>Activity Query Dashboard</p>
+  </div>
+  <div id="fscroll">
+    <div class="fg">
+      <label>Dataset (Home)</label>
+      <select id="sel-home"></select>
+    </div>
+    <div class="fg">
+      <label>Model Checkpoint</label>
+      <select id="sel-ckpt"></select>
+    </div>
+    <div class="fg">
+      <label>Data Split</label>
+      <select id="sel-split"></select>
+    </div>
+    <hr class="sep" />
+    <div class="fg">
+      <label>Rewrite Mode</label>
+      <select id="sel-mode">
+        <option value="multi_location">Multi Location</option>
+        <option value="multi_wording">Multi Wording</option>
+        <option value="single">Single</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Retrieval Mode</label>
+      <div class="pills">
+        <button class="pill on" id="pill-thr">Threshold</button>
+        <button class="pill"    id="pill-topk">Top-K</button>
+      </div>
+    </div>
+    <div class="fg" id="fg-thr">
+      <label>Threshold <span style="font-weight:400;text-transform:none;letter-spacing:0">(cosine sim)</span></label>
+      <input type="number" id="inp-thr" value="0.10" step="0.01" min="0.01" max="1" />
+    </div>
+    <div class="fg" id="fg-topk" style="display:none">
+      <label>Top-K</label>
+      <input type="number" id="inp-topk" value="200" step="10" min="1" />
+    </div>
+    <hr class="sep" />
+    <div class="fg">
+      <label>Time Window</label>
+      <select id="sel-tw">
+        <option value="day">Daily</option>
+        <option value="week">Weekly</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Moving Avg Window</label>
+      <div class="srow">
+        <input type="range" id="sl-ma" min="2" max="30" value="7" />
+        <span class="sval" id="ma-val">7</span>
+      </div>
+    </div>
+    <hr class="sep" />
+    <button class="adv-btn" id="adv-btn">
+      <span class="arr">&#9658;</span> Advanced Options
+    </button>
+    <div class="adv-body" id="adv-body">
+      <div class="fg" style="margin-top:10px">
+        <label>LLM Backend</label>
+        <select id="sel-llm">
+          <option value="gemini">Gemini</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+      <div class="crow">
+        <input type="checkbox" id="cb-rw" /><label for="cb-rw">Force rewrite (bypass LLM cache)</label>
+      </div>
+      <div class="crow">
+        <input type="checkbox" id="cb-rt" /><label for="cb-rt">Force retrieve (bypass FAISS cache)</label>
+      </div>
+    </div>
+    <hr class="sep" />
+    <div class="fg">
+      <label>Natural Language Query</label>
+      <textarea id="inp-q" placeholder="e.g. morning kitchen routines, sedentary activities&#8230;"></textarea>
+    </div>
+  </div>
+  <div id="s-foot">
+    <button id="btn-go" disabled>
+      <div class="spin" id="spin"></div>
+      <span id="btn-lbl">Retrieve</span>
+    </button>
+    <div id="cache-note"></div>
+  </div>
+</aside>
+
+<main id="main">
+  <div class="state on" id="st-welcome">
+    <div class="ico">&#127968;</div>
+    <h2>Smart Activity Retrieval</h2>
+    <p>Select a dataset and model, type a natural-language query, then click <strong>Retrieve</strong>.</p>
+  </div>
+
+  <div class="state" id="st-load">
+    <div class="big-spin"></div>
+    <h3>Running analysis&hellip;</h3>
+    <p>First run loads the model &amp; FAISS index &mdash; subsequent queries are fast.</p>
+    <div class="steps">
+      <div class="step"><div class="dot" id="d0"></div>Loading model &amp; FAISS index</div>
+      <div class="step"><div class="dot" id="d1"></div>LLM query rewriting</div>
+      <div class="step"><div class="dot" id="d2"></div>FAISS retrieval</div>
+      <div class="step"><div class="dot" id="d3"></div>Computing analytics</div>
+    </div>
+  </div>
+
+  <div id="st-results">
+    <div id="stats-bar"></div>
+
+    <div class="card">
+      <div class="card-head"><h3>&#129504; LLM Rewrite &amp; Retrieval</h3></div>
+      <div class="card-body">
+        <div class="q-text" id="r-query"></div>
+        <div class="chips"  id="r-chips"></div>
+        <details class="coll" id="r-rsec">
+          <summary><span class="arr">&#9658;</span> LLM Reasoning</summary>
+          <div class="coll-body" id="r-reason"></div>
+        </details>
+        <div class="clabel" style="margin-top:4px">Retrieval Sub-queries</div>
+        <div class="sent-list" id="r-sents"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="tab-nav">
+        <button class="tab-btn on" data-t="longitudinal">&#128200; Longitudinal</button>
+        <button class="tab-btn"    data-t="heatmap">&#128506; Sensor Heatmap</button>
+        <button class="tab-btn"    data-t="scores">&#128202; Score Distribution</button>
+      </div>
+      <div class="tab-pane on" id="tp-longitudinal">
+        <div class="clabel" id="lbl-c1">Matched Samples per Day</div>
+        <canvas id="ch-counts" height="110"></canvas>
+        <div class="clabel" id="lbl-c2" style="margin-top:24px">Activity Duration per Day (min)</div>
+        <canvas id="ch-durations" height="85"></canvas>
+      </div>
+      <div class="tab-pane" id="tp-heatmap">
+        <div class="hm-ctrl">
+          <label class="hm-chk"><input type="checkbox" id="hm-all" checked> Show all sensors</label>
+          <label class="hm-chk"><input type="checkbox" id="hm-lbl" checked> Show labels</label>
+          <div class="hm-leg"><span>Low</span><div class="hm-bar"></div><span>High</span></div>
+        </div>
+        <canvas id="hm-canvas"></canvas>
+        <div id="hm-tip"></div>
+      </div>
+      <div class="tab-pane" id="tp-scores">
+        <canvas id="ch-scores" height="130"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>&#128203; Summary Statistics</h3></div>
+      <div class="card-body">
+        <div class="dist-grid" id="r-dists"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const charts = {};
+let hmData = null, hmHits = [], retrievalMode = 'threshold';
+
+// ── state ─────────────────────────────────────────────────────────────────
+function showState(name) {
+  $('st-welcome').classList.toggle('on', name === 'welcome');
+  $('st-load').classList.toggle('on',    name === 'load');
+  $('st-results').style.display = name === 'results' ? 'block' : 'none';
+}
+
+// ── API ───────────────────────────────────────────────────────────────────
+async function get(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+// ── init: load homes, pre-select milan ────────────────────────────────────
+async function init() {
+  const homes = await get('/api/homes').catch(() => []);
+  const sel = $('sel-home');
+  sel.innerHTML = '';
+  homes.forEach(h => {
+    const o = document.createElement('option');
+    o.value = h;
+    o.textContent = h[0].toUpperCase() + h.slice(1);
+    sel.appendChild(o);
+  });
+  // pre-select milan if present
+  if (homes.includes('milan')) sel.value = 'milan';
+  if (sel.value) await onHomeChange(sel.value);
+}
+
+async function onHomeChange(home) {
+  const [ckpts, splits] = await Promise.all([
+    get('/api/checkpoints/' + home).catch(() => []),
+    get('/api/splits/'      + home).catch(() => []),
+  ]);
+
+  const cs = $('sel-ckpt');
+  cs.innerHTML = '';
+  ckpts.forEach(c => { const o = document.createElement('option'); o.value = c.path; o.textContent = c.name; cs.appendChild(o); });
+  const pref = ckpts.find(c => c.name.includes('rb1') && c.name.includes('fd60') && c.name.includes('projmlp'))
+            || ckpts.find(c => c.name.includes('rb1') && c.name.includes('projmlp'))
+            || ckpts[0];
+  if (pref) cs.value = pref.path;
+
+  const ss = $('sel-split');
+  ss.innerHTML = '';
+  splits.forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; ss.appendChild(o); });
+  if (splits.includes('FD_60')) ss.value = 'FD_60'; else if (splits[0]) ss.value = splits[0];
+
+  checkReady();
+}
+
+function checkReady() {
+  $('btn-go').disabled = !($('sel-home').value && $('sel-ckpt').value && $('sel-split').value && $('inp-q').value.trim());
+}
+
+// ── events ────────────────────────────────────────────────────────────────
+$('sel-home').addEventListener('change', e => { if (e.target.value) onHomeChange(e.target.value); });
+$('sel-ckpt').addEventListener('change', checkReady);
+$('sel-split').addEventListener('change', checkReady);
+$('inp-q').addEventListener('input', checkReady);
+$('inp-q').addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') doRetrieve(); });
+$('btn-go').addEventListener('click', doRetrieve);
+
+$('pill-thr').addEventListener('click', () => {
+  retrievalMode = 'threshold';
+  $('pill-thr').classList.add('on'); $('pill-topk').classList.remove('on');
+  $('fg-thr').style.display = ''; $('fg-topk').style.display = 'none';
+});
+$('pill-topk').addEventListener('click', () => {
+  retrievalMode = 'topk';
+  $('pill-topk').classList.add('on'); $('pill-thr').classList.remove('on');
+  $('fg-topk').style.display = ''; $('fg-thr').style.display = 'none';
+});
+
+$('sl-ma').addEventListener('input', e => { $('ma-val').textContent = e.target.value; });
+$('adv-btn').addEventListener('click', () => {
+  $('adv-body').classList.toggle('open');
+  $('adv-btn').classList.toggle('open');
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+    btn.classList.add('on');
+    $('tp-' + btn.dataset.t).classList.add('on');
+    if (btn.dataset.t === 'heatmap' && hmData) renderHeatmap(hmData);
+  });
+});
+
+$('hm-all').addEventListener('change', () => { if (hmData) renderHeatmap(hmData); });
+$('hm-lbl').addEventListener('change', () => { if (hmData) renderHeatmap(hmData); });
+$('hm-canvas').addEventListener('mousemove', onHmHover);
+$('hm-canvas').addEventListener('mouseleave', () => { $('hm-tip').style.display = 'none'; });
+
+// ── retrieve ──────────────────────────────────────────────────────────────
+async function doRetrieve() {
+  const home  = $('sel-home').value;
+  const ckpt  = $('sel-ckpt').value;
+  const split = $('sel-split').value;
+  const query = $('inp-q').value.trim();
+  if (!home || !ckpt || !split || !query) return;
+
+  const body = {
+    home, checkpoint: ckpt,
+    data_dir: 'data/processed/casas/' + home + '/' + split,
+    split, query,
+    mode:           $('sel-mode').value,
+    time_window:    $('sel-tw').value,
+    ma_window:      +$('sl-ma').value,
+    llm_backend:    $('sel-llm').value,
+    force_rewrite:  $('cb-rw').checked,
+    force_retrieve: $('cb-rt').checked,
+  };
+  if (retrievalMode === 'threshold') { body.threshold = +$('inp-thr').value; body.top_k = 10000; }
+  else { body.threshold = null; body.top_k = +$('inp-topk').value; }
+
+  showState('load');
+  animateSteps();
+  $('spin').classList.add('on');
+  $('btn-lbl').textContent = 'Retrieving\u2026';
+  $('btn-go').disabled = true;
+
+  try {
+    const data = await post('/api/analyze', body);
+    renderAll(data);
+    showState('results');
+  } catch (err) {
+    showState('results');
+    $('st-results').innerHTML = `<div style="max-width:500px;margin:60px auto;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:13px;line-height:1.6"><strong>Error:</strong> ${esc(err.message)}</div>`;
+  } finally {
+    $('spin').classList.remove('on');
+    $('btn-lbl').textContent = 'Retrieve';
+    checkReady();
+  }
+}
+
+let _stepTimer;
+function animateSteps() {
+  clearTimeout(_stepTimer);
+  ['d0','d1','d2','d3'].forEach(id => { const e = $(id); if (e) e.className = 'dot'; });
+  let i = 0;
+  function next() {
+    if (i > 0) { const e = $('d' + (i - 1)); if (e) e.className = 'dot done'; }
+    if (i < 4)  { const e = $('d' + i);       if (e) e.className = 'dot run'; }
+    i++;
+    if (i <= 4) _stepTimer = setTimeout(next, 2800 + Math.random() * 1800);
+  }
+  next();
+}
+
+// ── render all ────────────────────────────────────────────────────────────
+function renderAll(data) {
+  renderStats(data.stats);
+  renderMeta(data.metadata);
+  renderCharts(data.time_series, data.stats);
+  hmData = data;
+  if ($('tp-heatmap').classList.contains('on')) renderHeatmap(data);
+  renderScores(data.scores);
+  renderDists(data.stats);
+  // cache badge
+  const m = data.metadata;
+  const hits = [m.rewrite_cache_hit && 'rewrite', m.result_cache_hit && 'result'].filter(Boolean);
+  if (hits.length) {
+    $('cache-note').innerHTML = 'Cache: ' + hits.map(h => `<span class="chit">${h}</span>`).join(' ');
+    $('cache-note').classList.add('on');
+  } else {
+    $('cache-note').classList.remove('on');
+  }
+}
+
+// ── stats bar ─────────────────────────────────────────────────────────────
+function renderStats(s) {
+  const tw = s.time_window === 'week' ? 'wk' : 'day';
+  const sm = s.score_mean;
+  let qHtml = '&mdash;';
+  if (sm != null) {
+    const cl  = sm > .20 ? 'ex' : sm > .10 ? 'ok' : 'lo';
+    const lbl = sm > .20 ? '&#10003; Excellent' : sm > .10 ? '~ Decent' : '&#10005; Poor';
+    qHtml = `<span class="squal ${cl}">${lbl}</span>`;
+  }
+  const cards = [
+    { l: 'Total Results',  v: s.total_results.toLocaleString(), sub: s.dated_results + ' with timestamps', c: 'c-sky' },
+    { l: 'Date Range',     v: s.span_days + 'd',                sub: s.date_range,                         c: '' },
+    { l: `Active ${tw}s`,  v: s.active_periods,                 sub: `avg ${s.avg_per_period.toFixed(1)} / ${tw}`, c: '' },
+    { l: `Peak ${tw}`,     v: s.peak_count,                     sub: s.peak_date,                           c: 'c-amber' },
+    { l: 'Score Mean',     v: sm != null ? sm.toFixed(3) : '&mdash;', sub: qHtml,                          c: 'c-green' },
+  ];
+  $('stats-bar').innerHTML = cards.map(c =>
+    `<div class="sc ${c.c}"><div class="sc-lbl">${c.l}</div><div class="sc-val">${c.v}</div><div class="sc-sub">${c.sub}</div></div>`
+  ).join('');
+}
+
+// ── metadata card ─────────────────────────────────────────────────────────
+function renderMeta(m) {
+  $('r-query').textContent = `"${m.query}"`;
+  $('r-chips').innerHTML = [
+    `<span class="chip">&#127968; ${m.home} / ${m.split}</span>`,
+    `<span class="chip">&#9881; ${m.rewrite_mode}</span>`,
+    `<span class="chip">&#129302; ${esc(m.model_used)}</span>`,
+    m.rewrite_cache_hit ? '<span class="chip hit">&#10003; rewrite cache</span>' : '',
+    m.result_cache_hit  ? '<span class="chip hit">&#10003; result cache</span>'  : '',
+  ].join('');
+  const reason = (m.reasoning || '').trim();
+  const rsec = $('r-rsec');
+  if (reason) {
+    $('r-reason').textContent = reason;
+    rsec.style.display = '';
+    rsec.open = false; // start collapsed; user can expand
+  } else {
+    rsec.style.display = 'none';
+  }
+  const sents = m.sentences || [];
+  $('r-sents').innerHTML = sents.length
+    ? sents.map((s, i) => `<div class="sent-row"><div class="sent-num">${i + 1}</div><div class="sent-txt">${esc(s)}</div></div>`).join('')
+    : '<span style="color:var(--muted);font-size:13px">No sub-queries generated.</span>';
+}
+
+// ── longitudinal charts ───────────────────────────────────────────────────
+function renderCharts(ts, stats) {
+  ['ch-counts', 'ch-durations'].forEach(id => { if (charts[id]) { charts[id].destroy(); delete charts[id]; } });
+  const tw = stats.time_window;
+  $('lbl-c1').textContent = `Matched Samples per ${tw === 'week' ? 'Week' : 'Day'}`;
+  $('lbl-c2').textContent = `Activity Duration per ${tw === 'week' ? 'Week' : 'Day'} (min)`;
+
+  function band(ma, std, color) {
+    const upper = ma.map((v, i) => v != null ? v + (std[i] || 0) : null);
+    const lower = ma.map((v, i) => v != null ? Math.max(0, v - (std[i] || 0)) : null);
+    return [
+      { type: 'line', label: 'Moving Avg', data: ma, borderColor: color, borderWidth: 2.5,
+        fill: false, pointRadius: 0, tension: .3, spanGaps: false, order: 1 },
+      { type: 'line', label: '_u', data: upper, borderColor: 'transparent',
+        backgroundColor: hexA(color, .13), fill: '+1', pointRadius: 0, tension: .3, spanGaps: false, order: 2 },
+      { type: 'line', label: '_l', data: lower, borderColor: 'transparent',
+        backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: .3, spanGaps: false, order: 2 },
+    ];
+  }
+
+  function mkChart(id, counts, ma, std, color, barLabel, yLabel) {
+    charts[id] = new Chart($(id).getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ts.dates,
+        datasets: [
+          { type: 'bar', label: barLabel, data: counts,
+            backgroundColor: 'rgba(148,163,184,.22)', borderColor: 'rgba(148,163,184,.35)',
+            borderWidth: 1, borderRadius: 2, order: 3 },
+          ...band(ma, std, color),
+        ],
+      },
+      options: {
+        responsive: true, animation: { duration: 400 },
+        plugins: {
+          legend: { labels: { filter: i => !i.text.startsWith('_'), font: { size: 11 }, color: '#64748b', boxWidth: 11 } },
+          tooltip: { callbacks: { label: c => c.dataset.label.startsWith('_') ? null : ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(1) : 'n/a'}` } },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 14, font: { size: 10 }, color: '#94a3b8', maxRotation: 35 }, grid: { display: false } },
+          y: { beginAtZero: true, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' },
+               title: { display: true, text: yLabel, font: { size: 10 }, color: '#94a3b8' } },
+        },
+      },
+    });
+  }
+
+  mkChart('ch-counts',    ts.counts,    ts.ma_counts,    ts.std_counts,             '#0ea5e9', 'Samples',  'count');
+  mkChart('ch-durations', ts.durations, ts.ma_durations, ts.counts.map(() => 0),    '#f59e0b', 'Duration', 'min');
+}
+
+// ── score histogram ───────────────────────────────────────────────────────
+function renderScores(scores) {
+  if (charts['ch-scores']) { charts['ch-scores'].destroy(); delete charts['ch-scores']; }
+  if (!scores?.length) return;
+  const bins = Math.min(50, Math.max(15, Math.floor(scores.length / 4)));
+  const mn = Math.min(...scores), mx = Math.max(...scores), bw = (mx - mn) / bins || .01;
+  const buckets = Array(bins).fill(0);
+  const labels  = Array.from({ length: bins }, (_, i) => (mn + (i + .5) * bw).toFixed(3));
+  scores.forEach(s => { buckets[Math.min(bins - 1, Math.floor((s - mn) / bw))]++; });
+  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const med  = [...scores].sort((a, b) => a - b)[Math.floor(scores.length / 2)];
+  charts['ch-scores'] = new Chart($('ch-scores').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Count', data: buckets, borderColor: 'transparent', borderRadius: 2,
+      backgroundColor: buckets.map((_, i) => {
+        const x = mn + i * bw;
+        return Math.abs(x - mean) < bw ? '#ef4444' : Math.abs(x - med) < bw ? '#f59e0b' : 'rgba(14,165,233,.7)';
+      }) }] },
+    options: {
+      responsive: true, animation: { duration: 400 },
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: `Score Distribution  (n=${scores.length}   mean=${mean.toFixed(3)}   median=${med.toFixed(3)})`, font: { size: 12 }, color: '#475569' },
+        tooltip: { callbacks: { title: c => `score \u2248 ${c[0].label}`, label: c => ` count: ${c.parsed.y}` } },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10, font: { size: 10 }, color: '#94a3b8' }, grid: { display: false },
+             title: { display: true, text: 'Cosine similarity', font: { size: 10 }, color: '#94a3b8' } },
+        y: { beginAtZero: true, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } },
+      },
+    },
+  });
+}
+
+// ── heatmap ───────────────────────────────────────────────────────────────
+function renderHeatmap(data) {
+  const canvas  = $('hm-canvas');
+  const ctx     = canvas.getContext('2d');
+  const fp      = data.floor_plan;
+  const sensors = data.sensor_data;
+  const showAll = $('hm-all').checked;
+  const showLbl = $('hm-lbl').checked;
+
+  const img = new Image();
+  img.onload = () => {
+    const maxW  = (canvas.parentElement.clientWidth || 800) - 2;
+    const scale = maxW / fp.width;
+    canvas.width  = Math.round(fp.width  * scale);
+    canvas.height = Math.round(fp.height * scale);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = .72;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+
+    const maxCnt = Math.max(1, ...Object.values(sensors).map(s => s.count));
+    hmHits = [];
+
+    for (const [sid, s] of Object.entries(sensors)) {
+      if (!s.count) continue;
+      const cx = s.x * scale, cy = s.y_flip * scale;
+      const n = s.count / maxCnt;
+      const r = (16 + 64 * n) * Math.min(scale, 1.5);
+      const a = .15 + .60 * n;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0,   `rgba(239,68,68,${a})`);
+      g.addColorStop(.45, `rgba(251,146,60,${a * .65})`);
+      g.addColorStop(.85, `rgba(253,224,71,${a * .25})`);
+      g.addColorStop(1,   'rgba(253,224,71,0)');
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      hmHits.push({ sid, cx, cy, r: Math.max(r, 10), s });
+    }
+
+    for (const [sid, s] of Object.entries(sensors)) {
+      const active = s.count > 0;
+      if (!showAll && !active) continue;
+      const cx = s.x * scale, cy = s.y_flip * scale;
+      ctx.beginPath(); ctx.arc(cx, cy, active ? 4 : 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = active ? '#7f1d1d' : '#1e3a5f';
+      ctx.globalAlpha = active ? .9 : .32;
+      ctx.fill(); ctx.globalAlpha = 1;
+      if (showLbl) {
+        const fs = Math.max(7, Math.min(11, 9 * scale));
+        ctx.font = `${active ? 600 : 400} ${fs}px Inter,sans-serif`;
+        ctx.fillStyle = active ? '#7f1d1d' : '#334155';
+        ctx.globalAlpha = active ? .9 : .38;
+        ctx.textAlign = 'center';
+        ctx.fillText(active ? `${sid}(${s.count})` : sid, cx, cy - 7);
+        ctx.globalAlpha = 1;
+      }
+      if (!hmHits.find(h => h.sid === sid)) hmHits.push({ sid, cx, cy, r: 10, s });
+    }
+  };
+  img.src = fp.url;
+}
+
+function onHmHover(e) {
+  const canvas = $('hm-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+  const tip = $('hm-tip');
+  for (const h of hmHits) {
+    const dx = mx - h.cx, dy = my - h.cy;
+    if (Math.sqrt(dx * dx + dy * dy) < h.r + 8) {
+      const loc = h.s.location ? `<span style="color:#94a3b8">${h.s.location.replace(/_/g,' ')}</span><br>` : '';
+      tip.innerHTML = `<strong>${esc(h.sid)}</strong>${loc}Activations: <strong style="color:#fbbf24">${h.s.count}</strong>`;
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 10) + 'px';
+      return;
+    }
+  }
+  tip.style.display = 'none';
+}
+
+// ── distributions ─────────────────────────────────────────────────────────
+function renderDists(stats) {
+  const dow = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const secs = [
+    { title: '&#127991; Activity Labels', rows: topN(stats.labels, 10),  color: () => '' },
+    { title: '&#128226; Rooms',           rows: topN(stats.rooms,  10),  color: () => '' },
+    { title: '&#128336; Time of Day',
+      rows: ['Morning','Afternoon','Evening','Night'].map(k => [k, stats.time_of_day[k] || 0]),
+      color: k => k.toLowerCase() },
+    { title: '&#128197; Day of Week',
+      rows: dow.map(k => [k, stats.day_of_week[k] || 0]),
+      color: k => (k === 'Sat' || k === 'Sun') ? 'weekend' : '' },
+  ];
+  $('r-dists').innerHTML = secs.map(sec => {
+    const mx = Math.max(1, ...sec.rows.map(r => r[1]));
+    return `<div class="dist-sec"><h4>${sec.title}</h4>` +
+      sec.rows.map(([k, v]) =>
+        `<div class="dist-row">
+           <div class="dist-lbl" title="${esc(k)}">${esc(k)}</div>
+           <div class="dist-bw"><div class="dist-b ${sec.color(k)}" style="width:${(v / mx * 100).toFixed(1)}%"></div></div>
+           <div class="dist-cnt">${v}</div>
+         </div>`
+      ).join('') + '</div>';
+  }).join('');
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────
+function topN(obj, n) { return Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, n); }
+function hexA(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>
