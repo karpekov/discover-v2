@@ -61,11 +61,12 @@ class FourierFeatures(nn.Module):
 class ALiBiAttention(nn.Module):
     """Multi-head attention with ALiBi positional bias."""
 
-    def __init__(self, d_model: int, n_heads: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, n_heads: int, dropout: float = 0.1, prefix_length: int = 0):
         super().__init__()
         self.d_model = d_model
         self.n_heads = n_heads
         self.head_dim = d_model // n_heads
+        self.prefix_length = prefix_length  # Positions that attend/are attended to at zero cost
 
         self.q_proj = nn.Linear(d_model, d_model)
         self.k_proj = nn.Linear(d_model, d_model)
@@ -134,13 +135,20 @@ class ALiBiAttention(nn.Module):
         return self.out_proj(out)
 
     def _get_alibi_bias(self, seq_len: int, device: torch.device) -> torch.Tensor:
-        """Get ALiBi positional bias matrix."""
-        # Create distance matrix
-        positions = torch.arange(seq_len, device=device)
-        distances = positions.unsqueeze(0) - positions.unsqueeze(1)  # [seq_len, seq_len]
-        distances = distances.abs()
+        """Get ALiBi positional bias matrix with zero-penalty for prefix positions.
 
-        # Apply slopes
+        Any row or column corresponding to a prefix token (CLS / global context tokens)
+        has its distance forced to 0, allowing every event to attend to global tokens
+        at maximum strength regardless of sequence position.
+        """
+        positions = torch.arange(seq_len, device=device)
+        distances = (positions.unsqueeze(0) - positions.unsqueeze(1)).abs()  # [seq_len, seq_len]
+
+        # Zero-penalty prefix: attending TO or FROM prefix positions incurs no distance cost
+        if self.prefix_length > 0:
+            distances[:self.prefix_length, :] = 0  # prefix queries attend anywhere freely
+            distances[:, :self.prefix_length] = 0  # any query attends to prefix freely
+
         bias = -distances.unsqueeze(0) * self.slopes.unsqueeze(-1).unsqueeze(-1)  # [n_heads, seq_len, seq_len]
         return bias.unsqueeze(0)  # [1, n_heads, seq_len, seq_len]
 
@@ -148,10 +156,10 @@ class ALiBiAttention(nn.Module):
 class TransformerLayer(nn.Module):
     """Pre-LN Transformer layer with ALiBi attention."""
 
-    def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float = 0.1):
+    def __init__(self, d_model: int, n_heads: int, d_ff: int, dropout: float = 0.1, prefix_length: int = 0):
         super().__init__()
         self.ln1 = nn.LayerNorm(d_model)
-        self.attn = ALiBiAttention(d_model, n_heads, dropout)
+        self.attn = ALiBiAttention(d_model, n_heads, dropout, prefix_length=prefix_length)
         self.ln2 = nn.LayerNorm(d_model)
         self.ffn = nn.Sequential(
             nn.Linear(d_model, d_ff),
@@ -189,11 +197,19 @@ class TransformerSensorEncoder(SequenceEncoder):
         super().__init__(config)
         self.config = config
 
-        # Categorical embeddings (sensor, state, room, etc.)
+        # Per-event categorical embeddings (sensor, state, room_id, etc.)
         self.embeddings = nn.ModuleDict()
         for field, vocab_size in config.vocab_sizes.items():
             if field in config.metadata.categorical_fields:
                 self.embeddings[field] = nn.Embedding(vocab_size, config.d_model)
+
+        # Sequence-level global context token embeddings (tod_bucket, dow_bucket, etc.)
+        # Each field contributes one dedicated token prepended after CLS.
+        self.global_embeddings = nn.ModuleDict()
+        for field in config.metadata.global_categorical_fields:
+            if field in config.vocab_sizes:
+                self.global_embeddings[field] = nn.Embedding(config.vocab_sizes[field], config.d_model)
+        self.num_global_tokens = len(self.global_embeddings)
 
         # Continuous features
         if config.metadata.use_coordinates:
@@ -205,15 +221,19 @@ class TransformerSensorEncoder(SequenceEncoder):
         # CLS token
         self.cls_token = nn.Parameter(torch.randn(1, 1, config.d_model))
 
+        # prefix_length = CLS (1) + global tokens. ALiBi distance is forced to 0 for these positions.
+        prefix_length = 1 + self.num_global_tokens
+
         # Positional encoding (if not using ALiBi)
         if not config.use_alibi and config.use_learned_pe:
-            self.pos_embedding = nn.Parameter(torch.randn(1, config.max_seq_len + 1, config.d_model))
+            self.pos_embedding = nn.Parameter(torch.randn(1, config.max_seq_len + prefix_length, config.d_model))
         else:
             self.pos_embedding = None
 
         # Transformer layers
         self.layers = nn.ModuleList([
-            TransformerLayer(config.d_model, config.n_heads, config.d_ff, config.dropout)
+            TransformerLayer(config.d_model, config.n_heads, config.d_ff, config.dropout,
+                             prefix_length=prefix_length)
             for _ in range(config.n_layers)
         ])
 
@@ -304,47 +324,44 @@ class TransformerSensorEncoder(SequenceEncoder):
         """
         Pool sequence embeddings into fixed-size representation.
 
+        Sequence layout after forward pass:
+          [CLS | global_0 ... global_N | event_0 ... event_L]
+        Global tokens are excluded from mean pooling; their information has been
+        absorbed into CLS via attention during the forward pass.
+
         Args:
-            sequence_embeddings: [batch_size, seq_len+1, d_model] (with CLS)
-            attention_mask: [batch_size, seq_len] boolean mask (True = valid)
+            sequence_embeddings: [B, 1 + num_global_tokens + seq_len, d_model]
+            attention_mask: [B, seq_len] boolean mask over event tokens (True = valid)
 
         Returns:
             pooled: [batch_size, d_model] L2-normalized
         """
-        # Extract CLS token
-        cls_embedding = sequence_embeddings[:, 0]  # [batch_size, d_model]
+        cls_embedding = sequence_embeddings[:, 0]  # [B, d_model]
+        # Event tokens start after CLS + global tokens
+        event_start = 1 + self.num_global_tokens
+        event_embeddings = sequence_embeddings[:, event_start:]  # [B, seq_len, d_model]
 
         if self.config.pooling == 'cls':
             pooled = cls_embedding
         elif self.config.pooling == 'mean':
-            # Mean pool over valid tokens (excluding CLS and padding)
-            token_embeddings = sequence_embeddings[:, 1:]  # [batch_size, seq_len, d_model]
             if attention_mask is not None:
-                # Mask out padding for mean pooling
-                mask_expanded = attention_mask.unsqueeze(-1).expand_as(token_embeddings)
-                masked_embeddings = token_embeddings * mask_expanded
-                pooled = masked_embeddings.sum(dim=1) / attention_mask.sum(dim=1, keepdim=True).clamp(min=1)
+                mask_expanded = attention_mask.unsqueeze(-1).expand_as(event_embeddings)
+                pooled = (event_embeddings * mask_expanded).sum(dim=1) / attention_mask.sum(dim=1, keepdim=True).clamp(min=1)
             else:
-                pooled = token_embeddings.mean(dim=1)
+                pooled = event_embeddings.mean(dim=1)
         elif self.config.pooling == 'cls_mean':
-            # Weighted combination of CLS and mean
-            token_embeddings = sequence_embeddings[:, 1:]  # [batch_size, seq_len, d_model]
             if attention_mask is not None:
-                mask_expanded = attention_mask.unsqueeze(-1).expand_as(token_embeddings)
-                masked_embeddings = token_embeddings * mask_expanded
-                mean_embedding = masked_embeddings.sum(dim=1) / attention_mask.sum(dim=1, keepdim=True).clamp(min=1)
+                mask_expanded = attention_mask.unsqueeze(-1).expand_as(event_embeddings)
+                mean_embedding = (event_embeddings * mask_expanded).sum(dim=1) / attention_mask.sum(dim=1, keepdim=True).clamp(min=1)
             else:
-                mean_embedding = token_embeddings.mean(dim=1)
-
+                mean_embedding = event_embeddings.mean(dim=1)
             w = self.config.pooling_cls_weight
             pooled = w * cls_embedding + (1 - w) * mean_embedding
         else:
             raise ValueError(f"Unknown pooling strategy: {self.config.pooling}")
 
-        # Project and normalize
         pooled = self.pool_proj(pooled)
         pooled = F.normalize(pooled, p=2, dim=-1)
-
         return pooled
 
     def forward(
@@ -368,6 +385,7 @@ class TransformerSensorEncoder(SequenceEncoder):
             EncoderOutput with pooled embeddings
         """
         categorical_features = input_data['categorical_features']
+        global_categorical_features = input_data.get('global_categorical_features', {})
         continuous_features = {
             k: v for k, v in input_data.items()
             if k in ['coordinates', 'time_deltas']
@@ -375,28 +393,41 @@ class TransformerSensorEncoder(SequenceEncoder):
 
         batch_size = list(categorical_features.values())[0].shape[0]
         seq_len = list(categorical_features.values())[0].shape[1]
+        device = list(categorical_features.values())[0].device
 
-        # Create initial embeddings
+        # Create per-event token embeddings [B, L, D]
         token_embeddings = self._create_embeddings(
             categorical_features,
             continuous_features,
             attention_mask
         )
 
-        # Add CLS token
-        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
-        embeddings = torch.cat([cls_tokens, token_embeddings], dim=1)  # [B, L+1, D]
+        # Build global context token embeddings [B, num_global, D], one token per global field.
+        # Fields are emitted in the order defined in config.metadata.global_categorical_fields.
+        global_token_list = []
+        for field in self.config.metadata.global_categorical_fields:
+            if field in self.global_embeddings and field in global_categorical_features:
+                indices = global_categorical_features[field]  # [B]
+                emb = self.global_embeddings[field](indices).unsqueeze(1)  # [B, 1, D]
+                global_token_list.append(emb)
+
+        # Prepend: [CLS | global_0 ... global_N | event_0 ... event_L]
+        cls_tokens = self.cls_token.expand(batch_size, -1, -1)  # [B, 1, D]
+        parts = [cls_tokens] + global_token_list + [token_embeddings]
+        embeddings = torch.cat(parts, dim=1)  # [B, 1 + num_global + L, D]
+
+        prefix_len = 1 + len(global_token_list)
 
         # Add positional encoding (if not using ALiBi)
         if self.pos_embedding is not None:
-            embeddings = embeddings + self.pos_embedding[:, :seq_len+1]
+            embeddings = embeddings + self.pos_embedding[:, :seq_len + prefix_len]
 
         embeddings = self.dropout(embeddings)
 
-        # Extend mask for CLS token
+        # Extend attention mask: prefix tokens are always valid
         if attention_mask is not None:
-            cls_mask = torch.ones(batch_size, 1, device=attention_mask.device, dtype=attention_mask.dtype)
-            extended_mask = torch.cat([cls_mask, attention_mask], dim=1)
+            prefix_mask = torch.ones(batch_size, prefix_len, device=device, dtype=attention_mask.dtype)
+            extended_mask = torch.cat([prefix_mask, attention_mask], dim=1)
         else:
             extended_mask = None
 
@@ -406,12 +437,13 @@ class TransformerSensorEncoder(SequenceEncoder):
 
         embeddings = self.ln_f(embeddings)
 
-        # Pool embeddings
+        # Pool embeddings (CLS + event tokens only; global tokens excluded from mean)
         pooled = self._pool_embeddings(embeddings, attention_mask)
 
         return EncoderOutput(
             embeddings=pooled,
-            sequence_features=embeddings[:, 1:],  # Exclude CLS for MLM
+            # sequence_features: only event tokens, aligned with SpanMasker's [B, L] masks
+            sequence_features=embeddings[:, prefix_len:],
             attention_mask=attention_mask
         )
 

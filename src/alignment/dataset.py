@@ -32,7 +32,8 @@ class AlignmentDataset(Dataset):
         device: Optional[torch.device] = None,
         span_masker: Optional[Any] = None,
         vocab_sizes: Optional[Dict[str, int]] = None,
-        categorical_fields: Optional[List[str]] = None
+        categorical_fields: Optional[List[str]] = None,
+        global_categorical_fields: Optional[List[str]] = None
     ):
         """
         Args:
@@ -59,13 +60,21 @@ class AlignmentDataset(Dataset):
         self.multi_caption_mode = False
         self.sample_to_embedding_indices = None
 
-        # Filter vocab to only used fields
+        # Separate global (sequence-level) fields from per-event categorical fields
+        self.global_categorical_fields = [f for f in (global_categorical_fields or []) if f in (vocab or {})]
+
+        # Filter vocab to only per-event categorical fields (global fields handled separately)
         if categorical_fields is not None:
             self.vocab = {field: vocab[field] for field in categorical_fields if field in vocab}
-            self.categorical_fields = categorical_fields
+            self.categorical_fields = [f for f in categorical_fields if f in vocab]
         else:
-            self.vocab = vocab
-            self.categorical_fields = list(vocab.keys()) if vocab else []
+            # Exclude global fields from per-event vocab
+            global_set = set(self.global_categorical_fields)
+            self.vocab = {field: v for field, v in vocab.items() if field not in global_set} if vocab else {}
+            self.categorical_fields = list(self.vocab.keys())
+
+        # Vocab for global fields (sequence-level)
+        self.global_vocab = {field: vocab[field] for field in self.global_categorical_fields} if vocab else {}
 
         # Load sensor data (with filtering)
         all_sensor_data, kept_indices = self._load_sensor_data()
@@ -298,10 +307,28 @@ class AlignmentDataset(Dataset):
         sensor_sequence = sensor_sample['sensor_sequence']
 
         # Convert sensor sequence to tensors
-        # Initialize categorical features as separate lists for each field
+        # Initialize per-event categorical features
         categorical_features = {field: [] for field in self.vocab.keys()}
         coordinates = []
         time_deltas = []
+
+        # Extract sequence-level global features from the first event
+        # (tod_bucket / dow_bucket are constant for a fixed-duration window)
+        global_categorical_features = {}
+        if self.global_categorical_fields and len(sensor_sequence) > 0:
+            first_event = sensor_sequence[0]
+            field_mapping = {
+                'sensor': 'sensor_id', 'state': 'event_type',
+                'room_id': 'room', 'room': 'room',
+            }
+            for field in self.global_categorical_fields:
+                event_key = field_mapping.get(field, field)
+                value = first_event.get(event_key) or first_event.get(field, 'UNK')
+                if value in self.global_vocab.get(field, {}):
+                    idx_val = self.global_vocab[field][value]
+                else:
+                    idx_val = self.global_vocab.get(field, {}).get('UNK', 0)
+                global_categorical_features[field] = idx_val
 
         for i, event in enumerate(sensor_sequence):
             # Encode categorical features - one list per field
@@ -390,6 +417,7 @@ class AlignmentDataset(Dataset):
 
         return {
             'categorical_features': categorical_features,
+            'global_categorical_features': global_categorical_features,
             'coordinates': coordinates,
             'time_deltas': time_deltas,
             'text_embedding': text_embedding,
@@ -410,7 +438,14 @@ class AlignmentDataset(Dataset):
         first_field = list(batch[0]['categorical_features'].keys())[0]
         max_len = max(item['categorical_features'][first_field].size(0) for item in batch)
 
-        # Get all categorical field names
+        # Stack global categorical features: {field: [B]} tensors
+        global_cat_fields = list(batch[0]['global_categorical_features'].keys()) if batch[0]['global_categorical_features'] else []
+        global_categorical_features = {
+            field: torch.tensor([item['global_categorical_features'][field] for item in batch], dtype=torch.long)
+            for field in global_cat_fields
+        }
+
+        # Get all per-event categorical field names
         cat_fields = list(batch[0]['categorical_features'].keys())
 
         # Initialize padded tensors for each categorical field
@@ -451,6 +486,7 @@ class AlignmentDataset(Dataset):
         result = {
             'sensor_data': {
                 'categorical_features': categorical_features,
+                'global_categorical_features': global_categorical_features,
                 'coordinates': coordinates,
                 'time_deltas': time_deltas,
             },

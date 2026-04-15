@@ -18,6 +18,8 @@ class MetadataConfig:
     - use_time_of_day: Include cyclical time-of-day encoding
     """
     categorical_fields: List[str] = field(default_factory=lambda: ['sensor', 'state', 'room_id'])
+    # Sequence-level fields prepended as dedicated global context tokens (never masked by MLM)
+    global_categorical_fields: List[str] = field(default_factory=list)
     use_coordinates: bool = True
     use_time_deltas: bool = True
     use_time_of_day: bool = False  # Future: cyclical hour/day encoding

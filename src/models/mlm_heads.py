@@ -350,7 +350,8 @@ class SpanMasker(nn.Module):
     vocab_sizes: Dict[str, int],
     activity_labels: Optional[torch.Tensor] = None,
     room_labels: Optional[torch.Tensor] = None,
-    attention_mask: Optional[torch.Tensor] = None
+    attention_mask: Optional[torch.Tensor] = None,
+    prefix_length: int = 0
   ) -> tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
     """
     Apply enhanced span masking to categorical features.
@@ -414,6 +415,11 @@ class SpanMasker(nn.Module):
       field_mask_prob = torch.rand_like(features.float()) < adjusted_prior
       field_mask = final_mask & field_mask_prob
       independent_field_masks[field] = field_mask
+
+    # Guard: force prefix positions to be unmasked (defensive; global tokens are not in
+    # categorical_features here, but this prevents accidental masking if caller passes them).
+    if prefix_length > 0:
+      final_mask[:, :prefix_length] = False
 
     # 3. Apply correlated masking (strict or probabilistic)
     if self.strict_corr_mask:

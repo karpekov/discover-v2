@@ -85,8 +85,18 @@ class AlignmentModel(nn.Module):
         else:
             raise ValueError("Either encoder_config_path or inline encoder config is required")
 
-        # Add vocab sizes to encoder config
-        encoder_config_dict['vocab_sizes'] = self.vocab_sizes
+        # Compute encoder vocab sizes: event-level categorical fields + global context fields.
+        # self.vocab_sizes covers only MLM (event-level) fields; global fields need to be added.
+        global_categorical_fields = encoder_config_dict.get('metadata', {}).get('global_categorical_fields', [])
+        if global_categorical_fields and self.vocab is not None:
+            encoder_vocab_sizes = dict(self.vocab_sizes)
+            for field in global_categorical_fields:
+                if field in self.vocab and field not in encoder_vocab_sizes:
+                    encoder_vocab_sizes[field] = len(self.vocab[field]) + 1  # +1 for mask token
+        else:
+            encoder_vocab_sizes = self.vocab_sizes
+
+        encoder_config_dict['vocab_sizes'] = encoder_vocab_sizes
 
         # Build encoder using the factory function
         # Pass dataset and vocab for image-based encoders

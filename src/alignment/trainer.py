@@ -168,9 +168,11 @@ class AlignmentTrainer:
                 encoder_config = yaml.safe_load(f)
 
         categorical_fields = encoder_config.get('metadata', {}).get('categorical_fields', [])
+        global_categorical_fields = encoder_config.get('metadata', {}).get('global_categorical_fields', [])
 
-        # Filter vocab_sizes to only fields that are actually embedded by the encoder
-        # This prevents activity labels from being used as MLM prediction targets
+        # Filter vocab_sizes to only per-event fields embedded by the encoder.
+        # Global context token fields are excluded from MLM (never masked, never predicted).
+        # Activity labels are also excluded (evaluation-only).
         mlm_vocab_sizes = {
             field: size for field, size in vocab_sizes.items()
             if field in categorical_fields
@@ -178,7 +180,9 @@ class AlignmentTrainer:
 
         self.logger.info(f"Loaded vocabulary with {len(vocab_sizes)} fields")
         self.logger.info(f"Using {len(mlm_vocab_sizes)} fields for MLM: {list(mlm_vocab_sizes.keys())}")
-        self.logger.info(f"Excluded fields (for evaluation only): {[f for f in vocab_sizes if f not in mlm_vocab_sizes]}")
+        if global_categorical_fields:
+            self.logger.info(f"Global context token fields (excluded from MLM): {global_categorical_fields}")
+        self.logger.info(f"Excluded fields (for evaluation only): {[f for f in vocab_sizes if f not in mlm_vocab_sizes and f not in global_categorical_fields]}")
 
         # Create training dataset
         train_dataset = AlignmentDataset(
@@ -188,7 +192,8 @@ class AlignmentTrainer:
             text_encoder_config_path=self.config.text_encoder_config_path,
             vocab=vocab,
             device=self.device,
-            categorical_fields=categorical_fields  # Pass filtered fields
+            categorical_fields=categorical_fields,
+            global_categorical_fields=global_categorical_fields
         )
 
         train_loader = DataLoader(
@@ -210,7 +215,8 @@ class AlignmentTrainer:
                 text_encoder_config_path=self.config.text_encoder_config_path,
                 vocab=vocab,
                 device=self.device,
-                categorical_fields=categorical_fields  # Pass filtered fields
+                categorical_fields=categorical_fields,
+                global_categorical_fields=global_categorical_fields
             )
 
             val_loader = DataLoader(
