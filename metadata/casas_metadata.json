@@ -1311,7 +1311,211 @@
       "no_activity": "#878787",
       "no_sensor_readings": "#bababa"
     },
-    "label_to_text": {}
+    "label_to_text": {
+      "R1 sleep": {
+        "short_desc": "resident 1 sleeping in the bedroom at night",
+        "long_desc": ["Extended nighttime rest with sustained activity on bed sensors in the bedroom, reflecting prolonged stillness or minor positional shifts consistent with sleep."],
+        "zeroshot_har_desc": "R1 Sleep activity takes place for hours during the night when resident 1 sleeps in the bedroom on the bed",
+        "multiple_desc": [
+          "Long nighttime stay in the bedroom with continuous presence on the bed sensors and minimal motion elsewhere.",
+          "Sustained overnight inactivity in the bedroom reflecting deep sleep on the bed.",
+          "Extended rest in the bedroom with only minor shifts detected on the bed area sensors.",
+          "Prolonged nighttime stillness in the bed area with no movement into other rooms.",
+          "Nighttime rest pattern with consistent bed sensor activation over several hours.",
+          "Sleep period in the bedroom with sparse motion near the bed and no hallway activity.",
+          "Overnight bed occupancy in the bedroom showing low-frequency sensor events.",
+          "Late-night to early-morning stillness in the bedroom consistent with uninterrupted sleep."
+        ]
+      },
+      "R2 sleep": {
+        "short_desc": "resident 2 sleeping in the bedroom at night",
+        "long_desc": ["Extended nighttime rest with sustained activity on bed sensors in the bedroom, reflecting prolonged stillness or minor positional shifts consistent with sleep."],
+        "zeroshot_har_desc": "R2 Sleep activity takes place for hours during the night when resident 2 sleeps in the bedroom on the bed",
+        "multiple_desc": [
+          "Long nighttime stay in the bedroom with continuous presence on the bed sensors and minimal motion elsewhere.",
+          "Sustained overnight inactivity in the bedroom reflecting deep sleep on the bed.",
+          "Extended rest in the bedroom with only minor shifts detected on the bed area sensors.",
+          "Prolonged nighttime stillness in the bed area with no movement into other rooms.",
+          "Nighttime rest pattern with consistent bed sensor activation over several hours.",
+          "Sleep period in the bedroom with sparse motion near the bed and no hallway activity.",
+          "Overnight bed occupancy in the bedroom showing low-frequency sensor events.",
+          "Late-night to early-morning stillness in the bedroom consistent with uninterrupted sleep."
+        ]
+      },
+      "Bed to toilet": {
+        "short_desc": "short nighttime trip from bed to bathroom and back",
+        "long_desc": ["Brief nighttime trip originating from the bedroom bed area, moving through the hallway toward the bathroom and returning, with very short total duration."],
+        "zeroshot_har_desc": "Bed to Toilet activity takes place for minutes when a person moves from the bed in the bedroom through the hallway to the bathroom and back",
+        "multiple_desc": [
+          "Short nighttime path from bed sensors through the hallway toward the bathroom and back to bed.",
+          "Brief sleep interruption with movement from the bedroom to the bathroom and immediate return.",
+          "Nighttime bathroom visit of very short duration starting and ending near the bed area.",
+          "Quick pass from bed through the hallway with a short pause before returning to the bedroom.",
+          "Minimal-duration nighttime exit from bed, traversing the hallway, then returning to the bedroom.",
+          "Very short nighttime movement between the bedroom and bathroom with no activity in other rooms.",
+          "Late-night transition from the bed to the bathroom corridor and back without stopping elsewhere.",
+          "Brief sensor activation in the hallway during the night following motion from the bedroom bed sensors."
+        ]
+      },
+      "Night wandering": {
+        "short_desc": "late-night movement across multiple rooms",
+        "long_desc": ["Past-midnight movement spanning several rooms including the bedroom, hallway, office, and stairs, with no single dominant location and an irregular, directionless pattern."],
+        "zeroshot_har_desc": "Night Wandering activity takes place past midnight when a person moves between the bedroom, hallway, office, guest bedroom, or stairs without a clear destination",
+        "multiple_desc": [
+          "Irregular late-night movement touching the bedroom, hallway, and office without settling in any one area.",
+          "Scattered nighttime sensor activations across multiple rooms suggesting aimless movement.",
+          "Middle-of-the-night roaming between the bedroom and office corridor with brief pauses.",
+          "Erratic path through the hallway, stairs, and bedroom areas late at night.",
+          "Prolonged nighttime wandering with activity detected in the bedroom, hallway, and living zones.",
+          "Nighttime movement touching stairs, guest bedroom, and hallway without a clear purpose.",
+          "Restless late-night activity distributed across the bedroom wing and connecting corridors.",
+          "Multiple short stops in different rooms during the night with no prolonged stay in any one location."
+        ]
+      },
+      "R1 wake": {
+        "short_desc": "resident 1 waking up in the bedroom in the morning",
+        "long_desc": ["Morning wake-up transition for resident 1, beginning with motion near the bed area and progressing to increased activity in the bedroom and hallway as the resident rises."],
+        "zeroshot_har_desc": "R1 Wake activity takes place in the morning when resident 1 wakes up in the bedroom, transitioning from bed sensor activity to broader movement in the bedroom and hallway",
+        "multiple_desc": [
+          "Morning bed sensor activity followed by gradual movement through the bedroom as the person wakes up.",
+          "Early morning rise from the bed with initial activity near the bed then spreading to the bedroom.",
+          "Wake-up sequence beginning on the bed sensors and transitioning into the bedroom hallway area.",
+          "Short burst of activity on the bed sensors in the morning preceding movement to adjacent rooms.",
+          "Rising from bed in the morning with motion detected near the bed and then throughout the bedroom.",
+          "Morning bedroom activity starting near the bed and progressing toward the hallway.",
+          "Gradual increase in bedroom sensor activations in the morning representing waking up from sleep.",
+          "Transition from sleep to wakefulness in the bedroom, moving off the bed into the surrounding area."
+        ]
+      },
+      "R2 wake": {
+        "short_desc": "resident 2 waking up in the bedroom in the morning",
+        "long_desc": ["Morning wake-up transition for resident 2, beginning with motion near the bed area and progressing to increased activity in the bedroom and hallway as the resident rises."],
+        "zeroshot_har_desc": "R2 Wake activity takes place in the morning when resident 2 wakes up in the bedroom, transitioning from bed sensor activity to broader movement in the bedroom and hallway",
+        "multiple_desc": [
+          "Morning bed sensor activity followed by gradual movement through the bedroom as the person wakes up.",
+          "Early morning rise from the bed with initial activity near the bed then spreading to the bedroom.",
+          "Wake-up sequence beginning on the bed sensors and transitioning into the bedroom hallway area.",
+          "Short burst of activity on the bed sensors in the morning preceding movement to adjacent rooms.",
+          "Rising from bed in the morning with motion detected near the bed and then throughout the bedroom.",
+          "Morning bedroom activity starting near the bed and progressing toward the hallway.",
+          "Gradual increase in bedroom sensor activations in the morning representing waking up from sleep.",
+          "Transition from sleep to wakefulness in the bedroom, moving off the bed into the surrounding area."
+        ]
+      },
+      "Breakfast": {
+        "short_desc": "morning meal preparation and eating in the kitchen and dining area",
+        "long_desc": ["Morning breakfast activity with motion in the kitchen around the pantry, counters, and appliances, followed by presence at the dining table for eating."],
+        "zeroshot_har_desc": "Breakfast activity takes place in the morning for several minutes involving meal preparation in the kitchen and eating at the dining table",
+        "multiple_desc": [
+          "Morning kitchen activity near the pantry and counters followed by sitting at the dining table.",
+          "Preparing and eating breakfast with motion between kitchen appliances and the dining area.",
+          "Short morning sequence of kitchen sensor activations and a pause at the dining table.",
+          "Moving between the kitchen counter area and the dining table in the morning for breakfast.",
+          "Brief food preparation in the kitchen followed by an extended stay near the dining table.",
+          "Kitchen activity involving the pantry and cooking area, then transitioning to the dining area to eat.",
+          "Morning meal routine with motion spread across kitchen sensors and the dining table sensor.",
+          "Breakfast preparation with activity near the stove and fridge, then eating at the dining table."
+        ]
+      },
+      "Lunch": {
+        "short_desc": "midday or afternoon meal in the kitchen and dining area",
+        "long_desc": ["Afternoon lunch activity involving food preparation movements in the kitchen and a seated meal period at the dining table."],
+        "zeroshot_har_desc": "Lunch activity takes place in the late afternoon for several minutes involving food preparation in the kitchen and eating at the dining table",
+        "multiple_desc": [
+          "Afternoon kitchen activity near counters and pantry leading to a stay at the dining table.",
+          "Midday meal routine with preparation in the kitchen followed by eating in the dining area.",
+          "Late afternoon sequence of kitchen sensor activations and presence at the dining table.",
+          "Moving between kitchen appliances and the dining table in the afternoon for lunch.",
+          "Food preparation in the kitchen in the afternoon, followed by an extended pause near the dining table.",
+          "Lunch preparation with activity near the stove and pantry, then transitioning to eat at the dining table.",
+          "Afternoon meal with moderate kitchen sensor activity and a period of stillness at the dining table.",
+          "Sequential motion from kitchen counter area to dining table representing meal preparation and eating."
+        ]
+      },
+      "Dinner": {
+        "short_desc": "evening meal preparation and eating in the kitchen and dining area",
+        "long_desc": ["Evening dinner activity with meal preparation motion distributed across kitchen sensors including the pantry and counters, followed by an eating period at the dining table."],
+        "zeroshot_har_desc": "Dinner activity takes place in the evening for several minutes involving meal preparation in the kitchen and eating at the dining table",
+        "multiple_desc": [
+          "Evening kitchen activity near the pantry, stove, and counters followed by sitting at the dining table.",
+          "Preparing and eating dinner with motion spread across kitchen sensors and the dining area.",
+          "Evening sequence of kitchen activations transitioning to an extended stay at the dining table.",
+          "Moving between kitchen appliances and the dining table in the evening for dinner.",
+          "Longer meal preparation in the kitchen in the evening followed by eating near the dining table.",
+          "Dinner routine involving activity near the stove, fridge, and pantry then transitioning to the dining area.",
+          "Evening meal with varied kitchen sensor activations and a prolonged period at the dining table.",
+          "Dinner preparation with back-and-forth movement in the kitchen followed by presence at the dining table."
+        ]
+      },
+      "R1 work in office": {
+        "short_desc": "resident 1 working in the office",
+        "long_desc": ["Work activity for resident 1 centered in the office, with possible brief movement into the adjacent hallway, near the guest bedroom, or toward the stairs, occurring across various times of day."],
+        "zeroshot_har_desc": "R1 Work in Office activity takes place when resident 1 works in the office area with occasional movement into the hallway, near the guest bedroom, or near the stairs",
+        "multiple_desc": [
+          "Sustained presence in the office with minimal movement to the surrounding hallway.",
+          "Extended time in the office area with occasional brief excursions into the hallway.",
+          "Prolonged stay in the office covering morning, afternoon, evening, or night hours.",
+          "Work session in the office with periodic movement toward the guest bedroom corridor.",
+          "Office activity with intermittent motion detected near the stairs and hallway sensors.",
+          "Long periods of inactivity in the office punctuated by brief hallway or bedroom-wing movement.",
+          "Focused time in the office with occasional sensor activations in the adjacent areas.",
+          "Office work with sparse movement toward the hallway and guest bedroom, spanning variable durations."
+        ]
+      },
+      "Laundry": {
+        "short_desc": "doing laundry in the laundry room",
+        "long_desc": ["Laundry activity with primary motion in the laundry room, possibly preceded or followed by movement through the stairs toward the basement."],
+        "zeroshot_har_desc": "Laundry activity takes place when a person does laundry in the laundry room, accessed via the basement stairs",
+        "multiple_desc": [
+          "Activity concentrated in the laundry room with brief movement to the adjacent basement stair area.",
+          "Doing laundry with motion primarily detected in the laundry room sensor.",
+          "Short to moderate stay in the laundry room with possible entry via the basement stairs.",
+          "Motion in the laundry room representing loading, unloading, or tending to laundry appliances.",
+          "Laundry routine with activity near the basement stairs followed by a stay in the laundry room.",
+          "Back-and-forth movement in the laundry room area over a moderate duration.",
+          "Brief but focused activity in the laundry room with sensor activation near the laundry appliances.",
+          "Laundry task involving passage through the basement-level area and lingering in the laundry room."
+        ]
+      },
+      "R2 take medicine": {
+        "short_desc": "resident 2 taking medicine in the early morning",
+        "long_desc": ["Brief early morning activity for resident 2 to take medicine, involving short, targeted movement in a specific area of the home with minimal sensor activations."],
+        "zeroshot_har_desc": "R2 Take Medicine activity takes place in the early morning when resident 2 takes medicine with brief focused movement",
+        "multiple_desc": [
+          "Very brief early morning activity with a short stop in one area to take medicine.",
+          "Minimal sensor activations in the morning representing resident 2 retrieving and taking medicine.",
+          "Short targeted movement in the early morning before other daily activities begin.",
+          "Quick early morning task with a single-location stop consistent with taking medication.",
+          "Brief pre-breakfast activity involving a focused pause to take medicine.",
+          "Short early morning routine with sparse sensor activations representing medicine intake.",
+          "Concise early morning movement to a specific spot and immediate return representing taking medicine.",
+          "Early morning medicine-taking with minimal movement and a very short duration."
+        ]
+      },
+      "Leave home": {
+        "short_desc": "leaving the home through the garage entrance or entry door",
+        "long_desc": ["Leave home activity with motion toward the garage entrance door or the entry door, often preceded by brief movement through the laundry area or the basement stairs."],
+        "zeroshot_har_desc": "Leave Home activity takes place for seconds when a person exits through the garage entrance door or entry door, often passing through the laundry area or basement stairs beforehand",
+        "multiple_desc": [
+          "Short path from the living or laundry area toward the garage entrance door and exit.",
+          "Brief activity near the entry door or garage door followed by absence of sensor activations.",
+          "Exiting the home with motion detected near the basement stairs, laundry area, and garage door.",
+          "Quick movement through the home ending at the garage entrance door or entry door.",
+          "Leave home sequence with activity near the basement stairway leading to the garage exit.",
+          "Short burst of motion near the entry door followed by prolonged sensor silence indicating departure.",
+          "Pre-departure movement touching the laundry room or lower-level area before reaching the exit door.",
+          "Very short duration exit event with activity concentrated near the garage or front entry."
+        ]
+      },
+      "no_activity": {
+        "short_desc": "no specific activity or idle time",
+        "long_desc": ["No specific activity or idle time.", "Minimal sensor activation across the home.", "Quiet period with little to no movement."]
+      },
+      "no_sensor_readings": {
+        "short_desc": "no sensor readings available",
+        "long_desc": ["No sensor readings for this time window."]
+      }
+    }
   },
 
   "kyoto":
