@@ -475,6 +475,11 @@ class AlignmentTrainer:
             field: tensor.to(self.device)
             for field, tensor in batch['sensor_data']['categorical_features'].items()
         }
+        if 'global_categorical_features' in batch['sensor_data']:
+            batch['sensor_data']['global_categorical_features'] = {
+                field: tensor.to(self.device)
+                for field, tensor in batch['sensor_data']['global_categorical_features'].items()
+            }
         batch['sensor_data']['coordinates'] = batch['sensor_data']['coordinates'].to(self.device)
         batch['sensor_data']['time_deltas'] = batch['sensor_data']['time_deltas'].to(self.device)
 
