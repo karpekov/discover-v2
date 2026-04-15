@@ -22,6 +22,10 @@ multi_wording   Several paraphrases of the same concept in different
 All modes return List[str].  The caller decides how to use the list
 (single search vs. one search per sentence + merge).
 
+Use ``max_subqueries`` on ``LLMRewriter.rewrite`` / ``SmartQuery.query`` to cap
+how many sentences multi_* modes produce (defaults: 8 for multi_location,
+6 for multi_wording; single is always 1).
+
 Supported backends
 ------------------
 - Gemini (google-generativeai)  ← default
@@ -37,6 +41,27 @@ from pathlib import Path
 from typing import Literal, Optional
 
 RewriteMode = Literal["single", "multi_location", "multi_wording"]
+
+# Hard cap on sub-queries (prompt + post-parse truncation).
+_MAX_SUBQUERIES_CAP = 20
+
+
+def resolve_max_subqueries(mode: RewriteMode, max_subqueries: int | None) -> int:
+    """
+    Effective max number of retrieval sentences for this mode.
+
+    ``max_subqueries`` overrides mode defaults when set (clamped 1–20).
+    ``single`` always resolves to 1.
+    """
+    if mode == "single":
+        return 1
+    if max_subqueries is not None:
+        return max(1, min(int(max_subqueries), _MAX_SUBQUERIES_CAP))
+    if mode == "multi_wording":
+        return 6
+    if mode == "multi_location":
+        return 8
+    return 6
 
 # ---------------------------------------------------------------------------
 # Metadata helpers
@@ -138,6 +163,8 @@ def _build_system_prompt(
     home_context: dict,
     mode: RewriteMode,
     example_captions: list[str] | None = None,
+    strip_temporal: bool = False,
+    max_subqueries: int = 6,
 ) -> str:
     sensor_context = _build_sensor_context(home_context)
 
@@ -214,51 +241,87 @@ SENTENCE: <the single retrieval sentence>
 """
 
     if mode == "multi_location":
-        return header + """
+        temporal_rule = (
+            "- Do NOT embed time-of-day or day-of-week constraints in output sentences\n"
+            "  (e.g. do not add \"at night\" or \"on weekdays\"). Preserve duration and\n"
+            "  recurrence qualifiers only. Time and day filtering is handled separately\n"
+            "  by a rule-based post-processor applied after retrieval."
+        ) if strip_temporal else (
+            "- Preserve ALL temporal, frequency, and contextual qualifiers from the user's\n"
+            "  query (e.g. time of day, day of week, duration, recurrence). If the user says\n"
+            "  \"during the night\", every sentence must reflect that time-of-day context."
+        )
+        n = max_subqueries
+        return header + f"""
 ## Output format
-After your reasoning, output one SHORT sentence per relevant room or
-sensor location where this activity could occur.
+After your reasoning, output **exactly as many sentences as you can, up to {n}** — one SHORT
+sentence per **distinct** room or sensor-detail anchor from the inventory above where this
+activity could **plausibly** occur.
+
+**Coverage rule (critical):** Walk through the sensor list by room. For each room that could
+host this activity, emit one sentence (different rooms → different sentences). **Do not stop
+after only a few rooms** if more rooms in the inventory are still plausible and you have not yet
+reached {n} sentences. **Aim to use all {n} slots** whenever the home has at least {n} distinct
+plausible locations for the query (e.g. broad queries like "sedentary activity" often apply to
+many rooms: living room, bedrooms, office, kitchen seating, hallways with chairs, etc.).
+
+Only output **fewer than {n}** when every remaining room in the inventory is clearly irrelevant,
+or when fewer than {n} distinct plausible locations exist in this home.
+
+Never output more than {n} sentences.
 
 Each sentence must:
 - Be anchored to a specific room / sensor detail from the list above.
 - Describe what the sensors in that location would observe.
 - Contain NO activity label names.
-- Preserve ALL temporal, frequency, and contextual qualifiers from the user's
-  query (e.g. time of day, day of week, duration, recurrence). If the user says
-  "during the night", every sentence must reflect that time-of-day context.
+{temporal_rule}
 
 Format your response as:
 REASONING: <your reasoning here>
 SENTENCES: ["sentence for location A", "sentence for location B", ...]
 
-Return a valid JSON array for SENTENCES. No extra text after the array.
+Return a valid JSON array for SENTENCES with at most {n} strings. No extra text after the array.
 """
 
     if mode == "multi_wording":
-        return header + """
+        tod_paraphrase = (
+            "  [4] focus on sensor transition patterns between rooms"
+        ) if strip_temporal else (
+            "  [4] focus on time of day if relevant"
+        )
+        strip_note = (
+            "\n- Do NOT include time-of-day or day-of-week constraints in the output sentences."
+            "\n  These are filtered separately."
+        ) if strip_temporal else ""
+        n = max_subqueries
+        return header + f"""
 ## Output format
-After your reasoning, output 4–6 PARAPHRASES of the same observable behaviour.
-If the user's query covers multiple locations or sub-behaviours, produce
-paraphrases that together span all of them.
+After your reasoning, output **as many distinct paraphrases as you can, up to {n}** (at least 1).
+**Aim to use all {n} slots** by varying wording, sensor emphasis, and (if the query spans
+multiple rooms) which room or sub-location you stress — do not stop early after only a handful
+if more distinct paraphrases are still meaningful. Never output more than {n} sentences.
 
-Each paraphrase emphasises a different aspect:
+If the user's query covers multiple locations or sub-behaviours, distribute paraphrases across
+them until you reach {n} or genuinely run out of non-redundant angles.
+
+Each paraphrase should emphasise a different aspect where possible (use as many of these as fit, up to {n}):
   [1] focus on the room(s) and specific sensor positions
   [2] focus on the duration / temporal pattern (long dwell, few transitions)
   [3] focus on the absence of movement between rooms
-  [4] focus on time of day if relevant
+{tod_paraphrase}
   [5+] any other salient sensor-level variation
 
 Rules:
 - If the query is broad (e.g. "sedentary"), produce paraphrases that cover
   ALL the relevant locations identified in your reasoning — do not refuse
   because the concept spans more than one location.
-- Each sentence describes sensor-observable behaviour only (no label names).
+- Each sentence describes sensor-observable behaviour only (no label names).{strip_note}
 
 Format your response as:
 REASONING: <your reasoning here>
 SENTENCES: ["paraphrase 1", "paraphrase 2", ...]
 
-Return a valid JSON array for SENTENCES. No extra text after the array.
+Return a valid JSON array for SENTENCES with at most {n} strings. No extra text after the array.
 """
 
     raise ValueError(f"Unknown mode: {mode!r}")
@@ -341,12 +404,21 @@ class _GeminiBackend:
         self._genai = genai
         self.model_name = model or self.MODEL
 
-    def call(self, user_query: str, system_prompt: str) -> str:
+    def call(self, user_query: str, system_prompt: str, *, max_subqueries: int = 1) -> str:
         model = self._genai.GenerativeModel(
             model_name=self.model_name,
             system_instruction=system_prompt,
         )
-        return model.generate_content(user_query).text.strip()
+        # Scale output budget with requested sentence count (reasoning + JSON array)
+        max_out = min(8192, 512 + max(1, max_subqueries) * 200)
+        cfg = self._genai.GenerationConfig(
+            max_output_tokens=max_out,
+            temperature=0.0,
+            top_p=1.0,
+            top_k=1,
+        )
+        resp = model.generate_content(user_query, generation_config=cfg)
+        return (resp.text or "").strip()
 
     @property
     def model_id(self) -> str:
@@ -362,17 +434,18 @@ class _OpenAICompatibleBackend:
         self._client = OpenAI(api_key=api_key, base_url=base_url)
         self.model_name = model
 
-    def call(self, user_query: str, system_prompt: str) -> str:
+    def call(self, user_query: str, system_prompt: str, *, max_subqueries: int = 1) -> str:
+        max_tok = min(4096, 256 + max(1, max_subqueries) * 160)
         response = self._client.chat.completions.create(
             model=self.model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_query},
             ],
-            temperature=0.3,
-            max_tokens=512,
+            temperature=0.0,
+            max_tokens=max_tok,
         )
-        return response.choices[0].message.content.strip()
+        return (response.choices[0].message.content or "").strip()
 
     @property
     def model_id(self) -> str:
@@ -454,25 +527,51 @@ class LLMRewriter:
     # ------------------------------------------------------------------
 
     def rewrite(
-        self, user_query: str, mode: RewriteMode = "single"
+        self,
+        user_query: str,
+        mode: RewriteMode = "single",
+        strip_temporal: bool = False,
+        max_subqueries: int | None = None,
     ) -> tuple[str, list[str]]:
         """
         Rewrite a user query into one or more retrieval-optimised sentences.
 
         Args:
-            user_query: The raw user question.
-            mode:       "single"         → 1 rich sentence
-                        "multi_location" → one sentence per relevant location
-                        "multi_wording"  → several paraphrases of the concept
+            user_query:     The raw user question.
+            mode:           "single" | "multi_location" | "multi_wording"
+            strip_temporal: When True, instruct the LLM to omit time-of-day and
+                            day-of-week constraints from output sentences (they
+                            will be applied via a separate rule-based filter).
+            max_subqueries: Max retrieval sentences for multi_* modes (default
+                            8 for multi_location, 6 for multi_wording). Ignored
+                            for single (always 1).
 
         Returns:
             (reasoning: str, sentences: list[str])
-            reasoning  — the LLM's chain-of-thought about sensor detectability
-            sentences  — retrieval-ready sentences (empty list if not detectable)
         """
-        system_prompt = _build_system_prompt(self.home_context, mode, self._example_captions)
-        raw = self._backend.call(user_query, system_prompt)
+        n = resolve_max_subqueries(mode, max_subqueries)
+        system_prompt = _build_system_prompt(
+            self.home_context, mode, self._example_captions,
+            strip_temporal=strip_temporal,
+            max_subqueries=n,
+        )
+        uq = user_query
+        if mode == "multi_location":
+            uq = (
+                f"{user_query}\n\n"
+                f"[Retrieval target: up to {n} sentences — one per distinct plausible room "
+                f"from the sensor inventory; use all {n} slots when that many locations apply.]"
+            )
+        elif mode == "multi_wording":
+            uq = (
+                f"{user_query}\n\n"
+                f"[Retrieval target: up to {n} distinct paraphrases; use all {n} slots when "
+                f"non-redundant angles remain.]"
+            )
+        raw = self._backend.call(uq, system_prompt, max_subqueries=n)
         reasoning, sentences = _parse_response(raw, mode)
+        if mode != "single" and len(sentences) > n:
+            sentences = sentences[:n]
         return reasoning, sentences
 
     @property

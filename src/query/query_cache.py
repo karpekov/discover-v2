@@ -11,6 +11,11 @@ Schema:
   - hit_count:      how many times this cached entry was reused
 
 The unique key is (original_query, home, rewrite_mode).
+
+Home values are normalized to lowercase on read/write so milan and Milan never
+split the cache. Result rows also key on checkpoint (see SmartQuery._checkpoint_key),
+which includes the resolved test-data path so different homes/splits stay isolated
+even when the checkpoint filename is the same.
 """
 
 import json
@@ -21,6 +26,12 @@ from typing import Optional
 
 
 _DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "query_cache" / "queries.db"
+
+
+def _norm_home(home: str) -> str:
+    """Stable cache partition per physical home (milan vs aruba, case-insensitive)."""
+    s = str(home or "").strip().lower()
+    return s if s else "unknown"
 
 
 def _json_serializer(obj):
@@ -122,10 +133,11 @@ class QueryCache:
         rewrite_mode: str = "single",
     ) -> Optional[list[str]]:
         """Return cached sentences or None on miss. Increments hit_count."""
+        h = _norm_home(home)
         row = self._conn.execute(
             "SELECT id, sentences FROM query_cache "
             "WHERE original_query = ? AND home = ? AND rewrite_mode = ?",
-            (original_query.strip(), home, rewrite_mode),
+            (original_query.strip(), h, rewrite_mode),
         ).fetchone()
 
         if row is None:
@@ -148,6 +160,7 @@ class QueryCache:
     ) -> None:
         """Persist (original_query, home, rewrite_mode) → sentences. Upserts on conflict."""
         now = datetime.now(timezone.utc).isoformat()
+        h = _norm_home(home)
         self._conn.execute(
             """
             INSERT INTO query_cache
@@ -160,7 +173,7 @@ class QueryCache:
             """,
             (
                 original_query.strip(),
-                home,
+                h,
                 rewrite_mode,
                 json.dumps(sentences),
                 model_used,
@@ -172,7 +185,8 @@ class QueryCache:
     def list_entries(self, home: str = "") -> list[dict]:
         if home:
             rows = self._conn.execute(
-                "SELECT * FROM query_cache WHERE home = ? ORDER BY created_at DESC", (home,)
+                "SELECT * FROM query_cache WHERE home = ? ORDER BY created_at DESC",
+                (_norm_home(home),),
             ).fetchall()
         else:
             rows = self._conn.execute(
@@ -186,23 +200,26 @@ class QueryCache:
         return result
 
     def delete(self, original_query: str, home: str = "", rewrite_mode: str = "") -> bool:
+        h = _norm_home(home)
         if rewrite_mode:
             cursor = self._conn.execute(
                 "DELETE FROM query_cache "
                 "WHERE original_query = ? AND home = ? AND rewrite_mode = ?",
-                (original_query.strip(), home, rewrite_mode),
+                (original_query.strip(), h, rewrite_mode),
             )
         else:
             cursor = self._conn.execute(
                 "DELETE FROM query_cache WHERE original_query = ? AND home = ?",
-                (original_query.strip(), home),
+                (original_query.strip(), h),
             )
         self._conn.commit()
         return cursor.rowcount > 0
 
     def clear(self, home: str = "") -> int:
         if home:
-            cursor = self._conn.execute("DELETE FROM query_cache WHERE home = ?", (home,))
+            cursor = self._conn.execute(
+                "DELETE FROM query_cache WHERE home = ?", (_norm_home(home),)
+            )
         else:
             cursor = self._conn.execute("DELETE FROM query_cache")
         self._conn.commit()
@@ -235,11 +252,12 @@ class QueryCache:
         top_k: int = 5,
     ) -> Optional[list[dict]]:
         """Return cached retrieval results or None on miss."""
+        h = _norm_home(home)
         row = self._conn.execute(
             "SELECT id, results_json FROM result_cache "
             "WHERE original_query=? AND home=? AND rewrite_mode=? "
             "AND checkpoint=? AND top_k=?",
-            (original_query.strip(), home, rewrite_mode, checkpoint, top_k),
+            (original_query.strip(), h, rewrite_mode, checkpoint, top_k),
         ).fetchone()
         if row is None:
             return None
@@ -261,6 +279,7 @@ class QueryCache:
     ) -> None:
         """Persist retrieval results. Upserts on conflict."""
         now = datetime.now(timezone.utc).isoformat()
+        h = _norm_home(home)
         self._conn.execute(
             """
             INSERT INTO result_cache
@@ -271,7 +290,7 @@ class QueryCache:
                 created_at   = excluded.created_at
             """,
             (
-                original_query.strip(), home, rewrite_mode, checkpoint, top_k,
+                original_query.strip(), h, rewrite_mode, checkpoint, top_k,
                 json.dumps(results, default=_json_serializer), now,
             ),
         )

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HAR Discover</title>
+  <title>Human Activity Retrieval Tool</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
@@ -14,7 +14,7 @@
       --bg: #f0f4f8; --surface: #fff; --surf2: #f8fafc;
       --border: #e2e8f0; --bord2: #cbd5e1;
       --text: #1e293b; --mid: #475569; --muted: #94a3b8;
-      --w: 310px; --r: 10px;
+      --w: 320px; --r: 10px;
       --sh: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
     }
     body { font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text);
@@ -22,7 +22,7 @@
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-thumb { background: var(--bord2); border-radius: 3px; }
 
-    /* sidebar */
+    /* ── sidebar ─────────────────────────────────────────────────────── */
     #sidebar { width: var(--w); min-width: var(--w); height: 100vh;
                background: var(--navy); display: flex; flex-direction: column; }
     #main    { flex: 1; height: 100vh; overflow-y: auto; padding: 24px; }
@@ -35,31 +35,89 @@
     .fg { margin-bottom: 13px; }
     .fg label { display: block; font-size: 10.5px; font-weight: 600; color: rgba(255,255,255,.5);
                 text-transform: uppercase; letter-spacing: .6px; margin-bottom: 5px; }
-    .fg select, .fg input[type="number"], .fg textarea {
+    .fg select, .fg input[type="number"] {
       width: 100%; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
       border-radius: 7px; color: #fff; font-family: inherit; font-size: 13px; padding: 7px 10px;
       outline: none; transition: border-color .15s; -webkit-appearance: none; appearance: none; }
-    .fg select:focus, .fg input[type="number"]:focus, .fg textarea:focus { border-color: var(--sky); }
+    .fg select:focus, .fg input[type="number"]:focus { border-color: var(--sky); }
     .fg select option { background: var(--navymid); color: #fff; }
-    .fg textarea { resize: vertical; min-height: 76px; line-height: 1.5; }
     .fg input[type="number"] { -moz-appearance: textfield; }
     .fg input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
+    /* retrieval mode pills */
     .pills { display: flex; background: rgba(255,255,255,.07); border-radius: 7px; padding: 3px; gap: 3px; }
     .pill  { flex: 1; border: none; background: transparent; color: rgba(255,255,255,.5);
              font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 0;
              border-radius: 5px; cursor: pointer; transition: background .15s, color .15s; }
     .pill.on { background: var(--sky); color: #fff; }
 
-    .srow { display: flex; align-items: center; gap: 8px; }
-    .srow input[type="range"] { flex: 1; -webkit-appearance: none; height: 4px;
-      background: rgba(255,255,255,.2); border-radius: 2px; cursor: pointer; }
-    .srow input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;
-      width: 13px; height: 13px; border-radius: 50%; background: var(--sky); cursor: pointer; }
-    .sval { font-size: 12px; font-weight: 600; color: var(--sky); min-width: 22px; text-align: right; }
+    /* MA slider box inside chart pane */
+    .tp-ma-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+                 background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+                 padding: 10px 16px; }
+    .tp-ma-lbl { font-size: 11.5px; color: #64748b; white-space: nowrap; flex-shrink: 0; font-weight: 500; }
+    .tp-ma-lbl .ma-val-display { color: var(--sky); font-weight: 700; font-size: 13px; }
+    .ma-wrap { flex: 1; min-width: 140px; padding-bottom: 2px; }
+    .ma-wrap > input[type="range"] {
+      width: 100%; display: block; -webkit-appearance: none; appearance: none;
+      height: 5px; border-radius: 3px; cursor: pointer; outline: none;
+      background: linear-gradient(to right, var(--sky) 0%, var(--sky) 22%, #e2e8f0 22%, #e2e8f0 100%);
+    }
+    .ma-wrap > input[type="range"]::-webkit-slider-runnable-track {
+      height: 5px; border-radius: 3px; }
+    .ma-wrap > input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; border: 2.5px solid var(--sky); cursor: pointer;
+      margin-top: -5.5px; box-shadow: 0 1px 5px rgba(14,165,233,.35); transition: box-shadow .15s; }
+    .ma-wrap > input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 5px rgba(14,165,233,.15); }
+    .ma-wrap > input[type="range"]::-moz-range-thumb {
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      border: 2.5px solid var(--sky); cursor: pointer; box-shadow: 0 1px 5px rgba(14,165,233,.35); }
+    /* ticks */
+    .ma-ticks { position: relative; height: 18px; margin-top: 3px; }
+    .ma-tick  { position: absolute; top: 0; transform: translateX(-50%);
+                display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .ma-dot   { width: 2px; height: 6px; border-radius: 1px; background: #cbd5e1; }
+    .ma-lbl   { font-size: 9.5px; color: #94a3b8; line-height: 1; font-weight: 500; }
+
+    /* filter pills (ToD / DoW) */
+    .fpills { display: flex; flex-wrap: wrap; gap: 4px; }
+    .fp { border: 1px solid rgba(255,255,255,.12); background: transparent;
+          color: rgba(255,255,255,.45); font-family: inherit; font-size: 11px; font-weight: 500;
+          padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all .15s; }
+    .fp:hover { border-color: rgba(255,255,255,.28); color: rgba(255,255,255,.7); }
+    .fp.on { background: rgba(14,165,233,.2); border-color: var(--sky); color: var(--sky); }
+
+    /* query builder */
+    .q-tags { min-height: 38px; background: rgba(255,255,255,.04);
+              border: 1px solid rgba(255,255,255,.10); border-radius: 7px;
+              padding: 5px; display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+    .q-tag  { display: flex; align-items: center; gap: 4px;
+              background: rgba(14,165,233,.18); border: 1px solid rgba(14,165,233,.35);
+              border-radius: 5px; padding: 3px 7px; max-width: 230px; }
+    .q-tag-txt { font-size: 11.5px; color: #e0f2fe; white-space: nowrap;
+                 overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .q-tag-rm  { background: none; border: none; color: rgba(255,255,255,.45);
+                 font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1; }
+    .q-tag-rm:hover { color: #ef4444; }
+    .q-badge   { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px;
+                 background: rgba(245,158,11,.25); color: #fcd34d; white-space: nowrap; }
+    .no-q { font-size: 11px; color: rgba(255,255,255,.22); padding: 6px 4px; }
+    .q-add-row { display: flex; gap: 6px; align-items: flex-end; }
+    .q-add-row textarea { flex: 1; min-height: 60px; background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12); border-radius: 7px; color: #fff;
+      font-family: inherit; font-size: 13px; padding: 7px 10px; outline: none;
+      transition: border-color .15s; resize: vertical; line-height: 1.5; }
+    .q-add-row textarea:focus { border-color: var(--sky); }
+    #btn-add { width: 34px; height: 34px; min-width: 34px; flex-shrink: 0;
+               background: rgba(14,165,233,.2); border: 1px solid rgba(14,165,233,.35);
+               border-radius: 7px; color: var(--sky); font-size: 22px; font-weight: 400;
+               cursor: pointer; display: flex; align-items: center; justify-content: center;
+               transition: background .15s; line-height: 1; }
+    #btn-add:hover { background: rgba(14,165,233,.4); }
 
     .sep { border: none; border-top: 1px solid rgba(255,255,255,.08); margin: 12px 0; }
-
     .adv-btn { background: none; border: none; color: rgba(255,255,255,.38);
       font-family: inherit; font-size: 10.5px; font-weight: 600; letter-spacing: .5px;
       text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
@@ -90,7 +148,7 @@
     .chit { background: rgba(34,197,94,.18); color: #4ade80; border-radius: 4px;
             padding: 1px 6px; font-size: 10px; font-weight: 600; margin-left: 3px; }
 
-    /* states */
+    /* ── states ─────────────────────────────────────────────────────── */
     .state { display: none; flex-direction: column; align-items: center; justify-content: center;
              min-height: calc(100vh - 48px); text-align: center; gap: 14px; }
     .state.on { display: flex; }
@@ -110,14 +168,31 @@
     .dot.done { background: var(--green); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
-    /* cards */
+    /* ── cards ──────────────────────────────────────────────────────── */
     .card { background: var(--surface); border-radius: var(--r);
             border: 1px solid var(--border); box-shadow: var(--sh); margin-bottom: 18px; overflow: hidden; }
     .card-head { padding: 12px 16px; border-bottom: 1px solid var(--border); }
     .card-head h3 { font-size: 12px; font-weight: 600; color: var(--mid);
                     text-transform: uppercase; letter-spacing: .5px; }
-    .card-body { padding: 14px 16px; }
+    /* collapsible card (details/summary) */
+    details.card { overflow: hidden; }
+    details.card > summary { list-style: none; cursor: pointer; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      user-select: none; }
+    details.card > summary::-webkit-details-marker { display: none; }
+    details.card > summary h3 { font-size: 12px; font-weight: 600; color: var(--mid);
+      text-transform: uppercase; letter-spacing: .5px; margin: 0; }
+    details.card > summary .card-arr { font-size: 10px; color: var(--mid);
+      transition: transform .2s ease; display: inline-block; }
+    details.card[open] > summary .card-arr { transform: rotate(90deg); }
+    details.card > summary:hover h3 { color: var(--sky); }
+    /* All card bodies (LLM collapsible + Summary Statistics); tabs card has no .card-body */
+    .card-body { padding: 18px 24px; }
+    details.card .card-body { animation: slideDown .2s ease; }
+    @keyframes slideDown { from { opacity:0; transform: translateY(-6px); }
+                           to   { opacity:1; transform: translateY(0); } }
 
+    /* stats bar */
     #stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
                  gap: 12px; margin-bottom: 18px; }
     .sc { background: var(--surface); border: 1px solid var(--border);
@@ -133,27 +208,56 @@
     .squal.ex { background: #f0fdf4; color: #166534; }
     .squal.ok { background: #fffbeb; color: #92400e; }
     .squal.lo { background: #fef2f2; color: #991b1b; }
+    /* multi-query comparison stats */
+    .qstat-row { display: flex; align-items: center; gap: 10px; padding: 8px 0;
+                 border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .qstat-row:last-child { border-bottom: none; }
+    .qstat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .qstat-lbl { font-size: 12.5px; font-weight: 500; color: var(--text); flex: 1; min-width: 120px;
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qstat-val { font-size: 11.5px; color: var(--mid); white-space: nowrap; }
 
+    /* LLM card */
     .q-text { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; line-height: 1.4; }
     .chips  { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
     .chip   { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px;
               background: var(--surf2); border: 1px solid var(--border); color: var(--mid); }
     .chip.hit { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
-    .reason { background: var(--surf2); border-left: 3px solid var(--sky);
-              border-radius: 0 6px 6px 0; padding: 9px 13px; font-size: 12.5px; color: var(--mid);
-              line-height: 1.6; margin-bottom: 12px; max-height: 150px; overflow-y: auto; }
     .sent-list { display: flex; flex-direction: column; gap: 5px; }
     .sent-row  { display: flex; gap: 9px; align-items: flex-start; }
     .sent-num  { min-width: 19px; height: 19px; background: var(--navy); color: #fff;
                  border-radius: 50%; font-size: 10px; font-weight: 700;
-                 display: flex; align-items: center; justify-content: center;
-                 flex-shrink: 0; margin-top: 2px; }
+                 display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
     .sent-txt  { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--mid);
                  line-height: 1.5; background: var(--surf2); border: 1px solid var(--border);
                  border-radius: 5px; padding: 5px 10px; flex: 1; }
 
+    /* multi-query LLM sections */
+    .q-meta-sec { border-left: 3px solid var(--border); padding-left: 12px; margin-bottom: 16px; }
+    .q-meta-sec:last-child { margin-bottom: 0; }
+    .q-meta-hdr { font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+
+    /* collapsible reasoning */
+    .coll { margin-bottom: 12px; }
+    .coll summary {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px; list-style: none; user-select: none;
+      padding: 6px 10px; border-radius: 6px; background: var(--surf2);
+      border: 1px solid var(--border); transition: background .15s;
+    }
+    .coll summary::-webkit-details-marker { display: none; }
+    .coll summary:hover { background: var(--border); }
+    .coll summary .arr { display: inline-block; transition: transform .2s; }
+    .coll[open] summary .arr { transform: rotate(90deg); }
+    .coll-body { margin-top: 6px; background: var(--surf2); border-left: 3px solid var(--sky);
+                 border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 12.5px;
+                 color: var(--mid); line-height: 1.7; max-height: 260px; overflow-y: auto;
+                 white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; }
+
+    /* tabs */
     .tab-nav { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--border); }
-    .tab-btn { padding: 10px 15px; background: none; border: none;
+    .tab-btn { padding: 10px 14px; background: none; border: none;
                border-bottom: 2px solid transparent; margin-bottom: -1px;
                font-family: inherit; font-size: 13px; font-weight: 500;
                color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s; }
@@ -164,8 +268,9 @@
     .clabel { font-size: 11px; font-weight: 600; color: var(--muted);
               text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
 
-    #hm-canvas { display: block; width: 100%; height: auto;
-                 border-radius: 6px; border: 1px solid var(--border); cursor: crosshair; }
+    /* heatmap */
+    .hm-canvas-el { display: block; width: 100%; height: auto;
+                    border-radius: 6px; border: 1px solid var(--border); cursor: crosshair; }
     #hm-tip { position: fixed; background: var(--navy); color: #fff; padding: 7px 11px;
               border-radius: 7px; font-size: 12px; pointer-events: none; display: none;
               z-index: 200; box-shadow: 0 4px 20px rgba(0,0,0,.2); line-height: 1.7; }
@@ -176,49 +281,67 @@
     .hm-leg  { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-left: auto; }
     .hm-bar  { width: 72px; height: 7px; border-radius: 4px; border: 1px solid var(--border);
                background: linear-gradient(to right, rgba(253,224,71,.25), rgba(239,68,68,.9)); }
+    .hm-section { margin-bottom: 22px; }
+    .hm-section:last-child { margin-bottom: 0; }
+    .hm-qhdr { font-size: 12.5px; font-weight: 600; color: var(--mid);
+               padding: 5px 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0; background: var(--surf2); }
 
-    .dist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 18px; }
+    /* score distribution */
+    .score-section { margin-bottom: 22px; }
+    .score-section:last-child { margin-bottom: 0; }
+    .score-qhdr { font-size: 12.5px; font-weight: 600; color: var(--mid);
+                  padding: 5px 10px; margin-bottom: 8px; border-radius: 0 5px 5px 0; background: var(--surf2); }
+
+    /* logs tab */
+    #logs-container { font-family: 'Courier New', monospace; font-size: 12px; }
+    .log-query-block { margin-bottom: 20px; }
+    .log-query-hdr { font-family: inherit; font-size: 12px; font-weight: 700;
+                     color: var(--mid); border-bottom: 1px solid var(--border);
+                     padding-bottom: 6px; margin-bottom: 10px;
+                     display: flex; align-items: center; gap: 8px; }
+    .log-query-hdr .log-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .log-line { display: flex; gap: 8px; padding: 1.5px 0; line-height: 1.5; }
+    .log-line.warn  { background: #fefce8; border-left: 2px solid #fbbf24; padding-left: 6px; margin-left: -6px; }
+    .log-line.error { background: #fef2f2; border-left: 2px solid #ef4444; padding-left: 6px; margin-left: -6px; }
+    .log-line.sep   { color: #cbd5e1; letter-spacing: 0; }
+    .log-line.cache { color: #059669; }
+    .log-line.result { font-weight: 600; }
+    .log-line.subq  { color: #0369a1; font-weight: 500; background: rgba(14,165,233,.06);
+                      border-left: 2px solid rgba(14,165,233,.45); padding-left: 6px; margin-left: -6px; }
+    .log-lnum { color: #cbd5e1; user-select: none; min-width: 2.5ch; text-align: right; flex-shrink: 0; }
+    .log-txt  { color: #334155; white-space: pre-wrap; word-break: break-word; }
+    .log-empty { color: #94a3b8; font-size: 12px; padding: 20px 0; text-align: center; }
+    .log-key  { color: #0ea5e9; }   /* [SmartQuery] etc */
+    .log-val  { color: #7c3aed; }   /* values / numbers */
+    .log-sect { color: #64748b; }   /* ===== lines */
+
+    /* distributions */
+    .dist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 20px 22px; }
+    .dist-sec { min-width: 0; padding: 0 2px; }
     .dist-sec h4 { font-size: 11px; font-weight: 600; color: var(--muted);
                    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 9px; }
-    .dist-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
-    .dist-lbl { font-size: 11.5px; color: var(--mid); width: 160px; min-width: 160px;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dist-bw  { flex: 1; background: var(--border); border-radius: 3px; height: 6px; overflow: hidden; }
+    .dist-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; min-width: 0; }
+    .dist-lbl { font-size: 11.5px; color: var(--mid); flex: 0 1 42%; max-width: 168px;
+                min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dist-bw  { flex: 1; min-width: 0; background: var(--border); border-radius: 3px; height: 6px; overflow: hidden; }
     .dist-b   { height: 100%; border-radius: 3px; background: var(--sky); transition: width .4s; }
     .dist-b.morning   { background: #fbbf24; }
     .dist-b.afternoon { background: #f97316; }
     .dist-b.evening   { background: #8b5cf6; }
     .dist-b.night     { background: #3b82f6; }
     .dist-b.weekend   { background: #22c55e; }
-    .dist-cnt { font-size: 11px; font-weight: 600; color: var(--muted); min-width: 30px; text-align: right; }
-
-    /* collapsible reasoning */
-    .coll { margin-bottom: 12px; }
-    .coll summary {
-      display: flex; align-items: center; gap: 6px; cursor: pointer;
-      font-size: 11px; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: .5px;
-      list-style: none; user-select: none;
-      padding: 6px 10px; border-radius: 6px;
-      background: var(--surf2); border: 1px solid var(--border);
-      transition: background .15s;
-    }
-    .coll summary::-webkit-details-marker { display: none; }
-    .coll summary:hover { background: var(--border); }
-    .coll summary .arr { display: inline-block; transition: transform .2s; font-style: normal; }
-    .coll[open] summary .arr { transform: rotate(90deg); }
-    .coll-body { margin-top: 6px; background: var(--surf2); border-left: 3px solid var(--sky);
-                 border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 12.5px;
-                 color: var(--mid); line-height: 1.7; max-height: 260px; overflow-y: auto;
-                 white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; }
+    .dist-cnt { font-size: 11px; font-weight: 600; color: var(--muted); min-width: 2.75rem;
+                padding-left: 4px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .dist-qhdr { font-size: 13px; font-weight: 600; color: var(--text); margin: 14px 0 12px;
+                 padding: 0 8px 0 12px; border-left: 3px solid var(--border); }
   </style>
 </head>
 <body>
 
 <aside id="sidebar">
   <div class="s-head">
-    <h1>HAR Discover</h1>
-    <p>Activity Query Dashboard</p>
+    <h1>Human Activity Retrieval Tool</h1>
+    <p>Activity Query and Analytics</p>
   </div>
   <div id="fscroll">
     <div class="fg">
@@ -265,11 +388,38 @@
         <option value="week">Weekly</option>
       </select>
     </div>
+    <hr class="sep" />
     <div class="fg">
-      <label>Moving Avg Window</label>
-      <div class="srow">
-        <input type="range" id="sl-ma" min="2" max="30" value="7" />
-        <span class="sval" id="ma-val">7</span>
+      <label>Queries</label>
+      <div class="q-tags" id="q-tags"><span class="no-q">No queries added yet</span></div>
+      <div class="q-add-row">
+        <textarea id="q-input" placeholder="natural language query&#8230;" rows="2"></textarea>
+        <button id="btn-add" title="Add query (Enter)">+</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Time of Day Filter <span style="font-weight:400;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.3)">— attached on +</span></label>
+      <div class="fpills" id="tod-pills">
+        <button class="fp on" data-val="all"       onclick="toggleTod('all')">All</button>
+        <button class="fp"    data-val="morning"   onclick="toggleTod('morning')">Morning</button>
+        <button class="fp"    data-val="afternoon" onclick="toggleTod('afternoon')">Afternoon</button>
+        <button class="fp"    data-val="evening"   onclick="toggleTod('evening')">Evening</button>
+        <button class="fp"    data-val="night"     onclick="toggleTod('night')">Night</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Day of Week Filter <span style="font-weight:400;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.3)">— attached on +</span></label>
+      <div class="fpills" id="dow-pills">
+        <button class="fp on" data-val="all"     onclick="toggleDow('all')">All</button>
+        <button class="fp"    data-val="weekday" onclick="toggleDow('weekday')">Weekday</button>
+        <button class="fp"    data-val="weekend" onclick="toggleDow('weekend')">Weekend</button>
+        <button class="fp"    data-val="mon"     onclick="toggleDow('mon')">Mon</button>
+        <button class="fp"    data-val="tue"     onclick="toggleDow('tue')">Tue</button>
+        <button class="fp"    data-val="wed"     onclick="toggleDow('wed')">Wed</button>
+        <button class="fp"    data-val="thu"     onclick="toggleDow('thu')">Thu</button>
+        <button class="fp"    data-val="fri"     onclick="toggleDow('fri')">Fri</button>
+        <button class="fp"    data-val="sat"     onclick="toggleDow('sat')">Sat</button>
+        <button class="fp"    data-val="sun"     onclick="toggleDow('sun')">Sun</button>
       </div>
     </div>
     <hr class="sep" />
@@ -284,17 +434,19 @@
           <option value="openai">OpenAI</option>
         </select>
       </div>
+      <div class="fg">
+        <label>Max sub-queries <span style="font-weight:400;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.3)">multi modes: 1–20; empty = default (8 location / 6 wording)</span></label>
+        <input type="number" id="inp-maxsq" min="1" max="20" step="1" placeholder="default" />
+      </div>
       <div class="crow">
         <input type="checkbox" id="cb-rw" /><label for="cb-rw">Force rewrite (bypass LLM cache)</label>
       </div>
       <div class="crow">
         <input type="checkbox" id="cb-rt" /><label for="cb-rt">Force retrieve (bypass FAISS cache)</label>
       </div>
-    </div>
-    <hr class="sep" />
-    <div class="fg">
-      <label>Natural Language Query</label>
-      <textarea id="inp-q" placeholder="e.g. morning kitchen routines, sedentary activities&#8230;"></textarea>
+      <div class="crow">
+        <input type="checkbox" id="cb-st" checked /><label for="cb-st">Strip temporal from LLM sentences</label>
+      </div>
     </div>
   </div>
   <div id="s-foot">
@@ -310,7 +462,7 @@
   <div class="state on" id="st-welcome">
     <div class="ico">&#127968;</div>
     <h2>Smart Activity Retrieval</h2>
-    <p>Select a dataset and model, type a natural-language query, then click <strong>Retrieve</strong>.</p>
+    <p>Add one or more natural-language queries, select a dataset &amp; model, then click <strong>Retrieve</strong>.</p>
   </div>
 
   <div class="state" id="st-load">
@@ -328,31 +480,74 @@
   <div id="st-results">
     <div id="stats-bar"></div>
 
-    <div class="card">
-      <div class="card-head"><h3>&#129504; LLM Rewrite &amp; Retrieval</h3></div>
-      <div class="card-body">
-        <div class="q-text" id="r-query"></div>
-        <div class="chips"  id="r-chips"></div>
-        <details class="coll" id="r-rsec">
-          <summary><span class="arr">&#9658;</span> LLM Reasoning</summary>
-          <div class="coll-body" id="r-reason"></div>
-        </details>
-        <div class="clabel" style="margin-top:4px">Retrieval Sub-queries</div>
-        <div class="sent-list" id="r-sents"></div>
-      </div>
-    </div>
+    <details class="card" id="llm-card">
+      <summary><h3>&#129504; LLM Rewrite &amp; Retrieval Medadata</h3><span class="card-arr">&#9658;</span></summary>
+      <div class="card-body" id="r-meta-body"></div>
+    </details>
 
     <div class="card">
       <div class="tab-nav">
-        <button class="tab-btn on" data-t="longitudinal">&#128200; Longitudinal</button>
+        <button class="tab-btn on" data-t="trends">&#128200; Trends</button>
+        <button class="tab-btn"    data-t="duration">&#9201; Duration</button>
         <button class="tab-btn"    data-t="heatmap">&#128506; Sensor Heatmap</button>
         <button class="tab-btn"    data-t="scores">&#128202; Score Distribution</button>
+        <button class="tab-btn"    data-t="logs">&#128203; Logs</button>
       </div>
-      <div class="tab-pane on" id="tp-longitudinal">
-        <div class="clabel" id="lbl-c1">Matched Samples per Day</div>
-        <canvas id="ch-counts" height="110"></canvas>
-        <div class="clabel" id="lbl-c2" style="margin-top:24px">Activity Duration per Day (min)</div>
-        <canvas id="ch-durations" height="85"></canvas>
+      <div class="tab-pane on" id="tp-trends">
+        <div class="tp-ma-row">
+          <span class="tp-ma-lbl">Moving Avg:&nbsp;<span class="ma-val-display" id="ma-val">7</span>&nbsp;days</span>
+          <div class="ma-wrap">
+            <input type="range" id="sl-ma" min="1" max="28" value="7" oninput="onSlider('sl-ma')" />
+            <div class="ma-ticks">
+              <span class="ma-tick" style="left:calc(0/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">1</span>
+              </span>
+              <span class="ma-tick" style="left:calc(6/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">7</span>
+              </span>
+              <span class="ma-tick" style="left:calc(13/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">14</span>
+              </span>
+              <span class="ma-tick" style="left:calc(20/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">21</span>
+              </span>
+              <span class="ma-tick" style="left:calc(27/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">28</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="clabel">Matched Samples per Day (Moving Average)</div>
+        <canvas id="ch-counts" height="120"></canvas>
+        <div class="clabel" style="margin-top:22px">Rolling Activity Variability (Std Dev over MA Window)</div>
+        <canvas id="ch-weekly" height="95"></canvas>
+      </div>
+      <div class="tab-pane" id="tp-duration">
+        <div class="tp-ma-row">
+          <span class="tp-ma-lbl">Moving Avg:&nbsp;<span class="ma-val-display" id="ma-val-dur">7</span>&nbsp;days</span>
+          <div class="ma-wrap">
+            <input type="range" id="sl-ma-dur" min="1" max="28" value="7" oninput="onSlider('sl-ma-dur')" />
+            <div class="ma-ticks">
+              <span class="ma-tick" style="left:calc(0/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">1</span>
+              </span>
+              <span class="ma-tick" style="left:calc(6/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">7</span>
+              </span>
+              <span class="ma-tick" style="left:calc(13/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">14</span>
+              </span>
+              <span class="ma-tick" style="left:calc(20/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">21</span>
+              </span>
+              <span class="ma-tick" style="left:calc(27/27*(100% - 16px) + 8px)">
+                <span class="ma-dot"></span><span class="ma-lbl">28</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="clabel">Activity Duration per Day (min, Moving Average)</div>
+        <canvas id="ch-dur" height="120"></canvas>
       </div>
       <div class="tab-pane" id="tp-heatmap">
         <div class="hm-ctrl">
@@ -360,19 +555,20 @@
           <label class="hm-chk"><input type="checkbox" id="hm-lbl" checked> Show labels</label>
           <div class="hm-leg"><span>Low</span><div class="hm-bar"></div><span>High</span></div>
         </div>
-        <canvas id="hm-canvas"></canvas>
+        <div id="hm-container"></div>
         <div id="hm-tip"></div>
       </div>
       <div class="tab-pane" id="tp-scores">
-        <canvas id="ch-scores" height="130"></canvas>
+        <div id="scores-container"></div>
+      </div>
+      <div class="tab-pane" id="tp-logs">
+        <div id="logs-container"></div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-head"><h3>&#128203; Summary Statistics</h3></div>
-      <div class="card-body">
-        <div class="dist-grid" id="r-dists"></div>
-      </div>
+      <div class="card-body" id="r-dists"></div>
     </div>
   </div>
 </main>
@@ -380,40 +576,274 @@
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const charts = {};
-let hmData = null, hmHits = [], retrievalMode = 'threshold';
+
+// ── per-query color palette ────────────────────────────────────────────────
+const Q_COLORS = ['#0ea5e9','#f59e0b','#16a34a','#ef4444','#8b5cf6','#f97316','#06b6d4','#84cc16'];
 
 // ── state ─────────────────────────────────────────────────────────────────
+// Each entry: { text: str, todFilter: str[], dowFilter: str[] }
+let _queries      = [];
+// Pending filters — attached to the NEXT query added, then reset
+let _pendingTod   = new Set();
+let _pendingDow   = new Set();
+let _data         = null;        // last API response {queries:[...]}
+const _charts     = {};          // Chart.js instances
+let _hmHits       = [];          // per-query array of hit objects
+let _retrievalMode = 'threshold';
+let _yMaxCounts   = null;        // fixed y-axis ceiling for counts charts
+let _yMaxDurs     = null;        // fixed y-axis ceiling for duration chart
+
+// ── helpers ───────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function hexA(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function topN(obj, n) {
+  return Object.entries(obj || {}).sort((a,b) => b[1]-a[1]).slice(0,n);
+}
+
+// ── MA / rolling quantile / weekly var ────────────────────────────────────
+function computeMA(arr, w) {
+  if (w < 2) return arr.map(v => v);
+  const half = Math.floor(w / 2);
+  return arr.map((_, i) => {
+    if (i < half || i > arr.length - 1 - half) return null;
+    const win = arr.slice(i - half, i + half + 1);
+    return win.reduce((a,b) => a+b, 0) / win.length;
+  });
+}
+
+function rollingQ(arr, w, q) {
+  if (w < 2 || arr.length < w) return arr.map(() => null);
+  const half = Math.floor(w / 2);
+  return arr.map((_, i) => {
+    if (i < half || i > arr.length - 1 - half) return null;
+    const win = arr.slice(i-half, i+half+1).filter(v => v != null).sort((a,b) => a-b);
+    if (!win.length) return null;
+    const pos = q * (win.length - 1);
+    const lo = Math.floor(pos), hi = Math.ceil(pos);
+    return lo === hi ? win[lo] : win[lo] + (win[hi]-win[lo])*(pos-lo);
+  });
+}
+
+function percentile(arr, p) {
+  const sorted = arr.filter(v => v != null && v > 0).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const idx = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+function rollingStd(arr, w) {
+  if (w < 2 || arr.length < w) return arr.map(() => null);
+  const half = Math.floor(w / 2);
+  return arr.map((_, i) => {
+    if (i < half || i > arr.length - 1 - half) return null;
+    const win = arr.slice(i - half, i + half + 1);
+    const mean = win.reduce((a, b) => a + b, 0) / win.length;
+    return Math.sqrt(win.reduce((a, b) => a + (b - mean) ** 2, 0) / win.length);
+  });
+}
+
+// Build a chart label for a query result, appending active filters in parentheses
+function qDisplayLabel(q, truncate) {
+  const filters = [
+    ...(q.metadata?.filter_tod || []),
+    ...(q.metadata?.filter_dow || []),
+  ].filter(Boolean);
+  let lbl = q.query_label || q.metadata?.query || '';
+  if (filters.length) lbl += ' (' + filters.join(', ') + ')';
+  if (truncate && lbl.length > 46) lbl = lbl.slice(0, 44) + '\u2026';
+  return lbl;
+}
+
+// ── query builder ─────────────────────────────────────────────────────────
+function addQuery() {
+  const inp = $('q-input');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  _queries.push({
+    text: txt,
+    todFilter: [..._pendingTod],
+    dowFilter: [..._pendingDow],
+  });
+  inp.value = '';
+  // Reset pending filters back to "All"
+  _pendingTod.clear();
+  _pendingDow.clear();
+  refreshFilterPills();
+  renderQueryTags();
+  checkReady();
+}
+
+function removeQuery(i) {
+  _queries.splice(i, 1);
+  renderQueryTags();
+  checkReady();
+}
+
+function renderQueryTags() {
+  const el = $('q-tags');
+  if (!_queries.length) {
+    el.innerHTML = '<span class="no-q">No queries added yet</span>';
+    return;
+  }
+  el.innerHTML = _queries.map((q, i) => {
+    const badges = [
+      ...q.todFilter.map(f => `<span class="q-badge">${esc(f)}</span>`),
+      ...q.dowFilter.map(f => `<span class="q-badge">${esc(f)}</span>`),
+    ].join('');
+    const shortTxt = q.text.length > 38 ? q.text.slice(0,36)+'\u2026' : q.text;
+    return `<div class="q-tag">
+       <span class="q-tag-txt" title="${esc(q.text)}">${esc(shortTxt)}</span>
+       ${badges}
+       <button class="q-tag-rm" onclick="removeQuery(${i})" title="Remove">\u00d7</button>
+     </div>`;
+  }).join('');
+}
+
+// ── filter pills ──────────────────────────────────────────────────────────
+function toggleFilter(set, val) {
+  if (val === 'all') { set.clear(); }
+  else { if (set.has(val)) set.delete(val); else set.add(val); }
+  refreshFilterPills();
+}
+function toggleTod(val) { toggleFilter(_pendingTod, val); }
+function toggleDow(val) { toggleFilter(_pendingDow, val); }
+
+function refreshFilterPills() {
+  document.querySelectorAll('#tod-pills .fp').forEach(el => {
+    const v = el.dataset.val;
+    el.classList.toggle('on', v === 'all' ? _pendingTod.size === 0 : _pendingTod.has(v));
+  });
+  document.querySelectorAll('#dow-pills .fp').forEach(el => {
+    const v = el.dataset.val;
+    el.classList.toggle('on', v === 'all' ? _pendingDow.size === 0 : _pendingDow.has(v));
+  });
+}
+
+// ── MA slider ─────────────────────────────────────────────────────────────
+function updateSliderFill(el) {
+  const pct = (el.value - el.min) / (el.max - el.min) * 100;
+  el.style.background = `linear-gradient(to right,var(--sky) 0%,var(--sky) ${pct}%,#e2e8f0 ${pct}%,#e2e8f0 100%)`;
+}
+
+function onSlider(src) {
+  const slider = $(src);
+  if (!slider) return;
+  const w = +slider.value;
+
+  // Sync both sliders and value displays
+  ['sl-ma', 'sl-ma-dur'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.value = w;
+    updateSliderFill(el);
+  });
+  document.querySelectorAll('.ma-val-display').forEach(el => { el.textContent = w; });
+
+  if (!_data) return;
+  const qs = _data.queries;
+  const isMulti = qs.length > 1;
+
+  // In-place update for ch-counts (smooth transition, no destroy/recreate)
+  const cc = _charts['ch-counts'];
+  if (cc) {
+    const labels = cc.data.labels;
+    const ds = cc.data.datasets;
+    const clpC = v => v != null ? Math.min(v, _yMaxCounts ?? Infinity) : null;
+    if (!isMulti && qs.length) {
+      const map = {}; (qs[0].time_series?.dates || []).forEach((d,i) => { map[d] = qs[0].time_series.counts[i]; });
+      const raw = labels.map(d => map[d] ?? 0);
+      // layout: [bars(0), q1(1), q3(2), ma(3)]
+      ds[1].data = rollingQ(raw, w, .25).map(clpC);
+      ds[2].data = rollingQ(raw, w, .75).map(clpC);
+      ds[3].data = computeMA(raw, w).map(clpC);
+    } else {
+      qs.forEach((q, qi) => {
+        const map = {}; (q.time_series?.dates || []).forEach((d,i) => { map[d] = q.time_series.counts[i]; });
+        const raw = labels.map(d => map[d] ?? 0);
+        const base = qi * 3;
+        ds[base].data   = rollingQ(raw, w, .25).map(clpC);
+        ds[base+1].data = rollingQ(raw, w, .75).map(clpC);
+        ds[base+2].data = computeMA(raw, w).map(clpC);
+      });
+    }
+    cc.update({ duration:350, easing:'easeInOutCubic' });
+  }
+
+  // In-place update for ch-weekly
+  const cw = _charts['ch-weekly'];
+  if (cw) {
+    const labels = cw.data.labels;
+    cw.data.datasets.forEach((ds, qi) => {
+      const q = qs[qi]; if (!q) return;
+      const map = {}; (q.time_series?.dates || []).forEach((d,i) => { map[d] = q.time_series.counts[i]; });
+      ds.data = rollingStd(labels.map(d => map[d] ?? 0), w);
+    });
+    cw.update({ duration:350, easing:'easeInOutCubic' });
+  }
+
+  // In-place update for ch-dur
+  const cd = _charts['ch-dur'];
+  if (cd) {
+    const labels = cd.data.labels;
+    const dds = cd.data.datasets;
+    const clpD = v => v != null ? Math.min(v, _yMaxDurs ?? Infinity) : null;
+    if (!isMulti && qs.length) {
+      const map = {}; (qs[0].time_series?.dates || []).forEach((d,i) => { map[d] = qs[0].time_series.durations[i]; });
+      const raw = labels.map(d => map[d] ?? 0);
+      // layout: [bars(0), ma(1)]
+      dds[1].data = computeMA(raw, w).map(clpD);
+    } else {
+      qs.forEach((q, qi) => {
+        const map = {}; (q.time_series?.dates || []).forEach((d,i) => { map[d] = q.time_series.durations[i]; });
+        const raw = labels.map(d => map[d] ?? 0);
+        dds[qi].data = computeMA(raw, w).map(clpD);
+      });
+    }
+    cd.update({ duration:350, easing:'easeInOutCubic' });
+  }
+}
+
+// ── init ──────────────────────────────────────────────────────────────────
 function showState(name) {
   $('st-welcome').classList.toggle('on', name === 'welcome');
-  $('st-load').classList.toggle('on',    name === 'load');
+  $('st-load').classList.toggle('on',   name === 'load');
   $('st-results').style.display = name === 'results' ? 'block' : 'none';
 }
 
-// ── API ───────────────────────────────────────────────────────────────────
+function _extractError(j, fallback) {
+  if (!j) return fallback;
+  const d = j.detail;
+  if (!d) return fallback;
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) return d.map(e => (e.loc ? e.loc.slice(1).join('.') + ': ' : '') + (e.msg || JSON.stringify(e))).join('\n');
+  return JSON.stringify(d);
+}
 async function get(url) {
   const r = await fetch(url);
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  if (!r.ok) throw new Error(_extractError(await r.json().catch(() => null), `HTTP ${r.status} ${r.statusText}`));
   return r.json();
 }
 async function post(url, body) {
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(_extractError(await r.json().catch(() => null), `HTTP ${r.status} ${r.statusText}`));
   return r.json();
 }
 
-// ── init: load homes, pre-select milan ────────────────────────────────────
 async function init() {
   const homes = await get('/api/homes').catch(() => []);
   const sel = $('sel-home');
   sel.innerHTML = '';
   homes.forEach(h => {
     const o = document.createElement('option');
-    o.value = h;
-    o.textContent = h[0].toUpperCase() + h.slice(1);
+    o.value = h; o.textContent = h[0].toUpperCase() + h.slice(1);
     sel.appendChild(o);
   });
-  // pre-select milan if present
   if (homes.includes('milan')) sel.value = 'milan';
   if (sel.value) await onHomeChange(sel.value);
 }
@@ -423,51 +853,61 @@ async function onHomeChange(home) {
     get('/api/checkpoints/' + home).catch(() => []),
     get('/api/splits/'      + home).catch(() => []),
   ]);
-
   const cs = $('sel-ckpt');
   cs.innerHTML = '';
   ckpts.forEach(c => { const o = document.createElement('option'); o.value = c.path; o.textContent = c.name; cs.appendChild(o); });
-  const pref = ckpts.find(c => c.name.includes('rb1') && c.name.includes('fd60') && c.name.includes('projmlp'))
-            || ckpts.find(c => c.name.includes('rb1') && c.name.includes('projmlp'))
-            || ckpts[0];
+  /** Per-home default checkpoint folder name under trained_models/{home}/ */
+  const defaultCkptByHome = { aruba: 'aruba_fd60_seq_rb1_textclip_projmlp_clipmlm_v2' };
+  const want = defaultCkptByHome[home];
+  let pref = want
+    ? (ckpts.find(c => c.name === want) || ckpts.find(c => c.name.includes(want)))
+    : null;
+  if (!pref) {
+    pref = ckpts.find(c => c.name.includes('rb1') && c.name.includes('fd60') && c.name.includes('projmlp'))
+        || ckpts.find(c => c.name.includes('rb1') && c.name.includes('projmlp'))
+        || ckpts[0];
+  }
   if (pref) cs.value = pref.path;
-
   const ss = $('sel-split');
   ss.innerHTML = '';
   splits.forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; ss.appendChild(o); });
   if (splits.includes('FD_60')) ss.value = 'FD_60'; else if (splits[0]) ss.value = splits[0];
-
   checkReady();
 }
 
 function checkReady() {
-  $('btn-go').disabled = !($('sel-home').value && $('sel-ckpt').value && $('sel-split').value && $('inp-q').value.trim());
+  $('btn-go').disabled = !($('sel-home').value && $('sel-ckpt').value && $('sel-split').value && _queries.length > 0);
 }
 
 // ── events ────────────────────────────────────────────────────────────────
 $('sel-home').addEventListener('change', e => { if (e.target.value) onHomeChange(e.target.value); });
 $('sel-ckpt').addEventListener('change', checkReady);
 $('sel-split').addEventListener('change', checkReady);
-$('inp-q').addEventListener('input', checkReady);
-$('inp-q').addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') doRetrieve(); });
+$('btn-add').addEventListener('click', addQuery);
+$('q-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addQuery(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') doRetrieve();
+});
 $('btn-go').addEventListener('click', doRetrieve);
 
 $('pill-thr').addEventListener('click', () => {
-  retrievalMode = 'threshold';
+  _retrievalMode = 'threshold';
   $('pill-thr').classList.add('on'); $('pill-topk').classList.remove('on');
   $('fg-thr').style.display = ''; $('fg-topk').style.display = 'none';
 });
 $('pill-topk').addEventListener('click', () => {
-  retrievalMode = 'topk';
+  _retrievalMode = 'topk';
   $('pill-topk').classList.add('on'); $('pill-thr').classList.remove('on');
   $('fg-topk').style.display = ''; $('fg-thr').style.display = 'none';
 });
-
-$('sl-ma').addEventListener('input', e => { $('ma-val').textContent = e.target.value; });
+// Slider fills are handled via oninput="onSlider(id)" in HTML; init fills on load
+['sl-ma', 'sl-ma-dur'].forEach(id => { const el = $(id); if (el) updateSliderFill(el); });
 $('adv-btn').addEventListener('click', () => {
   $('adv-body').classList.toggle('open');
   $('adv-btn').classList.toggle('open');
 });
+$('hm-all').addEventListener('change', () => { if (_data) redrawHeatmaps(); });
+$('hm-lbl').addEventListener('change', () => { if (_data) redrawHeatmaps(); });
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -475,36 +915,41 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
     btn.classList.add('on');
     $('tp-' + btn.dataset.t).classList.add('on');
-    if (btn.dataset.t === 'heatmap' && hmData) renderHeatmap(hmData);
+    if (btn.dataset.t === 'heatmap' && _data) redrawHeatmaps();
   });
 });
-
-$('hm-all').addEventListener('change', () => { if (hmData) renderHeatmap(hmData); });
-$('hm-lbl').addEventListener('change', () => { if (hmData) renderHeatmap(hmData); });
-$('hm-canvas').addEventListener('mousemove', onHmHover);
-$('hm-canvas').addEventListener('mouseleave', () => { $('hm-tip').style.display = 'none'; });
 
 // ── retrieve ──────────────────────────────────────────────────────────────
 async function doRetrieve() {
   const home  = $('sel-home').value;
   const ckpt  = $('sel-ckpt').value;
   const split = $('sel-split').value;
-  const query = $('inp-q').value.trim();
-  if (!home || !ckpt || !split || !query) return;
+  if (!home || !ckpt || !split || !_queries.length) return;
 
   const body = {
     home, checkpoint: ckpt,
     data_dir: 'data/processed/casas/' + home + '/' + split,
-    split, query,
-    mode:           $('sel-mode').value,
-    time_window:    $('sel-tw').value,
-    ma_window:      +$('sl-ma').value,
-    llm_backend:    $('sel-llm').value,
-    force_rewrite:  $('cb-rw').checked,
-    force_retrieve: $('cb-rt').checked,
+    split,
+    queries: _queries.map(q => ({
+      text:       q.text,
+      filter_tod: q.todFilter,
+      filter_dow: q.dowFilter,
+    })),
+    mode:          $('sel-mode').value,
+    time_window:   $('sel-tw').value,
+    llm_backend:   $('sel-llm').value,
+    force_rewrite: $('cb-rw').checked,
+    force_retrieve:$('cb-rt').checked,
+    strip_temporal:$('cb-st').checked,
   };
-  if (retrievalMode === 'threshold') { body.threshold = +$('inp-thr').value; body.top_k = 10000; }
+  if (_retrievalMode === 'threshold') { body.threshold = +$('inp-thr').value; body.top_k = 10000; }
   else { body.threshold = null; body.top_k = +$('inp-topk').value; }
+
+  const maxSqRaw = $('inp-maxsq').value.trim();
+  if (maxSqRaw !== '') {
+    const n = parseInt(maxSqRaw, 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= 20) body.max_subqueries = n;
+  }
 
   showState('load');
   animateSteps();
@@ -516,9 +961,9 @@ async function doRetrieve() {
     const data = await post('/api/analyze', body);
     renderAll(data);
     showState('results');
-  } catch (err) {
+  } catch(err) {
     showState('results');
-    $('st-results').innerHTML = `<div style="max-width:500px;margin:60px auto;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:13px;line-height:1.6"><strong>Error:</strong> ${esc(err.message)}</div>`;
+    $('st-results').innerHTML = `<div style="max-width:540px;margin:60px auto;padding:20px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:13px;line-height:1.6"><strong>Error:</strong><pre style="margin-top:8px;white-space:pre-wrap;font-family:inherit;font-size:12px">${esc(err.message)}</pre></div>`;
   } finally {
     $('spin').classList.remove('on');
     $('btn-lbl').textContent = 'Retrieve';
@@ -532,28 +977,53 @@ function animateSteps() {
   ['d0','d1','d2','d3'].forEach(id => { const e = $(id); if (e) e.className = 'dot'; });
   let i = 0;
   function next() {
-    if (i > 0) { const e = $('d' + (i - 1)); if (e) e.className = 'dot done'; }
-    if (i < 4)  { const e = $('d' + i);       if (e) e.className = 'dot run'; }
+    if (i > 0) { const e = $('d'+(i-1)); if (e) e.className = 'dot done'; }
+    if (i < 4)  { const e = $('d'+i);     if (e) e.className = 'dot run'; }
     i++;
-    if (i <= 4) _stepTimer = setTimeout(next, 2800 + Math.random() * 1800);
+    if (i <= 4) _stepTimer = setTimeout(next, 2800 + Math.random()*1800);
   }
   next();
 }
 
 // ── render all ────────────────────────────────────────────────────────────
 function renderAll(data) {
-  renderStats(data.stats);
-  renderMeta(data.metadata);
-  renderCharts(data.time_series, data.stats);
-  hmData = data;
-  if ($('tp-heatmap').classList.contains('on')) renderHeatmap(data);
-  renderScores(data.scores);
-  renderDists(data.stats);
-  // cache badge
-  const m = data.metadata;
-  const hits = [m.rewrite_cache_hit && 'rewrite', m.result_cache_hit && 'result'].filter(Boolean);
-  if (hits.length) {
-    $('cache-note').innerHTML = 'Cache: ' + hits.map(h => `<span class="chit">${h}</span>`).join(' ');
+  _data = data;
+  const qs = data.queries || [];
+  const maW = +$('sl-ma').value;
+
+  // Keep LLM card collapsed on each new result
+  const llmCard = $('llm-card');
+  if (llmCard) llmCard.removeAttribute('open');
+
+  // Keep slider fills in sync
+  ['sl-ma', 'sl-ma-dur'].forEach(id => { const el = $(id); if (el) updateSliderFill(el); });
+
+  // Compute fixed y-axis ceilings from raw data (99th percentile across all queries)
+  const allRawCounts = [], allRawDurs = [];
+  qs.forEach(q => {
+    (q.time_series?.counts   || []).forEach(v => allRawCounts.push(v));
+    (q.time_series?.durations || []).forEach(v => allRawDurs.push(v));
+  });
+  _yMaxCounts = Math.max(1, percentile(allRawCounts, 99) * 1.1);
+  _yMaxDurs   = Math.max(1, percentile(allRawDurs,   99) * 1.1);
+
+  renderStats(qs);
+  renderMeta(qs);
+  renderCharts(qs, maW);
+  renderDurationChart(qs, maW);
+  renderHeatmaps(qs);
+  renderScores(qs);
+  renderDists(qs);
+  renderLogs(qs);
+
+  // cache badge (aggregate across queries)
+  const hits = new Set();
+  qs.forEach(q => {
+    if (q.metadata.rewrite_cache_hit) hits.add('rewrite');
+    if (q.metadata.result_cache_hit)  hits.add('result');
+  });
+  if (hits.size) {
+    $('cache-note').innerHTML = 'Cache: ' + [...hits].map(h => `<span class="chit">${h}</span>`).join(' ');
     $('cache-note').classList.add('on');
   } else {
     $('cache-note').classList.remove('on');
@@ -561,145 +1031,399 @@ function renderAll(data) {
 }
 
 // ── stats bar ─────────────────────────────────────────────────────────────
-function renderStats(s) {
-  const tw = s.time_window === 'week' ? 'wk' : 'day';
-  const sm = s.score_mean;
-  let qHtml = '&mdash;';
-  if (sm != null) {
-    const cl  = sm > .20 ? 'ex' : sm > .10 ? 'ok' : 'lo';
-    const lbl = sm > .20 ? '&#10003; Excellent' : sm > .10 ? '~ Decent' : '&#10005; Poor';
-    qHtml = `<span class="squal ${cl}">${lbl}</span>`;
+function renderStats(qs) {
+  if (qs.length === 1) {
+    const s = qs[0].stats;
+    const tw = s.time_window === 'week' ? 'wk' : 'day';
+    const sm = s.score_mean;
+    let qHtml = '&mdash;';
+    if (sm != null) {
+      const cl  = sm > .20 ? 'ex' : sm > .10 ? 'ok' : 'lo';
+      const lbl = sm > .20 ? '&#10003; Excellent' : sm > .10 ? '~ Decent' : '&#10005; Poor';
+      qHtml = `<span class="squal ${cl}">${lbl}</span>`;
+    }
+    const cards = [
+      { l:'Total Results',  v:s.total_results.toLocaleString(), sub:s.dated_results+' with timestamps', c:'c-sky' },
+      { l:'Date Range',     v:s.span_days+'d',                  sub:s.date_range,                       c:'' },
+      { l:`Active ${tw}s`,  v:s.active_periods,                 sub:`avg ${s.avg_per_period.toFixed(1)} / ${tw}`, c:'' },
+      { l:`Peak ${tw}`,     v:s.peak_count,                     sub:s.peak_date,                        c:'c-amber' },
+      { l:'Score Mean',     v:sm!=null?sm.toFixed(3):'&mdash;', sub:qHtml,                              c:'c-green' },
+    ];
+    $('stats-bar').innerHTML = cards.map(c =>
+      `<div class="sc ${c.c}"><div class="sc-lbl">${c.l}</div><div class="sc-val">${c.v}</div><div class="sc-sub">${c.sub}</div></div>`
+    ).join('');
+  } else {
+    // multi-query: one row per query
+    $('stats-bar').innerHTML = `<div class="sc" style="grid-column:1/-1;padding:8px 12px">` +
+      qs.map((q, qi) => {
+        const s = q.stats;
+        const sm = s.score_mean != null ? s.score_mean.toFixed(3) : '—';
+        const shortQ = q.query_label.length > 50 ? q.query_label.slice(0,48)+'\u2026' : q.query_label;
+        return `<div class="qstat-row">
+          <div class="qstat-dot" style="background:${Q_COLORS[qi % Q_COLORS.length]}"></div>
+          <div class="qstat-lbl" title="${esc(q.query_label)}">${esc(shortQ)}</div>
+          <div class="qstat-val"><strong>${s.total_results.toLocaleString()}</strong> results</div>
+          <div class="qstat-val">${esc(s.date_range)}</div>
+          <div class="qstat-val">score ${sm}</div>
+        </div>`;
+      }).join('') + '</div>';
   }
-  const cards = [
-    { l: 'Total Results',  v: s.total_results.toLocaleString(), sub: s.dated_results + ' with timestamps', c: 'c-sky' },
-    { l: 'Date Range',     v: s.span_days + 'd',                sub: s.date_range,                         c: '' },
-    { l: `Active ${tw}s`,  v: s.active_periods,                 sub: `avg ${s.avg_per_period.toFixed(1)} / ${tw}`, c: '' },
-    { l: `Peak ${tw}`,     v: s.peak_count,                     sub: s.peak_date,                           c: 'c-amber' },
-    { l: 'Score Mean',     v: sm != null ? sm.toFixed(3) : '&mdash;', sub: qHtml,                          c: 'c-green' },
-  ];
-  $('stats-bar').innerHTML = cards.map(c =>
-    `<div class="sc ${c.c}"><div class="sc-lbl">${c.l}</div><div class="sc-val">${c.v}</div><div class="sc-sub">${c.sub}</div></div>`
-  ).join('');
 }
 
 // ── metadata card ─────────────────────────────────────────────────────────
-function renderMeta(m) {
-  $('r-query').textContent = `"${m.query}"`;
-  $('r-chips').innerHTML = [
-    `<span class="chip">&#127968; ${m.home} / ${m.split}</span>`,
-    `<span class="chip">&#9881; ${m.rewrite_mode}</span>`,
-    `<span class="chip">&#129302; ${esc(m.model_used)}</span>`,
-    m.rewrite_cache_hit ? '<span class="chip hit">&#10003; rewrite cache</span>' : '',
-    m.result_cache_hit  ? '<span class="chip hit">&#10003; result cache</span>'  : '',
-  ].join('');
-  const reason = (m.reasoning || '').trim();
-  const rsec = $('r-rsec');
-  if (reason) {
-    $('r-reason').textContent = reason;
-    rsec.style.display = '';
-    rsec.open = false; // start collapsed; user can expand
-  } else {
-    rsec.style.display = 'none';
-  }
-  const sents = m.sentences || [];
-  $('r-sents').innerHTML = sents.length
-    ? sents.map((s, i) => `<div class="sent-row"><div class="sent-num">${i + 1}</div><div class="sent-txt">${esc(s)}</div></div>`).join('')
-    : '<span style="color:var(--muted);font-size:13px">No sub-queries generated.</span>';
+function renderMeta(qs) {
+  const body = $('r-meta-body');
+  body.innerHTML = '';
+  qs.forEach((q, qi) => {
+    const m = q.metadata;
+    const wrap = document.createElement('div');
+    wrap.className = 'q-meta-sec';
+    if (qs.length > 1) wrap.style.borderLeftColor = Q_COLORS[qi % Q_COLORS.length];
+
+    const filters = [];
+    if (m.filter_tod?.length) filters.push('ToD: ' + m.filter_tod.join(', '));
+    if (m.filter_dow?.length) filters.push('DoW: ' + m.filter_dow.join(', '));
+    const filterChips = filters.map(f => `<span class="chip">${esc(f)}</span>`).join('');
+
+    const reason = (m.reasoning || '').trim();
+    const reasonHtml = reason
+      ? `<details class="coll" style="margin-bottom:12px">
+           <summary><span class="arr">&#9658;</span> LLM Reasoning</summary>
+           <div class="coll-body">${esc(reason)}</div>
+         </details>`
+      : '';
+    const sents = m.sentences || [];
+    const sentsHtml = sents.length
+      ? `<div class="clabel" style="margin-top:4px">Retrieval Sub-queries</div>
+         <div class="sent-list">${
+           sents.map((s, i) => `<div class="sent-row"><div class="sent-num">${i+1}</div><div class="sent-txt">${esc(s)}</div></div>`).join('')
+         }</div>`
+      : '';
+
+    wrap.innerHTML = (qs.length > 1 ? `<div class="q-meta-hdr">"${esc(m.query)}"</div>` : `<div class="q-text">"${esc(m.query)}"</div>`) +
+      `<div class="chips">
+         <span class="chip">&#127968; ${esc(m.home)} / ${esc(m.split)}</span>
+         <span class="chip">&#9881; ${esc(m.rewrite_mode)}</span>
+         ${m.max_subqueries_effective != null ? `<span class="chip">&#128196; ${m.max_subqueries_effective} sub-q max</span>` : ''}
+         <span class="chip">&#129302; ${esc(m.model_used)}</span>
+         ${m.rewrite_cache_hit ? '<span class="chip hit">&#10003; rewrite cache</span>' : ''}
+         ${m.result_cache_hit  ? '<span class="chip hit">&#10003; result cache</span>'  : ''}
+         ${filterChips}
+       </div>` +
+      reasonHtml + sentsHtml;
+    body.appendChild(wrap);
+  });
 }
 
-// ── longitudinal charts ───────────────────────────────────────────────────
-function renderCharts(ts, stats) {
-  ['ch-counts', 'ch-durations'].forEach(id => { if (charts[id]) { charts[id].destroy(); delete charts[id]; } });
-  const tw = stats.time_window;
-  $('lbl-c1').textContent = `Matched Samples per ${tw === 'week' ? 'Week' : 'Day'}`;
-  $('lbl-c2').textContent = `Activity Duration per ${tw === 'week' ? 'Week' : 'Day'} (min)`;
-
-  function band(ma, std, color) {
-    const upper = ma.map((v, i) => v != null ? v + (std[i] || 0) : null);
-    const lower = ma.map((v, i) => v != null ? Math.max(0, v - (std[i] || 0)) : null);
-    return [
-      { type: 'line', label: 'Moving Avg', data: ma, borderColor: color, borderWidth: 2.5,
-        fill: false, pointRadius: 0, tension: .3, spanGaps: false, order: 1 },
-      { type: 'line', label: '_u', data: upper, borderColor: 'transparent',
-        backgroundColor: hexA(color, .13), fill: '+1', pointRadius: 0, tension: .3, spanGaps: false, order: 2 },
-      { type: 'line', label: '_l', data: lower, borderColor: 'transparent',
-        backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: .3, spanGaps: false, order: 2 },
-    ];
-  }
-
-  function mkChart(id, counts, ma, std, color, barLabel, yLabel) {
-    charts[id] = new Chart($(id).getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: ts.dates,
-        datasets: [
-          { type: 'bar', label: barLabel, data: counts,
-            backgroundColor: 'rgba(148,163,184,.22)', borderColor: 'rgba(148,163,184,.35)',
-            borderWidth: 1, borderRadius: 2, order: 3 },
-          ...band(ma, std, color),
-        ],
-      },
-      options: {
-        responsive: true, animation: { duration: 400 },
-        plugins: {
-          legend: { labels: { filter: i => !i.text.startsWith('_'), font: { size: 11 }, color: '#64748b', boxWidth: 11 } },
-          tooltip: { callbacks: { label: c => c.dataset.label.startsWith('_') ? null : ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(1) : 'n/a'}` } },
-        },
-        scales: {
-          x: { ticks: { maxTicksLimit: 14, font: { size: 10 }, color: '#94a3b8', maxRotation: 35 }, grid: { display: false } },
-          y: { beginAtZero: true, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' },
-               title: { display: true, text: yLabel, font: { size: 10 }, color: '#94a3b8' } },
-        },
-      },
+// ── trend charts ──────────────────────────────────────────────────────────
+function _buildCountsDatasets(qs, allDates, maW) {
+  const clp = v => v != null ? Math.min(v, _yMaxCounts ?? Infinity) : null;
+  const isMulti = qs.length > 1;
+  const timelines = qs.map((q, qi) => {
+    const map = {};
+    (q.time_series?.dates || []).forEach((d, i) => { map[d] = q.time_series.counts[i]; });
+    const raw = allDates.map(d => map[d] ?? 0);
+    return { raw, color: Q_COLORS[qi % Q_COLORS.length], label: qDisplayLabel(q, true) };
+  });
+  const datasets = [];
+  if (!isMulti && timelines.length) {
+    const qt = timelines[0];
+    datasets.push({ type:'bar', label:'Daily count', data:qt.raw.map(v => Math.min(v, _yMaxCounts ?? Infinity)),
+      backgroundColor:'rgba(148,163,184,.22)', borderColor:'rgba(148,163,184,.35)',
+      borderWidth:1, borderRadius:2, order:3 });
+    datasets.push({ type:'line', label:'_q1', data:rollingQ(qt.raw, maW, 0.25).map(clp),
+      borderColor:'transparent', backgroundColor:'transparent',
+      fill:false, pointRadius:0, tension:.3, spanGaps:true, order:2 });
+    datasets.push({ type:'line', label:'_q3', data:rollingQ(qt.raw, maW, 0.75).map(clp),
+      borderColor:'transparent', backgroundColor:hexA(qt.color, .18),
+      fill:'-1', pointRadius:0, tension:.3, spanGaps:true, order:2 });
+    datasets.push({ type:'line', label:'Moving Avg', data:computeMA(qt.raw, maW).map(clp),
+      borderColor:qt.color, borderWidth:2.5, fill:false, pointRadius:0,
+      tension:.3, spanGaps:false, order:1 });
+  } else {
+    timelines.forEach((qt, qi) => {
+      datasets.push({ type:'line', label:'_q1_'+qi, data:rollingQ(qt.raw, maW, 0.25).map(clp),
+        borderColor:'transparent', backgroundColor:'transparent',
+        fill:false, pointRadius:0, tension:.3, spanGaps:true, order:2 });
+      datasets.push({ type:'line', label:'_q3_'+qi, data:rollingQ(qt.raw, maW, 0.75).map(clp),
+        borderColor:'transparent', backgroundColor:hexA(qt.color, .14),
+        fill:'-1', pointRadius:0, tension:.3, spanGaps:true, order:2 });
+      datasets.push({ type:'line', label:qt.label, data:computeMA(qt.raw, maW).map(clp),
+        borderColor:qt.color, borderWidth:2.5, fill:false, pointRadius:0,
+        tension:.3, spanGaps:false, order:1 });
     });
   }
-
-  mkChart('ch-counts',    ts.counts,    ts.ma_counts,    ts.std_counts,             '#0ea5e9', 'Samples',  'count');
-  mkChart('ch-durations', ts.durations, ts.ma_durations, ts.counts.map(() => 0),    '#f59e0b', 'Duration', 'min');
+  return datasets;
 }
 
-// ── score histogram ───────────────────────────────────────────────────────
-function renderScores(scores) {
-  if (charts['ch-scores']) { charts['ch-scores'].destroy(); delete charts['ch-scores']; }
-  if (!scores?.length) return;
-  const bins = Math.min(50, Math.max(15, Math.floor(scores.length / 4)));
-  const mn = Math.min(...scores), mx = Math.max(...scores), bw = (mx - mn) / bins || .01;
-  const buckets = Array(bins).fill(0);
-  const labels  = Array.from({ length: bins }, (_, i) => (mn + (i + .5) * bw).toFixed(3));
-  scores.forEach(s => { buckets[Math.min(bins - 1, Math.floor((s - mn) / bw))]++; });
-  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const med  = [...scores].sort((a, b) => a - b)[Math.floor(scores.length / 2)];
-  charts['ch-scores'] = new Chart($('ch-scores').getContext('2d'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'Count', data: buckets, borderColor: 'transparent', borderRadius: 2,
-      backgroundColor: buckets.map((_, i) => {
-        const x = mn + i * bw;
-        return Math.abs(x - mean) < bw ? '#ef4444' : Math.abs(x - med) < bw ? '#f59e0b' : 'rgba(14,165,233,.7)';
-      }) }] },
-    options: {
-      responsive: true, animation: { duration: 400 },
-      plugins: {
-        legend: { display: false },
-        title: { display: true, text: `Score Distribution  (n=${scores.length}   mean=${mean.toFixed(3)}   median=${med.toFixed(3)})`, font: { size: 12 }, color: '#475569' },
-        tooltip: { callbacks: { title: c => `score \u2248 ${c[0].label}`, label: c => ` count: ${c.parsed.y}` } },
+function _buildStdDatasets(qs, allDates, maW) {
+  return qs.map((q, qi) => {
+    const map = {};
+    (q.time_series?.dates || []).forEach((d, i) => { map[d] = q.time_series.counts[i]; });
+    return { type:'line', label:qDisplayLabel(q, true),
+      data:rollingStd(allDates.map(d => map[d] ?? 0), maW),
+      borderColor:Q_COLORS[qi % Q_COLORS.length], borderWidth:2,
+      fill:false, pointRadius:0, tension:.3, spanGaps:false, order:1 };
+  });
+}
+
+function renderCharts(qs, maW) {
+  ['ch-counts','ch-weekly'].forEach(id => { if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; } });
+
+  const allDatesSet = new Set();
+  qs.forEach(q => (q.time_series?.dates || []).forEach(d => allDatesSet.add(d)));
+  const allDates = [...allDatesSet].sort();
+
+  const yMax = _yMaxCounts ?? undefined;
+  const countOpts = {
+    responsive:true, animation:{ duration:350, easing:'easeInOutCubic' },
+    plugins:{
+      legend:{ labels:{ filter:i => !i.text.startsWith('_'), font:{size:11}, color:'#64748b', boxWidth:11 } },
+      tooltip:{ callbacks:{ label:c => c.dataset.label.startsWith('_')?null:` ${c.dataset.label}: ${c.parsed.y!=null?c.parsed.y.toFixed(1):'n/a'}`, filter:c => !c.dataset.label.startsWith('_') } },
+    },
+    scales:{
+      x:{ ticks:{maxTicksLimit:14,font:{size:10},color:'#94a3b8',maxRotation:35}, grid:{display:false} },
+      y:{ beginAtZero:true, max:yMax, ticks:{font:{size:10},color:'#94a3b8'}, grid:{color:'#f1f5f9'},
+          title:{display:true,text:'samples / day',font:{size:10},color:'#94a3b8'} },
+    },
+  };
+
+  _charts['ch-counts'] = new Chart($('ch-counts').getContext('2d'), {
+    type:'bar',
+    data:{ labels:allDates, datasets:_buildCountsDatasets(qs, allDates, maW) },
+    options: countOpts,
+  });
+
+  _charts['ch-weekly'] = new Chart($('ch-weekly').getContext('2d'), {
+    type:'line',
+    data:{ labels:allDates, datasets:_buildStdDatasets(qs, allDates, maW) },
+    options:{
+      responsive:true, animation:{ duration:350, easing:'easeInOutCubic' },
+      plugins:{
+        legend:{ display:qs.length>1, labels:{font:{size:11},color:'#64748b',boxWidth:11} },
+        tooltip:{ callbacks:{ label:c => ` ${c.dataset.label}: ${c.parsed.y!=null?c.parsed.y.toFixed(2):'n/a'}` } },
       },
-      scales: {
-        x: { ticks: { maxTicksLimit: 10, font: { size: 10 }, color: '#94a3b8' }, grid: { display: false },
-             title: { display: true, text: 'Cosine similarity', font: { size: 10 }, color: '#94a3b8' } },
-        y: { beginAtZero: true, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } },
+      scales:{
+        x:{ ticks:{maxTicksLimit:14,font:{size:10},color:'#94a3b8',maxRotation:35}, grid:{display:false} },
+        y:{ beginAtZero:true, ticks:{font:{size:10},color:'#94a3b8'}, grid:{color:'#f1f5f9'},
+            title:{display:true,text:'std dev (samples)',font:{size:10},color:'#94a3b8'} },
       },
     },
   });
 }
 
-// ── heatmap ───────────────────────────────────────────────────────────────
-function renderHeatmap(data) {
-  const canvas  = $('hm-canvas');
+// ── duration chart ────────────────────────────────────────────────────────
+function _buildDurDatasets(qs, allDates, maW) {
+  const clp = v => v != null ? Math.min(v, _yMaxDurs ?? Infinity) : null;
+  const isMulti = qs.length > 1;
+  const datasets = [];
+  qs.forEach((q, qi) => {
+    const map = {};
+    (q.time_series?.dates || []).forEach((d, i) => { map[d] = q.time_series.durations[i]; });
+    const raw = allDates.map(d => map[d] ?? 0);
+    const color = Q_COLORS[qi % Q_COLORS.length];
+    if (!isMulti) {
+      datasets.push({ type:'bar', label:'Duration (min)', data:raw.map(v => Math.min(v, _yMaxDurs ?? Infinity)),
+        backgroundColor:'rgba(245,158,11,.18)', borderColor:'rgba(245,158,11,.30)',
+        borderWidth:1, borderRadius:2, order:2 });
+    }
+    const lbl = isMulti ? qDisplayLabel(q, true) : 'Moving Avg';
+    datasets.push({ type:'line', label:lbl, data:computeMA(raw, maW).map(clp),
+      borderColor:color, borderWidth:2.5, fill:false, pointRadius:0, tension:.3, spanGaps:false, order:1 });
+  });
+  return datasets;
+}
+
+function renderDurationChart(qs, maW) {
+  if (_charts['ch-dur']) { _charts['ch-dur'].destroy(); delete _charts['ch-dur']; }
+  const isMulti = qs.length > 1;
+
+  const allDatesSet = new Set();
+  qs.forEach(q => (q.time_series?.dates || []).forEach(d => allDatesSet.add(d)));
+  const allDates = [...allDatesSet].sort();
+
+  _charts['ch-dur'] = new Chart($('ch-dur').getContext('2d'), {
+    type:'bar',
+    data:{ labels:allDates, datasets:_buildDurDatasets(qs, allDates, maW) },
+    options:{
+      responsive:true, animation:{ duration:350, easing:'easeInOutCubic' },
+      plugins:{
+        legend:{ display:isMulti, labels:{font:{size:11},color:'#64748b',boxWidth:11} },
+        tooltip:{ callbacks:{ label:c => ` ${c.dataset.label}: ${c.parsed.y!=null?c.parsed.y.toFixed(1):'n/a'} min` } },
+      },
+      scales:{
+        x:{ ticks:{maxTicksLimit:14,font:{size:10},color:'#94a3b8',maxRotation:35}, grid:{display:false} },
+        y:{ beginAtZero:true, max:_yMaxDurs??undefined,
+            ticks:{font:{size:10},color:'#94a3b8'}, grid:{color:'#f1f5f9'},
+            title:{display:true,text:'minutes / day',font:{size:10},color:'#94a3b8'} },
+      },
+    },
+  });
+}
+
+// ── score histograms ──────────────────────────────────────────────────────
+function renderScores(qs) {
+  // destroy old dynamically created charts
+  Object.keys(_charts).filter(k => k.startsWith('ch-scores-')).forEach(k => {
+    _charts[k].destroy(); delete _charts[k];
+  });
+  const container = $('scores-container');
+  container.innerHTML = '';
+
+  qs.forEach((q, qi) => {
+    const scores = q.scores || [];
+    if (!scores.length) return;
+    const section = document.createElement('div');
+    section.className = 'score-section';
+    if (qs.length > 1) {
+      section.innerHTML = `<div class="score-qhdr" style="border-left:3px solid ${Q_COLORS[qi % Q_COLORS.length]}">"${esc(qDisplayLabel(q))}"</div>`;
+    }
+    const cid = `ch-scores-${qi}`;
+    const canvas = document.createElement('canvas');
+    canvas.id = cid; canvas.height = 130;
+    section.appendChild(canvas);
+    container.appendChild(section);
+
+    const bins = Math.min(50, Math.max(15, Math.floor(scores.length/4)));
+    const mn = Math.min(...scores), mx = Math.max(...scores), bw = (mx-mn)/bins || .01;
+    const buckets = Array(bins).fill(0);
+    const labels  = Array.from({length:bins}, (_,i) => (mn+(i+.5)*bw).toFixed(3));
+    scores.forEach(s => { buckets[Math.min(bins-1, Math.floor((s-mn)/bw))]++; });
+    const mean = scores.reduce((a,b)=>a+b,0)/scores.length;
+    const med  = [...scores].sort((a,b)=>a-b)[Math.floor(scores.length/2)];
+    const qcolor = Q_COLORS[qi % Q_COLORS.length];
+
+    _charts[cid] = new Chart(canvas.getContext('2d'), {
+      type:'bar',
+      data:{ labels, datasets:[{ label:'Count', data:buckets, borderRadius:2, borderColor:'transparent',
+        backgroundColor:buckets.map((_,i) => {
+          const x = mn+i*bw;
+          return Math.abs(x-mean)<bw ? '#ef4444' : Math.abs(x-med)<bw ? '#f59e0b' : hexA(qcolor,.65);
+        })}] },
+      options:{
+        responsive:true, animation:{duration:200},
+        plugins:{
+          legend:{display:false},
+          title:{display:true, text:`n=${scores.length}  mean=${mean.toFixed(3)}  median=${med.toFixed(3)}`, font:{size:11}, color:'#475569'},
+          tooltip:{callbacks:{ title:c=>`score \u2248 ${c[0].label}`, label:c=>` count: ${c.parsed.y}` }},
+        },
+        scales:{
+          x:{ ticks:{maxTicksLimit:10,font:{size:10},color:'#94a3b8'}, grid:{display:false},
+              title:{display:true,text:'Cosine similarity',font:{size:10},color:'#94a3b8'} },
+          y:{ beginAtZero:true, ticks:{font:{size:10},color:'#94a3b8'}, grid:{color:'#f1f5f9'} },
+        },
+      },
+    });
+  });
+}
+
+// ── logs tab ──────────────────────────────────────────────────────────────
+function renderLogs(qs) {
+  const container = $('logs-container');
+  container.innerHTML = '';
+
+  const allEmpty = qs.every(q => !(q.logs?.length));
+  if (allEmpty) {
+    container.innerHTML = '<div class="log-empty">No logs returned for this run.</div>';
+    return;
+  }
+
+  qs.forEach((q, qi) => {
+    const lines = q.logs || [];
+    const block = document.createElement('div');
+    block.className = 'log-query-block';
+
+    const color = Q_COLORS[qi % Q_COLORS.length];
+    const lbl = qs.length > 1 ? `"${esc(qDisplayLabel(q))}"` : 'Query Log';
+
+    // warn about 0 results
+    const n = q.stats?.total_results ?? 0;
+    const zeroHint = n === 0
+      ? ` <span style="color:#ef4444;font-weight:600;">⚠ 0 results — try Multi Location mode or check threshold</span>`
+      : '';
+
+    block.innerHTML = `<div class="log-query-hdr">
+      <span class="log-dot" style="background:${color}"></span>
+      ${esc(lbl)}${zeroHint}
+    </div>`;
+
+    if (!lines.length) {
+      const e = document.createElement('div');
+      e.className = 'log-empty';
+      e.textContent = '(no log lines — unexpected)';
+      block.appendChild(e);
+    } else {
+      lines.forEach((raw, i) => {
+        const div = document.createElement('div');
+        div.className = 'log-line';
+
+        // classify line for styling
+        const lo = raw.toLowerCase();
+        if (/^={3,}/.test(raw) || /^-{3,}/.test(raw) || /^[\u2500\u2014─]{2,}/.test(raw.trim()))
+          div.classList.add('sep');
+        else if (/cache hit/.test(lo))                        div.classList.add('cache');
+        else if (/warning|warn/.test(lo))                     div.classList.add('warn');
+        else if (/error|exception/.test(lo))                  div.classList.add('error');
+        else if (/\d+\s+sample/.test(lo) || /results?:/.test(lo) || /faiss results/i.test(raw))
+          div.classList.add('result');
+        else if (/max_subquer/i.test(raw))
+          div.classList.add('subq');
+
+        // syntax-colour the text
+        const html = esc(raw)
+          .replace(/(\[Dashboard\]|\[SmartQuery\]|\[LLMRewriter\]|\[merge\]|\[LongitudinalAnalyzer\])/g,
+                   '<span class="log-key">$1</span>')
+          .replace(/(\b\d+\.\d+\b|\b\d{3,}\b)/g, '<span class="log-val">$1</span>');
+
+        div.innerHTML = `<span class="log-lnum">${i + 1}</span><span class="log-txt">${html}</span>`;
+        block.appendChild(div);
+      });
+    }
+
+    container.appendChild(block);
+  });
+}
+
+// ── heatmaps ──────────────────────────────────────────────────────────────
+function renderHeatmaps(qs) {
+  _hmHits = [];
+  const container = $('hm-container');
+  container.innerHTML = '';
+
+  qs.forEach((q, qi) => {
+    _hmHits.push([]);
+    const section = document.createElement('div');
+    section.className = 'hm-section';
+    if (qs.length > 1) {
+      section.innerHTML = `<div class="hm-qhdr" style="border-left:3px solid ${Q_COLORS[qi % Q_COLORS.length]}">"${esc(qDisplayLabel(q))}"</div>`;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.className = 'hm-canvas-el';
+    section.appendChild(canvas);
+    container.appendChild(section);
+
+    drawHeatmap(canvas, qi, q.sensor_data, q.floor_plan);
+    canvas.addEventListener('mousemove', e => onHmHover(e, qi, canvas));
+    canvas.addEventListener('mouseleave', () => { $('hm-tip').style.display = 'none'; });
+  });
+}
+
+function redrawHeatmaps() {
+  if (!_data) return;
+  _data.queries.forEach((q, qi) => {
+    const sections = $('hm-container').querySelectorAll('.hm-section');
+    if (sections[qi]) {
+      const canvas = sections[qi].querySelector('canvas');
+      if (canvas) drawHeatmap(canvas, qi, q.sensor_data, q.floor_plan);
+    }
+  });
+}
+
+function drawHeatmap(canvas, qi, sensors, fp) {
   const ctx     = canvas.getContext('2d');
-  const fp      = data.floor_plan;
-  const sensors = data.sensor_data;
   const showAll = $('hm-all').checked;
   const showLbl = $('hm-lbl').checked;
+  if (!_hmHits[qi]) _hmHits[qi] = [];
 
   const img = new Image();
   img.onload = () => {
@@ -713,58 +1437,57 @@ function renderHeatmap(data) {
     ctx.globalAlpha = 1;
 
     const maxCnt = Math.max(1, ...Object.values(sensors).map(s => s.count));
-    hmHits = [];
+    _hmHits[qi] = [];
 
     for (const [sid, s] of Object.entries(sensors)) {
       if (!s.count) continue;
       const cx = s.x * scale, cy = s.y_flip * scale;
       const n = s.count / maxCnt;
-      const r = (16 + 64 * n) * Math.min(scale, 1.5);
-      const a = .15 + .60 * n;
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      const r = (16 + 64*n) * Math.min(scale, 1.5);
+      const a = .15 + .60*n;
+      const g = ctx.createRadialGradient(cx,cy,0, cx,cy,r);
       g.addColorStop(0,   `rgba(239,68,68,${a})`);
-      g.addColorStop(.45, `rgba(251,146,60,${a * .65})`);
-      g.addColorStop(.85, `rgba(253,224,71,${a * .25})`);
+      g.addColorStop(.45, `rgba(251,146,60,${a*.65})`);
+      g.addColorStop(.85, `rgba(253,224,71,${a*.25})`);
       g.addColorStop(1,   'rgba(253,224,71,0)');
       ctx.globalCompositeOperation = 'multiply';
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
-      hmHits.push({ sid, cx, cy, r: Math.max(r, 10), s });
+      _hmHits[qi].push({ sid, cx, cy, r:Math.max(r,10), s });
     }
-
     for (const [sid, s] of Object.entries(sensors)) {
       const active = s.count > 0;
       if (!showAll && !active) continue;
       const cx = s.x * scale, cy = s.y_flip * scale;
-      ctx.beginPath(); ctx.arc(cx, cy, active ? 4 : 2.5, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(cx,cy,active?4:2.5,0,Math.PI*2);
       ctx.fillStyle = active ? '#7f1d1d' : '#1e3a5f';
       ctx.globalAlpha = active ? .9 : .32;
       ctx.fill(); ctx.globalAlpha = 1;
       if (showLbl) {
-        const fs = Math.max(7, Math.min(11, 9 * scale));
-        ctx.font = `${active ? 600 : 400} ${fs}px Inter,sans-serif`;
+        const fs = Math.max(7, Math.min(11, 9*scale));
+        ctx.font = `${active?600:400} ${fs}px Inter,sans-serif`;
         ctx.fillStyle = active ? '#7f1d1d' : '#334155';
         ctx.globalAlpha = active ? .9 : .38;
         ctx.textAlign = 'center';
-        ctx.fillText(active ? `${sid}(${s.count})` : sid, cx, cy - 7);
+        ctx.fillText(active ? `${sid}(${s.count})` : sid, cx, cy-7);
         ctx.globalAlpha = 1;
       }
-      if (!hmHits.find(h => h.sid === sid)) hmHits.push({ sid, cx, cy, r: 10, s });
+      if (!_hmHits[qi].find(h => h.sid === sid)) _hmHits[qi].push({ sid, cx, cy, r:10, s });
     }
   };
   img.src = fp.url;
 }
 
-function onHmHover(e) {
-  const canvas = $('hm-canvas');
+function onHmHover(e, qi, canvas) {
   const rect = canvas.getBoundingClientRect();
   const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
   const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
   const tip = $('hm-tip');
-  for (const h of hmHits) {
+  const hits = _hmHits[qi] || [];
+  for (const h of hits) {
     const dx = mx - h.cx, dy = my - h.cy;
-    if (Math.sqrt(dx * dx + dy * dy) < h.r + 8) {
+    if (Math.sqrt(dx*dx + dy*dy) < h.r + 8) {
       const loc = h.s.location ? `<span style="color:#94a3b8">${h.s.location.replace(/_/g,' ')}</span><br>` : '';
       tip.innerHTML = `<strong>${esc(h.sid)}</strong>${loc}Activations: <strong style="color:#fbbf24">${h.s.count}</strong>`;
       tip.style.display = 'block';
@@ -777,39 +1500,46 @@ function onHmHover(e) {
 }
 
 // ── distributions ─────────────────────────────────────────────────────────
-function renderDists(stats) {
+function renderDists(qs) {
+  const container = $('r-dists');
+  container.innerHTML = '';
   const dow = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const secs = [
-    { title: '&#127991; Activity Labels', rows: topN(stats.labels, 10),  color: () => '' },
-    { title: '&#128226; Rooms',           rows: topN(stats.rooms,  10),  color: () => '' },
-    { title: '&#128336; Time of Day',
-      rows: ['Morning','Afternoon','Evening','Night'].map(k => [k, stats.time_of_day[k] || 0]),
-      color: k => k.toLowerCase() },
-    { title: '&#128197; Day of Week',
-      rows: dow.map(k => [k, stats.day_of_week[k] || 0]),
-      color: k => (k === 'Sat' || k === 'Sun') ? 'weekend' : '' },
-  ];
-  $('r-dists').innerHTML = secs.map(sec => {
-    const mx = Math.max(1, ...sec.rows.map(r => r[1]));
-    return `<div class="dist-sec"><h4>${sec.title}</h4>` +
-      sec.rows.map(([k, v]) =>
-        `<div class="dist-row">
-           <div class="dist-lbl" title="${esc(k)}">${esc(k)}</div>
-           <div class="dist-bw"><div class="dist-b ${sec.color(k)}" style="width:${(v / mx * 100).toFixed(1)}%"></div></div>
-           <div class="dist-cnt">${v}</div>
-         </div>`
-      ).join('') + '</div>';
-  }).join('');
-}
 
-// ── helpers ───────────────────────────────────────────────────────────────
-function topN(obj, n) { return Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, n); }
-function hexA(hex, a) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  qs.forEach((q, qi) => {
+    const s = q.stats;
+    if (qs.length > 1) {
+      const hdr = document.createElement('div');
+      hdr.className = 'dist-qhdr';
+      hdr.style.borderLeftColor = Q_COLORS[qi % Q_COLORS.length];
+      hdr.textContent = `"${q.query_label}"`;
+      container.appendChild(hdr);
+    }
+    const grid = document.createElement('div');
+    grid.className = 'dist-grid';
+
+    const secs = [
+      { title:'&#127991; Activity Labels', rows:topN(s.labels, 10),  color:()=>'' },
+      { title:'&#128226; Rooms',           rows:topN(s.rooms,  10),  color:()=>'' },
+      { title:'&#128336; Time of Day',
+        rows:['Morning','Afternoon','Evening','Night'].map(k=>[k, s.time_of_day[k]||0]),
+        color:k=>k.toLowerCase() },
+      { title:'&#128197; Day of Week',
+        rows:dow.map(k=>[k, s.day_of_week[k]||0]),
+        color:k=>(k==='Sat'||k==='Sun')?'weekend':'' },
+    ];
+    grid.innerHTML = secs.map(sec => {
+      const mx = Math.max(1, ...sec.rows.map(r=>r[1]));
+      return `<div class="dist-sec"><h4>${sec.title}</h4>` +
+        sec.rows.map(([k,v]) =>
+          `<div class="dist-row">
+             <div class="dist-lbl" title="${esc(k)}">${esc(k)}</div>
+             <div class="dist-bw"><div class="dist-b ${sec.color(k)}" style="width:${(v/mx*100).toFixed(1)}%"></div></div>
+             <div class="dist-cnt">${v}</div>
+           </div>`
+        ).join('') + '</div>';
+    }).join('');
+    container.appendChild(grid);
+  });
 }
 
 init();

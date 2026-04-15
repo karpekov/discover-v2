@@ -12,9 +12,11 @@ Start with:
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import sys
 from collections import Counter, defaultdict
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,7 +26,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Path setup
@@ -37,6 +39,142 @@ _SRC = _ROOT / "src"
 for _p in (str(_SRC), str(_ROOT)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+from query.llm_rewriter import resolve_max_subqueries  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Per-query log capture (redirects stdout in the calling thread)
+# ---------------------------------------------------------------------------
+
+@contextmanager
+def _capture_stdout():
+    """Temporarily redirect sys.stdout to a buffer in the calling thread."""
+    buf = io.StringIO()
+    old = sys.stdout
+    sys.stdout = buf
+    try:
+        yield buf
+    finally:
+        sys.stdout = old
+
+
+def _parse_logs(raw: str) -> List[str]:
+    """Split raw captured output into non-empty lines."""
+    return [ln for ln in raw.splitlines() if ln.strip()]
+
+
+def _synthetic_query_logs(
+    out: Dict[str, Any],
+    req: AnalyzeRequest,
+    qi: QueryItem,
+    sq: Any,
+) -> List[str]:
+    """
+    Structured log lines for the dashboard Logs tab — always populated from the
+    query result dict, so cache hits still show what ran even if stdout capture is empty.
+    """
+    lines: List[str] = []
+    lines.append("[Dashboard] Retrieval summary")
+    lines.append(f"  query            : {qi.text!r}")
+    lines.append(f"  home             : {req.home}  |  split: {req.split}")
+    lines.append(f"  data_dir         : {req.data_dir or '(custom test_data)'}")
+    lines.append(f"  checkpoint       : {req.checkpoint}")
+
+    n_resolved = resolve_max_subqueries(req.mode, req.max_subqueries)  # type: ignore[arg-type]
+    n_payload = out.get("max_subqueries_effective")
+    n_eff = int(n_payload) if n_payload is not None else n_resolved
+    eff_mode = f"{req.mode}_st" if req.strip_temporal else req.mode
+    if req.mode != "single":
+        eff_mode = f"{eff_mode}_nq{n_eff}"
+    lines.append(
+        f"  rewrite_mode     : {req.mode}  |  LLM cache key suffix: {eff_mode!r} "
+        f"(strip_temporal={req.strip_temporal})"
+    )
+    # Max sub-queries (LLM sentence cap) — full detail for Logs tab debugging
+    _def = (
+        "1 (single)"
+        if req.mode == "single"
+        else ("8 (multi_location default)" if req.mode == "multi_location" else "6 (multi_wording default)")
+    )
+    lines.append(
+        f"  max_subqueries     : API / request    = {req.max_subqueries!r}  "
+        f"({'use default ' + _def if req.max_subqueries is None else 'user override'})"
+    )
+    lines.append(
+        f"  max_subqueries     : effective cap    = {n_eff}  "
+        f"(from SmartQuery; same N used in rewrite + result cache partition)"
+    )
+    lines.append(
+        f"  max_subqueries     : sentences used   = {len(out.get('sentences') or [])}  "
+        f"(after LLM parse + truncate to cap)"
+    )
+    lines.append(f"  strip_temporal   : {req.strip_temporal}")
+    lines.append(f"  force_rewrite    : {req.force_rewrite}  |  force_retrieve: {req.force_retrieve}")
+
+    if qi.filter_tod:
+        lines.append(f"  filter ToD       : {qi.filter_tod}")
+    if qi.filter_dow:
+        lines.append(f"  filter DoW       : {qi.filter_dow}")
+
+    rw_hit = bool(out.get("rewrite_cache_hit"))
+    model_used = (out.get("model_used") or "").strip()
+    if rw_hit:
+        lines.append("  LLM rewrite      : CACHE HIT — sentences loaded from query_cache (queries.db)")
+        if model_used:
+            lines.append(f"  model_used       : {model_used}")
+        else:
+            lines.append("  model_used       : (not recorded for cached rewrite)")
+    else:
+        lines.append(
+            "  LLM rewrite      : fresh call"
+            + (f" — {model_used}" if model_used else " — (passthrough or no rewriter)")
+        )
+
+    reason = (out.get("reasoning") or "").strip()
+    if reason:
+        preview = reason.replace("\n", " ")[:200]
+        if len(reason) > 200:
+            preview += "…"
+        lines.append(f"  reasoning (clip) : {preview}")
+
+    sents = out.get("sentences") or []
+    lines.append(f"  sub-queries      : {len(sents)} sentence(s) used for FAISS")
+    for i, s in enumerate(sents, 1):
+        lines.append(f"    [{i}] {s}")
+
+    if req.threshold is not None:
+        lines.append(f"  retrieval        : threshold >= {req.threshold}  (top_k cap {req.top_k})")
+    else:
+        lines.append(f"  retrieval        : top_k = {req.top_k}")
+
+    res_hit = bool(out.get("result_cache_hit"))
+    results = out.get("results") or []
+    if res_hit:
+        lines.append(f"  FAISS results    : CACHE HIT — {len(results)} sample(s) from result_cache")
+    else:
+        lines.append(f"  FAISS results    : fresh search — {len(results)} sample(s) returned")
+
+    try:
+        ck_key = sq._checkpoint_key()
+        lines.append(f"  result cache key : checkpoint digest = {ck_key}")
+    except Exception:
+        pass
+
+    if results:
+        lines.append("  top matches (preview):")
+        for r in results[:5]:
+            labels = r.get("labels") or {}
+            sid = labels.get("sample_id", "?")
+            sc = float(r.get("score") or 0.0)
+            rk = r.get("rank", "?")
+            lines.append(f"    rank {rk}  score={sc:.4f}  {sid}")
+        if len(results) > 5:
+            lines.append(f"    … {len(results) - 5} more (see charts / export)")
+    else:
+        lines.append("  top matches      : (none — try lower threshold, Multi Location, or Force retrieve)")
+
+    return lines
+
 
 # ---------------------------------------------------------------------------
 # FastAPI app
@@ -194,25 +332,55 @@ def get_sensor_info(home: str):
 # Analyze request model
 # ---------------------------------------------------------------------------
 
+class QueryItem(BaseModel):
+    """A single query with its own optional rule-based filters."""
+    text: str
+    filter_tod: Optional[List[str]] = None   # e.g. ["night", "evening"]
+    filter_dow: Optional[List[str]] = None   # e.g. ["mon", "tue"] or ["weekday"]
+
+
 class AnalyzeRequest(BaseModel):
     home: str = "milan"
-    checkpoint: str             # relative to ROOT, e.g. "trained_models/milan/.../best_model.pt"
-    data_dir: Optional[str] = None   # relative to ROOT
-    test_data: Optional[str] = None  # alternative to data_dir
+    checkpoint: str             # relative to ROOT
+    data_dir: Optional[str] = None
+    test_data: Optional[str] = None
     vocab: Optional[str] = None
     split: str = "FD_60"
-    query: str
+    # Per-query items (preferred) OR single backward-compat string
+    query: Optional[str] = None
+    queries: Optional[List[QueryItem]] = None
     mode: str = "multi_location"
     threshold: Optional[float] = 0.10
     top_k: int = 200
     time_window: str = "day"
-    ma_window: int = 7
+    strip_temporal: bool = True
     force_rewrite: bool = False
     force_retrieve: bool = False
+    max_subqueries: Optional[int] = Field(
+        None,
+        ge=1,
+        le=20,
+        description="Max LLM retrieval sentences for multi_* modes (defaults: 8 location, 6 wording).",
+    )
     llm_backend: str = "gemini"
     llm_n_examples: int = 6
     caption_style: str = "baseline"
     splits_to_load: str = "train,val,test"
+
+    @field_validator("home", mode="before")
+    @classmethod
+    def _normalize_home(cls, v: Any) -> str:
+        """Lowercase home id so cache keys and metadata match casas_metadata (milan, aruba, …)."""
+        s = str(v or "").strip().lower()
+        return s if s else "milan"
+
+    def resolved_queries(self) -> List[QueryItem]:
+        """Normalise single-string or multi-item input to a list of QueryItems."""
+        if self.queries:
+            return [qi for qi in self.queries if qi.text.strip()]
+        if self.query:
+            return [QueryItem(text=self.query.strip())]
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +400,7 @@ def _build_smart_query(req: AnalyzeRequest):
             caption_style=req.caption_style,
             llm_backend=req.llm_backend,
             llm_n_examples=req.llm_n_examples,
+            verbose=True,
         )
     if req.test_data and req.vocab:
         return SmartQuery.from_checkpoint(
@@ -241,6 +410,7 @@ def _build_smart_query(req: AnalyzeRequest):
             home=req.home,
             llm_backend=req.llm_backend,
             llm_n_examples=req.llm_n_examples,
+            verbose=True,
         )
     raise ValueError("Provide data_dir or (test_data + vocab)")
 
@@ -249,12 +419,20 @@ def _build_smart_query(req: AnalyzeRequest):
 # Analytics computation
 # ---------------------------------------------------------------------------
 
-def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
+_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _compute_analytics(
+    out: Dict,
+    req: AnalyzeRequest,
+    query_label: str = "",
+    filter_tod: Optional[List[str]] = None,
+    filter_dow: Optional[List[str]] = None,
+) -> Dict:
     """Build the full analytics payload from a sq.query() result dict."""
     results: List[Dict] = out.get("results", [])
     home = req.home
     tw = req.time_window
-    w = req.ma_window
 
     # Sensor metadata
     meta = _load_home_meta(home)
@@ -273,6 +451,33 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
         dt = _parse_ts(ts)
         if dt:
             dated.append((dt, r))
+
+    # --- Rule-based ToD / DoW filter (per-query) ---
+    tod_filter = {f.lower() for f in (filter_tod or [])}
+    dow_filter = {f.lower() for f in (filter_dow or [])}
+
+    if tod_filter or dow_filter:
+        filtered: List[Tuple[datetime, Dict]] = []
+        for dt, r in dated:
+            if tod_filter:
+                h = dt.hour
+                if   5 <= h < 12: tod = "morning"
+                elif 12 <= h < 17: tod = "afternoon"
+                elif 17 <= h < 21: tod = "evening"
+                else:              tod = "night"
+                if tod not in tod_filter:
+                    continue
+            if dow_filter:
+                dow = _DAY_NAMES[dt.weekday()].lower()
+                is_weekend = dt.weekday() >= 5
+                if not (
+                    dow in dow_filter
+                    or ("weekday" in dow_filter and not is_weekend)
+                    or ("weekend" in dow_filter and is_weekend)
+                ):
+                    continue
+            filtered.append((dt, r))
+        dated = filtered
 
     # --- Time-series aggregation ---
     buckets: Dict[datetime, List] = defaultdict(list)
@@ -309,7 +514,6 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
     room_ctr: Counter = Counter()
     tod_ctr: Counter = Counter()
     dow_ctr: Counter = Counter()
-    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     for dt, r in dated:
         labels = r.get("labels", {})
@@ -324,10 +528,10 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
             tod_ctr["Evening"] += 1
         else:
             tod_ctr["Night"] += 1
-        dow_ctr[day_names[dt.weekday()]] += 1
+        dow_ctr[_DAY_NAMES[dt.weekday()]] += 1
 
-    # --- Scores ---
-    scores = [float(r["score"]) for r in results if "score" in r]
+    # --- Scores (use filtered dated results so scores reflect active filters) ---
+    scores = [float(r["score"]) for _, r in dated if "score" in r]
 
     # --- Sensor activations ---
     act: Counter = Counter()
@@ -353,8 +557,9 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
     peak_idx = int(np.argmax(counts)) if len(counts) > 0 else 0
 
     return {
+        "query_label": query_label or out.get("original_query", ""),
         "metadata": {
-            "query": out.get("original_query", req.query),
+            "query": query_label or out.get("original_query", ""),
             "reasoning": out.get("reasoning", ""),
             "sentences": out.get("sentences", []),
             "model_used": out.get("model_used") or "cache hit",
@@ -363,9 +568,13 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
             "result_cache_hit": bool(out.get("result_cache_hit")),
             "home": home,
             "split": req.split,
+            "filter_tod": filter_tod or [],
+            "filter_dow": filter_dow or [],
+            "max_subqueries": req.max_subqueries,
+            "max_subqueries_effective": out.get("max_subqueries_effective"),
         },
         "stats": {
-            "total_results": len(results),
+            "total_results": len(dated),
             "dated_results": len(dated),
             "date_range": (
                 f"{min(dates_sorted).strftime('%Y-%m-%d')} → "
@@ -389,15 +598,13 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
                 k: tod_ctr.get(k, 0)
                 for k in ("Morning", "Afternoon", "Evening", "Night")
             },
-            "day_of_week": {d: dow_ctr.get(d, 0) for d in day_names},
+            "day_of_week": {d: dow_ctr.get(d, 0) for d in _DAY_NAMES},
         },
+        # Raw counts/durations only — frontend computes MA dynamically
         "time_series": {
             "dates": [d.strftime("%Y-%m-%d") for d in dates_sorted],
             "counts": counts.tolist(),
             "durations": durations.tolist(),
-            "ma_counts": _moving_average(counts, w),
-            "ma_durations": _moving_average(durations, w),
-            "std_counts": _rolling_std(counts, w),
         },
         "sensor_data": sensor_data,
         "scores": scores,
@@ -415,6 +622,9 @@ def _compute_analytics(out: Dict, req: AnalyzeRequest) -> Dict:
 
 @app.post("/api/analyze")
 async def analyze(req: AnalyzeRequest):
+    query_list = req.resolved_queries()
+    if not query_list:
+        raise HTTPException(400, "Provide at least one query")
     if not req.data_dir and not (req.test_data and req.vocab):
         raise HTTPException(400, "Provide data_dir or (test_data + vocab)")
 
@@ -430,22 +640,43 @@ async def analyze(req: AnalyzeRequest):
 
     sq = _sq_cache[cache_key]
 
-    try:
-        out = await loop.run_in_executor(
-            None,
-            lambda: sq.query(
-                req.query,
-                mode=req.mode,
-                top_k=req.top_k,
-                threshold=req.threshold,
-                force_rewrite=req.force_rewrite,
-                force_retrieve=req.force_retrieve,
-            ),
-        )
-    except Exception as e:
-        raise HTTPException(500, f"Query failed: {e}")
+    per_query_results = []
+    for qi in query_list:
+        captured_log = ""
+        try:
+            def _run(qi=qi):
+                with _capture_stdout() as buf:
+                    result = sq.query(
+                        qi.text,
+                        mode=req.mode,
+                        top_k=req.top_k,
+                        threshold=req.threshold,
+                        force_rewrite=req.force_rewrite,
+                        force_retrieve=req.force_retrieve,
+                        strip_temporal=req.strip_temporal,
+                        max_subqueries=req.max_subqueries,
+                    )
+                return result, buf.getvalue()
 
-    return JSONResponse(_compute_analytics(out, req))
+            out, captured_log = await loop.run_in_executor(None, _run)
+        except Exception as e:
+            raise HTTPException(500, f"Query failed for '{qi.text}': {e}")
+
+        analytics = _compute_analytics(
+            out, req,
+            query_label=qi.text,
+            filter_tod=qi.filter_tod,
+            filter_dow=qi.filter_dow,
+        )
+        synth = _synthetic_query_logs(out, req, qi, sq)
+        stdout_lines = _parse_logs(captured_log)
+        if stdout_lines:
+            analytics["logs"] = synth + ["", "--- SmartQuery console (stdout) ---"] + stdout_lines
+        else:
+            analytics["logs"] = synth
+        per_query_results.append(analytics)
+
+    return JSONResponse({"queries": per_query_results})
 
 
 @app.get("/api/cache-status")

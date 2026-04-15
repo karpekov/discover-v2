@@ -41,18 +41,25 @@ Usage (CLI)
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+
+def _norm_home(home: str) -> str:
+    """Lowercase cache-safe home id so milan/Milan/MILAN share one namespace."""
+    s = str(home or "").strip().lower()
+    return s if s else "unknown"
+
 _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from query.query_cache import QueryCache
-from query.llm_rewriter import LLMRewriter, RewriteMode
+from query.llm_rewriter import LLMRewriter, RewriteMode, resolve_max_subqueries
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _MERGED_DIR   = _PROJECT_ROOT / "data" / "query_cache" / "merged"
@@ -248,6 +255,24 @@ def _multi_query_retrieve(
 _MAX_DISPLAY = 10
 
 
+def _print_no_retrieval_sentences(reasoning: str | None) -> None:
+    """
+    Stdout when rewrite yields no sentences. This is almost always a parse or
+    API-format issue, not a semantic 'activity undetectable' verdict.
+    """
+    r = (reasoning or "").strip()
+    print("\n" + "=" * 60)
+    print("  NO RETRIEVAL SENTENCES")
+    if r:
+        print("  The model returned reasoning but no usable SENTENCES list was parsed.")
+        print("  Typical causes: missing or malformed JSON after REASONING, output cut off,")
+        print("  or extra prose instead of a SENTENCES: [\"...\", ...] block. Retry or inspect logs.")
+    else:
+        print("  The rewriter returned no reasoning and no sentences (empty or blocked response).")
+        print("  Check API keys, model availability, and safety filters.")
+    print("=" * 60)
+
+
 def _print_results(results: list[dict], sentences: list[str]) -> None:
     """Pretty-print merged retrieval results (capped at _MAX_DISPLAY)."""
     if len(sentences) > 1:
@@ -329,7 +354,7 @@ class SmartQuery:
         self.retrieval = retrieval_system
         self.rewriter = rewriter
         self.cache = cache or QueryCache()
-        self.home = home
+        self.home = _norm_home(home)
         self.verbose = verbose
 
     # ------------------------------------------------------------------
@@ -369,6 +394,7 @@ class SmartQuery:
                              Defaults to 50 000 (effectively all samples for most datasets).
         """
         data_dir  = Path(data_dir)
+        home = _norm_home(home)
         splits    = splits or ["train", "val", "test"]
         vocab_path = str(data_dir / "vocab.json")
 
@@ -414,6 +440,8 @@ class SmartQuery:
         verbose: bool = True,
     ) -> "SmartQuery":
         from evals.query_retrieval import SmartHomeRetrieval
+
+        home = _norm_home(home)
 
         if verbose:
             print(f"[SmartQuery] Loading retrieval system for home='{home}' …")
@@ -472,6 +500,8 @@ class SmartQuery:
         threshold: float | None = None,
         force_rewrite: bool = False,
         force_retrieve: bool = False,
+        strip_temporal: bool = False,
+        max_subqueries: int | None = None,
     ) -> Dict[str, Any]:
         """
         Execute a natural-language query against the sensor embedding space.
@@ -485,6 +515,12 @@ class SmartQuery:
                             top_k cap. Supersedes top_k.
             force_rewrite:  Bypass rewrite cache; always call the LLM.
             force_retrieve: Bypass result cache; always run FAISS retrieval.
+            strip_temporal: Instruct the LLM to omit time-of-day / day-of-week
+                            from output sentences (rule-based filter applied
+                            downstream instead).
+            max_subqueries: Max LLM retrieval sentences for multi_* modes
+                            (defaults: 8 multi_location, 6 multi_wording; single
+                            always 1). Clamped 1–20.
 
         Returns:
             dict with keys:
@@ -498,7 +534,11 @@ class SmartQuery:
 
         original = user_query.strip()
         reasoning, sentences, rewrite_cache_hit, model_used = self._rewrite(
-            original, mode, force_rewrite
+            original,
+            mode,
+            force_rewrite,
+            strip_temporal=strip_temporal,
+            max_subqueries=max_subqueries,
         )
 
         if self.verbose:
@@ -507,6 +547,11 @@ class SmartQuery:
             if reasoning:
                 print(f"\n[SmartQuery] Reasoning:\n{reasoning}\n")
             print(f"[SmartQuery] Mode   : {mode}  →  {len(sentences)} sentence(s)")
+            if mode != "single":
+                print(
+                    f"[SmartQuery] max_subqueries (effective cap): "
+                    f"{resolve_max_subqueries(mode, max_subqueries)}"
+                )
             for i, s in enumerate(sentences, 1):
                 print(f"  [{i}] {s}")
             if threshold is not None:
@@ -515,11 +560,7 @@ class SmartQuery:
                 print(f"[SmartQuery] Top-k    : {top_k}")
 
         if not sentences:
-            print("\n" + "=" * 60)
-            print("  NOT DETECTABLE")
-            print("  The LLM determined this activity cannot be inferred")
-            print("  from the sensors available in this home.")
-            print("=" * 60)
+            _print_no_retrieval_sentences(reasoning)
             return {
                 "original_query": original,
                 "rewrite_mode": mode,
@@ -529,16 +570,22 @@ class SmartQuery:
                 "result_cache_hit": False,
                 "model_used": model_used,
                 "results": [],
+                "max_subqueries_effective": resolve_max_subqueries(mode, max_subqueries),
             }
 
         checkpoint_key = self._checkpoint_key()
         cache_top_k = top_k if threshold is None else -1
+        # Match rewrite cache: strip_temporal + max_subqueries partition result rows
+        n_eff = resolve_max_subqueries(mode, max_subqueries)
+        result_mode = f"{mode}_st" if strip_temporal else mode
+        if mode != "single":
+            result_mode = f"{result_mode}_nq{n_eff}"
 
         # Check result cache
         result_cache_hit = False
         if not force_retrieve:
             cached_results = self.cache.get_results(
-                original, self.home, mode, checkpoint_key, cache_top_k
+                original, self.home, result_mode, checkpoint_key, cache_top_k
             )
             if cached_results is not None:
                 result_cache_hit = True
@@ -554,6 +601,7 @@ class SmartQuery:
                     "result_cache_hit": True,
                     "model_used": model_used,
                     "results": cached_results,
+                    "max_subqueries_effective": resolve_max_subqueries(mode, max_subqueries),
                 }
 
         results = _multi_query_retrieve(self.retrieval, sentences, top_k, threshold=threshold)
@@ -570,7 +618,7 @@ class SmartQuery:
             results=[{k: v for k, v in r.items() if k not in ("batch_idx", "sample_idx")}
                      for r in results],
             home=self.home,
-            rewrite_mode=mode,
+            rewrite_mode=result_mode,
             checkpoint=checkpoint_key,
             top_k=cache_top_k,
         )
@@ -584,6 +632,7 @@ class SmartQuery:
             "result_cache_hit": result_cache_hit,
             "model_used": model_used,
             "results": results,
+            "max_subqueries_effective": resolve_max_subqueries(mode, max_subqueries),
         }
 
     def rewrite_only(
@@ -591,10 +640,16 @@ class SmartQuery:
         user_query: str,
         mode: RewriteMode = "single",
         force_rewrite: bool = False,
+        strip_temporal: bool = False,
+        max_subqueries: int | None = None,
     ) -> Dict[str, Any]:
         """Return the rewritten sentences without running retrieval."""
         original = user_query.strip()
-        reasoning, sentences, cache_hit, model_used = self._rewrite(original, mode, force_rewrite)
+        reasoning, sentences, cache_hit, model_used = self._rewrite(
+            original, mode, force_rewrite,
+            strip_temporal=strip_temporal,
+            max_subqueries=max_subqueries,
+        )
         return {
             "original_query": original,
             "rewrite_mode": mode,
@@ -602,6 +657,7 @@ class SmartQuery:
             "sentences": sentences,
             "cache_hit": cache_hit,
             "model_used": model_used,
+            "max_subqueries_effective": resolve_max_subqueries(mode, max_subqueries),
         }
 
     # ------------------------------------------------------------------
@@ -609,30 +665,58 @@ class SmartQuery:
     # ------------------------------------------------------------------
 
     def _checkpoint_key(self) -> str:
-        """Stable, path-independent key for the loaded checkpoint."""
+        """Key for result cache: model file + backing dataset path (per home/split/merge file)."""
         if self.retrieval is None:
             return ""
-        path = getattr(self.retrieval, "checkpoint_path", "")
-        return Path(path).name if path else ""
+        ck = getattr(self.retrieval, "checkpoint_path", "") or ""
+        td = getattr(self.retrieval, "test_data_path", "") or ""
+        try:
+            ck_abs = str(Path(ck).resolve())
+        except OSError:
+            ck_abs = ck
+        try:
+            td_abs = str(Path(td).resolve())
+        except OSError:
+            td_abs = td
+        digest = hashlib.sha256(f"{ck_abs}\0{td_abs}".encode("utf-8")).hexdigest()[:20]
+        ck_name = Path(ck).name if ck else "none"
+        return f"{ck_name}:{digest}"
 
     def _rewrite(
-        self, original: str, mode: RewriteMode, force: bool
+        self,
+        original: str,
+        mode: RewriteMode,
+        force: bool,
+        strip_temporal: bool = False,
+        max_subqueries: int | None = None,
     ) -> tuple[str, list[str], bool, str]:
         """Returns (reasoning, sentences, cache_hit, model_used)."""
+        # Use a distinct cache key when strip_temporal is active so that the
+        # two variants (with / without temporal constraints) are stored separately.
+        n_eff = resolve_max_subqueries(mode, max_subqueries)
+        effective_mode = f"{mode}_st" if strip_temporal else mode
+        if mode != "single":
+            effective_mode = f"{effective_mode}_nq{n_eff}"
+
         if not force:
-            cached = self.cache.get(original, self.home, rewrite_mode=mode)
+            cached = self.cache.get(original, self.home, rewrite_mode=effective_mode)
             if cached is not None:
                 return "", cached, True, ""
 
         if self.rewriter is None:
             return "", [original], False, ""
 
-        reasoning, sentences = self.rewriter.rewrite(original, mode=mode)
+        reasoning, sentences = self.rewriter.rewrite(
+            original,
+            mode=mode,
+            strip_temporal=strip_temporal,
+            max_subqueries=max_subqueries,
+        )
         self.cache.store(
             original_query=original,
             sentences=sentences,
             home=self.home,
-            rewrite_mode=mode,
+            rewrite_mode=effective_mode,
             model_used=self.rewriter.model_id,
         )
         return reasoning, sentences, False, self.rewriter.model_id
@@ -698,6 +782,13 @@ def _build_parser() -> argparse.ArgumentParser:
                         "Pass 'none' to disable.")
     p.add_argument("--llm_n_examples", type=int, default=6,
                    help="Number of random captions to use as style examples (default: 6)")
+    p.add_argument(
+        "--max_subqueries",
+        type=int,
+        default=None,
+        help="Max LLM retrieval sentences for multi_location (default 8) / "
+             "multi_wording (default 6); single mode always 1. Clamped 1–20.",
+    )
     p.add_argument("--cache_db",     default=None)
     p.add_argument("--force_rewrite",   action="store_true",
                    help="Bypass rewrite cache; always call the LLM")
@@ -748,7 +839,12 @@ def main():
                 queries.append(q)
 
         for q in queries:
-            out = sq.rewrite_only(q, mode=args.mode, force_rewrite=args.force_rewrite)
+            out = sq.rewrite_only(
+                q,
+                mode=args.mode,
+                force_rewrite=args.force_rewrite,
+                max_subqueries=args.max_subqueries,
+            )
             print(f"\nOriginal  : {out['original_query']}")
             print(f"Mode      : {out['rewrite_mode']}")
             print(f"Cache hit : {out['cache_hit']}  model: {out['model_used']}")
@@ -758,11 +854,7 @@ def main():
                 for i, s in enumerate(out["sentences"], 1):
                     print(f"  [{i}] {s}")
             else:
-                print("\n" + "=" * 60)
-                print("  NOT DETECTABLE")
-                print("  The LLM determined this activity cannot be inferred")
-                print("  from the sensors available in this home.")
-                print("=" * 60)
+                _print_no_retrieval_sentences(out.get("reasoning"))
         return
 
     # Full mode: rewrite + retrieve
@@ -807,9 +899,15 @@ def main():
         )
 
     if args.query:
-        sq.query(args.query, mode=args.mode, top_k=args.top_k,
-                 threshold=args.threshold,
-                 force_rewrite=args.force_rewrite, force_retrieve=args.force_retrieve)
+        sq.query(
+            args.query,
+            mode=args.mode,
+            top_k=args.top_k,
+            threshold=args.threshold,
+            force_rewrite=args.force_rewrite,
+            force_retrieve=args.force_retrieve,
+            max_subqueries=args.max_subqueries,
+        )
     else:
         thresh_str = f"  threshold={args.threshold}" if args.threshold else f"  top_k={args.top_k}"
         print(f"\n[SmartQuery] Interactive mode — mode={args.mode!r}{thresh_str}")
@@ -835,9 +933,15 @@ def main():
                 else:
                     print("Unknown mode. Choose: single | multi_location | multi_wording")
                 continue
-            sq.query(raw, mode=current_mode, top_k=args.top_k,
-                     threshold=args.threshold,
-                     force_rewrite=args.force_rewrite, force_retrieve=args.force_retrieve)
+            sq.query(
+                raw,
+                mode=current_mode,
+                top_k=args.top_k,
+                threshold=args.threshold,
+                force_rewrite=args.force_rewrite,
+                force_retrieve=args.force_retrieve,
+                max_subqueries=args.max_subqueries,
+            )
 
 
 if __name__ == "__main__":

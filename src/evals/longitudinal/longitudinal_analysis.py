@@ -174,6 +174,7 @@ class LongitudinalAnalyzer:
         ma_window: int = 7,
         force_rewrite: bool = False,
         force_retrieve: bool = False,
+        max_subqueries: Optional[int] = None,
     ) -> Path:
         """
         Run the full longitudinal pipeline for one query.
@@ -189,6 +190,7 @@ class LongitudinalAnalyzer:
         ma_window:     Moving-average window width (in ``time_window`` units).
         force_rewrite: Bypass LLM rewrite cache.
         force_retrieve:Bypass FAISS result cache.
+        max_subqueries: Max LLM sentences for multi_* modes (defaults 8 / 6).
 
         Returns
         -------
@@ -198,7 +200,8 @@ class LongitudinalAnalyzer:
         print(f"LONGITUDINAL ANALYSIS")
         print(f"  Query  : {query!r}")
         print(f"  Home   : {self.dataset_name} / {self.dataset_split}")
-        print(f"  Mode   : {mode}  |  threshold={threshold}  |  window={time_window}")
+        _ms = "" if max_subqueries is None else f"  |  max_subqueries={max_subqueries}"
+        print(f"  Mode   : {mode}  |  threshold={threshold}  |  window={time_window}{_ms}")
         print(f"{'='*70}\n")
 
         # ── 1. Retrieve ──────────────────────────────────────────────
@@ -209,6 +212,7 @@ class LongitudinalAnalyzer:
             threshold=threshold,
             force_rewrite=force_rewrite,
             force_retrieve=force_retrieve,
+            max_subqueries=max_subqueries,
         )
         results = out.get("results", [])
         sentences = out.get("sentences", [])
@@ -1007,6 +1011,13 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--gemini_api_key", default=None)
     p.add_argument("--llm_captions_path", default=None)
     p.add_argument("--llm_n_examples", type=int, default=6)
+    p.add_argument(
+        "--max_subqueries",
+        type=int,
+        default=None,
+        help="Max LLM retrieval sentences for multi_location (default 8) / "
+             "multi_wording (default 6). Clamped 1–20.",
+    )
     p.add_argument("--force_rewrite",   action="store_true")
     p.add_argument("--force_retrieve",  action="store_true")
     p.add_argument("--caption_style",   default="baseline")
@@ -1067,6 +1078,7 @@ def main() -> None:
         ma_window=args.ma_window,
         force_rewrite=args.force_rewrite,
         force_retrieve=args.force_retrieve,
+        max_subqueries=args.max_subqueries,
     )
 
 
