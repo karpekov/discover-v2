@@ -19,6 +19,12 @@ python src/evals/tod_analysis.py \
     --vocab data/processed/casas/milan/FD_60_p/vocab.json \
     --output_dir results/evals/milan/FD_60_p/tod_analysis \
     --max_samples 5000
+
+Text retrieval evaluation:
+  Queries like "The activity took place in the morning." are encoded with the text encoder
+  and used to retrieve sensor sequences by cosine similarity. Precision@K (K=10,50,100)
+  measures the fraction of top-K retrieved samples that genuinely belong to the target ToD.
+  Use --skip_text_retrieval to disable. Use --retrieval_k_values to change K values.
 """
 
 import sys
@@ -127,6 +133,37 @@ def load_model(checkpoint_path: str, vocab_path: str, device: torch.device):
     return sensor_encoder
 
 
+def _build_global_categorical_features(batch_samples, dataset, sensor_encoder, device):
+    """
+    Build the global_categorical_features dict expected by TransformerSensorEncoder.
+
+    SmartHomeDataset stores tod_bucket/dow_bucket in categorical_features as sequence-length
+    tensors where position i holds the scalar value.  The encoder needs them as [B] tensors
+    in a *separate* global_categorical_features dict.
+    """
+    global_fields = (
+        list(sensor_encoder.global_embeddings.keys())
+        if hasattr(sensor_encoder, 'global_embeddings') else []
+    )
+    if not global_fields:
+        return {}
+
+    global_cat = {}
+    seq_fields = getattr(dataset, 'sequence_categorical_fields', [])
+    for field in global_fields:
+        if field not in seq_fields:
+            continue
+        field_pos = seq_fields.index(field)
+        vals = [
+            sample['categorical_features'][field][field_pos].item()
+            for sample in batch_samples
+            if field in sample.get('categorical_features', {})
+        ]
+        if len(vals) == len(batch_samples):
+            global_cat[field] = torch.tensor(vals, dtype=torch.long, device=device)
+    return global_cat
+
+
 def extract_embeddings_and_metadata(sensor_encoder, data_path, vocab_path, device, max_samples=None):
     """Extract embeddings and ToD metadata for all samples."""
     print(f"📊 Loading data from {data_path}")
@@ -173,6 +210,9 @@ def extract_embeddings_and_metadata(sensor_encoder, data_path, vocab_path, devic
                 field_data = [sample['categorical_features'][field] for sample in batch_samples]
                 categorical_features[field] = torch.stack(field_data).to(device)
             sensor_inputs['categorical_features'] = categorical_features
+            sensor_inputs['global_categorical_features'] = _build_global_categorical_features(
+                batch_samples, dataset, sensor_encoder, device
+            )
 
             # Stack continuous features
             coords_list = [sample['coordinates'] for sample in batch_samples]
@@ -793,6 +833,529 @@ def analyze_specific_activities(samples_with_tod, embeddings, output_dir, target
     return stats_by_activity
 
 
+TOD_RETRIEVAL_QUERIES = {
+    'morning': [
+        "The activity took place in the morning.",
+        "This is a morning activity in the smart home.",
+        "An activity occurring during morning hours.",
+        "The resident is active in the morning.",
+    ],
+    'afternoon': [
+        "The activity took place in the afternoon.",
+        "This is an afternoon activity in the smart home.",
+        "An activity occurring during the afternoon.",
+        "The resident is active during the afternoon.",
+    ],
+    'evening': [
+        "The activity took place in the evening.",
+        "This is an evening activity in the smart home.",
+        "An activity occurring in the evening hours.",
+        "The resident is active in the evening.",
+    ],
+    'night': [
+        "The activity took place at night.",
+        "This is a nighttime activity in the smart home.",
+        "An activity occurring late at night.",
+        "The resident is active late at night.",
+    ],
+}
+
+
+def extract_clip_sensor_embeddings(sensor_encoder, data_path, vocab_path, device, max_samples=None):
+    """Extract CLIP-projected sensor embeddings for text retrieval evaluation."""
+    print(f"🔄 Extracting CLIP sensor embeddings from {data_path}")
+
+    dataset = SmartHomeDataset(
+        data_path=data_path,
+        vocab_path=vocab_path,
+        sequence_length=50,
+        max_captions=1
+    )
+
+    if max_samples and len(dataset) > max_samples:
+        dataset.data = dataset.data[:max_samples]
+
+    dataloader = DataLoader(
+        dataset, batch_size=128, shuffle=False, num_workers=0,
+        collate_fn=lambda x: x
+    )
+
+    all_clip_embeddings = []
+
+    with torch.no_grad():
+        for batch_samples in dataloader:
+            categorical_features = {}
+            for field in dataset.categorical_fields:
+                categorical_features[field] = torch.stack(
+                    [s['categorical_features'][field] for s in batch_samples]
+                ).to(device)
+
+            sensor_inputs = {
+                'categorical_features': categorical_features,
+                'global_categorical_features': _build_global_categorical_features(
+                    batch_samples, dataset, sensor_encoder, device
+                ),
+                'coordinates': torch.stack([s['coordinates'] for s in batch_samples]).to(device),
+                'time_deltas': torch.stack([s['time_deltas'] for s in batch_samples]).to(device),
+            }
+
+            if hasattr(sensor_encoder, 'forward_clip'):
+                clip_emb = sensor_encoder.forward_clip(input_data=sensor_inputs)
+            else:
+                # Fallback for old SensorEncoder API
+                clip_emb = sensor_encoder.forward_clip(
+                    categorical_features=categorical_features,
+                    coordinates=sensor_inputs['coordinates'],
+                    time_deltas=sensor_inputs['time_deltas'],
+                )
+
+            all_clip_embeddings.append(clip_emb.cpu().numpy())
+
+    clip_embeddings = np.vstack(all_clip_embeddings)
+    print(f"✅ Extracted {len(clip_embeddings)} CLIP embeddings with shape {clip_embeddings.shape}")
+    return clip_embeddings
+
+
+def extract_global_token_representations(sensor_encoder, data_path, vocab_path, device, max_samples=None):
+    """
+    Extract the post-transformer representations of the global context tokens (tod_bucket, dow_bucket).
+
+    Uses a forward hook on sensor_encoder.ln_f to capture hidden states at positions
+    1 .. num_global_tokens (i.e. the global tokens between [CLS] and the event tokens).
+
+    Returns:
+        global_token_reps : np.ndarray [N, num_global_tokens, d_model]
+        global_field_names: list of field names in token order
+    """
+    num_global = getattr(sensor_encoder, 'num_global_tokens', 0)
+    if num_global == 0:
+        print("⚠️  No global tokens in this model — skipping global token analysis")
+        return None, []
+
+    global_field_names = list(sensor_encoder.global_embeddings.keys())
+    print(f"🔍 Extracting global token representations: {global_field_names}")
+
+    dataset = SmartHomeDataset(
+        data_path=data_path,
+        vocab_path=vocab_path,
+        sequence_length=50,
+        max_captions=1
+    )
+    if max_samples and len(dataset) > max_samples:
+        dataset.data = dataset.data[:max_samples]
+
+    dataloader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0,
+                            collate_fn=lambda x: x)
+
+    captured = []  # list of [B, num_global, D] numpy arrays
+
+    def _hook(module, inp, out):
+        # out: [B, 1 + num_global + L, D]  (after ln_f, before pooling)
+        captured.append(out[:, 1:1 + num_global, :].detach().cpu().numpy())
+
+    hook = sensor_encoder.ln_f.register_forward_hook(_hook)
+
+    try:
+        with torch.no_grad():
+            for batch_samples in dataloader:
+                categorical_features = {}
+                for field in dataset.categorical_fields:
+                    categorical_features[field] = torch.stack(
+                        [s['categorical_features'][field] for s in batch_samples]
+                    ).to(device)
+
+                sensor_inputs = {
+                    'categorical_features': categorical_features,
+                    'global_categorical_features': _build_global_categorical_features(
+                        batch_samples, dataset, sensor_encoder, device
+                    ),
+                    'coordinates': torch.stack([s['coordinates'] for s in batch_samples]).to(device),
+                    'time_deltas': torch.stack([s['time_deltas'] for s in batch_samples]).to(device),
+                }
+                # A simple forward to trigger the hook
+                sensor_encoder(sensor_inputs)
+    finally:
+        hook.remove()
+
+    global_token_reps = np.concatenate(captured, axis=0)  # [N, num_global, D]
+    print(f"✅ Captured global token reps: {global_token_reps.shape}")
+    return global_token_reps, global_field_names
+
+
+def run_global_token_tod_analysis(
+    sensor_encoder,
+    checkpoint_path: str,
+    data_path: str,
+    samples_with_tod: list,
+    global_token_reps: np.ndarray,
+    global_field_names: List[str],
+    device: torch.device,
+    output_dir: Path,
+    k_values: List[int] = None,
+) -> Dict:
+    """
+    Analyse whether the learned global tod_token encodes time-of-day information.
+
+    Two complementary views:
+    A) **Embedding-space clustering**: t-SNE / PCA of the raw d_model-dim tod_token
+       coloured by actual ToD — are morning/night tokens visually separable?
+    B) **Text-query retrieval with tod_token only**: project tod_token through clip_proj,
+       then compute Precision@K for ToD text queries.  Compared side-by-side with the
+       full CLIP sensor embedding to quantify how much ToD info lives in the global token.
+    """
+    if k_values is None:
+        k_values = [10, 50, 100]
+
+    # Find the tod_bucket token position
+    if 'tod_bucket' not in global_field_names:
+        print("⚠️  tod_bucket not found in global fields — skipping")
+        return {}
+
+    tod_tok_idx = global_field_names.index('tod_bucket')
+    tod_tok_reps = global_token_reps[:, tod_tok_idx, :]  # [N, d_model]
+
+    tod_labels = np.array([s['tod'] for s in samples_with_tod])
+    tod_order  = ['morning', 'afternoon', 'evening', 'night']
+    tod_colors = {'morning': '#FDB462', 'afternoon': '#FFFF99',
+                  'evening': '#BEBADA', 'night': '#80B1D3'}
+
+    print(f"\n{'='*80}")
+    print("GLOBAL TOD-TOKEN ANALYSIS")
+    print(f"{'='*80}")
+    print(f"  tod_token shape : {tod_tok_reps.shape}")
+
+    # ── A) Visualise raw tod_token in 2-D ──────────────────────────────────────
+    print("📊 Visualising tod_token representations (t-SNE + PCA)...")
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # t-SNE
+    from sklearn.manifold import TSNE
+    tsne = TSNE(n_components=2, random_state=42,
+                perplexity=min(30, len(tod_tok_reps) // 4))
+    reps_2d = tsne.fit_transform(tod_tok_reps)
+
+    for tod in tod_order:
+        mask = tod_labels == tod
+        if mask.sum() > 0:
+            axes[0].scatter(reps_2d[mask, 0], reps_2d[mask, 1],
+                            c=tod_colors[tod], label=tod.capitalize(),
+                            alpha=0.6, s=15)
+    axes[0].set_title('t-SNE of tod_token (d_model space)', fontweight='bold')
+    axes[0].set_xlabel('t-SNE 1'); axes[0].set_ylabel('t-SNE 2')
+    axes[0].legend(); axes[0].grid(True, alpha=0.3)
+
+    # PCA
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    reps_pca = pca.fit_transform(tod_tok_reps)
+    for tod in tod_order:
+        mask = tod_labels == tod
+        if mask.sum() > 0:
+            axes[1].scatter(reps_pca[mask, 0], reps_pca[mask, 1],
+                            c=tod_colors[tod], label=tod.capitalize(),
+                            alpha=0.6, s=15)
+    axes[1].set_title('PCA of tod_token (d_model space)', fontweight='bold')
+    axes[1].set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
+    axes[1].set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
+    axes[1].legend(); axes[1].grid(True, alpha=0.3)
+
+    plt.suptitle('Global ToD-Token Representations', fontsize=13, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(output_dir / 'tod_token_embeddings.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # ── B) ToD centroid separation in d_model space ────────────────────────────
+    print("📊 Computing tod_token centroid distances...")
+    centroids = {}
+    for tod in tod_order:
+        mask = tod_labels == tod
+        if mask.sum() > 0:
+            centroids[tod] = tod_tok_reps[mask].mean(axis=0)
+
+    tods_present = [t for t in tod_order if t in centroids]
+    print("\nCentroid cosine distances (lower = more similar):")
+    centroid_dists = {}
+    for i, t1 in enumerate(tods_present):
+        for t2 in tods_present[i+1:]:
+            from scipy.spatial.distance import cosine as cos_dist
+            d = float(cos_dist(centroids[t1], centroids[t2]))
+            centroid_dists[f'{t1}↔{t2}'] = d
+            print(f"  {t1.capitalize():<12} ↔ {t2.capitalize():<12}: {d:.4f}")
+
+    # ── C) Text-query retrieval using ONLY the tod_token (via clip_proj) ────────
+    print("\n📊 Text-query retrieval using projected tod_token...")
+
+    # Project tod_token to CLIP space using sensor_encoder's clip_proj
+    with torch.no_grad():
+        tok_tensor = torch.tensor(tod_tok_reps, dtype=torch.float32).to(device)
+        projected = sensor_encoder.clip_proj(tok_tensor)          # [N, proj_dim]
+        projected = F.normalize(projected, p=2, dim=-1)
+    tod_tok_clip = projected.cpu().numpy()                        # [N, proj_dim]
+
+    # Load text encoder
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    from evals.eval_utils import create_text_encoder_from_checkpoint
+    text_encoder = create_text_encoder_from_checkpoint(
+        checkpoint=checkpoint, device=device, data_path=data_path
+    )
+    if text_encoder is None:
+        print("⚠️  Could not load text encoder — skipping text retrieval part")
+        return {}
+    text_encoder.to(device).eval()
+
+    from collections import Counter as _Counter
+    random_baselines = {tod: (tod_labels == tod).sum() / len(tod_labels) for tod in tod_order}
+
+    retrieval_results = {}
+    header = f"{'ToD':<12}" + "".join([f"  P@{k:<5}" for k in k_values]) + \
+             "".join([f"  Lift@{k:<4}" for k in k_values])
+    print(f"\n{header}")
+    print("-" * len(header))
+
+    all_query_results = []
+    for target_tod, queries in TOD_RETRIEVAL_QUERIES.items():
+        per_query = {}
+        for query in queries:
+            with torch.no_grad():
+                q_emb = text_encoder.encode_texts_clip([query], device)
+                q_np  = F.normalize(q_emb, p=2, dim=-1).cpu().numpy()
+
+            sims      = (q_np @ tod_tok_clip.T)[0]
+            ranked    = np.argsort(-sims)
+            precs = {}
+            for k in k_values:
+                precs[k] = float((tod_labels[ranked[:k]] == target_tod).sum() / k)
+            per_query[query] = precs
+            all_query_results.append({'target_tod': target_tod, 'query': query,
+                                      'precisions': precs})
+
+        mean_precs = {k: float(np.mean([per_query[q][k] for q in per_query]))
+                      for k in k_values}
+        lifts = {k: mean_precs[k] / random_baselines[target_tod]
+                 if random_baselines[target_tod] > 0 else 0.0
+                 for k in k_values}
+        retrieval_results[target_tod] = {
+            'mean_precision': mean_precs, 'lift': lifts,
+            'random_baseline': float(random_baselines[target_tod]),
+        }
+        row = f"{target_tod.capitalize():<12}" + \
+              "".join([f"  {mean_precs[k]:.3f}  " for k in k_values]) + \
+              "".join([f"  {lifts[k]:.2f}x   " for k in k_values])
+        print(row)
+
+    # ── D) Visualise: full-CLIP P@K vs tod-token P@K ──────────────────────────
+    # (we only have tod-token results here; full-CLIP will be compared in main)
+    _plot_tod_text_retrieval(
+        retrieval_results, tod_order, k_values,
+        output_dir, filename='tod_token_text_retrieval.png',
+        title='ToD-Token Text Retrieval (global token only)'
+    )
+
+    # ── Save results ──────────────────────────────────────────────────────────
+    results_out = {
+        'global_field_names': global_field_names,
+        'centroid_distances': centroid_dists,
+        'k_values': k_values,
+        'random_baselines': {k: float(v) for k, v in random_baselines.items()},
+        'per_query': all_query_results,
+        'aggregated': retrieval_results,
+    }
+    with open(output_dir / 'tod_token_analysis.json', 'w') as f:
+        json.dump(results_out, f, indent=2)
+    print(f"\n💾 Saved global token analysis to {output_dir / 'tod_token_analysis.json'}")
+
+    return results_out
+
+
+def run_tod_text_retrieval_eval(
+    sensor_encoder,
+    checkpoint_path: str,
+    data_path: str,
+    samples_with_tod: list,
+    clip_embeddings: np.ndarray,
+    device: torch.device,
+    output_dir: Path,
+    k_values: List[int] = None,
+) -> Dict:
+    """
+    Evaluate text-to-sensor retrieval using ToD queries.
+
+    For each query (e.g. "activity took place in the morning"), retrieve the top-K
+    sensor embeddings by cosine similarity and measure what fraction truly belong
+    to the target time of day. Reports Precision@K for K in k_values.
+    """
+    if k_values is None:
+        k_values = [10, 50, 100]
+
+    print(f"\n{'='*80}")
+    print("TIME-OF-DAY TEXT RETRIEVAL EVALUATION")
+    print(f"{'='*80}")
+
+    # ── Load text encoder from checkpoint ──────────────────────────────────────
+    print("🔄 Loading text encoder from checkpoint...")
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    from evals.eval_utils import create_text_encoder_from_checkpoint
+    text_encoder = create_text_encoder_from_checkpoint(
+        checkpoint=checkpoint, device=device, data_path=data_path
+    )
+    if text_encoder is None:
+        print("⚠️  Could not load text encoder – skipping text retrieval eval")
+        return {}
+    text_encoder.to(device)
+    text_encoder.eval()
+
+    # ── Normalize CLIP sensor embeddings ───────────────────────────────────────
+    norms = np.linalg.norm(clip_embeddings, axis=1, keepdims=True)
+    clip_embeddings_norm = clip_embeddings / np.maximum(norms, 1e-12)
+
+    # Build per-sample ToD labels array
+    tod_labels = np.array([s['tod'] for s in samples_with_tod])
+    tod_order = ['morning', 'afternoon', 'evening', 'night']
+
+    # Random baseline: fraction of samples in each ToD
+    tod_counts = Counter(tod_labels)
+    total = len(tod_labels)
+    random_baselines = {tod: tod_counts.get(tod, 0) / total for tod in tod_order}
+
+    print(f"\nDataset ToD distribution (random baseline):")
+    for tod in tod_order:
+        n = tod_counts.get(tod, 0)
+        print(f"  {tod.capitalize():<12}: {n:>5} samples ({random_baselines[tod]:.1%})")
+
+    # ── Run retrieval for each query ────────────────────────────────────────────
+    results = {}          # {tod: {query: {k: precision}}}
+    all_query_results = []
+
+    for target_tod, queries in TOD_RETRIEVAL_QUERIES.items():
+        results[target_tod] = {}
+        print(f"\n--- {target_tod.upper()} queries ---")
+
+        for query in queries:
+            with torch.no_grad():
+                query_emb = text_encoder.encode_texts_clip([query], device)  # (1, D)
+                query_np = query_emb.cpu().numpy().astype(np.float32)        # (1, D)
+
+            # Normalize query
+            qnorm = np.linalg.norm(query_np, axis=1, keepdims=True)
+            query_np = query_np / np.maximum(qnorm, 1e-12)
+
+            # Cosine similarity: (1, D) @ (D, N) → (1, N)
+            sims = (query_np @ clip_embeddings_norm.T)[0]   # (N,)
+            ranked_idx = np.argsort(-sims)                   # descending
+
+            query_precs = {}
+            for k in k_values:
+                top_k_idx = ranked_idx[:k]
+                top_k_tods = tod_labels[top_k_idx]
+                precision = (top_k_tods == target_tod).sum() / k
+                query_precs[k] = float(precision)
+
+            results[target_tod][query] = query_precs
+
+            prec_str = "  ".join([f"P@{k}={query_precs[k]:.3f}" for k in k_values])
+            print(f"  [{prec_str}]  \"{query[:60]}\"")
+
+            all_query_results.append({
+                'target_tod': target_tod,
+                'query': query,
+                'precisions': query_precs,
+            })
+
+    # ── Aggregate: mean precision per ToD ──────────────────────────────────────
+    print(f"\n{'='*60}")
+    print("AGGREGATED RESULTS (mean Precision@K across queries)")
+    print(f"{'='*60}")
+
+    aggregated = {}
+    header = f"{'ToD':<12}" + "".join([f"  P@{k:<6}" for k in k_values]) + \
+             "".join([f"  Lift@{k:<4}" for k in k_values])
+    print(header)
+    print("-" * len(header))
+
+    for tod in tod_order:
+        if tod not in results:
+            continue
+        mean_precs = {}
+        for k in k_values:
+            vals = [results[tod][q][k] for q in results[tod]]
+            mean_precs[k] = float(np.mean(vals))
+
+        lifts = {k: mean_precs[k] / random_baselines[tod] if random_baselines[tod] > 0 else 0.0
+                 for k in k_values}
+
+        aggregated[tod] = {'mean_precision': mean_precs, 'lift': lifts,
+                           'random_baseline': random_baselines[tod]}
+
+        row = f"{tod.capitalize():<12}" + \
+              "".join([f"  {mean_precs[k]:.3f}  " for k in k_values]) + \
+              "".join([f"  {lifts[k]:.2f}x   " for k in k_values])
+        print(row)
+
+    # ── Save JSON results ───────────────────────────────────────────────────────
+    retrieval_results = {
+        'k_values': k_values,
+        'random_baselines': random_baselines,
+        'per_query': all_query_results,
+        'aggregated': aggregated,
+    }
+    with open(output_dir / 'tod_text_retrieval.json', 'w') as f:
+        json.dump(retrieval_results, f, indent=2)
+    print(f"\n💾 Saved retrieval results to {output_dir / 'tod_text_retrieval.json'}")
+
+    # ── Visualization ───────────────────────────────────────────────────────────
+    _plot_tod_text_retrieval(aggregated, tod_order, k_values, output_dir)
+
+    return retrieval_results
+
+
+def _plot_tod_text_retrieval(aggregated: Dict, tod_order: List[str], k_values: List[int],
+                              output_dir: Path, filename: str = 'tod_text_retrieval.png',
+                              title: str = 'Time-of-Day Text Query Retrieval\n(mean across queries per ToD)'):
+    """Bar chart: mean Precision@K vs random baseline for each ToD."""
+    tod_colors = {
+        'morning': '#FDB462', 'afternoon': '#FFFF99',
+        'evening': '#BEBADA', 'night': '#80B1D3',
+    }
+    tods_present = [t for t in tod_order if t in aggregated]
+    n_tods = len(tods_present)
+    n_k = len(k_values)
+
+    fig, axes = plt.subplots(1, n_k, figsize=(5 * n_k, 5), sharey=False)
+    if n_k == 1:
+        axes = [axes]
+
+    for ax, k in zip(axes, k_values):
+        precs = [aggregated[t]['mean_precision'][k] for t in tods_present]
+        baselines = [aggregated[t]['random_baseline'] for t in tods_present]
+        x = np.arange(n_tods)
+        width = 0.35
+
+        bars = ax.bar(x - width/2, precs, width,
+                      color=[tod_colors[t] for t in tods_present],
+                      edgecolor='black', label='Model P@K')
+        ax.bar(x + width/2, baselines, width,
+               color='lightgrey', edgecolor='black', label='Random baseline')
+
+        for bar, p in zip(bars, precs):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
+                    f'{p:.2f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels([t.capitalize() for t in tods_present])
+        ax.set_ylabel('Precision')
+        ax.set_title(f'Text Retrieval Precision@{k}', fontweight='bold')
+        ax.set_ylim(0, min(1.0, max(precs + baselines) * 1.25))
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3, axis='y')
+
+    plt.suptitle(title, fontsize=13, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"📊 Saved retrieval plot to {output_dir / filename}")
+
+
 def visualize_tod_embeddings(samples_with_tod, embeddings, output_dir):
     """Create visualizations of ToD embedding differences."""
     print(f"📊 Creating visualizations...")
@@ -993,7 +1556,8 @@ def visualize_tod_embeddings(samples_with_tod, embeddings, output_dir):
     print(f"✅ Visualizations saved to {output_dir}")
 
 
-def generate_summary_report(samples_with_tod, stats_results, activity_stats, output_dir):
+def generate_summary_report(samples_with_tod, stats_results, activity_stats, output_dir,
+                            retrieval_results=None, global_token_results=None):
     """Generate a markdown summary report of the analysis."""
 
     from datetime import datetime
@@ -1162,6 +1726,85 @@ def generate_summary_report(samples_with_tod, stats_results, activity_stats, out
         else:
             report.append("*Cross-activity distances not available*\n")
 
+    # Text retrieval evaluation results
+    if retrieval_results:
+        report.append("---\n")
+        report.append("## Text-to-Sensor ToD Retrieval\n")
+        report.append("*Queries like \"The activity took place in the morning.\" are encoded with the text encoder ")
+        report.append("and used to retrieve sensor sequences by cosine similarity. Precision@K measures the ")
+        report.append("fraction of top-K retrieved samples that genuinely belong to the target time of day.*\n")
+
+        k_values = retrieval_results.get('k_values', [10, 50, 100])
+        aggregated = retrieval_results.get('aggregated', {})
+        random_baselines = retrieval_results.get('random_baselines', {})
+
+        header = "| Time of Day | Random Baseline |" + \
+                 "".join([f" P@{k} | Lift@{k} |" for k in k_values])
+        separator = "|" + "|".join(["---"] * (2 + 2 * len(k_values))) + "|"
+        report.append(header)
+        report.append(separator)
+
+        for tod in ['morning', 'afternoon', 'evening', 'night']:
+            if tod not in aggregated:
+                continue
+            baseline = random_baselines.get(tod, 0)
+            row = f"| {tod.capitalize()} | {baseline:.3f} |"
+            for k in k_values:
+                prec = aggregated[tod]['mean_precision'].get(k, 0)
+                lift = aggregated[tod]['lift'].get(k, 0)
+                row += f" {prec:.3f} | {lift:.2f}x |"
+            report.append(row)
+        report.append("")
+
+        # Per-query detail
+        report.append("### Per-Query Results\n")
+        for tod in ['morning', 'afternoon', 'evening', 'night']:
+            if tod not in retrieval_results.get('aggregated', {}):
+                continue
+            report.append(f"**{tod.capitalize()}**\n")
+            per_query = [r for r in retrieval_results.get('per_query', []) if r['target_tod'] == tod]
+            for item in per_query:
+                prec_str = ", ".join([f"P@{k}={item['precisions'].get(k, 0):.3f}" for k in k_values])
+                report.append(f"- *{item['query']}* → {prec_str}")
+            report.append("")
+
+    # Global tod_token analysis
+    if global_token_results:
+        report.append("---\n")
+        report.append("## Global ToD-Token Analysis (v3 architecture)\n")
+        report.append("*The v3 model prepends a dedicated `tod_bucket` token before the event sequence. "
+                      "This section analyses whether that token's post-transformer representation "
+                      "encodes time-of-day information, independently of the rest of the sequence.*\n")
+
+        # Centroid distances
+        if 'centroid_distances' in global_token_results:
+            report.append("### Tod-Token Centroid Cosine Distances\n")
+            report.append("| Pair | Distance |")
+            report.append("|------|----------|")
+            for pair, dist in sorted(global_token_results['centroid_distances'].items(),
+                                     key=lambda x: x[1]):
+                report.append(f"| {pair} | {dist:.4f} |")
+            report.append("")
+
+        # Text retrieval with tod_token only
+        agg = global_token_results.get('aggregated', {})
+        k_values = global_token_results.get('k_values', [10, 50, 100])
+        baselines = global_token_results.get('random_baselines', {})
+        if agg:
+            report.append("### Text-Query Retrieval (tod_token only)\n")
+            header = "| Time of Day | Random |" + \
+                     "".join([f" P@{k} | Lift@{k} |" for k in k_values])
+            sep    = "|" + "|".join(["---"] * (2 + 2 * len(k_values))) + "|"
+            report.append(header); report.append(sep)
+            for tod in ['morning', 'afternoon', 'evening', 'night']:
+                if tod not in agg:
+                    continue
+                row = f"| {tod.capitalize()} | {baselines.get(tod, 0):.3f} |"
+                for k in k_values:
+                    row += f" {agg[tod]['mean_precision'].get(k, 0):.3f} | {agg[tod]['lift'].get(k, 0):.2f}x |"
+                report.append(row)
+            report.append("")
+
     # Files generated
     report.append("---\n")
     report.append("## Generated Files\n")
@@ -1176,7 +1819,12 @@ def generate_summary_report(samples_with_tod, stats_results, activity_stats, out
         ("specific_activities_overall_distances.png", "Overall activity distance heatmap"),
         ("specific_activities_distance_heatmaps.png", "Distance heatmaps by time of day"),
         ("embeddings.npy", "Raw embedding vectors (NumPy array)"),
-        ("sample_metadata.csv", "Sample metadata with ToD labels")
+        ("sample_metadata.csv", "Sample metadata with ToD labels"),
+        ("tod_text_retrieval.json", "Text-to-sensor retrieval Precision@K results per query"),
+        ("tod_text_retrieval.png", "Bar chart: model Precision@K vs random baseline per ToD"),
+        ("tod_token_embeddings.png", "t-SNE / PCA of global tod_token representations (v3 only)"),
+        ("tod_token_text_retrieval.png", "P@K using only projected tod_token (v3 only)"),
+        ("tod_token_analysis.json", "Global tod_token centroid distances and retrieval metrics (v3 only)"),
     ]
 
     for filename, description in files_list:
@@ -1213,6 +1861,13 @@ def main():
     parser.add_argument('--target_activities', nargs='+',
                        default=['Sleeping', 'Bed_to_Toilet', 'Master_Bedroom_Activity', 'Bathing'],
                        help='Specific activities to analyze in detail (L1 labels)')
+    parser.add_argument('--skip_text_retrieval', action='store_true',
+                       help='Skip the text-to-sensor ToD retrieval evaluation')
+    parser.add_argument('--skip_global_token_analysis', action='store_true',
+                       help='Skip the global tod_token representation analysis (v3+ models only)')
+    parser.add_argument('--retrieval_k_values', nargs='+', type=int,
+                       default=[10, 50, 100],
+                       help='K values for Precision@K in text retrieval eval')
 
     args = parser.parse_args()
 
@@ -1256,8 +1911,50 @@ def main():
     # Create visualizations
     visualize_tod_embeddings(samples_with_tod, embeddings, output_dir)
 
+    # Text retrieval evaluation
+    retrieval_results = None
+    if not args.skip_text_retrieval:
+        clip_embeddings = extract_clip_sensor_embeddings(
+            sensor_encoder, data_path, args.vocab, device, max_samples=args.max_samples
+        )
+        retrieval_results = run_tod_text_retrieval_eval(
+            sensor_encoder=sensor_encoder,
+            checkpoint_path=args.checkpoint,
+            data_path=data_path,
+            samples_with_tod=samples_with_tod,
+            clip_embeddings=clip_embeddings,
+            device=device,
+            output_dir=output_dir,
+            k_values=args.retrieval_k_values,
+        )
+
+    # Global tod_token analysis (v3+ models with global context tokens)
+    global_token_results = None
+    if not args.skip_global_token_analysis:
+        num_global = getattr(sensor_encoder, 'num_global_tokens', 0)
+        if num_global > 0:
+            global_token_reps, global_field_names = extract_global_token_representations(
+                sensor_encoder, data_path, args.vocab, device, max_samples=args.max_samples
+            )
+            if global_token_reps is not None:
+                global_token_results = run_global_token_tod_analysis(
+                    sensor_encoder=sensor_encoder,
+                    checkpoint_path=args.checkpoint,
+                    data_path=data_path,
+                    samples_with_tod=samples_with_tod,
+                    global_token_reps=global_token_reps,
+                    global_field_names=global_field_names,
+                    device=device,
+                    output_dir=output_dir,
+                    k_values=args.retrieval_k_values,
+                )
+        else:
+            print("ℹ️  Model has no global context tokens — skipping global token analysis")
+
     # Generate summary report
-    generate_summary_report(samples_with_tod, stats_results, activity_stats, output_dir)
+    generate_summary_report(samples_with_tod, stats_results, activity_stats, output_dir,
+                            retrieval_results=retrieval_results,
+                            global_token_results=global_token_results)
 
     # Save embeddings and metadata
     print(f"💾 Saving embeddings and metadata...")
@@ -1292,6 +1989,13 @@ def main():
     print("  - specific_activities_distance_heatmaps.png: Distance heatmaps by ToD")
     print("  - embeddings.npy: Raw embeddings")
     print("  - sample_metadata.csv: Sample metadata with ToD labels")
+    if not args.skip_text_retrieval:
+        print("  - tod_text_retrieval.json: Text retrieval Precision@K results")
+        print("  - tod_text_retrieval.png: Text retrieval bar chart")
+    if not args.skip_global_token_analysis and getattr(sensor_encoder, 'num_global_tokens', 0) > 0:
+        print("  - tod_token_embeddings.png: t-SNE/PCA of global tod_token")
+        print("  - tod_token_text_retrieval.png: P@K with projected tod_token only")
+        print("  - tod_token_analysis.json: Global token centroid + retrieval results")
 
 
 if __name__ == '__main__':

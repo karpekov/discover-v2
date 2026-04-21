@@ -132,21 +132,28 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
         # Day of week
         dow = first_event['datetime'].strftime('%A')
 
-        # Time of day
+        # Time of day — prefer event-level tod_bucket (set by sampling pipeline),
+        # fall back to first-event tod_bucket, then derive from timestamp hour
         tod = metadata.get('tod_bucket', None)
         if tod is None:
-            # Compute time of day from timestamp if not provided
+            # Try to get tod_bucket from the first sensor event
+            first_event_dict = first_event.to_dict() if hasattr(first_event, 'to_dict') else {}
+            tod = first_event_dict.get('tod_bucket', None)
+        if tod is None:
+            # Derive from timestamp using the same 6-bucket scheme as the sampling pipeline
             hour = first_event['datetime'].hour
             if hour < 5:
-                tod = 'night'
+                tod = 'night_after_midnight'
+            elif hour < 8:
+                tod = 'early_morning'
             elif hour < 12:
-                tod = 'morning'
+                tod = 'late_morning'
             elif hour < 17:
                 tod = 'afternoon'
-            elif hour < 20:
+            elif hour < 21:
                 tod = 'evening'
             else:
-                tod = 'night'
+                tod = 'night_before_midnight'
         if isinstance(tod, (int, float)):
             tod = str(tod)
         tod = tod.replace('_', ' ').replace('after midnight', 'night')
@@ -513,14 +520,26 @@ class BaselineCaptionGenerator(BaseCaptionGenerator):
     def _generate_time_phrase(self, tod: str) -> str:
         """Generate time of day phrase."""
         time_phrases = {
+            'early morning': ['in the early morning', 'during early morning hours'],
+            'late morning': ['in the late morning', 'during late morning hours'],
             'morning': ['in the morning', 'during morning hours'],
-            'afternoon': ['in the afternoon', 'during the day'],
+            'afternoon': ['in the afternoon', 'during the afternoon'],
             'evening': ['in the evening', 'during evening hours'],
-            'night': ['during the night', 'late at night']
+            'night': ['during the night', 'late at night'],
         }
 
-        tod_key = 'night' if 'night' in tod else tod.split()[0] if tod != 'unknown' else 'evening'
-        phrases = time_phrases.get(tod_key, time_phrases['evening'])
+        if 'night' in tod:
+            tod_key = 'night'
+        elif tod.startswith('early'):
+            tod_key = 'early morning'
+        elif tod.startswith('late'):
+            tod_key = 'late morning'
+        elif tod != 'unknown':
+            tod_key = tod.split()[0]
+        else:
+            tod_key = 'evening'
+
+        phrases = time_phrases.get(tod_key, time_phrases['morning'])
         return self.random.choice(phrases)
 
     def _generate_room_description(self, unique_rooms: List[str]) -> str:

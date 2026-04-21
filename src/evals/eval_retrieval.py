@@ -151,6 +151,7 @@ class RetrievalEvaluator:
       sequence_length=self.config.get('sequence_length', 20),
       max_captions=self.config.get('max_captions', 3)
     )
+    self.eval_dataset = dataset
 
     # Create data loader without MLM masking
     self.eval_loader = create_data_loader(
@@ -187,10 +188,14 @@ class RetrievalEvaluator:
     with torch.no_grad():
       for batch_idx, batch in enumerate(self.eval_loader):
         # Get sensor embeddings using forward_clip (applies projection + normalization)
+        from evals.eval_utils import get_global_categorical_features
         input_data = {
           'categorical_features': batch['categorical_features'],
           'coordinates': batch['coordinates'],
-          'time_deltas': batch['time_deltas']
+          'time_deltas': batch['time_deltas'],
+          'global_categorical_features': get_global_categorical_features(
+              self.sensor_encoder, batch, dataset=self.eval_dataset, device=self.device
+          ),
         }
         sensor_emb = self.sensor_encoder.forward_clip(
           input_data=input_data,

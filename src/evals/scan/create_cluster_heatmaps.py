@@ -205,10 +205,21 @@ class ClusterHeatmapGenerator:
             field_tensors = [sample[field] for sample in all_categorical]
             categorical_features[field] = torch.stack(field_tensors)
 
+        # Build global_categorical_features for models trained with global context tokens
+        from src.evals.eval_utils import get_global_categorical_features
+        sensor_enc = self.model.sensor_encoder if self.model is not None else None
+        # Use self._collate_dataset if set; fallback to positional index otherwise
+        base_dataset = getattr(self, '_collate_dataset', None)
+        global_cat_features = (
+            get_global_categorical_features(sensor_enc, batch, dataset=base_dataset, device=self.device)
+            if sensor_enc is not None else {}
+        )
+
         input_data = {
             'categorical_features': categorical_features,
             'coordinates': coordinates,
-            'time_deltas': time_deltas
+            'time_deltas': time_deltas,
+            'global_categorical_features': global_cat_features,
         }
 
         return {
@@ -264,6 +275,7 @@ class ClusterHeatmapGenerator:
         print("\nGetting cluster assignments...")
         cluster_assignments = []
 
+        self._collate_dataset = dataset  # Made available to _collate_fn for global features
         dataloader = DataLoader(
             dataset=dataset,
             batch_size=64,

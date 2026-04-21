@@ -162,10 +162,14 @@ class EmbeddingAlignmentAnalyzer:
 
                 # Extract CLIP-projected sensor embeddings
                 # Pack data for new encoder interface
+                from evals.eval_utils import get_global_categorical_features
                 input_data = {
                     'categorical_features': batch['categorical_features'],
                     'coordinates': batch['coordinates'],
-                    'time_deltas': batch['time_deltas']
+                    'time_deltas': batch['time_deltas'],
+                    'global_categorical_features': get_global_categorical_features(
+                        self.sensor_encoder, batch, dataset=self.dataset, device=self.device
+                    ),
                 }
                 sensor_emb = self.sensor_encoder.forward_clip(
                     input_data=input_data,

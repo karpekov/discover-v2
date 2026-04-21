@@ -50,7 +50,7 @@ import numpy as np
 import pandas as pd
 import json
 import argparse
-from typing import Dict, List, Any, Tuple, Union
+from typing import Dict, List, Any, Tuple, Union, Optional
 from pathlib import Path
 from collections import defaultdict, Counter
 import warnings
@@ -120,7 +120,7 @@ class EmbeddingEvaluator:
             model_config = raw_config
 
         # Text encoder - use robust 3-tier fallback to detect correct encoder
-        from evals.eval_utils import create_text_encoder_from_checkpoint
+        from evals.eval_utils import create_text_encoder_from_checkpoint, get_global_categorical_features
         self.text_encoder = create_text_encoder_from_checkpoint(
             checkpoint=checkpoint,
             device=self.device,
@@ -338,10 +338,14 @@ class EmbeddingEvaluator:
 
                 # Extract CLIP projected embeddings (512-dim)
                 # Pack data for new encoder interface
+                from evals.eval_utils import get_global_categorical_features
                 input_data = {
                     'categorical_features': batch['categorical_features'],
                     'coordinates': batch['coordinates'],
-                    'time_deltas': batch['time_deltas']
+                    'time_deltas': batch['time_deltas'],
+                    'global_categorical_features': get_global_categorical_features(
+                        self.sensor_encoder, batch, dataset=dataset, device=self.device
+                    ),
                 }
                 sensor_emb = self.sensor_encoder.forward_clip(
                     input_data=input_data,
@@ -476,9 +480,10 @@ class EmbeddingEvaluator:
         # Define labels to exclude (case-insensitive)
         exclude_labels = {
             'other',
-            'no_activity', 'No_Activity',
+            'no_activity', 'no activity',
+            'no_sensor_readings', 'no sensor readings', 'no sensor reading',
             'unknown', 'none', 'null', 'nan',
-            'no activity', 'other activity', 'miscellaneous', 'misc'
+            'other activity', 'miscellaneous', 'misc'
         }
 
         # If no original indices provided, create them
@@ -559,9 +564,15 @@ class EmbeddingEvaluator:
             else:
                 raise ValueError(f"No label information found for dataset {dataset_name}")
 
-        # Filter out empty strings
-        l1_labels = [label for label in l1_labels if label and label.strip()]
-        l2_labels = [label for label in l2_labels if label and label.strip()]
+        _noisy = {
+            'other', 'no_activity', 'no activity',
+            'no_sensor_readings', 'no sensor readings', 'no sensor reading',
+            'unknown', 'none', 'null', 'nan',
+            'other activity', 'miscellaneous', 'misc'
+        }
+        # Filter out empty strings and known noisy/placeholder labels
+        l1_labels = [l for l in l1_labels if l and l.strip() and l.lower().strip() not in _noisy]
+        l2_labels = [l for l in l2_labels if l and l.strip() and l.lower().strip() not in _noisy]
 
         print(f"📋 Extracted from metadata: {len(l1_labels)} L1 labels, {len(l2_labels)} L2 labels")
 
@@ -2980,17 +2991,17 @@ class EmbeddingEvaluator:
                 cm = cm[:15, :15]
                 labels = labels[:15]
 
-            # Normalize
+            # Row-normalize: each row sums to 1, diagonal = per-class recall
             cm_normalized = cm.astype('float') / (cm.sum(axis=1)[:, np.newaxis] + 1e-8)
 
             # Plot heatmap
             sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues',
                        xticklabels=labels, yticklabels=labels, ax=ax,
-                       cbar_kws={'label': 'Normalized Count'})
+                       cbar_kws={'label': 'Recall (row-normalized)'})
 
             ax.set_title(title, fontweight='bold', fontsize=12)
             ax.set_xlabel('Predicted Label', fontsize=10)
-            ax.set_ylabel('True Label', fontsize=10)
+            ax.set_ylabel('True Label (diagonal = Recall)', fontsize=10)
             plt.setp(ax.xaxis.get_majorticklabels(), rotation=45, ha='right', fontsize=8)
             plt.setp(ax.yaxis.get_majorticklabels(), rotation=0, fontsize=8)
 
@@ -3167,6 +3178,370 @@ class EmbeddingEvaluator:
             print(f"💾 Per-class F1 weighted analysis saved: {save_path}")
 
         return fig
+
+    def create_per_label_classification_metrics(self,
+                                               classification_report: Dict[str, Any],
+                                               label_level: str,
+                                               modality: str = 'sensor',
+                                               save_path: str = None) -> plt.Figure:
+        """Create per-label precision, recall, and F1 bar chart from sklearn classification_report.
+
+        This shows the ACTUAL per-class precision/recall/F1 (not the confusion matrix diagonal,
+        which is row-normalized recall). Use this alongside the confusion matrix to understand
+        per-class model behaviour.
+
+        Args:
+            classification_report: Dict from sklearn classification_report(output_dict=True)
+            label_level: 'L1' or 'L2'
+            modality: Name of the modality (for plot title)
+            save_path: Path to save the plot
+        """
+        print(f"🔄 Creating per-label precision/recall/F1 chart ({modality}, {label_level})...")
+
+        # Extract per-class rows (skip aggregate rows)
+        skip_keys = {'accuracy', 'macro avg', 'weighted avg'}
+        labels = []
+        precisions, recalls, f1s, supports = [], [], [], []
+
+        for label, stats in classification_report.items():
+            if label in skip_keys or not isinstance(stats, dict):
+                continue
+            labels.append(label)
+            precisions.append(stats.get('precision', 0.0))
+            recalls.append(stats.get('recall', 0.0))
+            f1s.append(stats.get('f1-score', 0.0))
+            supports.append(int(stats.get('support', 0)))
+
+        if not labels:
+            print("  No per-class data found in classification_report")
+            return None
+
+        # Sort by F1 descending for readability
+        order = np.argsort(f1s)[::-1]
+        labels = [labels[i] for i in order]
+        precisions = [precisions[i] for i in order]
+        recalls = [recalls[i] for i in order]
+        f1s = [f1s[i] for i in order]
+        supports = [supports[i] for i in order]
+
+        n = len(labels)
+        fig, (ax_top, ax_bot) = plt.subplots(
+            2, 1, figsize=(max(14, n * 0.7), 12),
+            gridspec_kw={'height_ratios': [3, 1]}
+        )
+
+        x = np.arange(n)
+        width = 0.28
+        ax_top.bar(x - width, precisions, width, label='Precision', alpha=0.85, color='steelblue')
+        ax_top.bar(x,         recalls,    width, label='Recall',    alpha=0.85, color='darkorange')
+        ax_top.bar(x + width, f1s,        width, label='F1-score',  alpha=0.85, color='green')
+
+        ax_top.set_xlim(-0.5, n - 0.5)
+        ax_top.set_ylim(0, 1.05)
+        ax_top.set_xticks(x)
+        ax_top.set_xticklabels([l.replace('_', ' ') for l in labels], rotation=45, ha='right', fontsize=8)
+        ax_top.set_ylabel('Score', fontsize=12)
+        ax_top.set_title(
+            f'Per-Label Classification Metrics — {modality.upper()} ({label_level})\n'
+            f'NOTE: confusion matrix diagonal = recall (row-normalized)',
+            fontweight='bold', fontsize=13
+        )
+        ax_top.legend(fontsize=11)
+        ax_top.grid(True, alpha=0.3, axis='y')
+
+        # Support bar chart (bottom)
+        ax_bot.bar(x, supports, color='grey', alpha=0.7)
+        ax_bot.set_xlim(-0.5, n - 0.5)
+        ax_bot.set_xticks(x)
+        ax_bot.set_xticklabels([l.replace('_', ' ') for l in labels], rotation=45, ha='right', fontsize=8)
+        ax_bot.set_ylabel('Test Samples', fontsize=10)
+        ax_bot.set_title('Support (test set size per class)', fontsize=10)
+        ax_bot.grid(True, alpha=0.3, axis='y')
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Per-label classification metrics saved: {save_path}")
+
+        return fig
+
+    def create_classification_retrieval_comparison(self,
+                                                   classification_report: Dict[str, Any],
+                                                   prototype_per_label: Dict[str, Dict[int, Dict[str, float]]],
+                                                   label_level: str,
+                                                   k: int = 50,
+                                                   label_counts: Optional[Dict[str, int]] = None,
+                                                   save_path: str = None) -> plt.Figure:
+        """Create a side-by-side per-label comparison of classification metrics vs retrieval precision.
+
+        This directly addresses confusion between the confusion matrix (which shows recall, NOT
+        precision) and the per-label prototype retrieval precision chart.
+
+        Precision@K is capped at the actual label count; capped labels are marked * and listed
+        in a footnote.
+
+        Args:
+            classification_report: Dict from sklearn classification_report(output_dict=True)
+            prototype_per_label: {direction: {k: {label: precision}}} from compute_prototype_retrieval_metrics
+            label_level: 'L1' or 'L2'
+            k: Which K to show for retrieval precision
+            label_counts: Optional dict {label: test_count} to identify capped labels
+            save_path: Path to save the plot
+        """
+        print(f"🔄 Creating classification vs retrieval comparison ({label_level}, K={k})...")
+
+        skip_keys = {'accuracy', 'macro avg', 'weighted avg'}
+        clf_labels = set()
+        clf_data: Dict[str, Dict[str, float]] = {}
+        for label, stats in classification_report.items():
+            if label in skip_keys or not isinstance(stats, dict):
+                continue
+            clf_data[label] = {
+                'precision': stats.get('precision', 0.0),
+                'recall':    stats.get('recall', 0.0),
+                'f1':        stats.get('f1-score', 0.0),
+                'support':   int(stats.get('support', 0)),
+            }
+            clf_labels.add(label)
+
+        retr_precision: Dict[str, float] = {}
+        if 'prototype2sensor' in prototype_per_label and k in prototype_per_label['prototype2sensor']:
+            retr_precision = prototype_per_label['prototype2sensor'][k]
+
+        # Build support from classification_report if not separately provided
+        effective_counts = label_counts or {l: d['support'] for l, d in clf_data.items()}
+
+        # Determine which labels have retrieval precision capped (label_count < k)
+        capped_retr: Dict[str, int] = {
+            l: n for l, n in effective_counts.items() if 0 < n < k
+        }
+
+        # Union of all labels that appear in either source
+        all_labels = sorted(clf_labels | set(retr_precision.keys()))
+
+        clf_prec = [clf_data.get(l, {}).get('precision', 0.0) for l in all_labels]
+        clf_rec  = [clf_data.get(l, {}).get('recall',    0.0) for l in all_labels]
+        clf_f1   = [clf_data.get(l, {}).get('f1',        0.0) for l in all_labels]
+        retr_p   = [retr_precision.get(l, float('nan'))        for l in all_labels]
+        supports = [clf_data.get(l, {}).get('support', 0)      for l in all_labels]
+
+        # Sort by classification F1 descending
+        order = np.argsort(clf_f1)[::-1]
+        all_labels = [all_labels[i] for i in order]
+        clf_prec = [clf_prec[i] for i in order]
+        clf_rec  = [clf_rec[i]  for i in order]
+        clf_f1   = [clf_f1[i]   for i in order]
+        retr_p   = [retr_p[i]   for i in order]
+        supports = [supports[i] for i in order]
+
+        n = len(all_labels)
+        fig, (ax_top, ax_bot) = plt.subplots(
+            2, 1, figsize=(max(16, n * 0.8), 13),
+            gridspec_kw={'height_ratios': [3, 1]}
+        )
+        if capped_retr:
+            plt.subplots_adjust(bottom=0.16)
+
+        x = np.arange(n)
+        w = 0.22
+
+        # Build x-tick labels with * for capped retrieval labels
+        xtick_labels = []
+        for lbl in all_labels:
+            display = lbl.replace('_', ' ')
+            if lbl in capped_retr:
+                display = f'{display}*'
+            xtick_labels.append(display)
+
+        ax_top.bar(x - 1.5*w, clf_prec, w, label='Clf Precision',    alpha=0.85, color='steelblue')
+        ax_top.bar(x - 0.5*w, clf_rec,  w, label='Clf Recall',       alpha=0.85, color='darkorange')
+        ax_top.bar(x + 0.5*w, clf_f1,   w, label='Clf F1',           alpha=0.85, color='green')
+        ax_top.bar(x + 1.5*w, retr_p,   w, label=f'Retrieval Prec@{k}', alpha=0.85, color='crimson')
+
+        ax_top.set_xlim(-0.5, n - 0.5)
+        ax_top.set_ylim(0, 1.05)
+        ax_top.set_xticks(x)
+        ax_top.set_xticklabels(xtick_labels, rotation=45, ha='right', fontsize=8)
+        ax_top.set_ylabel('Score', fontsize=12)
+        ax_top.set_title(
+            f'Classification Metrics vs Prototype→Sensor Retrieval Precision ({label_level})\n'
+            f'Clf Precision/Recall/F1 = sklearn per-class | Retrieval Prec = text-prototype→sensor top-{k}'
+            + (' | * = Precision@K capped at label count' if capped_retr else ''),
+            fontweight='bold', fontsize=12
+        )
+        ax_top.legend(fontsize=10)
+        ax_top.grid(True, alpha=0.3, axis='y')
+
+        # Annotate labels with very few test samples (potential cause of metric discrepancy)
+        for i, (label, sup) in enumerate(zip(all_labels, supports)):
+            if sup <= 3:
+                ax_top.annotate(f'n={sup}', xy=(x[i], 0.02), xycoords=('data', 'axes fraction'),
+                               ha='center', fontsize=7, color='red', rotation=90)
+
+        # Support bar
+        ax_bot.bar(x, supports, color='grey', alpha=0.7)
+        ax_bot.set_xlim(-0.5, n - 0.5)
+        ax_bot.set_xticks(x)
+        ax_bot.set_xticklabels(xtick_labels, rotation=45, ha='right', fontsize=8)
+        ax_bot.set_ylabel('Test Samples', fontsize=10)
+        ax_bot.set_title('Support — red "n=X" above = classes with ≤3 test samples', fontsize=10)
+        ax_bot.grid(True, alpha=0.3, axis='y')
+
+        # Footnote for capped labels
+        if capped_retr:
+            import textwrap
+            cap_parts = [f"{l.replace('_', ' ')} (N={n})" for l, n in sorted(capped_retr.items())]
+            footnote = (
+                f"* Retrieval Prec@{k} capped at true label count (< {k} test samples): "
+                + ", ".join(cap_parts)
+            )
+            wrapped = "\n  ".join(textwrap.wrap(footnote, width=130))
+            fig.text(0.01, 0.01, wrapped, fontsize=7, color='dimgray',
+                     va='bottom', ha='left', style='italic')
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"💾 Classification vs retrieval comparison saved: {save_path}")
+
+        return fig
+
+    def debug_label_metrics(self,
+                            label: str,
+                            test_sensor_emb: np.ndarray,
+                            test_labels: List[str],
+                            prototype_emb: np.ndarray,
+                            prototype_labels: np.ndarray,
+                            classification_report: Dict[str, Any],
+                            k_values: List[int] = [1, 5, 10, 50],
+                            verbose: bool = True) -> Dict[str, Any]:
+        """Print and return detailed per-label debug information.
+
+        Investigates WHY a label can have high classification recall but low retrieval precision
+        (or any other combination of metrics), by printing the full similarity picture.
+
+        Args:
+            label: The label to debug (e.g. 'Morning_Meds')
+            test_sensor_emb: Sensor embeddings (n_test, dim)
+            test_labels: True labels for test set
+            prototype_emb: Text prototype embeddings (n_protos, dim)
+            prototype_labels: Label names for each prototype
+            classification_report: From sklearn classification_report(output_dict=True)
+            k_values: K values to compute retrieval precision at
+            verbose: Whether to print results
+        """
+        test_labels_arr = np.array(test_labels)
+        prototype_labels_arr = np.array(prototype_labels)
+
+        # Find indices of this label
+        sensor_indices = np.where(test_labels_arr == label)[0]
+        proto_idx = np.where(prototype_labels_arr == label)[0]
+
+        results = {
+            'label': label,
+            'n_test_samples': len(sensor_indices),
+            'has_prototype': len(proto_idx) > 0,
+        }
+
+        # Classification metrics from report
+        clf = classification_report.get(label, {})
+        results['classification'] = {
+            'precision': clf.get('precision', None),
+            'recall':    clf.get('recall',    None),
+            'f1':        clf.get('f1-score',  None),
+            'support':   clf.get('support',   None),
+        }
+
+        if verbose:
+            print(f"\n{'='*60}")
+            print(f"DEBUG: Label = '{label}'")
+            print(f"{'='*60}")
+            print(f"  Test samples with this label: {len(sensor_indices)}")
+            print(f"  Has text prototype: {results['has_prototype']}")
+            print(f"\n  Classification (sklearn, k-NN sensor→prototype):")
+            print(f"    Precision: {clf.get('precision', 'N/A'):.4f}" if isinstance(clf.get('precision'), float) else f"    Precision: N/A")
+            print(f"    Recall:    {clf.get('recall',    'N/A'):.4f}" if isinstance(clf.get('recall'),    float) else f"    Recall: N/A")
+            print(f"    F1:        {clf.get('f1-score',  'N/A'):.4f}" if isinstance(clf.get('f1-score'),  float) else f"    F1: N/A")
+            print(f"    Support:   {int(clf.get('support', 0))}")
+
+        if len(proto_idx) == 0:
+            if verbose:
+                print(f"\n  WARNING: No text prototype found for label '{label}'")
+            return results
+
+        p_idx = proto_idx[0]
+
+        # Normalize for cosine similarity
+        sensor_norm = test_sensor_emb / (np.linalg.norm(test_sensor_emb, axis=1, keepdims=True) + 1e-8)
+        proto_norm  = prototype_emb  / (np.linalg.norm(prototype_emb,  axis=1, keepdims=True) + 1e-8)
+
+        # Prototype → all sensors
+        proto_to_sensor_sims = proto_norm[p_idx] @ sensor_norm.T  # (n_test,)
+        rank_of_true_samples = []
+        for s_idx in sensor_indices:
+            rank = int(np.sum(proto_to_sensor_sims > proto_to_sensor_sims[s_idx])) + 1
+            rank_of_true_samples.append(rank)
+
+        # Sensor → all prototypes (for each true sample of this label)
+        sensor_to_proto_results = []
+        for s_idx in sensor_indices:
+            sims = sensor_norm[s_idx] @ proto_norm.T  # (n_protos,)
+            nn_proto_idx = int(np.argmax(sims))
+            nn_proto_label = str(prototype_labels_arr[nn_proto_idx])
+            nn_proto_sim = float(sims[nn_proto_idx])
+            sim_to_correct_proto = float(sims[p_idx])
+            rank_correct_proto = int(np.sum(sims > sim_to_correct_proto)) + 1
+            sensor_to_proto_results.append({
+                'sensor_idx': int(s_idx),
+                'nearest_proto_label': nn_proto_label,
+                'nearest_proto_sim': nn_proto_sim,
+                'sim_to_correct_proto': sim_to_correct_proto,
+                'rank_of_correct_proto': rank_correct_proto,
+                'correctly_classified': nn_proto_label == label,
+            })
+
+        # Retrieval precision @ k
+        retrieval_precision = {}
+        for k in k_values:
+            k_eff = min(k, len(sensor_indices))
+            top_k_idx = np.argsort(proto_to_sensor_sims)[-k_eff:][::-1]
+            top_k_labels = test_labels_arr[top_k_idx]
+            prec = float(np.sum(top_k_labels == label) / k_eff)
+            retrieval_precision[k] = {'precision': prec, 'k_effective': k_eff}
+
+        results['retrieval'] = {
+            'rank_of_true_samples_in_proto2sensor': rank_of_true_samples,
+            'precision_at_k': retrieval_precision,
+        }
+        results['sensor_to_proto'] = sensor_to_proto_results
+
+        if verbose:
+            print(f"\n  Prototype→Sensor retrieval:")
+            print(f"    Ranks of true '{label}' samples: {rank_of_true_samples}")
+            for k in k_values:
+                k_eff = retrieval_precision[k]['k_effective']
+                prec  = retrieval_precision[k]['precision']
+                print(f"    Precision@{k} (k_eff={k_eff}): {prec:.4f}")
+
+            print(f"\n  Sensor→Prototype (k-NN direction, {len(sensor_to_proto_results)} samples):")
+            for r in sensor_to_proto_results:
+                tick = '✓' if r['correctly_classified'] else '✗'
+                print(f"    [{tick}] sensor[{r['sensor_idx']}]: "
+                      f"nearest proto = '{r['nearest_proto_label']}' "
+                      f"(sim={r['nearest_proto_sim']:.4f}), "
+                      f"sim to '{label}' proto = {r['sim_to_correct_proto']:.4f}, "
+                      f"correct proto rank = {r['rank_of_correct_proto']}")
+
+            print(f"\n  KEY INSIGHT:")
+            n_correct_clf = sum(1 for r in sensor_to_proto_results if r['correctly_classified'])
+            print(f"    {n_correct_clf}/{len(sensor_to_proto_results)} samples correctly classified (recall = {n_correct_clf/max(1,len(sensor_to_proto_results)):.2%})")
+            if rank_of_true_samples:
+                print(f"    Best rank of a true sample in proto→sensor: {min(rank_of_true_samples)}")
+                print(f"    If rank > 1: another class's sensor is CLOSER to the '{label}' prototype → retrieval precision = 0")
+
+        return results
 
     def create_retrieval_metrics_visualization(self,
                                               retrieval_results: Dict[str, Dict[int, Union[float, Dict[str, float]]]],
@@ -3450,13 +3825,17 @@ class EmbeddingEvaluator:
                                           save_path: str = None) -> plt.Figure:
         """Create heatmap showing per-label retrieval performance.
 
+        Precision@K is capped at the actual label count when fewer than K samples exist
+        (e.g. Precision@50 for a class with only 15 samples uses k_effective=15).
+        Capped labels are marked with * in the chart and listed in the footnote.
+
         Args:
             prototype_labels: Labels for prototypes (N_prototypes,)
             target_embeddings: Target embeddings (N_targets, D)
             target_labels: Labels for targets (N_targets,)
             prototype_embeddings: Prototype embeddings (N_prototypes, D)
             direction_name: Name of retrieval direction
-        k: K value for precision computation
+            k: K value for precision computation
             save_path: Path to save plot
         """
         from evals.compute_retrieval_metrics import (
@@ -3473,9 +3852,12 @@ class EmbeddingEvaluator:
         # Compute similarity matrix
         similarities = compute_cosine_similarity(prototype_embeddings_norm, target_embeddings_norm)
 
-        # For each prototype, compute precision@k (truncate to available positives)
+        # For each prototype, compute precision@k (cap k at available label count)
         target_label_counts = Counter(str(label) for label in target_labels)
         per_label_precisions = []
+        # Map label_str -> k_effective for labels that were capped (k_effective < k)
+        capped_info: Dict[str, int] = {}
+
         for i, proto_label in enumerate(prototype_labels):
             proto_label_str = str(proto_label)
             proto_sims = similarities[i]
@@ -3485,14 +3867,20 @@ class EmbeddingEvaluator:
                 continue
 
             k_effective = min(k, label_total)
+            if k_effective < k:
+                capped_info[proto_label_str] = label_total
+
             top_k_indices = np.argsort(proto_sims)[-k_effective:][::-1]
             top_k_labels = target_labels[top_k_indices]
             n_matching = np.sum(top_k_labels == proto_label)
             precision = n_matching / k_effective if k_effective > 0 else 0.0
             per_label_precisions.append(precision)
 
-        # Create bar plot
+        # Create bar plot — add bottom margin for footnote when capped labels exist
+        footnote_height = 0.12 if capped_info else 0.0
         fig, ax = plt.subplots(figsize=(max(12, len(prototype_labels) * 0.5), 8))
+        if footnote_height:
+            plt.subplots_adjust(bottom=footnote_height + 0.08)
 
         # Sort by precision for better visualization
         sorted_indices = np.argsort(per_label_precisions)[::-1]
@@ -3510,15 +3898,24 @@ class EmbeddingEvaluator:
 
         bars = ax.barh(y_pos, sorted_precisions, color=colors_bars, alpha=0.8)
 
+        # Build y-tick labels; append * for capped labels
+        tick_labels = []
+        for lbl in sorted_labels:
+            lbl_str = str(lbl)
+            display = lbl_str.replace('_', ' ')
+            if lbl_str in capped_info:
+                display = f'{display}*'
+            tick_labels.append(display)
+
         ax.set_yticks(y_pos)
-        ax.set_yticklabels([label.replace('_', ' ') for label in sorted_labels], fontsize=9)
+        ax.set_yticklabels(tick_labels, fontsize=9)
         ax.set_xlabel(f'Label-Precision@{k}', fontsize=12)
         ax.set_title(f'Per-Label Retrieval Precision: {direction_name}',
                     fontweight='bold', fontsize=14)
         ax.set_xlim(0, 1)
         ax.grid(True, alpha=0.3, axis='x')
 
-        # Add value labels
+        # Add value labels on bars
         for i, (bar, precision) in enumerate(zip(bars, sorted_precisions)):
             width = bar.get_width()
             ax.annotate(f'{precision:.3f}',
@@ -3532,6 +3929,19 @@ class EmbeddingEvaluator:
         ax.axvline(avg_precision, color='red', linestyle='--', linewidth=2, alpha=0.7,
                   label=f'Average: {avg_precision:.3f}')
         ax.legend(fontsize=10)
+
+        # Footnote: list all capped labels (including those outside top-20)
+        if capped_info:
+            cap_parts = [f"{l.replace('_', ' ')} (N={n})" for l, n in sorted(capped_info.items())]
+            footnote = (
+                f"* Precision@{k} capped at true label count (fewer than {k} test samples): "
+                + ", ".join(cap_parts)
+            )
+            # Wrap long footnotes across lines (approx 120 chars each)
+            import textwrap
+            wrapped = "\n  ".join(textwrap.wrap(footnote, width=120))
+            fig.text(0.01, 0.01, wrapped, fontsize=7, color='dimgray',
+                     va='bottom', ha='left', style='italic')
 
         plt.tight_layout()
 
@@ -3628,6 +4038,490 @@ class EmbeddingEvaluator:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"💾 Retrieval confusion heatmap saved: {save_path}")
+
+        return fig
+
+    def create_retrieval_confusion_matrix(self,
+                                          prototype_labels: np.ndarray,
+                                          target_embeddings: np.ndarray,
+                                          target_labels: np.ndarray,
+                                          prototype_embeddings: np.ndarray,
+                                          direction_name: str,
+                                          k: int = 50,          # kept for API compat, ignored internally
+                                          save_path: str = None) -> plt.Figure:
+        """Three-panel retrieval confusion matrix at K=10, 50, 100.
+
+        Each panel is a PERFECT SQUARE matrix:
+        - Both rows and columns use only the prototype labels, in the SAME order
+          → diagonal cell [i,i] = correct retrieval fraction for label i
+        - k_eff = min(K, true label count per label) — properly capped
+        - Rows (and columns) sorted identically by K=50 retrieval precision (desc)
+        - Average retrieval precision shown in the top-right corner of each panel
+        - Capped labels marked * on both axes; footnote below the figure (with
+          enough bottom margin so it does not overlap the x-axis tick labels)
+
+        Args:
+            prototype_labels: Label for each prototype (N_proto,)
+            target_embeddings: Target embeddings (N_target, D)
+            target_labels: Labels for each target (N_target,)
+            prototype_embeddings: Prototype query embeddings (N_proto, D)
+            direction_name: e.g. 'Prototype → Sensor (L1)'
+            k: ignored (kept for call-site compatibility); always uses [10, 50, 100]
+            save_path: If given, save the figure here
+        """
+        from evals.compute_retrieval_metrics import normalize_embeddings, compute_cosine_similarity
+        import textwrap
+
+        k_values = [10, 50, 100]
+        print(f"🎨 Creating retrieval confusion matrices (K={k_values}) for {direction_name}...")
+
+        proto_norm   = normalize_embeddings(prototype_embeddings)
+        target_norm  = normalize_embeddings(target_embeddings)
+        similarities = compute_cosine_similarity(proto_norm, target_norm)  # (N_proto, N_target)
+
+        target_labels_arr    = np.array([str(l) for l in target_labels])
+        prototype_labels_arr = np.array([str(l) for l in prototype_labels])
+        target_counts        = Counter(target_labels_arr)
+
+        # Unique prototype labels (square: only these appear on both axes)
+        unique_proto_lbls = list(dict.fromkeys(prototype_labels_arr))
+        n = len(unique_proto_lbls)
+        lbl_to_idx = {l: i for i, l in enumerate(unique_proto_lbls)}
+
+        # Pre-compute per-prototype raw similarity vectors once
+        # (prototype_labels_arr may have duplicates if multiple prototypes share a label —
+        #  we take the first occurrence per label for the square matrix)
+        first_idx = {lbl: None for lbl in unique_proto_lbls}
+        for i, lbl in enumerate(prototype_labels_arr):
+            if first_idx[lbl] is None:
+                first_idx[lbl] = i
+
+        # Build one square matrix per K; also collect capping info across all K
+        capped_any: Dict[str, int] = {}   # label -> min support (for footnote)
+        matrices: Dict[int, np.ndarray] = {}
+        avg_precisions: Dict[int, float] = {}
+
+        for kv in k_values:
+            mat = np.zeros((n, n), dtype=float)
+            for row_i, proto_lbl in enumerate(unique_proto_lbls):
+                src_i       = first_idx[proto_lbl]
+                label_total = target_counts.get(proto_lbl, 0)
+                if label_total == 0:
+                    continue
+                k_eff = min(kv, label_total)
+                if k_eff < kv:
+                    # Track the tightest cap seen (minimum support)
+                    if proto_lbl not in capped_any or label_total < capped_any[proto_lbl]:
+                        capped_any[proto_lbl] = label_total
+
+                proto_sims = similarities[src_i]
+                top_idx    = np.argsort(proto_sims)[-k_eff:][::-1]
+                top_labels = target_labels_arr[top_idx]
+                for lbl in top_labels:
+                    col_j = lbl_to_idx.get(lbl)
+                    if col_j is not None:
+                        mat[row_i, col_j] += 1.0 / k_eff
+            matrices[kv]       = mat
+            diag                = np.array([mat[i, i] for i in range(n)])
+            avg_precisions[kv] = float(np.mean(diag))
+
+        # Sort rows/cols by K=50 diagonal precision, descending
+        ref_mat    = matrices[50]
+        diag_50    = np.array([ref_mat[i, i] for i in range(n)])
+        order      = np.argsort(diag_50)[::-1]
+        sorted_lbls = [unique_proto_lbls[i] for i in order]
+
+        def _disp(l):
+            return l.replace('_', ' ') + ('*' if l in capped_any else '')
+
+        tick_labels = [_disp(l) for l in sorted_lbls]
+
+        # ---- Figure: 3 square panels side-by-side ----
+        # Each cell is cell_in inches; leave a fixed margin for tick labels / colorbar.
+        cell_in   = max(0.55, min(0.85, 10.0 / n))   # per-cell size in inches
+        mat_side  = n * cell_in                        # actual matrix square (inches)
+        ytick_w   = 1.4                                # width for y-tick labels (left panel only)
+        cbar_w    = 0.35                               # colorbar width per panel
+        gap_w     = 0.15                               # inter-panel gap (inches, kept tight)
+        xtick_h   = 1.3                                # height for rotated x-tick labels
+        title_h   = 0.55                               # suptitle height
+        fn_h      = 0.55 if capped_any else 0.0        # footnote height at bottom
+
+        panel_w   = mat_side + cbar_w                 # each panel's total width
+        fig_w     = ytick_w + panel_w * 3 + gap_w * 2
+        fig_h     = title_h + mat_side + xtick_h + fn_h
+
+        # Use constrained_layout to let matplotlib pack panels tight around square axes.
+        fig, axes = plt.subplots(
+            1, 3,
+            figsize=(fig_w, fig_h),
+            constrained_layout=False,
+        )
+
+        # Manual margins: convert inches to fractions
+        l_frac  = ytick_w / fig_w
+        r_frac  = 1.0 - (cbar_w * 0.5) / fig_w       # leave a sliver for the last colorbar
+        t_frac  = 1.0 - title_h / fig_h
+        b_frac  = (fn_h + xtick_h) / fig_h
+        wsp_frac = gap_w / panel_w                    # wspace is fraction of axes width
+
+        fig.subplots_adjust(left=l_frac, right=r_frac,
+                            top=t_frac, bottom=b_frac,
+                            wspace=wsp_frac)
+
+        tick_fs  = max(5, min(8, int(88 / n)))
+        annot_fs = max(4, min(6, int(72 / n)))
+
+        for panel_idx, (ax, kv) in enumerate(zip(axes, k_values)):
+            mat_ordered = matrices[kv][np.ix_(order, order)]
+
+            im = ax.imshow(mat_ordered, cmap='Blues', aspect='equal', vmin=0, vmax=1)
+
+            ax.set_xticks(np.arange(n))
+            ax.set_yticks(np.arange(n))
+            ax.set_xticklabels(tick_labels, rotation=90, ha='center', fontsize=tick_fs)
+            if panel_idx == 0:
+                ax.set_yticklabels(tick_labels, fontsize=tick_fs)
+                ax.set_ylabel('Query Prototype Label', fontsize=9)
+            else:
+                ax.set_yticklabels([])
+
+            ax.set_xlabel('Retrieved Label', fontsize=9)
+            ax.set_title(f'K = {kv}', fontweight='bold', fontsize=11, pad=4)
+
+            # Cell annotations
+            for i in range(n):
+                for j in range(n):
+                    val = mat_ordered[i, j]
+                    if val < 0.005:
+                        continue
+                    ax.text(j, i, f'{val:.2f}',
+                            ha='center', va='center',
+                            color='white' if val > 0.55 else 'black',
+                            fontsize=annot_fs)
+
+            # Diagonal crimson borders
+            for i in range(n):
+                ax.add_patch(plt.Rectangle(
+                    (i - 0.5, i - 0.5), 1, 1,
+                    linewidth=1.5, edgecolor='crimson', facecolor='none'
+                ))
+
+            # Average precision badge — top-right corner inside the axes
+            avg_p = avg_precisions[kv]
+            ax.text(0.98, 0.98, f'Avg Prec = {avg_p:.3f}',
+                    transform=ax.transAxes,
+                    ha='right', va='top', fontsize=8,
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='lightyellow',
+                              edgecolor='grey', alpha=0.9))
+
+            fig.colorbar(im, ax=ax, shrink=0.80, pad=0.01,
+                         label='Fraction of top-k_eff' if panel_idx == 2 else '')
+
+        fig.suptitle(
+            f'Retrieval Confusion Matrices: {direction_name}\n'
+            f'Rows = query prototype, Cols = retrieved label (same order). '
+            f'Diagonal = correct retrieval. Off-diagonal = mistakes.',
+            fontweight='bold', fontsize=11,
+            y=1.0 - (title_h * 0.3) / fig_h,   # hug the top edge
+        )
+
+        # Footnote — anchored just above the physical bottom of the figure
+        if capped_any:
+            cap_parts = [f"{l.replace('_',' ')} (N={nv})"
+                         for l, nv in sorted(capped_any.items())]
+            note = ("* k_eff capped at true label count for: "
+                    + ", ".join(cap_parts))
+            wrapped = "\n  ".join(textwrap.wrap(note, width=140))
+            fig.text(0.01, fn_h / fig_h * 0.15, wrapped,
+                     fontsize=7, color='dimgray', va='bottom', ha='left', style='italic')
+
+        if save_path:
+            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+            print(f"💾 Retrieval confusion matrix saved: {save_path}")
+
+        return fig
+
+    def _save_retrieval_results_json(self,
+                                     retrieval_results: Dict[str, Any],
+                                     label_counts: Dict[str, int],
+                                     label_level: str,
+                                     k_values: List[int],
+                                     save_path) -> None:
+        """Serialize and save comprehensive retrieval results to JSON.
+
+        Structure:
+          label_level, label_counts, capping_info (labels capped at each K),
+          instance_to_instance (overall + per_label for each direction × K),
+          prototype_based (overall + per_label for each direction × K).
+        """
+        def _to_python(obj):
+            """Recursively convert numpy/np scalars to plain Python types."""
+            if isinstance(obj, dict):
+                return {str(k): _to_python(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_to_python(v) for v in obj]
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if isinstance(obj, float) and (obj != obj):  # NaN
+                return None
+            return obj
+
+        # Build capping metadata: for each K, which labels were capped
+        capping_info: Dict[str, Dict[str, int]] = {}
+        for k in k_values:
+            capped = {lbl: n for lbl, n in label_counts.items() if 0 < n < k}
+            if capped:
+                capping_info[str(k)] = capped
+
+        out = {
+            'label_level': label_level,
+            'label_counts': _to_python(label_counts),
+            'capping_info': _to_python(capping_info),
+            'note': (
+                'Precision@K for labels in capping_info[K] is capped at the actual label count. '
+                'All per-label values are float in [0,1]; null = label not present in target set.'
+            ),
+            'instance_to_instance': _to_python(
+                {k: v for k, v in retrieval_results.get('instance_to_instance', {}).items()
+                 if k in ('overall', 'per_label')}
+            ),
+            'prototype_based': _to_python(
+                {k: v for k, v in retrieval_results.get('prototype_based', {}).items()
+                 if k in ('overall', 'per_label')}
+            ),
+        }
+
+        with open(save_path, 'w') as f:
+            json.dump(out, f, indent=2)
+        print(f"💾 Retrieval results JSON saved: {save_path}")
+
+    def create_prototype_sensor_heatmaps(
+        self,
+        prototype_embeddings: np.ndarray,
+        prototype_labels: np.ndarray,
+        test_sensor_embeddings: np.ndarray,
+        test_sample_ids: Optional[List[str]] = None,
+        k: int = 50,
+        save_path: str = None,
+    ) -> Optional[plt.Figure]:
+        """Grid of house floor-plan heatmaps showing which sensors are most activated
+        in the top-K sensor windows retrieved by each text prototype.
+
+        One subplot per prototype label; sensor activation density is drawn as a
+        Gaussian-KDE contour on top of the floor plan image.  Falls back to a
+        scatter plot when fewer than 3 activation points.
+
+        Args:
+            prototype_embeddings:   (n_proto, dim) normalised prototype embeddings.
+            prototype_labels:       (n_proto,) label string for each prototype.
+            test_sensor_embeddings: (n_test, dim) normalised sensor embeddings.
+            test_sample_ids:        List of sample_id strings aligned with test_sensor_embeddings.
+                                    Used to look up raw sensor events by ID (not by position).
+            k:                      Number of top-K sensor windows to retrieve per prototype.
+            save_path:              Where to write the figure (PNG).
+
+        Returns:
+            The matplotlib Figure, or None if sensor coordinates are unavailable.
+        """
+        # ── Load floor plan & sensor coordinates ──────────────────────────────
+        project_root = Path(__file__).parent.parent.parent
+        metadata_path = project_root / "metadata" / "casas_metadata.json"
+        floor_plan_path = project_root / "metadata" / "floor_plans_augmented" / f"{self.dataset_name}.png"
+
+        try:
+            with open(metadata_path) as f:
+                all_meta = json.load(f)
+            dataset_meta = all_meta.get(self.dataset_name, {})
+            sensor_coords = dataset_meta.get('sensor_coordinates', {})
+        except Exception as e:
+            print(f"⚠️  Could not load sensor coordinates: {e}")
+            return None
+
+        if not sensor_coords:
+            print(f"⚠️  No sensor coordinates for '{self.dataset_name}' – skipping heatmaps")
+            return None
+
+        floor_plan_img = None
+        img_w, img_h = 2600, 2800  # safe defaults covering the Milan coordinate range
+        if floor_plan_path.exists():
+            try:
+                floor_plan_img = plt.imread(str(floor_plan_path))
+                img_h, img_w = floor_plan_img.shape[:2]
+            except Exception as e:
+                print(f"⚠️  Could not load floor plan: {e}")
+
+        # ── Load raw test samples & build id → sample lookup ─────────────────
+        test_data_path = self.config.get('test_data_path')
+        id_to_sample: Dict[str, Dict] = {}
+        if test_data_path and Path(test_data_path).exists():
+            try:
+                with open(test_data_path) as f:
+                    raw = json.load(f)
+                raw_samples = raw.get('samples', raw if isinstance(raw, list) else [])
+                for s in raw_samples:
+                    sid = s.get('sample_id', '')
+                    if sid:
+                        id_to_sample[sid] = s
+            except Exception as e:
+                print(f"⚠️  Could not load raw test data: {e}")
+
+        if not id_to_sample:
+            print("⚠️  No raw test samples available – skipping sensor heatmaps")
+            return None
+
+        # If no sample_ids provided, we cannot do ID-based lookup safely
+        if test_sample_ids is None or len(test_sample_ids) != len(test_sensor_embeddings):
+            print("⚠️  test_sample_ids not aligned with embeddings – skipping sensor heatmaps")
+            return None
+
+        # ── Compute per-label top-K retrievals via cosine similarity ──────────
+        proto_arr = np.array(prototype_embeddings)    # (n_proto, dim)
+        test_arr  = np.array(test_sensor_embeddings)  # (n_test,  dim)
+        sims = proto_arr @ test_arr.T                  # (n_proto, n_test)
+
+        unique_labels = list(dict.fromkeys(prototype_labels))
+        k_eff = min(k, len(test_sample_ids))
+
+        # Human-readable short names for tod_bucket values
+        _tod_short = {
+            'early_morning': 'early morn',
+            'late_morning': 'late morn',
+            'afternoon': 'afternoon',
+            'evening': 'evening',
+            'night_before_midnight': 'night',
+            'night_after_midnight': 'late night',
+        }
+
+        # Accumulate ON-signal (x, y_flipped) coords and tod counts per label
+        label_coords: Dict[str, List[Tuple[float, float]]] = {}
+        label_tod: Dict[str, 'Counter'] = {}
+        for idx, lbl in enumerate(prototype_labels):
+            top_k_idx = np.argsort(sims[idx])[::-1][:k_eff]
+            coords: List[Tuple[float, float]] = []
+            tod_counter: 'Counter' = Counter()
+            for emb_idx in top_k_idx:
+                sample_id = test_sample_ids[emb_idx]
+                sample = id_to_sample.get(sample_id)
+                if sample is None:
+                    continue
+                for event in sample.get('sensor_sequence', []):
+                    sid = event.get('sensor_id', event.get('sensor', ''))
+                    state = str(event.get('event_type', event.get('state', ''))).upper()
+                    tod = event.get('tod_bucket', '')
+                    if tod:
+                        tod_counter[tod] += 1
+                    if state not in ('ON', 'OPEN', '1', 'TRUE'):
+                        continue
+                    if sid in sensor_coords:
+                        ex, ey = sensor_coords[sid]
+                        coords.append((ex, img_h - ey))  # flip Y to image coords
+            label_coords[lbl] = coords
+            label_tod[lbl] = tod_counter
+
+        # ── Build figure grid ─────────────────────────────────────────────────
+        n_labels = len(unique_labels)
+        n_cols = min(4, n_labels)
+        n_rows = (n_labels + n_cols - 1) // n_cols
+
+        cell_w, cell_h = 5.5, 5.0
+        fig, axes = plt.subplots(n_rows, n_cols,
+                                 figsize=(cell_w * n_cols, cell_h * n_rows))
+        if n_labels == 1:
+            axes = np.array([[axes]])
+        axes_flat = np.array(axes).flatten()
+
+        for ax_idx, lbl in enumerate(unique_labels):
+            ax = axes_flat[ax_idx]
+            coords = label_coords.get(lbl, [])
+
+            # Floor plan background
+            if floor_plan_img is not None:
+                ax.imshow(floor_plan_img,
+                          extent=[0, img_w, img_h, 0],
+                          alpha=0.55, aspect='auto', zorder=0)
+
+            ax.set_xlim(0, img_w)
+            ax.set_ylim(img_h, 0)
+
+            if len(coords) >= 3:
+                xs = [c[0] for c in coords]
+                ys = [c[1] for c in coords]
+                try:
+                    from scipy import stats as _stats
+                    x_grid = np.linspace(0, img_w, 120)
+                    y_grid = np.linspace(0, img_h, 120)
+                    X, Y = np.meshgrid(x_grid, y_grid)
+                    positions = np.vstack([X.ravel(), Y.ravel()])
+                    kernel = _stats.gaussian_kde(np.vstack([xs, ys]), bw_method=0.15)
+                    Z = np.reshape(kernel(positions).T, X.shape)
+                    levels = np.linspace(Z.max() * 0.05, Z.max(), 12)
+                    ax.contourf(X, Y, Z, levels=levels, cmap='YlOrRd', alpha=0.72, zorder=1)
+                except Exception:
+                    pass
+                ax.scatter(xs, ys, c='darkred', s=6, alpha=0.6,
+                           edgecolors='none', zorder=2)
+            elif coords:
+                xs = [c[0] for c in coords]
+                ys = [c[1] for c in coords]
+                ax.scatter(xs, ys, c='crimson', s=25, alpha=0.8,
+                           edgecolors='black', linewidths=0.4, zorder=2)
+
+            # Sensor labels
+            for sid, (sx, sy) in sensor_coords.items():
+                sy_flip = img_h - sy
+                ax.annotate(sid, (sx, sy_flip), fontsize=3.8, alpha=0.65,
+                            ha='center', va='bottom', color='navy')
+
+            # ── Time-of-day summary ───────────────────────────────────────────
+            tod_counter = label_tod.get(lbl, Counter())
+            tod_line = 'throughout the day'
+            if tod_counter:
+                total_events = sum(tod_counter.values())
+                top_tods = tod_counter.most_common()
+                # Gather buckets whose cumulative share reaches ≥70% or top 3 max
+                cumulative, selected = 0, []
+                for tod_name, cnt in top_tods[:3]:
+                    share = cnt / total_events
+                    cumulative += share
+                    selected.append((tod_name, share))
+                    if cumulative >= 0.70:
+                        break
+                # Only show specific buckets if they genuinely stand out
+                # (top bucket alone covers ≥40%, or top 2 cover ≥65%)
+                top1_share = selected[0][1] if selected else 0
+                top2_share = sum(s for _, s in selected[:2]) if len(selected) >= 2 else top1_share
+                if top1_share >= 0.40 or top2_share >= 0.65:
+                    parts = [_tod_short.get(t, t) for t, _ in selected]
+                    pcts  = ['%d%%' % round(s * 100) for _, s in selected]
+                    tod_line = ', '.join('%s (%s)' % (p, q) for p, q in zip(parts, pcts))
+
+            pretty = lbl.replace('_', ' ')
+            n_events = len(coords)
+            ax.set_title(f'{pretty}\n{tod_line}\n(top-{k_eff}, {n_events} ON events)',
+                         fontsize=7.5, fontweight='bold', pad=3)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+        # Hide unused axes
+        for ax_idx in range(n_labels, len(axes_flat)):
+            axes_flat[ax_idx].axis('off')
+
+        fig.suptitle(
+            f'Prototype → Sensor: top-{k_eff} retrieved windows  |  '
+            f'{self.dataset_name.capitalize()}  |  sensor activation density',
+            fontsize=11, fontweight='bold', y=1.01
+        )
+        plt.tight_layout()
+
+        if save_path:
+            fig.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
+            print(f"💾 Prototype sensor heatmap saved: {save_path}")
+            plt.close(fig)
 
         return fig
 
@@ -3794,6 +4688,7 @@ class EmbeddingEvaluator:
             test_sensor_l2 = [l for l, keep in zip(test_sensor_l2, keep_mask) if keep]
             test_labels_l1 = [l for l, keep in zip(test_labels_l1, keep_mask) if keep]
             test_labels_l2 = [l for l, keep in zip(test_labels_l2, keep_mask) if keep]
+            aligned_sample_ids = [sid for sid, keep in zip(aligned_sample_ids, keep_mask) if keep]
 
             # Verify all have the same length
             assert len(test_sensor_emb) == len(test_text_emb) == len(test_text_emb_proj) == len(test_sensor_l1) == len(test_labels_l1), \
@@ -3928,6 +4823,18 @@ class EmbeddingEvaluator:
             label_level='L2',
             save_path=str(output_dir / 'perclass_f1_weighted_l2.png')
         )
+
+        # Per-label precision/recall/F1 breakdown for sensor model (L1 and L2)
+        # This is the correct per-class view: confusion matrix diagonal = recall (row-normalized),
+        # NOT precision. This chart shows all three metrics separately.
+        for _ll, _met in [('L1', metrics_l1_sensor), ('L2', metrics_l2_sensor)]:
+            if _met.get('classification_report'):
+                self.create_per_label_classification_metrics(
+                    classification_report=_met['classification_report'],
+                    label_level=_ll,
+                    modality='sensor',
+                    save_path=str(output_dir / f'perlabel_classification_metrics_{_ll.lower()}.png')
+                )
 
         # ===== 7. COMPUTE RETRIEVAL METRICS =====
         print("\n" + "="*60)
@@ -4119,14 +5026,23 @@ class EmbeddingEvaluator:
             prototype_per_label = {}
             prototype_confusion_data = {}
 
-            # Load text prototypes from metadata
+            # Load text prototypes from metadata using description_style
             try:
-                label_to_text = load_text_prototypes_from_metadata(
-                    metadata_path='metadata/casas_metadata.json',
-                    dataset_name=self.dataset_name,
-                    style='sourish'
+                # Use convert_labels_to_text so --description_style is respected (long_desc, short_desc, etc.)
+                # Collect all unique labels across both levels to build the flat {label: text} dict
+                _all_proto_labels = list(set(train_labels_l1) | set(train_labels_l2))
+                _descriptions = convert_labels_to_text(
+                    _all_proto_labels,
+                    house_name=self.dataset_name,
+                    description_style=self.description_style
                 )
-                print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata")
+                label_to_text = {}
+                for _lbl, _descs in zip(_all_proto_labels, _descriptions):
+                    if isinstance(_descs, list):
+                        label_to_text[_lbl] = _descs[0]
+                    else:
+                        label_to_text[_lbl] = str(_descs)
+                print(f"✅ Loaded {len(label_to_text)} label descriptions from metadata (style={self.description_style})")
 
                 # Filter prototypes based on retrieval label level
                 if retrieval_label_level == 'L1':
@@ -4182,6 +5098,22 @@ class EmbeddingEvaluator:
                     label_level=retrieval_label_level
                 )
 
+                # Classification vs retrieval comparison (per-label)
+                _clf_report = (
+                    metrics_l1_sensor.get('classification_report')
+                    if retrieval_label_level == 'L1'
+                    else metrics_l2_sensor.get('classification_report')
+                )
+                if _clf_report:
+                    self.create_classification_retrieval_comparison(
+                        classification_report=_clf_report,
+                        prototype_per_label=prototype_per_label,
+                        label_level=retrieval_label_level,
+                        k=50,
+                        label_counts=label_counts_dict,
+                        save_path=str(retrieval_dir / f'clf_vs_retrieval_{retrieval_label_level.lower()}.png')
+                    )
+
                 # Create prototype per-label retrieval heatmaps
                 print("\n🎨 Creating prototype per-label retrieval heatmaps...")
 
@@ -4196,6 +5128,17 @@ class EmbeddingEvaluator:
                     save_path=str(retrieval_dir / f'perlabel_prototype2sensor_{retrieval_label_level.lower()}.png')
                 )
 
+                # House-layout sensor activation heatmaps (prototype -> sensor)
+                print("\n🏠 Creating prototype sensor activation house maps...")
+                self.create_prototype_sensor_heatmaps(
+                    prototype_embeddings=prototype_emb,
+                    prototype_labels=prototype_labels,
+                    test_sensor_embeddings=test_sensor_emb,
+                    test_sample_ids=aligned_sample_ids,
+                    k=50,
+                    save_path=str(retrieval_dir / f'housemap_prototype2sensor_{retrieval_label_level.lower()}.png')
+                )
+
                 # Prototype-based: Prototype -> Text
                 self.create_per_label_retrieval_heatmap(
                     prototype_labels=prototype_labels,
@@ -4207,73 +5150,32 @@ class EmbeddingEvaluator:
                     save_path=str(retrieval_dir / f'perlabel_prototype2text_{retrieval_label_level.lower()}.png')
                 )
 
-                # Create prototype confusion heatmaps
-                print("\n🎨 Creating prototype retrieval confusion analysis...")
+                # Create prototype retrieval confusion matrices
+                # (k_effective-capped, diagonal highlighted, sorted by retrieval precision)
+                print("\n🎨 Creating prototype retrieval confusion matrices...")
 
-                # Prototype -> Sensor confusion
-                # Treat each prototype as a single query
-                proto2sensor_confusion = {}
-                similarities = compute_cosine_similarity(prototype_emb, test_sensor_emb)
-
-                for i, proto_label in enumerate(prototype_labels):
-                    proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
-                    top_k_labels = labels_for_retrieval[top_k_indices]
-
-                    # Count distribution
-                    label_counts = {}
-                    for label in top_k_labels:
-                        label_str = str(label)
-                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
-
-                    # Convert to proportions
-                    total = len(top_k_labels)
-                    label_proportions = {
-                        label: count / total for label, count in label_counts.items()
-                    }
-                    proto2sensor_confusion[str(proto_label)] = label_proportions
-
-                self.create_retrieval_confusion_heatmap(
-                    retrieval_confusion=proto2sensor_confusion,
+                self.create_retrieval_confusion_matrix(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_sensor_emb,
+                    target_labels=labels_for_retrieval,
+                    prototype_embeddings=prototype_emb,
                     direction_name=f'Prototype → Sensor ({retrieval_label_level})',
                     k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
                 )
 
-                # Prototype -> Text confusion
-                proto2text_confusion = {}
-                similarities = compute_cosine_similarity(prototype_emb, test_text_emb_proj)
-
-                for i, proto_label in enumerate(prototype_labels):
-                    proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
-                    top_k_labels = labels_for_retrieval[top_k_indices]
-
-                    # Count distribution
-                    label_counts = {}
-                    for label in top_k_labels:
-                        label_str = str(label)
-                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
-
-                    # Convert to proportions
-                    total = len(top_k_labels)
-                    label_proportions = {
-                        label: count / total for label, count in label_counts.items()
-                    }
-                    proto2text_confusion[str(proto_label)] = label_proportions
-
-                self.create_retrieval_confusion_heatmap(
-                    retrieval_confusion=proto2text_confusion,
+                self.create_retrieval_confusion_matrix(
+                    prototype_labels=prototype_labels,
+                    target_embeddings=test_text_emb_proj,
+                    target_labels=labels_for_retrieval,
+                    prototype_embeddings=prototype_emb,
                     direction_name=f'Prototype → Text ({retrieval_label_level})',
                     k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2text_{retrieval_label_level.lower()}.png')
                 )
 
-                # Store prototype confusion data for JSON export
-                prototype_confusion_data = {
-                    'prototype2sensor': proto2sensor_confusion,
-                    'prototype2text': proto2text_confusion
-                }
+                # Store placeholder confusion data for JSON export (full per-label already in prototype_per_label)
+                prototype_confusion_data = {}
 
             except Exception as e:
                 print(f"⚠️  Could not compute prototype retrieval metrics: {e}")
@@ -4309,6 +5211,16 @@ class EmbeddingEvaluator:
                     'confusion': prototype_confusion_data
                 }
             }
+
+            # ---- Save per-level retrieval JSON inside retrieval/ subdir ----
+            if save_results and retrieval_label_level in retrieval_results_by_level:
+                self._save_retrieval_results_json(
+                    retrieval_results=retrieval_results_by_level[retrieval_label_level],
+                    label_counts=label_counts_dict,
+                    label_level=retrieval_label_level,
+                    k_values=[10, 50, 100],
+                    save_path=retrieval_dir / f'retrieval_results_{retrieval_label_level.lower()}.json'
+                )
 
             print(f"\n✅ Completed retrieval metrics for {retrieval_label_level} labels")
 
@@ -4865,33 +5777,12 @@ class EmbeddingEvaluator:
 
             if (proto_sensor_embeddings is not None and
                     'prototype2sensor' in all_retrieval_results):
-                # Prototype confusion heatmaps
-                print(f"\n🎨 Creating prototype retrieval confusion analysis...")
-
-                # Prototype -> Sensor confusion
-                proto2sensor_confusion = {}
-                similarities = compute_cosine_similarity(proto_sensor_embeddings, test_sensor_emb)
-
-                for i, proto_label in enumerate(proto_sensor_labels):
-                    proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
-                    top_k_labels = labels_for_retrieval[top_k_indices]
-
-                    # Count distribution
-                    label_counts = {}
-                    for label in top_k_labels:
-                        label_str = str(label)
-                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
-
-                    # Convert to proportions
-                    total = len(top_k_labels)
-                    label_proportions = {
-                        label: count / total for label, count in label_counts.items()
-                    }
-                    proto2sensor_confusion[str(proto_label)] = label_proportions
-
-                self.create_retrieval_confusion_heatmap(
-                    retrieval_confusion=proto2sensor_confusion,
+                print(f"\n🎨 Creating prototype retrieval confusion matrices...")
+                self.create_retrieval_confusion_matrix(
+                    prototype_labels=proto_sensor_labels,
+                    target_embeddings=test_sensor_emb,
+                    target_labels=labels_for_retrieval,
+                    prototype_embeddings=proto_sensor_embeddings,
                     direction_name=f'Prototype → Sensor ({retrieval_label_level})',
                     k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2sensor_{retrieval_label_level.lower()}.png')
@@ -4899,30 +5790,11 @@ class EmbeddingEvaluator:
 
             if (proto_text_embeddings is not None and
                     'prototype2text' in all_retrieval_results):
-                # Prototype -> Text confusion
-                proto2text_confusion = {}
-                similarities = compute_cosine_similarity(proto_text_embeddings, test_text_emb)
-
-                for i, proto_label in enumerate(proto_text_labels):
-                    proto_sims = similarities[i]
-                    top_k_indices = np.argsort(proto_sims)[-50:][::-1]
-                    top_k_labels = labels_for_retrieval[top_k_indices]
-
-                    # Count distribution
-                    label_counts = {}
-                    for label in top_k_labels:
-                        label_str = str(label)
-                        label_counts[label_str] = label_counts.get(label_str, 0) + 1
-
-                    # Convert to proportions
-                    total = len(top_k_labels)
-                    label_proportions = {
-                        label: count / total for label, count in label_counts.items()
-                    }
-                    proto2text_confusion[str(proto_label)] = label_proportions
-
-                self.create_retrieval_confusion_heatmap(
-                    retrieval_confusion=proto2text_confusion,
+                self.create_retrieval_confusion_matrix(
+                    prototype_labels=proto_text_labels,
+                    target_embeddings=test_text_emb,
+                    target_labels=labels_for_retrieval,
+                    prototype_embeddings=proto_text_embeddings,
                     direction_name=f'Prototype → Text ({retrieval_label_level})',
                     k=50,
                     save_path=str(retrieval_dir / f'confusion_prototype2text_{retrieval_label_level.lower()}.png')

@@ -4,8 +4,89 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
+
+
+def get_global_categorical_features(
+    sensor_encoder: nn.Module,
+    batch_or_samples: Union[Dict, List[Dict]],
+    dataset=None,
+    device: Optional[torch.device] = None
+) -> Dict[str, torch.Tensor]:
+    """
+    Build the global_categorical_features dict for models trained with global context tokens.
+
+    For old-style models (no global_categorical_fields), returns {}.
+
+    For new-style models (with global_categorical_fields such as tod_bucket/dow_bucket
+    prepended as dedicated tokens), this extracts the per-sequence scalar values from
+    whichever batch format is provided:
+
+    - AlignmentDataset batches already carry 'global_categorical_features' → returned as-is.
+    - SmartHomeDataset pre-collated batches: categorical_features[field] is [B, seq_len];
+      the scalar is stored at position i (field's index in sequence_categorical_fields).
+    - Lists of individual SmartHomeDataset samples (lambda collate): same positional logic
+      but applied per-sample.
+
+    Args:
+        sensor_encoder: Loaded sensor encoder (has .global_embeddings if new-style).
+        batch_or_samples: Collated batch dict OR list of individual dataset samples.
+        dataset: Optional SmartHomeDataset instance; used to resolve field positions via
+                 dataset.sequence_categorical_fields.
+        device: Optional device to place output tensors on.
+
+    Returns:
+        Dict mapping field name → [B] LongTensor, or {} for old-style models.
+    """
+    if not hasattr(sensor_encoder, 'global_embeddings') or not sensor_encoder.global_embeddings:
+        return {}
+
+    global_fields = list(sensor_encoder.global_embeddings.keys())
+
+    # AlignmentDataset already provides global_categorical_features
+    if isinstance(batch_or_samples, dict) and 'global_categorical_features' in batch_or_samples:
+        gcf = batch_or_samples['global_categorical_features']
+        if device is not None:
+            gcf = {k: v.to(device) for k, v in gcf.items()}
+        return gcf
+
+    # Determine the tensor position for each global field.
+    # SmartHomeDataset stores the value for sequence_categorical_fields[i] at tensor position i.
+    seq_fields: List[str] = (
+        getattr(dataset, 'sequence_categorical_fields', None)
+        if dataset is not None else None
+    ) or []
+
+    def _field_position(field: str) -> int:
+        if seq_fields and field in seq_fields:
+            return seq_fields.index(field)
+        return global_fields.index(field)  # Fallback: use order of global_fields
+
+    global_cat: Dict[str, torch.Tensor] = {}
+
+    if isinstance(batch_or_samples, dict):
+        # Pre-collated batch: categorical_features[field] is [B, seq_len]
+        cat_features = batch_or_samples.get('categorical_features', {})
+        for field in global_fields:
+            if field not in cat_features:
+                continue
+            pos = _field_position(field)
+            vals = cat_features[field][:, pos]
+            global_cat[field] = vals.to(device) if device is not None else vals
+    else:
+        # List of individual samples: sample['categorical_features'][field] is [seq_len]
+        for field in global_fields:
+            pos = _field_position(field)
+            vals = [
+                sample['categorical_features'][field][pos].item()
+                for sample in batch_or_samples
+                if field in sample.get('categorical_features', {})
+            ]
+            if len(vals) == len(batch_or_samples):
+                global_cat[field] = torch.tensor(vals, dtype=torch.long, device=device)
+
+    return global_cat
 
 
 def create_text_encoder_from_checkpoint(

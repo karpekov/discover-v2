@@ -206,10 +206,15 @@ class CheckpointEvaluator:
 
                 # Extract CLIP projected embeddings (512-dim)
                 # Pack data for new encoder interface
+                from evals.eval_utils import get_global_categorical_features
+                base_dataset = dataset.dataset if hasattr(dataset, 'dataset') else dataset
                 input_data = {
                     'categorical_features': batch['categorical_features'],
                     'coordinates': batch['coordinates'],
-                    'time_deltas': batch['time_deltas']
+                    'time_deltas': batch['time_deltas'],
+                    'global_categorical_features': get_global_categorical_features(
+                        sensor_encoder, batch, dataset=base_dataset, device=self.device
+                    ),
                 }
                 sensor_emb = sensor_encoder.forward_clip(
                     input_data=input_data,

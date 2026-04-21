@@ -477,11 +477,21 @@ class TemporalDiffPublicationChart:
             tensors = [cat[key] for cat in all_categorical]
             categorical_batch[key] = torch.stack(tensors)
 
+        # Build global_categorical_features for models trained with global context tokens
+        from src.evals.eval_utils import get_global_categorical_features
+        sensor_enc = self.model.sensor_encoder if self.model is not None else None
+        base_dataset = next(iter(self.datasets.values())) if self.datasets else None
+        global_cat_features = (
+            get_global_categorical_features(sensor_enc, batch, dataset=base_dataset, device=self.device)
+            if sensor_enc is not None else {}
+        )
+
         # Structure expected by model
         input_data = {
             'categorical_features': categorical_batch,
             'coordinates': torch.stack(all_coordinates),
-            'time_deltas': torch.stack(all_time_deltas)
+            'time_deltas': torch.stack(all_time_deltas),
+            'global_categorical_features': global_cat_features,
         }
 
         return {
