@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --ntasks-per-node 1
 #SBATCH -J dv2-train
-#SBATCH -p rail-lab
+#SBATCH -p overcap
 
 echo "Running config: $1"
 

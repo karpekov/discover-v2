@@ -11,7 +11,8 @@ srun --gpus=a40:1 --cpus-per-task=16 -p rail-lab -J "dicover-runtime" --pty bash
 # Run sbatch file
 sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_v1.yaml
 sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nosensor_v1.yaml
-sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb0_textclip_projmlp_clipmlm_nocoords_v1.yaml
+
+sbatch bash_scripts/skynet_run_config.sh configs/alignment/milan_fd60_seq_rb1_textclip_projmlp_clipmlm_v3.yaml
 
 # Copy files: --> rsync
 rsync -rv ~/Desktop/cursor\ shortcuts akarpekov3@sky2.cc.gatech.edu:/coc/flash5/akarpekov3/discover-v2
@@ -25,3 +26,7 @@ squeue --me
 
 scancel --me
 scancel 123456
+
+# RAIL vs Overcap: adjust the -p (partition) param in the run config:
+#SBATCH -p rail-lab
+#SBATCH -p overcap

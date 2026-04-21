@@ -30,11 +30,15 @@ def infonce_loss(sim_matrix: torch.Tensor) -> torch.Tensor:
     B = sim_matrix.size(0)
     targets = torch.arange(B, device=sim_matrix.device)
 
+    # Cast to float32 for numerical stability under AMP (fp16 overflows for
+    # large logits produced by very small temperatures).
+    logits = sim_matrix.float()
+
     # Row-wise: sensor → text
-    loss_i = F.cross_entropy(sim_matrix, targets)
+    loss_i = F.cross_entropy(logits, targets)
 
     # Column-wise: text → sensor
-    loss_j = F.cross_entropy(sim_matrix.t(), targets)
+    loss_j = F.cross_entropy(logits.t(), targets)
 
     return 0.5 * (loss_i + loss_j)
 

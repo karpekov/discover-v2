@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +7,12 @@ from typing import Optional, Dict, Any, Tuple, Callable
 import random
 
 from .alignment_loss import build_alignment_loss
+
+# Temperature bounds matching OpenAI CLIP convention:
+#   log_temperature in [-log(T_MAX), log(T_MAX)] → temperature in [1/T_MAX, T_MAX]
+#   T_MIN = 0.01 prevents logit explosion; T_MAX = 100 is a soft ceiling.
+_LOG_T_MIN = math.log(0.01)   # temperature floor  = 0.01
+_LOG_T_MAX = math.log(100.0)  # temperature ceiling = 100.0
 
 
 class HardNegativeSampler:
@@ -218,8 +226,8 @@ class CLIPLoss(nn.Module):
 
   @property
   def temperature(self) -> torch.Tensor:
-    """Get current temperature value."""
-    return torch.exp(self.log_temperature)
+    """Get current temperature value, clamped to [T_MIN, T_MAX]."""
+    return torch.exp(self.log_temperature.clamp(_LOG_T_MIN, _LOG_T_MAX))
 
   def forward(
     self,
