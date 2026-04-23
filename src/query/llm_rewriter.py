@@ -5,8 +5,16 @@ Takes a short, vague user query (e.g. "give me all sedentary activities")
 and rewrites it into one or more retrieval-optimised sentences matched to
 the embedding space learned during CLIP alignment training.
 
-Three rewrite modes
--------------------
+Rewrite modes
+-------------
+auto  ← default
+              The LLM decides its own expansion strategy based on the query.
+              Core insight: cosine-similarity retrieval handles OR poorly —
+              "room A or room B" averages the embeddings. Separate sentences
+              per room (or per time window) each retrieve their target precisely.
+              The LLM may paraphrase, split by location, split by time of day,
+              or combine strategies. Aims for ~6 sentences, up to 10.
+
 single        One rich, descriptive sentence covering all variants.
               Best for a single broad sweep of the space.
 
@@ -22,9 +30,9 @@ multi_wording   Several paraphrases of the same concept in different
 All modes return List[str].  The caller decides how to use the list
 (single search vs. one search per sentence + merge).
 
-Use ``max_subqueries`` on ``LLMRewriter.rewrite`` / ``SmartQuery.query`` to cap
-how many sentences multi_* modes produce (defaults: 8 for multi_location,
-6 for multi_wording; single is always 1).
+Use ``max_subqueries`` on ``LLMRewriter.rewrite`` to cap how many sentences
+are produced (defaults: 10 for auto, 8 for multi_location, 6 for multi_wording;
+single is always 1).
 
 Supported backends
 ------------------
@@ -40,7 +48,7 @@ import re
 from pathlib import Path
 from typing import Literal, Optional
 
-RewriteMode = Literal["single", "multi_location", "multi_wording"]
+RewriteMode = Literal["auto", "single", "multi_location", "multi_wording"]
 
 # Hard cap on sub-queries (prompt + post-parse truncation).
 _MAX_SUBQUERIES_CAP = 20
@@ -52,11 +60,14 @@ def resolve_max_subqueries(mode: RewriteMode, max_subqueries: int | None) -> int
 
     ``max_subqueries`` overrides mode defaults when set (clamped 1–20).
     ``single`` always resolves to 1.
+    ``auto`` defaults to 10 (the prompt instructs the LLM to aim for ~6).
     """
     if mode == "single":
         return 1
     if max_subqueries is not None:
         return max(1, min(int(max_subqueries), _MAX_SUBQUERIES_CAP))
+    if mode == "auto":
+        return 10
     if mode == "multi_wording":
         return 6
     if mode == "multi_location":
@@ -217,6 +228,39 @@ Before writing any sentences you MUST first reason:
 - Use room names and sensor detail descriptions (e.g. "armchair", "working desk")
   from the list above. Do NOT use sensor IDs (e.g. M003, D001) in the output
   sentences — sensor IDs may appear in your reasoning but never in the sentences.
+
+## Precision over coverage — only include what the sensors can confirm
+Only anchor a retrieval sentence to a location if the sensor detail description
+for that location **directly and unambiguously** supports the queried activity.
+Do NOT extrapolate to rooms or sensors where another activity could equally
+explain the same sensor pattern.
+
+**Activity-specific anchoring rule (critical):**
+For activities tied to a specific piece of equipment or behaviour (e.g. "watching TV",
+"exercising", "cooking"), ONLY use sensors whose detail descriptions explicitly name
+that equipment or action.
+- Do NOT use generic sedentary sensors (armchair, couch, bed) as evidence of a
+  specific activity like "watching TV" — sustained presence in a bedroom is sleeping
+  or resting, not TV watching, unless the sensor is explicitly labelled as a TV location.
+- A bed sensor confirms sleep/rest, NOT watching TV in bed.
+- An armchair sensor confirms sedentary presence, NOT TV watching, unless the
+  sensor description explicitly mentions a TV (e.g. "TV armchair", "TV room armchair").
+- If the sensor inventory has no sensor explicitly associated with the queried activity,
+  say so in your REASONING and produce only the sentences that CAN be grounded.
+
+Examples of this principle:
+- For a "watching TV" query: ONLY include sensors explicitly described as "TV armchair",
+  "TV room", "couch facing TV", etc. Do NOT include bedroom bed sensors or generic
+  armchairs unless the description names them as TV-watching locations.
+- For a general sedentary / resting query: sensors labelled armchair, couch, sofa,
+  chair, desk, or bed are valid. Do NOT include kitchens or bathrooms.
+- For a cooking query: only include sensors near the stove, counter, or oven.
+  Do NOT include a hallway sensor just because the person passed through.
+- For a sleep query: only include bedroom bed sensors, not the living room couch
+  unless it is explicitly described as a sleeping location.
+
+If a room or sensor lacks a detail description that directly supports the activity,
+leave it out. Fewer, precise sentences are far better than many uncertain ones.
 """
 
     if mode == "single":
@@ -322,6 +366,74 @@ REASONING: <your reasoning here>
 SENTENCES: ["paraphrase 1", "paraphrase 2", ...]
 
 Return a valid JSON array for SENTENCES with at most {n} strings. No extra text after the array.
+"""
+
+    if mode == "auto":
+        n = max_subqueries
+        return header + f"""
+## Your task: adaptive query expansion
+
+Your goal is to produce a set of retrieval sentences that together give the best possible
+coverage of the user's query.
+
+The retrieval system matches each sentence independently to embedded sensor sequences via
+cosine similarity. This has an important implication:
+
+  A sentence containing "room A or room B" does NOT retrieve both well — the embedding
+  averages them out. Separate sentences for room A and for room B each retrieve their
+  target precisely. The same applies to time of day: "morning or evening" is better
+  expressed as two sentences, one per time window.
+
+Therefore: whenever the user's concept naturally splits along a meaningful axis — location,
+time of day, or sub-behaviour — produce one sentence per variant. When no meaningful split
+exists, produce a few paraphrases that vary in wording or sensor emphasis.
+
+## Decision guidance  (not rigid rules — use your judgment)
+
+Paraphrase a few variants of the same idea when:
+  - The activity is inherently mobile or multi-room by nature (walking, wandering, transitions
+    between rooms). In this case the whole-home trajectory is the signal, not one room.
+  - The activity is tied to a single specific sensor or location.
+  - Location or time-of-day variants would be redundant or sensor-indistinguishable.
+
+Split by location — one sentence per distinct plausible room or sensor cluster — when:
+  - A stationary or sedentary activity could occur in several different rooms.
+  - The sensor signature would look meaningfully different across those rooms.
+
+Split by time of day — one sentence per distinct time window — only when:
+  - The query has a strong temporal qualifier ("at night", "morning routine", "after dinner").
+  - The activity looks or feels meaningfully different at different times of day.
+  - Skip this split if the activity occurs uniformly throughout the day.
+
+Combine strategies freely. For example: split by location AND add a few paraphrases of
+each, or produce separate morning/evening variants AND anchor each to a specific room.
+
+## Mandatory: preserve explicit temporal qualifiers
+
+If the user's query contains an explicit time-of-day or day-of-week qualifier
+(e.g. "at night", "in the morning", "on weekends", "after dinner", "nighttime hours"),
+you MUST embed that qualifier in EVERY output sentence without exception.
+These are not optional context — they are hard retrieval filters.
+Do NOT drop or soften them (e.g. do not change "at night" to "during the evening or night").
+If you are splitting by location, each location-specific sentence still carries the temporal qualifier.
+If you are paraphrasing, every paraphrase still carries the temporal qualifier.
+
+## Sentence count
+
+Aim for around 6 sentences. You may produce up to {n} if — and only if — more sentences
+are needed to cover genuinely distinct, non-redundant variants. Never exceed {n}.
+Prefer precision over volume; do not pad with near-duplicate sentences.
+
+## Output format
+
+REASONING: Explain (1) what physical sensor pattern the query corresponds to,
+           (2) what expansion strategy you chose and why — which axis you split on,
+           or why paraphrasing suffices, (3) anything in the query that cannot be
+           detected from the available sensors.
+
+SENTENCES: ["sentence 1", "sentence 2", ...]
+
+Return a valid JSON array for SENTENCES (1–{n} strings). No extra text after the array.
 """
 
     raise ValueError(f"Unknown mode: {mode!r}")
@@ -529,7 +641,7 @@ class LLMRewriter:
     def rewrite(
         self,
         user_query: str,
-        mode: RewriteMode = "single",
+        mode: RewriteMode = "auto",
         strip_temporal: bool = False,
         max_subqueries: int | None = None,
     ) -> tuple[str, list[str]]:
@@ -538,11 +650,14 @@ class LLMRewriter:
 
         Args:
             user_query:     The raw user question.
-            mode:           "single" | "multi_location" | "multi_wording"
+            mode:           "auto" (default) | "single" | "multi_location" | "multi_wording"
+                            "auto" lets the LLM decide whether to paraphrase, split by
+                            location, split by time of day, or combine strategies.
             strip_temporal: When True, instruct the LLM to omit time-of-day and
                             day-of-week constraints from output sentences (they
                             will be applied via a separate rule-based filter).
-            max_subqueries: Max retrieval sentences for multi_* modes (default
+                            Has no effect in "auto" mode (the LLM decides).
+            max_subqueries: Max retrieval sentences (default: 10 for auto,
                             8 for multi_location, 6 for multi_wording). Ignored
                             for single (always 1).
 
@@ -556,7 +671,14 @@ class LLMRewriter:
             max_subqueries=n,
         )
         uq = user_query
-        if mode == "multi_location":
+        if mode == "auto":
+            uq = (
+                f"{user_query}\n\n"
+                f"[Produce 1–{n} retrieval sentences. Choose your expansion strategy "
+                f"based on the query — paraphrase, split by location, split by time, "
+                f"or combine. Aim for ~6; use up to {n} only when genuinely needed.]"
+            )
+        elif mode == "multi_location":
             uq = (
                 f"{user_query}\n\n"
                 f"[Retrieval target: up to {n} sentences — one per distinct plausible room "

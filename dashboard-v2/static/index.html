@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HAR Discover — Longitudinal Analysis</title>
+  <style>
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════════════════ */
+:root {
+  --bg:        #F4F6FA;
+  --surface:   #FFFFFF;
+  --surf-alt:  #F0F2F8;
+  --border:    #DDE3F0;
+  --primary:   #3B5BDB;
+
+  /* Baseline period – slate blue */
+  --col-a:     #4C6EF5;
+  --col-a-soft:#C5D0FA;
+  --col-a-bg:  #EDF2FF;
+
+  /* Latest period – warm amber */
+  --col-b:     #D4820A;
+  --col-b-soft:#FFD8A8;
+  --col-b-bg:  #FFF4E6;
+
+  /* Delta colours – semantic green/red */
+  --col-inc:   #2F9E44;   /* increase = green */
+  --col-dec:   #C92A2A;   /* decrease = red   */
+  --col-inc-bg:#EBFBEE;
+  --col-dec-bg:#FFF5F5;
+
+  --text:      #1A1D2E;
+  --text-mid:  #4A5068;
+  --text-sub:  #8892AA;
+  --grid:      #E8ECF4;
+  --r:         12px;
+  --r-lg:      18px;
+  --shadow:    0 1px 4px rgba(20,30,80,.06),0 0 0 1px rgba(20,30,80,.04);
+  --shadow-md: 0 4px 16px rgba(20,30,80,.09),0 0 0 1px rgba(20,30,80,.04);
+  --shadow-lg: 0 8px 28px rgba(20,30,80,.11),0 0 0 1px rgba(20,30,80,.05);
+  --font:      -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --ease:      0.18s cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+/* ─── PAGE ───────────────────────────────────────────────────── */
+.page { width: 100%; max-width: 1020px; padding: 0 24px 100px; }
+
+/* ─── HEADER ROW (logo + tagline side by side) ───────────────── */
+.header-row {
+  display: flex; align-items: center; gap: 20px;
+  padding: 24px 0 20px;
+}
+.logo-bar {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+  padding: 10px 16px 10px 14px;
+  border-right: 1.5px solid var(--border);
+}
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg,var(--primary) 0%,#7B4FD0 100%);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(46,85,200,.35);
+}
+.logo-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -.3px; }
+.logo-sub   { font-size: .68rem; color: var(--text-sub); }
+
+.header-text { min-width: 0; }
+
+/* ─── SEARCH ─────────────────────────────────────────────────── */
+.search-section { padding: 0 0 24px; }
+.search-tagline {
+  font-size: 1.55rem; font-weight: 800; line-height: 1.2;
+  letter-spacing: -.5px; margin-bottom: 4px;
+}
+.search-tagline .grad {
+  background: linear-gradient(120deg,var(--primary) 0%,#8B5CF6 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.search-desc { font-size: .82rem; color: var(--text-mid); margin-bottom: 0; }
+
+.search-bar {
+  display: flex; align-items: stretch; gap: 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 6px 6px 6px 8px;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.search-bar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(46,85,200,.1),var(--shadow-lg);
+}
+/* ─── CUSTOM HOME PICKER ─────────────────────────────────────── */
+.home-picker {
+  position: relative; flex-shrink: 0; display: flex; align-items: stretch;
+}
+.home-picker-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--surf-alt); border: 1px solid var(--border);
+  border-radius: 9px; padding: 0 10px 0 10px;
+  font-size: .84rem; font-weight: 600; color: var(--text);
+  cursor: pointer; user-select: none; white-space: nowrap;
+  font-family: var(--font);
+  transition: border-color var(--ease), background var(--ease);
+  min-width: 100px;
+}
+.home-picker-btn:hover   { border-color: var(--primary); background: var(--col-a-bg); }
+.home-picker-btn.open    { border-color: var(--primary); background: var(--col-a-bg); }
+.home-picker-label { flex: 1; }
+.home-picker-caret {
+  color: var(--text-sub); transition: transform var(--ease); flex-shrink: 0;
+}
+.home-picker-btn.open .home-picker-caret { transform: rotate(180deg); }
+
+.home-picker-menu {
+  position: absolute; left: 0; top: calc(100% + 8px);
+  min-width: 100%; width: max-content;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); box-shadow: var(--shadow-lg);
+  z-index: 200; overflow: hidden; display: none;
+}
+.home-picker-menu.open { display: block; }
+.home-picker-opt {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 14px;
+  font-size: .86rem; font-weight: 500; color: var(--text);
+  cursor: pointer;
+  transition: background var(--ease), color var(--ease);
+  border-bottom: 1px solid var(--grid);
+}
+.home-picker-opt:last-child { border-bottom: none; }
+.home-picker-opt:hover { background: var(--col-a-bg); color: var(--primary); }
+.home-picker-opt.selected { font-weight: 700; color: var(--primary); }
+.home-picker-check {
+  width: 14px; flex-shrink: 0; color: var(--primary);
+  visibility: hidden;
+}
+.home-picker-opt.selected .home-picker-check { visibility: visible; }
+#query-input {
+  flex: 1; border: none; outline: none;
+  font-size: .95rem; color: var(--text); background: transparent;
+  padding: 8px 4px; font-family: var(--font);
+  resize: none; min-height: 40px; line-height: 1.5;
+}
+#query-input::placeholder { color: var(--text-sub); }
+.submit-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: linear-gradient(135deg,var(--primary) 0%,#6B4FCC 100%);
+  color: #fff; border: none; border-radius: 11px;
+  padding: 0 20px; font-size: .88rem; font-weight: 600; font-family: var(--font);
+  cursor: pointer; white-space: nowrap; align-self: stretch; min-width: 100px;
+  box-shadow: 0 2px 8px rgba(46,85,200,.3);
+  transition: opacity var(--ease), box-shadow var(--ease), transform var(--ease);
+}
+.submit-btn:hover:not(:disabled) { opacity: .9; box-shadow: 0 4px 14px rgba(46,85,200,.4); }
+.submit-btn:active:not(:disabled) { transform: scale(.97); }
+.submit-btn:disabled { opacity: .48; cursor: not-allowed; }
+
+.search-hints { margin-top: 10px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+#hints-chips  { display: contents; }
+.hint-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; font-size: .74rem; color: var(--text-mid);
+  padding: 3px 11px; cursor: pointer; user-select: none;
+  transition: border-color var(--ease), background var(--ease), color var(--ease);
+}
+.hint-chip:hover { border-color: var(--primary); background: var(--col-a-bg); color: var(--primary); }
+
+/* ─── RECENT QUERIES ─────────────────────────────────────────── */
+.recent-wrap {
+  position: relative;
+  display: flex; align-items: stretch; flex-shrink: 0;
+}
+.recent-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .78rem; font-weight: 600; color: var(--text-sub);
+  background: transparent; border: none;
+  border-left: 1px solid var(--border);
+  padding: 0 12px;
+  cursor: pointer; white-space: nowrap;
+  transition: color var(--ease), background var(--ease);
+  font-family: var(--font);
+}
+.recent-btn:hover { color: var(--primary); background: var(--col-a-bg); }
+.recent-btn .count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  background: #C8CEDC; color: #fff;
+  border-radius: 9px; font-size: .65rem; font-weight: 700;
+}
+.recent-dropdown {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  width: 480px; max-width: 92vw;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); box-shadow: var(--shadow-lg);
+  z-index: 100; overflow: hidden;
+  display: none;
+}
+.recent-dropdown.open { display: block; }
+.recent-header {
+  padding: 10px 14px 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--surf-alt);
+}
+.recent-header-label {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-sub);
+}
+.recent-clear {
+  font-size: .7rem; color: var(--text-sub); cursor: pointer;
+  text-decoration: underline; text-decoration-style: dotted;
+}
+.recent-clear:hover { color: var(--col-b); }
+.recent-list { max-height: 380px; overflow-y: auto; }
+.recent-empty {
+  padding: 18px 14px; text-align: center;
+  font-size: .82rem; color: var(--text-sub); font-style: italic;
+}
+.recent-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--grid);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+.recent-item:last-child { border-bottom: none; }
+.recent-item:hover { background: var(--col-a-bg); }
+.recent-item:hover .recent-q { color: var(--primary); }
+.recent-icon {
+  flex-shrink: 0; margin-top: 2px;
+  color: var(--text-sub); opacity: .5;
+}
+.recent-text { flex: 1; min-width: 0; }
+.recent-q {
+  font-size: .84rem; color: var(--text); font-weight: 500;
+  line-height: 1.5; margin-bottom: 3px;
+  white-space: normal;   /* full multiline, no truncation */
+  word-break: break-word;
+  transition: color var(--ease);
+}
+.recent-meta {
+  font-size: .7rem; color: var(--text-sub);
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.recent-hits {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--surf-alt); border: 1px solid var(--border);
+  border-radius: 9px; padding: 0 5px;
+  font-size: .67rem; font-weight: 600; color: var(--text-mid);
+}
+.recent-run {
+  flex-shrink: 0; font-size: .72rem; font-weight: 600;
+  color: var(--primary); opacity: 0; transition: opacity var(--ease);
+  padding: 2px 9px; background: var(--col-a-bg); border-radius: 10px;
+  align-self: flex-start; margin-top: 1px; white-space: nowrap;
+}
+.recent-item:hover .recent-run { opacity: 1; }
+.recent-del {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-sub); opacity: 0;
+  transition: opacity var(--ease), background var(--ease), color var(--ease);
+  align-self: flex-start; margin-top: 1px;
+}
+.recent-item:hover .recent-del { opacity: 1; }
+.recent-del:hover { background: var(--col-dec-bg); color: var(--col-dec); }
+
+/* ─── LOADING ────────────────────────────────────────────────── */
+#loading { display: none; padding: 52px 0; text-align: center; }
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-label { font-size: .9rem; color: var(--text-mid); font-weight: 600; }
+.loading-step  { font-size: .77rem; color: var(--text-sub); margin-top: 4px; min-height: 1.3em; }
+
+/* ─── ERROR ──────────────────────────────────────────────────── */
+#error-bar {
+  display: none; margin: 16px 0; padding: 12px 16px;
+  background: #FFF0EE; border: 1px solid #F5C8C0;
+  border-radius: var(--r); color: #8B2A1A; font-size: .86rem;
+}
+
+/* ─── WELCOME ────────────────────────────────────────────────── */
+#welcome { display: block; padding: 48px 0 32px; text-align: center; }
+.welcome-icon  { font-size: 3rem; display: block; margin-bottom: 12px; opacity: .7; }
+.welcome-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 7px; }
+.welcome-sub   {
+  font-size: .86rem; color: var(--text-mid);
+  max-width: 390px; margin: 0 auto; line-height: 1.65;
+}
+
+/* ─── RESULTS ────────────────────────────────────────────────── */
+#results { display: none; }
+
+.results-meta {
+  display: flex; align-items: center; gap: 7px;
+  margin-bottom: 18px; flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .72rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px; letter-spacing: .02em;
+}
+.chip-home    { background: var(--col-a-bg); color: var(--primary); }
+.chip-cached  { background: #EDFBF0; color: #1A7840; }
+.chip-fresh   { background: #FFF7E6; color: #A06010; }
+.chip-muted   { background: var(--surface); color: var(--text-mid); border: 1px solid var(--border); }
+.rerun-link   {
+  font-size: .74rem; color: var(--text-sub); cursor: pointer;
+  text-decoration: underline; text-decoration-style: dotted; margin-left: auto;
+}
+.rerun-link:hover { color: var(--primary); }
+
+/* Report card */
+.report-card {
+  background: linear-gradient(140deg,#EDF2FF 0%,#F3EEFF 100%);
+  border: 1.5px solid #C5D0FA; border-radius: var(--r-lg);
+  padding: 20px 24px; margin-bottom: 22px;
+  box-shadow: var(--shadow-md);
+}
+.card-label {
+  font-size: .67rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--primary); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-label::before {
+  content: ''; display: block; width: 3px; height: 14px;
+  background: var(--primary); border-radius: 2px;
+}
+.report-text {
+  font-size: .92rem; line-height: 1.78; color: var(--text); white-space: pre-wrap;
+}
+.report-text .kw-inc  { color: #2F9E44; font-weight: 600; }
+.report-text .kw-dec  { color: #C92A2A; font-weight: 600; }
+.report-text .kw-act  { font-weight: 700; color: var(--text); }
+
+/* ─── OVERVIEW CHART ─────────────────────────────────────────── */
+.overview-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-md);
+  padding: 18px 22px; margin-bottom: 22px;
+}
+.overview-card .card-label { color: var(--text-sub); margin-bottom: 0; }
+.overview-card .card-label::before { background: var(--text-sub); }
+#overview-svg { display: block; width: 100%; overflow: visible; }
+
+/* ─── ACTIVITY CARDS ─────────────────────────────────────────── */
+.section-label {
+  font-size: .68rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-sub); margin-bottom: 12px;
+}
+.activity-grid { display: flex; flex-direction: column; gap: 16px; }
+
+.act-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* Card header */
+.act-head {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+  padding: 13px 18px 10px; background: #FAFBFF;
+  border-bottom: 1px solid var(--border);
+}
+.act-name {
+  font-size: 1rem; font-weight: 700; text-transform: capitalize;
+}
+.act-stats { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.badge {
+  font-size: .72rem; font-weight: 700; padding: 2px 9px;
+  border-radius: 20px; display: inline-flex; align-items: center; gap: 3px;
+}
+.badge-up     { background: var(--col-inc-bg); color: var(--col-inc); }
+.badge-down   { background: var(--col-dec-bg); color: var(--col-dec); }
+.badge-stable { background: #F1F3F8;           color: var(--text-mid); }
+.badge-sig    { background: #FFF9E6;           color: #7A5200; }
+.badge-muted  { background: var(--surf-alt); color: var(--text-mid);
+                border: 1px solid var(--border); }
+
+/* Chart + table row */
+.act-body {
+  display: grid; grid-template-columns: 28% 72%;
+  gap: 0; border-bottom: 1px solid var(--border);
+}
+.act-chart-panel {
+  padding: 14px 14px 12px;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+.act-table-panel { padding: 14px 18px 12px; overflow-x: auto; }
+
+/* Strip chart SVG */
+.strip-svg { display: block; width: 100%; }
+
+/* Sentence comparison table */
+.sent-table {
+  width: 100%; border-collapse: collapse; font-size: .78rem;
+}
+.sent-table th {
+  font-size: .65rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-sub);
+  padding: 0 6px 7px; text-align: right;
+}
+.sent-table th:first-child { text-align: left; padding-left: 0; }
+.sent-table td {
+  padding: 5px 6px; vertical-align: middle;
+  border-top: 1px solid var(--grid);
+}
+.sent-table td:first-child { padding-left: 0; }
+.sent-table tr:first-child td { border-top: none; }
+
+.sent-text {
+  font-size: .77rem; color: var(--text-mid); line-height: 1.45;
+}
+.count-pill {
+  display: inline-block; min-width: 28px; text-align: center;
+  font-size: .74rem; font-weight: 700; padding: 1px 6px;
+  border-radius: 10px;
+}
+.pill-a { background: var(--col-a-bg); color: var(--col-a); }
+.pill-b { background: var(--col-b-bg); color: var(--col-b); }
+.pill-zero { background: #F1F3F8; color: var(--text-sub); }
+
+.delta-cell { text-align: right; font-weight: 700; font-size: .74rem; white-space: nowrap; }
+.delta-up    { color: var(--col-inc); }
+.delta-down  { color: var(--col-dec); }
+.delta-flat  { color: var(--text-sub); }
+
+/* Reasoning footer */
+.act-reasoning {
+  border-top: 1px solid var(--grid);
+}
+.reasoning-trigger {
+  padding: 9px 18px; background: var(--surf-alt);
+  cursor: pointer; display: flex; align-items: center; gap: 7px;
+  user-select: none;
+  transition: background var(--ease);
+}
+.reasoning-trigger:hover { background: var(--col-a-bg); }
+.reasoning-caret {
+  font-size: .75rem; color: var(--text-sub); transition: transform var(--ease);
+  display: inline-block;
+}
+.act-reasoning.open .reasoning-caret { transform: rotate(90deg); }
+.reasoning-toggle {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-sub);
+}
+.reasoning-body {
+  font-size: .82rem; color: var(--text-mid); line-height: 1.65;
+  padding: 0 18px;
+  max-height: 0; overflow-y: auto;
+  transition: max-height .3s ease, padding .3s ease;
+}
+.act-reasoning.open .reasoning-body {
+  max-height: 180px;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--grid);
+}
+
+/* Window legend */
+.legend {
+  display: flex; gap: 14px; align-items: center; margin-bottom: 10px;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: .74rem; color: var(--text-mid); }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── CHART PANEL TITLE ───────────────────────────────────────── */
+.panel-label {
+  font-size: .67rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px;
+}
+
+/* ─── SCROLLBAR ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+<!-- Header row: logo left, tagline right -->
+<div class="header-row">
+  <div class="logo-bar">
+    <div class="logo-icon">⌂</div>
+    <div>
+      <div class="logo-title">SensorRAG</div>
+      <div class="logo-sub">Smart Home Analytics</div>
+    </div>
+  </div>
+  <div class="header-text">
+    <h1 class="search-tagline">
+      <span class="grad">Talk</span> to your data to learn how the resident is doing
+    </h1>
+    <p class="search-desc">
+      A multimodal RAG framework for open-vocabulary retrieval grounded in raw ambient sensor streams.
+    </p>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="search-section">
+  <div class="search-bar">
+    <!-- Hidden input keeps .value API so all existing JS works unchanged -->
+    <input type="hidden" id="home-select" value="milan">
+
+    <div class="home-picker" id="home-picker">
+      <button class="home-picker-btn" id="home-picker-btn"
+              onclick="toggleHomePicker(event)" type="button">
+        <span class="home-picker-label" id="home-picker-label">Milan</span>
+        <svg class="home-picker-caret" width="11" height="11" viewBox="0 0 11 11"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="2,3.5 5.5,7.5 9,3.5"/>
+        </svg>
+      </button>
+      <div class="home-picker-menu" id="home-picker-menu">
+        <!-- options injected by JS -->
+      </div>
+    </div>
+    <textarea id="query-input"
+      placeholder="e.g. How has cooking activity changed over the study period?"
+      rows="1" autocomplete="off" spellcheck="false"></textarea>
+
+    <!-- Recent queries button lives inside the bar -->
+    <div class="recent-wrap" id="recent-wrap">
+      <button class="recent-btn" id="recent-btn" onclick="toggleRecent(event)" style="display:none"
+              title="Recent cached queries">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6.5" cy="6.5" r="5.5"/>
+          <polyline points="6.5,3.5 6.5,6.5 8.5,8"/>
+        </svg>
+        Recent
+        <span class="count-badge" id="recent-count">0</span>
+      </button>
+      <div class="recent-dropdown" id="recent-dropdown">
+        <div class="recent-header">
+          <span class="recent-header-label">Cached queries</span>
+          <span class="recent-clear" onclick="clearRecentFilter()">show all homes</span>
+        </div>
+        <div class="recent-list" id="recent-list">
+          <div class="recent-empty">No cached queries yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="doAnalyze()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+           stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="7" x2="12" y2="7"/><polyline points="7,2 12,7 7,12"/>
+      </svg>
+      Analyze
+    </button>
+  </div>
+  <div class="search-hints" id="hints-bar">
+    <div id="hints-chips"></div>
+  </div>
+</div>
+
+<div id="error-bar"></div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-label">Analyzing activity patterns…</div>
+  <div class="loading-step" id="loading-step">Initializing</div>
+</div>
+
+<!-- Welcome -->
+<div id="welcome">
+  <span class="welcome-icon">🏠</span>
+  <div class="welcome-title">Ready to explore activity patterns</div>
+  <p class="welcome-sub">
+    Ask a natural-language question about how an activity has changed over time.
+    The system compares activity frequency in the first vs. last window of the study period.
+  </p>
+</div>
+
+<!-- Results -->
+<div id="results">
+  <div class="results-meta" id="results-meta"></div>
+
+  <!-- AI Narrative -->
+  <div class="report-card">
+    <div class="card-label" style="gap:8px;text-transform:none">SensorRAG ANALYSIS</div>
+    <div class="report-text" id="report-text"></div>
+  </div>
+
+  <!-- Overview chart -->
+  <div class="overview-card" id="overview-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="card-label" style="margin-bottom:0">Activity comparison overview</div>
+      <div style="display:flex;gap:12px;align-items:center;font-size:.72rem;color:var(--text-sub)">
+        <span style="display:flex;align-items:center;gap:4px">
+          <span style="width:10px;height:10px;border-radius:2px;background:#2F9E44;display:inline-block"></span>Increase
+        </span>
+        <span style="display:flex;align-items:center;gap:4px">
+          <span style="width:10px;height:10px;border-radius:2px;background:#C92A2A;display:inline-block"></span>Decrease
+        </span>
+      </div>
+    </div>
+    <svg id="overview-svg"></svg>
+  </div>
+
+  <!-- Per-activity cards -->
+  <div class="section-label">Detailed breakdown by activity</div>
+  <div class="activity-grid" id="activity-grid"></div>
+</div>
+
+</div><!-- .page -->
+
+<script>
+/* ================================================================
+   CONSTANTS & HINTS
+================================================================ */
+/* Period colours */
+const COL_A      = '#4C6EF5';   /* Baseline – slate blue */
+const COL_B      = '#D4820A';   /* Latest   – warm amber */
+const COL_A_SOFT = '#C5D0FA';
+const COL_B_SOFT = '#FFD8A8';
+/* Delta colours – semantic */
+const COL_INC    = '#2F9E44';   /* increase = green */
+const COL_DEC    = '#C92A2A';   /* decrease = red   */
+const COL_GRID   = '#E8ECF4';
+const COL_TEXT   = '#1A1D2E';
+const COL_SUB    = '#8892AA';
+
+const HINTS = {
+  milan:  ['How has cooking activity changed over the study period?',
+           'Has sedentary activity increased or decreased?',
+           'Did evening relaxation patterns change over time?',
+           'How has sleeping behavior evolved?'],
+  aruba:  ['How has kitchen activity changed over time?',
+           'Did meal preparation frequency change?',
+           'Has bathroom usage pattern shifted?',
+           'How has nighttime waking changed?'],
+  cairo:  ['How has daily activity level changed over the study period?',
+           'Has cooking frequency shifted over time?',
+           'Did sleeping patterns change in the dataset?'],
+};
+
+/* ================================================================
+   INIT
+================================================================ */
+async function init() {
+  await loadHomes();
+  renderHints();
+  await refreshRecent();
+
+  const ta = document.getElementById('query-input');
+  ta.addEventListener('input', autoResize);
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doAnalyze(); }
+  });
+
+  document.getElementById('home-select').addEventListener('change', function() {
+    renderHints(this.value);
+    refreshRecent(this.value);
+  });
+
+  /* Close dropdowns when clicking outside */
+  document.addEventListener('click', e => {
+    if (!document.getElementById('recent-wrap').contains(e.target))
+      document.getElementById('recent-dropdown').classList.remove('open');
+    if (!document.getElementById('home-picker').contains(e.target))
+      closeHomePicker();
+  });
+}
+
+function autoResize() {
+  const ta = document.getElementById('query-input');
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+}
+
+const HOME_ICONS = {};
+
+async function loadHomes() {
+  let homes = [{ id:'milan', label:'Milan' }, { id:'aruba', label:'Aruba' }];
+  try {
+    homes = await fetch('/api/homes').then(r => r.json());
+  } catch {}
+  buildHomePicker(homes);
+}
+
+function buildHomePicker(homes) {
+  const menu    = document.getElementById('home-picker-menu');
+  const current = document.getElementById('home-select').value || 'milan';
+  menu.innerHTML = homes.map(h => `
+    <div class="home-picker-opt${h.id===current?' selected':''}"
+         onclick="selectHome('${h.id}','${esc(h.label)}')">
+      <svg class="home-picker-check" viewBox="0 0 12 12" fill="none"
+           stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="2,6 5,9 10,3"/>
+      </svg>
+      <span>${esc(h.label)}</span>
+    </div>`).join('');
+  /* Set initial label */
+  const match = homes.find(h => h.id === current) || homes[0];
+  if (match) setHomePickerDisplay(match.id, match.label);
+}
+
+function toggleHomePicker(e) {
+  e.stopPropagation();
+  document.getElementById('home-picker-btn').classList.toggle('open');
+  document.getElementById('home-picker-menu').classList.toggle('open');
+}
+
+function setHomePickerDisplay(id, label) {
+  document.getElementById('home-picker-label').textContent = label;
+  /* Update selected state in menu */
+  document.querySelectorAll('.home-picker-opt').forEach(el => {
+    el.classList.toggle('selected', el.querySelector('span:last-child')?.textContent === label);
+  });
+}
+
+function selectHome(id, label) {
+  const hidden = document.getElementById('home-select');
+  if (hidden.value === id) {
+    closeHomePicker(); return;
+  }
+  hidden.value = id;
+  setHomePickerDisplay(id, label);
+  closeHomePicker();
+  /* Fire change event so existing listeners (renderHints, refreshRecent) trigger */
+  hidden.dispatchEvent(new Event('change'));
+}
+
+function closeHomePicker() {
+  document.getElementById('home-picker-btn').classList.remove('open');
+  document.getElementById('home-picker-menu').classList.remove('open');
+}
+
+function renderHints(home) {
+  home = home || document.getElementById('home-select').value || 'milan';
+  const hs = HINTS[home] || HINTS.milan;
+  document.getElementById('hints-chips').innerHTML = hs.map(h =>
+    `<span class="hint-chip" onclick="setQuery(this)">${esc(h)}</span>`
+  ).join('');
+}
+
+function setQuery(el) {
+  const ta = document.getElementById('query-input');
+  ta.value = el.textContent;
+  autoResize();
+  ta.focus();
+}
+
+/* ================================================================
+   RECENT QUERIES
+================================================================ */
+let _recentAll = [];   /* full cache list from server */
+let _recentHome = '';  /* '' = show all, otherwise filter by home */
+
+async function refreshRecent(home) {
+  _recentHome = home || document.getElementById('home-select').value || '';
+  try {
+    /* Fetch for current home (and store all for "show all" toggle) */
+    const [byHome, all] = await Promise.all([
+      fetch(`/api/cache?home=${encodeURIComponent(_recentHome)}`).then(r => r.json()),
+      fetch('/api/cache').then(r => r.json()),
+    ]);
+    _recentAll = all;
+    renderRecentList(byHome, _recentHome);
+  } catch (e) {
+    console.warn('Could not load recent queries:', e);
+  }
+}
+
+function renderRecentList(entries, filterHome) {
+  const btn   = document.getElementById('recent-btn');
+  const badge = document.getElementById('recent-count');
+  const list  = document.getElementById('recent-list');
+
+  if (!entries.length) {
+    btn.style.display = 'none';
+    list.innerHTML = '<div class="recent-empty">No cached queries for this household yet.</div>';
+    return;
+  }
+
+  btn.style.display = 'inline-flex';
+  badge.textContent = entries.length;
+
+  list.innerHTML = entries.map(e => {
+    const ago  = timeAgo(e.created_at);
+    const hits = e.hit_count > 0
+      ? `<span class="recent-hits">⚡ ${e.hit_count} hit${e.hit_count===1?'':'s'}</span>`
+      : '';
+    const homeTag = !filterHome
+      ? `<span style="font-size:.65rem;font-weight:600;color:var(--text-sub)">[${(e.home||'').toUpperCase()}]</span>`
+      : '';
+    return `<div class="recent-item"
+        onclick="loadRecent(${esc(JSON.stringify(e.question))}, ${esc(JSON.stringify(e.home))})"
+        title="${esc(e.question)}">
+      <div class="recent-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5.5" cy="5.5" r="4"/><line x1="8.5" y1="8.5" x2="12" y2="12"/></svg></div>
+      <div class="recent-text">
+        <div class="recent-q">${esc(e.question)}</div>
+        <div class="recent-meta">
+          ${homeTag}
+          <span>${ago}</span>
+          ${hits}
+        </div>
+      </div>
+      <div class="recent-run">Load →</div>
+      <button class="recent-del" title="Delete from cache"
+          onclick="event.stopPropagation();deleteRecent(${esc(JSON.stringify(e.question))},${esc(JSON.stringify(e.home))},this)">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1,3 12,3"/><rect x="3" y="3" width="7" height="8" rx="1"/>
+          <line x1="5" y1="6" x2="5" y2="10"/><line x1="8" y1="6" x2="8" y2="10"/>
+          <polyline points="4.5,3 4.5,1.5 8.5,1.5 8.5,3"/>
+        </svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function toggleRecent(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('recent-dropdown');
+  dd.classList.toggle('open');
+}
+
+function clearRecentFilter() {
+  /* Show all homes in the dropdown */
+  renderRecentList(_recentAll, '');
+  const header = document.querySelector('.recent-clear');
+  if (header) {
+    header.textContent = 'filter to current home';
+    header.onclick = () => {
+      const h = document.getElementById('home-select').value;
+      const filtered = _recentAll.filter(e => e.home === h);
+      renderRecentList(filtered, h);
+      header.textContent = 'show all homes';
+      header.onclick = clearRecentFilter;
+    };
+  }
+}
+
+function loadRecent(question, home) {
+  /* Switch home if needed */
+  const sel = document.getElementById('home-select');
+  if (home && sel.value !== home) {
+    sel.value = home;
+    renderHints(home);
+  }
+
+  /* Populate textarea and trigger analysis */
+  const ta = document.getElementById('query-input');
+  ta.value = question;
+  autoResize();
+  document.getElementById('recent-dropdown').classList.remove('open');
+  doAnalyze();
+}
+
+async function deleteRecent(question, home, btnEl) {
+  /* Optimistically remove the item from the DOM */
+  const item = btnEl.closest('.recent-item');
+  if (item) item.style.opacity = '0.4';
+
+  try {
+    const url = `/api/cache?question=${encodeURIComponent(question)}&home=${encodeURIComponent(home)}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Delete failed');
+    /* Refresh the whole list */
+    await refreshRecent(document.getElementById('home-select').value);
+  } catch (e) {
+    console.error('deleteRecent:', e);
+    if (item) item.style.opacity = '1';
+  }
+}
+
+function timeAgo(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    if (mins  < 1)   return 'just now';
+    if (mins  < 60)  return `${mins}m ago`;
+    if (hours < 24)  return `${hours}h ago`;
+    if (days  < 7)   return `${days}d ago`;
+    return new Date(isoStr).toLocaleDateString('en-GB', {day:'numeric',month:'short'});
+  } catch { return ''; }
+}
+
+/* ================================================================
+   ANALYSIS
+================================================================ */
+async function doAnalyze(forceRefresh = false) {
+  const question = document.getElementById('query-input').value.trim();
+  if (!question) { document.getElementById('query-input').focus(); return; }
+  const home = document.getElementById('home-select').value;
+
+  setLoading(true);
+  hide('error-bar'); hide('results'); hide('welcome');
+
+  const steps = [
+    'Loading model and dataset…', 'Parsing your question with LLM…',
+    'Building temporal FAISS sub-indices…', 'Retrieving matching sensor sequences…',
+    'Computing daily activity counts…', 'Running Mann-Whitney significance tests…',
+    'Synthesising narrative with LLM…', 'Rendering visualisation…',
+  ];
+  let si = 0;
+  const stepEl = document.getElementById('loading-step');
+  stepEl.textContent = steps[0];
+  const timer = setInterval(() => { si = Math.min(si+1, steps.length-1); stepEl.textContent = steps[si]; }, 5500);
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ home, question, force_refresh: forceRefresh }),
+    });
+    clearInterval(timer);
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({detail: res.statusText}));
+      throw new Error(e.detail || `Server error ${res.status}`);
+    }
+    const payload = await res.json();
+    renderResults(payload);
+    /* Refresh recent list so the new query appears */
+    refreshRecent(home);
+  } catch (e) {
+    clearInterval(timer);
+    showErr(e.message || 'Unexpected error');
+    show('welcome');
+  } finally { setLoading(false); }
+}
+
+/* ================================================================
+   NARRATIVE FORMATTER
+   Highlights increase/decrease keywords in semantic colours and
+   bolds detected activity names extracted from the result set.
+================================================================ */
+function formatNarrative(text, activities) {
+  /* 1 – HTML-escape the raw text first */
+  let html = esc(text);
+
+  /* 2 – Highlight increase-family words (green) */
+  html = html.replace(
+    /\b(increase[sd]?|increasing|increased|rose|risen|goes? up|went up|higher|grew|grow[sn]?|growth|uptick|more frequent(?:ly)?|greater frequency)\b/gi,
+    '<span class="kw-inc">$1</span>'
+  );
+
+  /* 3 – Highlight decrease-family words (red) */
+  html = html.replace(
+    /\b(decrease[sd]?|decreasing|decreased|fell|fallen|fall[sn]?|drops?|dropped|lower|declin(?:e[sd]?|ing)|reduc(?:ed|tion|ing)|less frequent(?:ly)?|fewer)\b/gi,
+    '<span class="kw-dec">$1</span>'
+  );
+
+  /* 4 – Bold activity names (longest first to avoid partial-match conflicts) */
+  const sorted = [...activities].sort((a, b) => b.length - a.length);
+  sorted.forEach(act => {
+    if (!act) return;
+    const escaped = act.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    html = html.replace(
+      new RegExp(`\\b(${escaped})\\b`, 'gi'),
+      '<strong class="kw-act">$1</strong>'
+    );
+  });
+
+  /* 5 – Preserve newlines */
+  html = html.replace(/\n/g, '<br>');
+
+  return html;
+}
+
+/* ================================================================
+   RENDER RESULTS
+================================================================ */
+function renderResults(data) {
+  const result  = data.result || {};
+  const windows = result.windows || {};
+  const wa      = windows.window_a || {};
+  const wb      = windows.window_b || {};
+  const items   = result.results || [];
+
+  /* Meta chips */
+  const waDate = (wa.start || '').slice(0,10);
+  const wbDate = (wb.end   || '').slice(0,10);
+  document.getElementById('results-meta').innerHTML = `
+    <span class="chip chip-home">${(data.home||'').toUpperCase()}</span>
+    ${data.from_cache
+      ? '<span class="chip chip-cached">⚡ cached</span>'
+      : '<span class="chip chip-fresh">✦ fresh</span>'}
+    <span class="chip chip-muted">threshold = 0.05</span>
+    ${waDate?`<span class="chip chip-muted">⏱ ${waDate} → ${wbDate}</span>`:''}
+    ${items.length?`<span class="chip chip-muted">${items.length} activit${items.length===1?'y':'ies'}</span>`:''}
+    <span class="rerun-link" onclick="doAnalyze(true)">↺ re-run</span>
+  `;
+
+  /* Narrative – rich text with keyword highlighting */
+  const activityNames = items.map(r => r.activity || '').filter(Boolean);
+  document.getElementById('report-text').innerHTML =
+    formatNarrative((data.report || result.report || '(No report generated.)').trim(), activityNames);
+
+  /* Overview section visibility */
+  if (!items.length) document.getElementById('overview-section').style.display = 'none';
+
+  /* Activity cards (DOM only, no SVG yet) */
+  const grid = document.getElementById('activity-grid');
+  grid.innerHTML = '';
+  items.forEach(r => grid.appendChild(buildActivityCard(r, wa, wb)));
+
+  /* Show results first so offsetWidth is available */
+  show('results');
+
+  /* Render SVG charts after layout is complete */
+  requestAnimationFrame(() => {
+    if (items.length) renderOverview(items, wa.label || 'Window A', wb.label || 'Window B');
+    items.forEach((r, i) => renderStripChart(r, i));
+  });
+}
+
+/* ================================================================
+   OVERVIEW CHART  – horizontal diverging bar chart
+================================================================ */
+function renderOverview(items, _labelA, _labelB) {
+  const labelA = 'Baseline period';
+  const labelB = 'Latest period';
+  const sec = document.getElementById('overview-section');
+  sec.style.display = 'block';
+  const svg = document.getElementById('overview-svg');
+
+  const W = sec.offsetWidth - 44;  /* padding 22*2 */
+  const rowH = 34;
+  const labelW = 180;               /* wider for long names */
+  const pctColW = 68;               /* space for pct label right of bar */
+  const barAreaW = W - labelW - pctColW;
+  const midX = labelW + barAreaW / 2;
+
+  /* Find max abs pct (dynamic) – add 15% headroom then round to nice number */
+  const rawMax = Math.max(...items.map(r => Math.abs(r.stats?.pct_change || 0)), 5);
+  function niceOverviewMax(v) {
+    const candidates = [5,10,15,20,25,30,40,50,60,75,100,125,150,200,250,300,400,500];
+    return candidates.find(c => c >= v * 1.18) || Math.ceil(v * 1.2 / 50) * 50;
+  }
+  const maxAbs = niceOverviewMax(rawMax);
+
+  /* Generate ~4–5 ticks each side */
+  function overviewStep(range) {
+    const candidates = [5,10,15,20,25,30,40,50,75,100,150,200];
+    return candidates.find(c => (range / c) <= 5 && (range / c) >= 2) || 25;
+  }
+  const tickStep = overviewStep(maxAbs);
+  const gridTicks = [];
+  for (let v = -maxAbs; v <= maxAbs + 0.001; v += tickStep) {
+    gridTicks.push(Math.round(v / tickStep) * tickStep);
+  }
+
+  const H = items.length * rowH + 30;
+  const pctToX = pct => midX + (pct / maxAbs) * (barAreaW / 2);
+
+  let rows = '';
+
+  /* Background grid lines */
+  gridTicks.forEach(v => {
+    const x = pctToX(v);
+    const isMid = v === 0;
+    rows += `<line x1="${x}" y1="0" x2="${x}" y2="${H}"
+      stroke="${isMid ? '#B0B8D0' : COL_GRID}" stroke-width="${isMid ? 1.5 : 0.8}"
+      stroke-dasharray="${isMid ? 'none' : '3,3'}"/>`;
+    if (v !== 0) {
+      rows += `<text x="${x}" y="${H + 14}" text-anchor="middle"
+        fill="${COL_SUB}" font-size="9.5" font-family="system-ui">${v > 0 ? '+' : ''}${v}%</text>`;
+    }
+  });
+
+  /* Bars */
+  items.forEach((r, i) => {
+    const y = i * rowH;
+    const pct  = r.stats?.pct_change ?? 0;
+    const dir  = r.stats?.direction || 'stable';
+    const col  = dir === 'increase' ? COL_INC : dir === 'decrease' ? COL_DEC : '#A0A8C0';
+    const x0   = pctToX(0);
+    const x1   = pctToX(pct);
+    const barX = Math.min(x0, x1);
+    const barW = Math.max(Math.abs(x1 - x0), 2);
+    const labelColor = dir === 'increase' ? COL_INC : dir === 'decrease' ? COL_DEC : '#6A7090';
+    const pctStr = pct >= 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`;
+
+    /* Row bg on hover (static alt rows) */
+    const rowBg = i % 2 === 0 ? 'none' : '#F7F9FF';
+
+    /* Wrap long activity names into up to 2 lines */
+    const actName = (r.activity || '—');
+    const words = actName.split(' ');
+    let line1 = '', line2 = '';
+    for (const w of words) {
+      if ((line1 + ' ' + w).trim().length <= 22) line1 = (line1 + ' ' + w).trim();
+      else line2 = (line2 + ' ' + w).trim();
+    }
+    const twoLine = line2.length > 0;
+    const labelY1 = twoLine ? y + rowH/2 - 3 : y + rowH/2 + 4;
+    const labelY2 = y + rowH/2 + 11;
+    const labelSvg = twoLine
+      ? `<text x="${labelW - 8}" y="${labelY1}" text-anchor="end"
+           fill="${COL_TEXT}" font-size="11" font-family="system-ui" font-weight="600"
+           style="text-transform:capitalize">${esc(line1)}</text>
+         <text x="${labelW - 8}" y="${labelY2}" text-anchor="end"
+           fill="${COL_TEXT}" font-size="11" font-family="system-ui" font-weight="600"
+           style="text-transform:capitalize">${esc(line2)}</text>`
+      : `<text x="${labelW - 8}" y="${labelY1}" text-anchor="end"
+           fill="${COL_TEXT}" font-size="12" font-family="system-ui" font-weight="600"
+           style="text-transform:capitalize">${esc(actName)}</text>`;
+
+    rows += `
+      <rect x="0" y="${y}" width="${W}" height="${rowH}" fill="${rowBg}" rx="0"/>
+      ${labelSvg}
+      <rect x="${barX}" y="${y + 9}" width="${barW}" height="${rowH - 18}"
+        fill="${col}" opacity="0.82" rx="3"/>
+      <text x="${x1 + (pct >= 0 ? 6 : -6)}" y="${y + rowH/2 + 4}"
+        text-anchor="${pct >= 0 ? 'start' : 'end'}"
+        fill="${labelColor}" font-size="11" font-weight="700" font-family="system-ui"
+        >${esc(pctStr)}</text>
+    `;
+  });
+
+  /* Bottom axis: 0% label */
+  const x0 = pctToX(0);
+  rows += `
+    <text x="${x0}" y="${H + 14}" text-anchor="middle"
+      fill="${COL_SUB}" font-size="9.5" font-family="system-ui">0%</text>
+  `;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H + 22}`);
+  svg.setAttribute('height', H + 22);
+  svg.innerHTML = rows;
+}
+
+/* ================================================================
+   ACTIVITY CARD DOM STRUCTURE
+================================================================ */
+function buildActivityCard(r, waMeta, wbMeta) {
+  const stats = r.stats || {};
+  const pct   = stats.pct_change;
+  const dir   = stats.direction || 'stable';
+  const waR   = r.window_a || {};
+  const wbR   = r.window_b || {};
+  const pctStr = pct != null ? (pct >= 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`) : '—';
+  const pctCls = dir === 'increase' ? 'badge-up' : dir === 'decrease' ? 'badge-down' : 'badge-stable';
+
+  const card = document.createElement('div');
+  card.className = 'act-card';
+  card.dataset.actIdx = r._idx;
+
+  /* Header */
+  card.innerHTML = `
+    <div class="act-head">
+      <div class="act-name">${esc(r.activity || '—')}</div>
+      <div class="act-stats">
+        <span class="badge ${pctCls}">${esc(pctStr)}</span>
+        <span class="badge badge-muted">${waR.total_matches||0} → ${wbR.total_matches||0} total matches</span>
+        <span class="badge badge-muted">${(waR.mean_per_day||0).toFixed(2)} → ${(wbR.mean_per_day||0).toFixed(2)} /day avg</span>
+      </div>
+    </div>
+
+    <div class="act-body">
+      <!-- chart panel -->
+      <div class="act-chart-panel">
+        <div class="panel-label" style="margin-bottom:6px">Daily counts</div>
+        <svg class="strip-svg" data-act="${esc(r.activity||'')}"
+             data-wa="${esc(JSON.stringify(waR.daily_counts||[]))}"
+             data-wb="${esc(JSON.stringify(wbR.daily_counts||[]))}"
+             data-wa-mean="${waR.mean_per_day||0}"
+             data-wb-mean="${wbR.mean_per_day||0}">
+        </svg>
+      </div>
+
+      <!-- table panel -->
+      <div class="act-table-panel">
+        <div class="panel-label">Per-retrieval-sentence counts</div>
+        ${buildSentenceTable(waR, wbR)}
+      </div>
+    </div>
+
+    <!-- reasoning footer -->
+    ${r.query_reasoning ? `
+    <div class="act-reasoning">
+      <div class="reasoning-trigger" onclick="toggleReasoning(this.closest('.act-reasoning'))">
+        <span class="reasoning-caret">›</span>
+        <span class="reasoning-toggle">Query Reasoning</span>
+      </div>
+      <div class="reasoning-body">${esc(r.query_reasoning||'')}</div>
+    </div>` : ''}
+  `;
+  return card;
+}
+
+function toggleReasoning(el) {
+  el.classList.toggle('open');
+}
+
+/* ================================================================
+   SENTENCE TABLE
+================================================================ */
+function buildSentenceTable(waR, wbR) {
+  const sentences = Object.keys(waR.per_query_counts || {});
+  if (!sentences.length) return '<p style="font-size:.8rem;color:var(--text-sub)">No retrieval data.</p>';
+
+  const rows = sentences.map(s => {
+    const a = (waR.per_query_counts || {})[s] || 0;
+    const b = (wbR.per_query_counts || {})[s] || 0;
+    const delta = b - a;
+    const pctD  = a > 0 ? ((delta / a) * 100).toFixed(0) : (b > 0 ? '∞' : '0');
+    const dStr  = delta === 0 ? '—'
+                : (delta > 0 ? `+${delta} (+${pctD}%)` : `${delta} (${pctD}%)`);
+    const dCls  = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : 'delta-flat';
+    return `<tr>
+      <td><div class="sent-text" title="${esc(s)}">${esc(s)}</div></td>
+      <td style="text-align:right"><span class="count-pill ${a>0?'pill-a':'pill-zero'}">${a}</span></td>
+      <td style="text-align:right"><span class="count-pill ${b>0?'pill-b':'pill-zero'}">${b}</span></td>
+      <td class="delta-cell ${dCls}">${esc(dStr)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table class="sent-table">
+    <thead><tr>
+      <th>Retrieval sentence</th>
+      <th style="white-space:nowrap;color:${COL_A}">Base</th>
+      <th style="white-space:nowrap;color:${COL_B}">Latest</th>
+      <th style="text-align:right">Δ</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/* ================================================================
+   VERTICAL BOX + STRIP CHART
+   Two side-by-side columns (Baseline | Latest), value on Y-axis
+================================================================ */
+function renderStripChart(r, idx) {
+  const svgs = document.querySelectorAll('.strip-svg');
+  const svg = svgs[idx];
+  if (!svg) return;
+
+  let waData, wbData;
+  try {
+    waData = JSON.parse(svg.dataset.wa || '[]');
+    wbData = JSON.parse(svg.dataset.wb || '[]');
+  } catch { waData = []; wbData = []; }
+
+  const panel = svg.closest('.act-chart-panel');
+  /* Match the height of the sibling sentence-table panel */
+  const tablePanel = panel.closest('.act-body')?.querySelector('.act-table-panel');
+  const panelLabel = panel.querySelector('.panel-label');
+  const labelH = panelLabel ? panelLabel.offsetHeight + 10 : 24;
+  const tableH = tablePanel ? tablePanel.offsetHeight : 200;
+  const H  = Math.max(tableH - labelH, 120);
+  const W  = Math.max(panel.offsetWidth - 28, 80);
+  const MT = 14, MB = 36, ML = 38, MR = 6;
+  const PH = H - MT - MB;
+  const PW = W - ML - MR;
+
+  const allVals = [...waData, ...wbData].filter(v => v >= 0);
+  const rawMax  = allVals.length > 0 ? Math.max(...allVals) : 1;
+
+  /* Nice ceiling for Y axis */
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    const exp  = Math.pow(10, Math.floor(Math.log10(v)));
+    const frac = v / exp;
+    return exp * (frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 5 ? 5 : 10);
+  }
+  const maxVal = niceMax(rawMax * 1.1);
+
+  /* y=0 is at bottom of plot area */
+  const yS = v => MT + PH - (Math.min(v, maxVal) / maxVal) * PH;
+
+  /* Column centres */
+  const colW   = PW * 0.34;
+  const gapMid = PW * 0.16;
+  const cxA    = ML + PW * 0.25;
+  const cxB    = ML + PW * 0.75;
+  const halfBox = colW * 0.55;
+
+  /* Box stats */
+  function boxStats(arr) {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    const n = s.length;
+    const q1   = s[Math.floor(n * 0.25)];
+    const med  = n % 2 === 0 ? (s[n/2-1]+s[n/2])/2 : s[Math.floor(n/2)];
+    const q3   = s[Math.floor(n * 0.75)];
+    const mean = arr.reduce((a, b) => a + b, 0) / n;
+    const iqr  = q3 - q1;
+    const lo   = Math.max(0, q1 - 1.5*iqr);
+    const hi   = Math.min(maxVal, q3 + 1.5*iqr);
+    return { q1, med, q3, mean, lo, hi };
+  }
+
+  /* Jitter dots horizontally within the column */
+  function jitter(arr, cx, col) {
+    if (!arr.length) return '';
+    const grouped = {};
+    arr.forEach(v => { grouped[v] = (grouped[v]||0)+1; });
+    let out = '';
+    for (const [vStr, cnt] of Object.entries(grouped)) {
+      const v  = parseFloat(vStr);
+      const cy = yS(v);
+      for (let k = 0; k < cnt; k++) {
+        const jx = cnt === 1 ? 0 : ((k/(cnt-1)) - 0.5) * halfBox * 1.4;
+        out += `<circle cx="${(cx+jx).toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5"/>`;
+      }
+    }
+    return `<g fill="${col}" opacity="0.65">${out}</g>`;
+  }
+
+  /* Draw one vertical box+strip column */
+  function drawCol(data, cx, col, colSoft, label) {
+    if (!data.length) {
+      return `<text x="${cx}" y="${yS(0)-8}" text-anchor="middle"
+        fill="${COL_SUB}" font-size="9" font-family="system-ui">no data</text>`;
+    }
+    const st = boxStats(data);
+    let out = '';
+
+    /* Whisker (vertical line lo→hi) */
+    out += `<line x1="${cx}" y1="${yS(st.hi).toFixed(1)}" x2="${cx}" y2="${yS(st.lo).toFixed(1)}"
+      stroke="${colSoft}" stroke-width="1.5" stroke-linecap="round"/>`;
+
+    /* IQR box */
+    const y1 = yS(st.q3), y2 = yS(st.q1);
+    out += `<rect x="${(cx-halfBox).toFixed(1)}" y="${y1.toFixed(1)}"
+      width="${(halfBox*2).toFixed(1)}" height="${(y2-y1).toFixed(1)}"
+      fill="${col}" opacity="0.18" rx="4"
+      stroke="${col}" stroke-width="1.2" stroke-opacity="0.5"/>`;
+
+    /* Median line (horizontal) */
+    const my = yS(st.med);
+    out += `<line x1="${(cx-halfBox).toFixed(1)}" y1="${my.toFixed(1)}"
+      x2="${(cx+halfBox).toFixed(1)}" y2="${my.toFixed(1)}"
+      stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>`;
+
+    /* Jittered dots */
+    out += jitter(data, cx, col);
+
+    /* Mean diamond */
+    const dy = yS(st.mean);
+    const ds = 4.5;
+    out += `<polygon
+      points="${cx},${dy-ds} ${cx+ds},${dy} ${cx},${dy+ds} ${cx-ds},${dy}"
+      fill="white" stroke="${col}" stroke-width="1.6"/>`;
+
+    /* Column label */
+    out += `<text x="${cx}" y="${H - MB + 14}" text-anchor="middle"
+      fill="${col}" font-size="9.5" font-weight="700" font-family="system-ui">${label}</text>`;
+
+    return out;
+  }
+
+  /* Y grid + axis ticks */
+  function niceStep(range, n) {
+    const raw = range / n;
+    const exp = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    const m   = raw / exp;
+    return exp * (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10);
+  }
+  const step = niceStep(maxVal, 4);
+  const yTicks = [];
+  for (let v = 0; v <= maxVal + 0.001; v += step) yTicks.push(Math.round(v/step)*step);
+
+  let gridEl = '';
+  yTicks.forEach(v => {
+    const y = yS(v);
+    gridEl += `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${ML+PW}" y2="${y.toFixed(1)}"
+      stroke="${COL_GRID}" stroke-width="0.8" stroke-dasharray="${v===0?'none':'3,3'}"/>`;
+    gridEl += `<text x="${ML-4}" y="${(y+3.5).toFixed(1)}" text-anchor="end"
+      fill="${COL_SUB}" font-size="8.5" font-family="system-ui">${v}</text>`;
+  });
+  /* Axis line */
+  gridEl += `<line x1="${ML}" y1="${MT}" x2="${ML}" y2="${MT+PH}"
+    stroke="${COL_GRID}" stroke-width="1"/>`;
+  /* Y axis label – rotated on the left, clear of tick marks */
+  const lblX = 8;
+  const lblY = MT + PH / 2;
+  gridEl += `<text x="${lblX}" y="${lblY}" text-anchor="middle"
+    transform="rotate(-90,${lblX},${lblY})"
+    fill="${COL_SUB}" font-size="8" font-family="system-ui" font-style="italic">cnt/day</text>`;
+
+  const colElA = drawCol(waData, cxA, COL_A, COL_A_SOFT, 'Baseline');
+  const colElB = drawCol(wbData, cxB, COL_B, COL_B_SOFT, 'Latest');
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', H);
+  svg.innerHTML = gridEl + colElA + colElB;
+}
+
+/* ================================================================
+   UI HELPERS
+================================================================ */
+function setLoading(on) {
+  document.getElementById('loading').style.display = on ? 'block' : 'none';
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = on;
+  btn.innerHTML = on
+    ? 'Analyzing…'
+    : `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="7" x2="12" y2="7"/><polyline points="7,2 12,7 7,12"/>
+       </svg> Analyze`;
+}
+function show(id)  { document.getElementById(id).style.display = 'block'; }
+function hide(id)  { document.getElementById(id).style.display = 'none';  }
+function showErr(m){ const e = document.getElementById('error-bar'); e.textContent='Error: '+m; e.style.display='block'; }
+function esc(s)    {
+  return String(s||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
