@@ -60,6 +60,7 @@ if str(_SRC) not in sys.path:
 
 from query.query_cache import QueryCache
 from query.llm_rewriter import LLMRewriter, RewriteMode, resolve_max_subqueries
+from query.llm_reasoning import RETRIEVAL_THRESHOLDS
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _MERGED_DIR   = _PROJECT_ROOT / "data" / "query_cache" / "merged"
@@ -766,8 +767,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--top_k",        type=int,   default=5,
                    help="Max results in top-k mode (default: 5). Ignored when --threshold is set.")
     p.add_argument("--threshold",    type=float, default=None,
-                   help="Cosine similarity floor (e.g. 0.10). Returns ALL samples above this "
-                        "score with no top_k cap. Recommended range: 0.05–0.25.")
+                   help="Cosine similarity floor. Returns ALL samples above this score with no "
+                        "top_k cap. Defaults to the per-home calibrated value when --home is set "
+                        f"(milan={RETRIEVAL_THRESHOLDS.get('milan')}, "
+                        f"aruba={RETRIEVAL_THRESHOLDS.get('aruba')}, "
+                        f"cairo={RETRIEVAL_THRESHOLDS.get('cairo')}). "
+                        "Pass explicitly to override.")
     p.add_argument("--max_samples",  type=int, default=5000)
     p.add_argument("--rewrite_only", action="store_true",
                    help="Show rewritten sentences without loading the model")
@@ -898,18 +903,24 @@ def main():
             cache_db_path=args.cache_db,
         )
 
+    # Apply per-home default threshold when none was passed explicitly
+    effective_threshold = args.threshold
+    if effective_threshold is None and args.home in RETRIEVAL_THRESHOLDS:
+        effective_threshold = RETRIEVAL_THRESHOLDS[args.home]
+        print(f"[SmartQuery] Using per-home threshold for '{args.home}': {effective_threshold}")
+
     if args.query:
         sq.query(
             args.query,
             mode=args.mode,
             top_k=args.top_k,
-            threshold=args.threshold,
+            threshold=effective_threshold,
             force_rewrite=args.force_rewrite,
             force_retrieve=args.force_retrieve,
             max_subqueries=args.max_subqueries,
         )
     else:
-        thresh_str = f"  threshold={args.threshold}" if args.threshold else f"  top_k={args.top_k}"
+        thresh_str = f"  threshold={effective_threshold}" if effective_threshold else f"  top_k={args.top_k}"
         print(f"\n[SmartQuery] Interactive mode — mode={args.mode!r}{thresh_str}")
         print("Commands: 'mode single|multi_location|multi_wording', 'cache', 'quit'\n")
         current_mode: RewriteMode = args.mode
@@ -937,7 +948,7 @@ def main():
                 raw,
                 mode=current_mode,
                 top_k=args.top_k,
-                threshold=args.threshold,
+                threshold=effective_threshold,
                 force_rewrite=args.force_rewrite,
                 force_retrieve=args.force_retrieve,
                 max_subqueries=args.max_subqueries,

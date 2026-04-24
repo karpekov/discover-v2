@@ -1009,7 +1009,7 @@ function renderResults(data) {
     ${data.from_cache
       ? '<span class="chip chip-cached">⚡ cached</span>'
       : '<span class="chip chip-fresh">✦ fresh</span>'}
-    <span class="chip chip-muted">threshold = 0.05</span>
+    <span class="chip chip-muted">threshold = ${data.result?.similarity_threshold ?? (data.result?.similarity_threshold === 0 ? 0 : '?')}</span>
     ${waDate?`<span class="chip chip-muted">⏱ ${waDate} → ${wbDate}</span>`:''}
     ${items.length?`<span class="chip chip-muted">${items.length} activit${items.length===1?'y':'ies'}</span>`:''}
     <span class="rerun-link" onclick="doAnalyze(true)">↺ re-run</span>

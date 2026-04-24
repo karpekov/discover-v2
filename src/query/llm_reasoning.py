@@ -49,6 +49,17 @@ from query.llm_rewriter import LLMRewriter, _GeminiBackend, _OpenAICompatibleBac
 
 
 # ---------------------------------------------------------------------------
+# Per-home retrieval similarity thresholds
+# Calibrated from threshold sensitivity analysis (eval_retrieval_threshold.py).
+# These are the F1-optimal cosine similarity cutoffs for prototype→sensor retrieval.
+# ---------------------------------------------------------------------------
+RETRIEVAL_THRESHOLDS: dict[str, float] = {
+    "milan": 0.075,
+    "aruba": 0.065,
+    "cairo": 0.13,
+}
+
+# ---------------------------------------------------------------------------
 # Per-home data quality cutoffs
 # Samples with start_time before the cutoff are excluded from all retrieval.
 # ---------------------------------------------------------------------------
@@ -420,7 +431,9 @@ class LongitudinalAnalyzer:
         api_key:              LLM API key (falls back to env vars).
         model:                Override LLM model name.
         base_url:             For OpenAI-compatible endpoints.
-        similarity_threshold: Cosine similarity cutoff for a "match" (default 0.25).
+        similarity_threshold: Cosine similarity cutoff for a "match". Defaults to the
+                              per-home calibrated value from RETRIEVAL_THRESHOLDS, or
+                              0.10 if the home is not recognised.
         window_size_days:     Number of days in each comparison window (default 7).
         metadata_path:        Override path to casas_metadata.json.
         captions_path:        Style-example captions for LLMRewriter (False to disable).
@@ -434,13 +447,17 @@ class LongitudinalAnalyzer:
         api_key: str | None = None,
         model: str | None = None,
         base_url: str | None = None,
-        similarity_threshold: float = 0.25,
+        similarity_threshold: float | None = None,
         window_size_days: int = 7,
         metadata_path: str | Path | None = None,
         captions_path: str | Path | bool | None = None,
     ):
         self.retrieval = retrieval
-        self.threshold = similarity_threshold
+        self.threshold = (
+            similarity_threshold
+            if similarity_threshold is not None
+            else RETRIEVAL_THRESHOLDS.get(home.lower(), 0.10)
+        )
         self.window_size_days = window_size_days
 
         # Shared LLM backend
@@ -636,8 +653,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                    help="Override LLM model name.")
     p.add_argument("--api_key", default=None,
                    help="LLM API key (falls back to GEMINI_API_KEY / OPENAI_API_KEY env vars).")
-    p.add_argument("--threshold", type=float, default=0.25,
-                   help="Cosine similarity threshold for counting a retrieval match.")
+    p.add_argument("--threshold", type=float, default=None,
+                   help="Cosine similarity threshold for counting a retrieval match. "
+                        "Defaults to the per-home calibrated value "
+                        f"(milan={RETRIEVAL_THRESHOLDS.get('milan')}, "
+                        f"aruba={RETRIEVAL_THRESHOLDS.get('aruba')}, "
+                        f"cairo={RETRIEVAL_THRESHOLDS.get('cairo')}).")
     p.add_argument("--window_days", type=int, default=7,
                    help="Number of days in each comparison window.")
     p.add_argument("--max_samples", type=int, default=None,

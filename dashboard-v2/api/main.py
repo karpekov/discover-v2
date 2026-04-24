@@ -45,7 +45,17 @@ for _p in (str(_SRC), str(_ROOT)):
 # Hardcoded configuration
 # ---------------------------------------------------------------------------
 
-THRESHOLD = 0.05
+# Per-home retrieval similarity thresholds (calibrated via eval_retrieval_threshold.py)
+_RETRIEVAL_THRESHOLDS: Dict[str, float] = {
+    "milan": 0.075,
+    "aruba": 0.065,
+    "cairo": 0.13,
+}
+_DEFAULT_THRESHOLD = 0.10  # fallback for homes not in the dict
+
+
+def _threshold_for(home: str) -> float:
+    return _RETRIEVAL_THRESHOLDS.get(home.lower(), _DEFAULT_THRESHOLD)
 
 # Per-home configs — always FD_60_p data + _v3 model
 _HOMES: Dict[str, Dict[str, str]] = {}
@@ -226,7 +236,7 @@ def _load_analyzer(home: str):
         home=home,
         backend="gemini",
         api_key=_get_api_key(),
-        similarity_threshold=THRESHOLD,
+        similarity_threshold=_threshold_for(home),
         captions_path=captions_path,
     )
     _analyzer_cache[home] = analyzer
@@ -415,7 +425,7 @@ if __name__ == "__main__":
     print(f"  http://localhost:{args.port}")
     print(f"  Project root: {_ROOT}")
     print(f"  Homes available: {list(_HOMES.keys())}")
-    print(f"  Threshold: {THRESHOLD}")
+    print(f"  Thresholds: { {h: _threshold_for(h) for h in _HOMES} }")
     print(f"{'='*60}\n")
 
     uvicorn.run(app, host="0.0.0.0", port=args.port)
