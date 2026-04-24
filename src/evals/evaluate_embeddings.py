@@ -388,6 +388,11 @@ class EmbeddingEvaluator:
         print(f"📊 L2 Labels: {len(set(labels_l2))} unique ({Counter(labels_l2).most_common(5)})")
         print(f"🔑 Sample IDs: {len(sample_ids)} unique sample IDs extracted")
 
+        # Apply Cairo-specific L1 label merges before any metrics are computed.
+        if self.dataset_name == 'cairo':
+            labels_l1 = self._apply_cairo_label_merges(labels_l1)
+            print(f"🔀 Cairo label merges applied → {len(set(labels_l1))} unique L1 labels")
+
         return embeddings, labels_l1, labels_l2, sample_ids
 
     def align_embeddings_by_sample_id(
@@ -473,9 +478,48 @@ class EmbeddingEvaluator:
 
         return aligned_sensor_emb, aligned_text_emb, aligned_labels_l1, aligned_labels_l2, aligned_sample_ids
 
+    # Per-dataset minor labels excluded when --filter_minor_labels is active.
+    # Keys must match the dataset_name / house_name used elsewhere (lower-case is fine
+    # since comparisons are done case-insensitively in filter_noisy_labels).
+    _MINOR_LABELS_BY_DATASET: Dict[str, set] = {
+        'milan': {'meditate', 'eve_meds', 'morning_meds', 'master_bedroom_activity'},
+        'aruba': {'respirate', 'wash_dishes'},
+        # Cairo entries use post-merge canonical names (see _CAIRO_L1_MERGES):
+        # 'r1 wake'/'r2 wake' → 'wake', 'r2 take medicine' → 'take medicine'.
+        'cairo': {'wake', 'bed to toilet', 'take medicine'},
+    }
+
+    # Cairo-specific L1 label merges applied before any metrics are computed.
+    # Keys are lower-cased original label values; values are the canonical merged label.
+    _CAIRO_L1_MERGES: Dict[str, str] = {
+        'r1 sleep':        'Sleep',
+        'r2 sleep':        'Sleep',
+        'r1 wake':         'Wake',
+        'r2 wake':         'Wake',
+        'r1 work in office': 'Work',
+        'r2 take medicine':  'Take medicine',
+    }
+
+    def _apply_cairo_label_merges(self, labels_l1: List[str]) -> List[str]:
+        """Merge Cairo-specific L1 label variants into canonical labels.
+
+        Applied unconditionally whenever dataset_name is 'cairo', before any
+        retrieval or classification metrics are computed.
+        """
+        return [
+            self._CAIRO_L1_MERGES.get(lbl.lower().strip(), lbl)
+            for lbl in labels_l1
+        ]
+
     def filter_noisy_labels(self, embeddings: np.ndarray, labels_l1: List[str], labels_l2: List[str],
-                           original_indices: List[int] = None) -> Tuple[np.ndarray, List[str], List[str], List[int]]:
-        """Filter out noisy/uninformative labels like 'Other', 'No_Activity', etc."""
+                           original_indices: List[int] = None,
+                           extra_exclude: Optional[set] = None) -> Tuple[np.ndarray, List[str], List[str], List[int]]:
+        """Filter out noisy/uninformative labels like 'Other', 'No_Activity', etc.
+
+        Args:
+            extra_exclude: Optional additional set of lower-cased L1 labels to drop
+                           (used by filter_minor_labels to layer dataset-specific exclusions).
+        """
 
         # Define labels to exclude (case-insensitive)
         exclude_labels = {
@@ -485,6 +529,8 @@ class EmbeddingEvaluator:
             'unknown', 'none', 'null', 'nan',
             'other activity', 'miscellaneous', 'misc'
         }
+        if extra_exclude:
+            exclude_labels = exclude_labels | {e.lower().strip() for e in extra_exclude}
 
         # If no original indices provided, create them
         if original_indices is None:
@@ -527,6 +573,44 @@ class EmbeddingEvaluator:
             print(f"   Removed L2 labels: {dict(removed_l2.most_common())}")
 
         return filtered_embeddings, filtered_labels_l1, filtered_labels_l2, valid_original_indices
+
+    def filter_by_keep_labels(
+        self,
+        embeddings: np.ndarray,
+        labels_l1: List[str],
+        labels_l2: List[str],
+        keep_labels: List[str],
+    ) -> Tuple[np.ndarray, List[str], List[str]]:
+        """Keep only samples whose L1 label is in *keep_labels*; discard the rest.
+
+        Case-insensitive comparison is used so 'Sleep' and 'sleep' both match.
+
+        Args:
+            embeddings:  (N, D) embedding matrix.
+            labels_l1:   L1 label for each sample.
+            labels_l2:   L2 label for each sample.
+            keep_labels: Whitelist of L1 labels to retain.
+
+        Returns:
+            filtered_embeddings, filtered_labels_l1, filtered_labels_l2
+        """
+        keep_set = {lbl.lower().strip() for lbl in keep_labels}
+        mask = [i for i, l in enumerate(labels_l1) if l.lower().strip() in keep_set]
+
+        if not mask:
+            print("⚠️  filter_by_keep_labels: no samples matched — returning original data unchanged.")
+            return embeddings, labels_l1, labels_l2
+
+        removed = len(labels_l1) - len(mask)
+        kept_unique = sorted({labels_l1[i] for i in mask})
+        print(f"🏷️  Label filter (keep_labels): {len(labels_l1)} → {len(mask)} samples "
+              f"(removed {removed}). Active L1 labels: {kept_unique}")
+
+        return (
+            embeddings[mask],
+            [labels_l1[i] for i in mask],
+            [labels_l2[i] for i in mask],
+        )
 
     def get_labels_from_metadata(self, dataset_name: str) -> Tuple[List[str], List[str]]:
         """
@@ -573,6 +657,13 @@ class EmbeddingEvaluator:
         # Filter out empty strings and known noisy/placeholder labels
         l1_labels = [l for l in l1_labels if l and l.strip() and l.lower().strip() not in _noisy]
         l2_labels = [l for l in l2_labels if l and l.strip() and l.lower().strip() not in _noisy]
+
+        # Apply Cairo-specific L1 label merges so that the prototype label list
+        # stays consistent with the merged ground-truth labels.
+        if dataset_name == 'cairo':
+            l1_labels = list(dict.fromkeys(
+                self._CAIRO_L1_MERGES.get(l.lower().strip(), l) for l in l1_labels
+            ))
 
         print(f"📋 Extracted from metadata: {len(l1_labels)} L1 labels, {len(l2_labels)} L2 labels")
 
@@ -3562,11 +3653,11 @@ class EmbeddingEvaluator:
         fig.suptitle(f'Cross-Modal Retrieval Performance ({label_level} Labels)',
                      fontsize=18, fontweight='bold')
 
-        # Get all K values (should be same across all directions)
+        # Get all K values — filter to integer keys only (exclude 'mrr', 'map', 'count', etc.)
         k_values_list = []
         for direction, k_results in retrieval_results.items():
             if k_results:
-                k_values_list = sorted(k_results.keys())
+                k_values_list = sorted(k for k in k_results.keys() if isinstance(k, int))
                 break
 
         direction_order = ['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor', 'prototype2sensor', 'prototype2text']
@@ -4242,6 +4333,346 @@ class EmbeddingEvaluator:
 
         return fig
 
+    def _print_per_label_retrieval_table(
+        self,
+        per_label: Dict[str, Dict],
+        direction: str,
+        label_level: str,
+        k_values: List[int],
+    ) -> None:
+        """Print a formatted per-label table with MRR, mAP, and P@k for every label.
+
+        Args:
+            per_label:   per_label_results[direction]  — keys are int k values plus
+                         'mrr', 'map', and 'count'.
+            direction:   retrieval direction string (e.g. 'text2sensor').
+            label_level: 'L1' or 'L2'.
+            k_values:    list of k values (ints) to show P@k columns for.
+        """
+        from evals.compute_retrieval_metrics import _DIRECTION_DISPLAY
+
+        direction_display = _DIRECTION_DISPLAY.get(
+            direction, direction.replace('2', ' → ')
+        )
+        is_primary = direction == 'prototype2sensor'
+
+        mrr_by_label   = per_label.get('mrr',   {})
+        map_by_label   = per_label.get('map',   {})
+        count_by_label = per_label.get('count', {})
+
+        # Gather all labels that appear in at least one metric dict
+        all_labels_set = (
+            set(mrr_by_label) | set(map_by_label)
+            | {lbl for k in k_values if k in per_label for lbl in per_label[k]}
+        )
+        if not all_labels_set:
+            return
+
+        # For the primary direction, sort labels by MRR descending so highest
+        # performers appear first.  For others, alphabetical order is fine.
+        if is_primary:
+            all_labels = sorted(
+                all_labels_set,
+                key=lambda l: mrr_by_label.get(l, mrr_by_label.get(str(l), 0.0)),
+                reverse=True
+            )
+        else:
+            all_labels = sorted(all_labels_set)
+
+        # ── Header ────────────────────────────────────────────────────────────
+        k_col_w = 8
+        col_headers = ['MRR', 'mAP'] + [f'P@{k}' for k in k_values]
+        label_col_w = max(25, max(len(str(l)) for l in all_labels) + 2)
+        count_col_w = 7
+        row_width = label_col_w + count_col_w + len(col_headers) * (k_col_w + 2) + 2
+
+        border = '★' * row_width if is_primary else '=' * row_width
+        correctness_note = f'  [hit = same {label_level} label]' if is_primary else ''
+        print(f"\n{border}")
+        print(f"PER-LABEL RETRIEVAL METRICS  |  {label_level}  |  {direction_display}{correctness_note}")
+        print(f"{border}")
+
+        header = f"{'Label':<{label_col_w}} {'Count':>{count_col_w}}"
+        for h in col_headers:
+            header += f"  {h:>{k_col_w}}"
+        print(header)
+        print('-' * row_width)
+
+        # ── Per-label rows ────────────────────────────────────────────────────
+        for lbl in all_labels:
+            count = count_by_label.get(lbl, count_by_label.get(str(lbl), 0))
+            mrr   = mrr_by_label.get(lbl, mrr_by_label.get(str(lbl), 0.0))
+            map_v = map_by_label.get(lbl, map_by_label.get(str(lbl), 0.0))
+
+            row = f"{str(lbl):<{label_col_w}} {count:>{count_col_w}}"
+            row += f"  {mrr:>{k_col_w}.4f}"
+            row += f"  {map_v:>{k_col_w}.4f}"
+            for k in k_values:
+                p_at_k_dict = per_label.get(k, {})
+                val = p_at_k_dict.get(lbl, p_at_k_dict.get(str(lbl), 0.0))
+                row += f"  {val:>{k_col_w}.4f}"
+            print(row)
+
+        # ── Aggregate rows ────────────────────────────────────────────────────
+        print('-' * row_width)
+
+        for agg_name in ('macro', 'weighted'):
+            row = f"{'  ' + agg_name.upper() + ' AVG':<{label_col_w}} {'—':>{count_col_w}}"
+            counts   = np.array([count_by_label.get(lbl, count_by_label.get(str(lbl), 0))
+                                 for lbl in all_labels], dtype=float)
+            mrr_vals = np.array([mrr_by_label.get(lbl, mrr_by_label.get(str(lbl), 0.0))
+                                 for lbl in all_labels])
+            map_vals = np.array([map_by_label.get(lbl, map_by_label.get(str(lbl), 0.0))
+                                 for lbl in all_labels])
+            total = counts.sum()
+
+            def _agg(vals):
+                if agg_name == 'macro':
+                    return float(np.mean(vals)) if len(vals) else 0.0
+                return float(np.dot(counts, vals) / total) if total > 0 else 0.0
+
+            row += f"  {_agg(mrr_vals):>{k_col_w}.4f}"
+            row += f"  {_agg(map_vals):>{k_col_w}.4f}"
+
+            for k in k_values:
+                p_at_k_dict = per_label.get(k, {})
+                vals = np.array([p_at_k_dict.get(lbl, p_at_k_dict.get(str(lbl), 0.0))
+                                 for lbl in all_labels])
+                row += f"  {_agg(vals):>{k_col_w}.4f}"
+            print(row)
+
+        print(f"{'='*row_width}")
+
+    def _print_retrieval_summary_table(
+        self,
+        all_results: Dict,
+        label_level: str,
+        directions_order: List[str],
+    ) -> None:
+        """Print the final retrieval summary as two side-by-side tables per label level.
+
+        Layout for each label level:
+          ── MACRO ─────────────────────────────────────────────────────────────
+          Direction   MRR  mAP  P@10  P@50  P@100
+          ...
+          ── WEIGHTED ──────────────────────────────────────────────────────────
+          Direction   MRR  mAP  P@10  P@50  P@100
+          ...
+        """
+        from evals.compute_retrieval_metrics import _DIRECTION_DISPLAY as _DDISP
+
+        metric_cols = ['MRR', 'mAP', 'P@10', 'P@50', 'P@100']
+        dir_w = 26
+        col_w = 9
+        hdr_width = dir_w + len(metric_cols) * (col_w + 1)
+
+        def _get(dr, key, agg):
+            v = dr.get(key, {})
+            return v.get(agg, 0.0) if isinstance(v, dict) else 0.0
+
+        def _row(direction, agg):
+            dr    = all_results[direction]
+            dname = _DDISP.get(direction, direction)
+            vals  = [
+                _get(dr, 'mrr', agg),
+                _get(dr, 'map', agg),
+                _get(dr, 10,    agg),
+                _get(dr, 50,    agg),
+                _get(dr, 100,   agg),
+            ]
+            return f"{dname:<{dir_w}}" + "".join(f"{v:>{col_w}.4f}" for v in vals)
+
+        header = f"{'Direction':<{dir_w}}" + "".join(f"{c:>{col_w}}" for c in metric_cols)
+        sep    = '-' * hdr_width
+        active_dirs = [d for d in directions_order if d in all_results]
+
+        for agg in ('macro', 'weighted'):
+            label = 'MACRO' if agg == 'macro' else 'WEIGHTED'
+            print(f"\n  {label_level} — {label}")
+            print(header)
+            print(sep)
+            for direction in active_dirs:
+                print(_row(direction, agg))
+
+    def _write_retrieval_markdown_summary(
+        self,
+        results_by_level: Dict[str, Dict],
+        per_label_by_level: Dict[str, Dict],
+        output_dir,
+        k_values: List[int],
+        filename: str = 'retrieval_summary.md',
+    ) -> None:
+        """Write a markdown summary of all retrieval metrics to *output_dir/filename*.
+
+        Args:
+            results_by_level:   {label_level: {direction: {k_int|'mrr'|'map': {'macro':…,'weighted':…}}}}
+            per_label_by_level: {label_level: {direction: {k_int|'mrr'|'map'|'count': {label: val}}}}
+            output_dir:         Path object for the output folder.
+            k_values:           List of integer k values (e.g. [10, 50, 100]).
+            filename:           Name of the markdown file.
+        """
+        from evals.compute_retrieval_metrics import _DIRECTION_DISPLAY
+        from datetime import datetime
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        save_path = output_dir / filename
+
+        checkpoint = self.config.get('checkpoint_path', 'N/A')
+        test_data  = self.config.get('test_data_path',  'N/A')
+
+        lines: List[str] = []
+
+        def h(level: int, text: str) -> str:
+            return '#' * level + ' ' + text
+
+        def md_table_row(cells: List[str]) -> str:
+            return '| ' + ' | '.join(cells) + ' |'
+
+        def md_table_sep(n: int) -> str:
+            return '| ' + ' | '.join(['---'] * n) + ' |'
+
+        def fmt(v) -> str:
+            return f'{float(v):.4f}' if v is not None else '—'
+
+        # ── Header ────────────────────────────────────────────────────────────
+        lines += [
+            h(1, 'Retrieval Evaluation Summary'),
+            '',
+            f'**Dataset**: `{self.dataset_name}`  ',
+            f'**Checkpoint**: `{Path(checkpoint).name if checkpoint != "N/A" else "N/A"}`  ',
+            f'**Test data**: `{Path(test_data).name if test_data != "N/A" else "N/A"}`  ',
+            f'**Description style**: `{self.description_style}`  ',
+            f'**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
+            '',
+            '> A retrieved sensor window is counted as a **hit** when its label matches the '
+            'query label at the same level (L1 or L2).  ',
+            '> **Prototype → Sensor** is the primary direction: one text description per '
+            'activity class queries against all test sensor windows.',
+            '',
+            '---',
+            '',
+        ]
+
+        direction_order = ['prototype2sensor', 'prototype2text',
+                           'text2sensor', 'sensor2text',
+                           'sensor2sensor', 'text2text']
+
+        col_headers = ['MRR', 'mAP'] + [f'P@{k}' for k in k_values]
+
+        for label_level in ['L1', 'L2']:
+            overall   = results_by_level.get(label_level, {})
+            per_label = per_label_by_level.get(label_level, {})
+            if not overall:
+                continue
+
+            lines += [h(2, f'{label_level} Labels'), '']
+
+            # ── Overall summary table ─────────────────────────────────────────
+            lines += [h(3, 'Overall Summary'), '']
+            header_cells = ['Direction', 'Agg'] + col_headers
+            lines += [md_table_row(header_cells), md_table_sep(len(header_cells))]
+
+            for direction in direction_order:
+                dr = overall.get(direction)
+                if not dr:
+                    continue
+                dname = _DIRECTION_DISPLAY.get(direction, direction)
+                star = ' ⭐' if direction == 'prototype2sensor' else ''
+                for agg in ('macro', 'weighted'):
+                    mrr  = dr.get('mrr', {}).get(agg, 0.0)
+                    mapv = dr.get('map', {}).get(agg, 0.0)
+                    pk   = [dr.get(k, {}).get(agg, 0.0) for k in k_values]
+                    label_col = f'{dname}{star}' if agg == 'macro' else ''
+                    vals = [fmt(mrr), fmt(mapv)] + [fmt(v) for v in pk]
+                    lines.append(md_table_row([label_col, agg] + vals))
+
+            lines += ['']
+
+            # ── Per-label tables ──────────────────────────────────────────────
+            for direction in direction_order:
+                pl = per_label.get(direction)
+                if not pl:
+                    continue
+
+                dname = _DIRECTION_DISPLAY.get(direction, direction)
+                star  = ' ⭐' if direction == 'prototype2sensor' else ''
+                lines += [h(3, f'Per-label: {dname}{star}'), '']
+
+                if direction == 'prototype2sensor':
+                    lines += [
+                        '> Hit criterion: retrieved sensor window shares the same '
+                        f'**{label_level}** label as the text prototype.',
+                        '',
+                    ]
+
+                mrr_by_lbl   = pl.get('mrr',   {})
+                map_by_lbl   = pl.get('map',   {})
+                count_by_lbl = pl.get('count', {})
+
+                # Gather labels, sort by MRR desc for prototype2sensor, else alpha
+                all_lbls_set = (set(mrr_by_lbl) | set(map_by_lbl)
+                                | {l for k in k_values if k in pl for l in pl[k]})
+                if not all_lbls_set:
+                    continue
+
+                if direction == 'prototype2sensor':
+                    all_lbls = sorted(
+                        all_lbls_set,
+                        key=lambda l: mrr_by_lbl.get(l, mrr_by_lbl.get(str(l), 0.0)),
+                        reverse=True,
+                    )
+                else:
+                    all_lbls = sorted(all_lbls_set)
+
+                header_cells = ['Label', 'Count'] + col_headers
+                lines += [md_table_row(header_cells), md_table_sep(len(header_cells))]
+
+                for lbl in all_lbls:
+                    count = count_by_lbl.get(lbl, count_by_lbl.get(str(lbl), 0))
+                    mrr   = mrr_by_lbl.get(lbl, mrr_by_lbl.get(str(lbl), 0.0))
+                    mapv  = map_by_lbl.get(lbl, map_by_lbl.get(str(lbl), 0.0))
+                    pk    = [pl.get(k, {}).get(lbl, pl.get(k, {}).get(str(lbl), 0.0))
+                             for k in k_values]
+                    vals = [fmt(mrr), fmt(mapv)] + [fmt(v) for v in pk]
+                    lines.append(md_table_row([str(lbl).replace('_', ' '), str(count)] + vals))
+
+                # Aggregate rows
+                lines.append(md_table_sep(len(header_cells)))
+                counts_arr = np.array(
+                    [count_by_lbl.get(l, count_by_lbl.get(str(l), 0)) for l in all_lbls],
+                    dtype=float
+                )
+                total = counts_arr.sum()
+
+                def _agg_md(vals_arr, agg_label):
+                    if agg_label == 'macro':
+                        return float(np.mean(vals_arr)) if len(vals_arr) else 0.0
+                    return float(np.dot(counts_arr, vals_arr) / total) if total > 0 else 0.0
+
+                for agg_name, agg_label in [('Macro Avg', 'macro'), ('Weighted Avg', 'weighted')]:
+                    mrr_vals = np.array([mrr_by_lbl.get(l, mrr_by_lbl.get(str(l), 0.0)) for l in all_lbls])
+                    map_vals = np.array([map_by_lbl.get(l, map_by_lbl.get(str(l), 0.0)) for l in all_lbls])
+
+                    agg_pk = []
+                    for k in k_values:
+                        pk_dict = pl.get(k, {})
+                        vals_k  = np.array([pk_dict.get(l, pk_dict.get(str(l), 0.0)) for l in all_lbls])
+                        agg_pk.append(_agg_md(vals_k, agg_label))
+
+                    agg_vals = [
+                        fmt(_agg_md(mrr_vals, agg_label)),
+                        fmt(_agg_md(map_vals, agg_label)),
+                    ] + [fmt(v) for v in agg_pk]
+                    lines.append(md_table_row([f'**{agg_name}**', '—'] + agg_vals))
+
+                lines += ['']
+
+            lines += ['---', '']
+
+        save_path.write_text('\n'.join(lines), encoding='utf-8')
+        print(f"📄 Retrieval summary markdown saved: {save_path}")
+
     def _save_retrieval_results_json(self,
                                      retrieval_results: Dict[str, Any],
                                      label_counts: Dict[str, int],
@@ -4531,6 +4962,8 @@ class EmbeddingEvaluator:
                                      max_samples: int = 10000,
                                      k_neighbors: int = 1,
                                      filter_noisy_labels: bool = False,
+                                     filter_minor_labels: bool = False,
+                                     keep_labels: Optional[List[str]] = None,
                                      save_results: bool = True,
                                      use_multiple_prototypes: bool = False) -> Dict[str, Any]:
         """Run comprehensive evaluation: sensor + text embeddings (with/without projection).
@@ -4538,6 +4971,13 @@ class EmbeddingEvaluator:
         Creates unified visualizations comparing all three embedding types.
 
         Args:
+            filter_minor_labels: When True, drop dataset-specific rare/minor L1 labels
+                                 (see _MINOR_LABELS_BY_DATASET) in addition to the standard
+                                 noisy-label exclusions.  Implies filter_noisy_labels.
+            keep_labels: Optional whitelist of L1 labels to evaluate.  When set,
+                         only samples belonging to these L1 labels are included;
+                         all other samples are treated as noise and excluded.
+                         Example: keep_labels=['sleep', 'bed_to_toilet', 'take_medicine']
             use_multiple_prototypes: If True, use multiple prototypes per label with k-NN voting.
         """
         print("\n" + "="*80)
@@ -4568,27 +5008,36 @@ class EmbeddingEvaluator:
         train_labels_l1, train_labels_l2 = self.get_labels_from_metadata(self.dataset_name)
         print(f"✅ Got {len(train_labels_l1)} L1 labels and {len(train_labels_l2)} L2 labels from metadata")
 
-        # Filter noisy labels from metadata if requested (BEFORE creating prototypes)
+        # Build dataset-specific minor-label exclusion set (before creating prototypes)
+        _extra_excl_comp: Optional[set] = None
+        if filter_minor_labels:
+            filter_noisy_labels = True  # minor filter implies noisy filter
+            _extra_excl_comp = self._MINOR_LABELS_BY_DATASET.get(self.dataset_name.lower(), set())
+            if _extra_excl_comp:
+                print(f"⚠️  filter_minor_labels: will also drop {sorted(_extra_excl_comp)} for dataset '{self.dataset_name}'")
+
+        # Filter noisy (and optionally minor) labels from metadata BEFORE creating prototypes
         if filter_noisy_labels:
             print("\n⚠️  Filtering noisy labels from metadata before creating prototypes...")
 
-            # Define labels to exclude (case-insensitive)
             exclude_labels = {
                 'other',
-                'no_activity', 'No_Activity',
+                'no_activity', 'no_activity',
                 'unknown', 'none', 'null', 'nan',
                 'no activity', 'other activity', 'miscellaneous', 'misc'
             }
+            if _extra_excl_comp:
+                exclude_labels = exclude_labels | _extra_excl_comp
 
-            # Filter L1 labels
             original_l1_count = len(train_labels_l1)
-            train_labels_l1 = [label for label in train_labels_l1
-                              if label.lower().strip() not in exclude_labels]
+            train_labels_l1 = [l for l in train_labels_l1 if l.lower().strip() not in exclude_labels]
 
-            # Filter L2 labels
+            # Recompute L2 from the surviving L1 labels so that any L2 label
+            # whose *all* L1 children were excluded is also dropped automatically.
             original_l2_count = len(train_labels_l2)
-            train_labels_l2 = [label for label in train_labels_l2
-                              if label.lower().strip() not in exclude_labels]
+            train_labels_l2 = list(dict.fromkeys(
+                self.map_l1_to_l2_labels(train_labels_l1, self.dataset_name)
+            ))
 
             print(f"   L1 labels: {original_l1_count} → {len(train_labels_l1)} (removed {original_l1_count - len(train_labels_l1)})")
             print(f"   L2 labels: {original_l2_count} → {len(train_labels_l2)} (removed {original_l2_count - len(train_labels_l2)})")
@@ -4654,16 +5103,15 @@ class EmbeddingEvaluator:
         test_text_emb_proj = self.apply_projection_to_embeddings(test_text_emb)
 
         if filter_noisy_labels:
-            # Create a boolean mask for filtering based on labels
-            # Use the same comprehensive exclude list as above
             exclude_labels = {
                 'other',
-                'no_activity', 'No_Activity',
+                'no_activity', 'no_activity',
                 'unknown', 'none', 'null', 'nan',
                 'no activity', 'other activity', 'miscellaneous', 'misc'
             }
+            if _extra_excl_comp:
+                exclude_labels = exclude_labels | _extra_excl_comp
 
-            # Create mask - True means KEEP the sample
             keep_mask = []
             for l1, l2 in zip(test_sensor_l1, test_sensor_l2):
                 l1_lower = l1.lower().strip()
@@ -4694,6 +5142,37 @@ class EmbeddingEvaluator:
             assert len(test_sensor_emb) == len(test_text_emb) == len(test_text_emb_proj) == len(test_sensor_l1) == len(test_labels_l1), \
                 "Filtering resulted in misaligned data!"
             print(f"✅ All embeddings and labels aligned: {len(test_sensor_l1)} samples")
+
+        # Restrict to user-defined label whitelist if provided
+        if keep_labels:
+            keep_set_norm = {lbl.lower().strip() for lbl in keep_labels}
+            print(f"\n🏷️  Restricting evaluation to {len(keep_labels)} L1 label(s): {sorted(keep_labels)}")
+            mask = np.array([l.lower().strip() in keep_set_norm for l in test_sensor_l1])
+            if mask.sum() == 0:
+                print("⚠️  keep_labels filter matched no samples — skipping filter.")
+            else:
+                test_sensor_emb    = test_sensor_emb[mask]
+                test_text_emb      = test_text_emb[mask]
+                test_text_emb_proj = test_text_emb_proj[mask]
+                test_sensor_l1     = [l for l, k in zip(test_sensor_l1,  mask) if k]
+                test_sensor_l2     = [l for l, k in zip(test_sensor_l2,  mask) if k]
+                test_labels_l1     = [l for l, k in zip(test_labels_l1,  mask) if k]
+                test_labels_l2     = [l for l, k in zip(test_labels_l2,  mask) if k]
+                aligned_sample_ids = [s for s, k in zip(aligned_sample_ids, mask) if k]
+                # Restrict prototype label lists too
+                train_labels_l1    = [l for l in train_labels_l1 if l.lower().strip() in keep_set_norm]
+                train_labels_l2    = list({self.map_l1_to_l2_labels([l], self.dataset_name)[0]
+                                           for l in train_labels_l1})
+                print(f"   Kept {mask.sum()} samples, "
+                      f"{len(set(test_labels_l1))} unique L1 labels, "
+                      f"{len(set(test_labels_l2))} unique L2 labels.")
+
+                # Rebuild prototypes for the filtered label set
+                prototypes_l1_raw       = None
+                prototypes_l1_projected = None
+                print("   ⚙️  Rebuilding prototypes for filtered label set...")
+                prototypes_l1_raw, _       = self.create_text_prototypes(train_labels_l1, apply_projection=False, use_multiple_prototypes=use_multiple_prototypes)
+                prototypes_l1_projected, _ = self.create_text_prototypes(train_labels_l1, apply_projection=True,  use_multiple_prototypes=use_multiple_prototypes)
 
         # Now evaluate text embeddings WITHOUT projection (after alignment and filtering)
         print("\n" + "="*60)
@@ -5222,9 +5701,48 @@ class EmbeddingEvaluator:
                     save_path=retrieval_dir / f'retrieval_results_{retrieval_label_level.lower()}.json'
                 )
 
+            # Print per-label summary tables — prototype2sensor first, then instance directions
+            print(f"\n📋 Per-label retrieval summary tables for {retrieval_label_level}:")
+            all_per_label_combined = {**instance_per_label}
+            if prototype_per_label:
+                all_per_label_combined.update(prototype_per_label)
+            for _dir in ['prototype2sensor', 'prototype2text',
+                         'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']:
+                if _dir in all_per_label_combined:
+                    self._print_per_label_retrieval_table(
+                        per_label=all_per_label_combined[_dir],
+                        direction=_dir,
+                        label_level=retrieval_label_level,
+                        k_values=[10, 50, 100],
+                    )
+
             print(f"\n✅ Completed retrieval metrics for {retrieval_label_level} labels")
 
         # End of label level loop
+
+        # ===== 7b. WRITE MARKDOWN SUMMARY =====
+        if save_results:
+            # Build unified results/per_label dicts for the markdown writer
+            _md_results    = {}
+            _md_per_label  = {}
+            for _lvl, _lvl_data in retrieval_results_by_level.items():
+                _all_overall   = {}
+                _all_per_label = {}
+                if 'instance_to_instance' in _lvl_data:
+                    _all_overall.update(_lvl_data['instance_to_instance'].get('overall', {}))
+                    _all_per_label.update(_lvl_data['instance_to_instance'].get('per_label', {}))
+                if 'prototype_based' in _lvl_data:
+                    _all_overall.update(_lvl_data['prototype_based'].get('overall', {}))
+                    _all_per_label.update(_lvl_data['prototype_based'].get('per_label', {}))
+                _md_results[_lvl]   = _all_overall
+                _md_per_label[_lvl] = _all_per_label
+
+            self._write_retrieval_markdown_summary(
+                results_by_level=_md_results,
+                per_label_by_level=_md_per_label,
+                output_dir=output_dir,
+                k_values=[10, 50, 100],
+            )
 
         # ===== 8. SAVE RESULTS =====
         if save_results:
@@ -5338,56 +5856,27 @@ class EmbeddingEvaluator:
         print(f"{'Sensor vs Text (With Projection)':<50} {sensor_vs_proj_l1:+<12.4f} {sensor_vs_proj_l2:+<12.4f}")
 
         # Retrieval Metrics Summary
-        print("\n" + "="*80)
-        print("📊 RETRIEVAL METRICS SUMMARY (Instance Recall@K + Prototype Precision@K)")
-        print("="*80)
+        print("\n" + "="*108)
+        print("📊 RETRIEVAL METRICS SUMMARY  (MRR · mAP · P@10 · P@50 · P@100)")
+        print("="*108)
 
-        # Display results for both L1 and L2 label levels
+        directions_order = ['prototype2sensor', 'prototype2text',
+                            'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']
+
         for label_level in ['L1', 'L2']:
-            if label_level in retrieval_results_by_level:
-                level_data = retrieval_results_by_level[label_level]
+            if label_level not in retrieval_results_by_level:
+                continue
+            level_data = retrieval_results_by_level[label_level]
+            all_results: Dict = {}
+            if 'instance_to_instance' in level_data and 'overall' in level_data['instance_to_instance']:
+                all_results.update(level_data['instance_to_instance']['overall'])
+            if 'prototype_based' in level_data and 'overall' in level_data['prototype_based']:
+                all_results.update(level_data['prototype_based']['overall'])
 
-                # Combine instance and prototype results for display
-                all_results = {}
-                if 'instance_to_instance' in level_data and 'overall' in level_data['instance_to_instance']:
-                    all_results.update(level_data['instance_to_instance']['overall'])
-                if 'prototype_based' in level_data and 'overall' in level_data['prototype_based']:
-                    all_results.update(level_data['prototype_based']['overall'])
+            if not all_results:
+                continue
 
-                if all_results:
-                    print(f"\n{label_level} Labels:")
-                    print("-" * 80)
-
-                    # Choose middle K value for summary
-                    k_vals = list(next(iter(all_results.values())).keys())
-                    middle_k = k_vals[len(k_vals)//2] if k_vals else 10
-
-                    print(f"\nLabel Score @ K={middle_k} (Instance recall, Prototype precision):")
-                    print(f"{'Direction':<30} {'Macro':<15} {'Weighted':<15}")
-                    print("-" * 60)
-
-                    display_map = {
-                        'text2sensor': 'Text → Sensor',
-                        'sensor2text': 'Sensor → Text',
-                        'text2text': 'Text → Text',
-                        'sensor2sensor': 'Sensor → Sensor',
-                        'prototype2sensor': 'Prototype → Sensor',
-                        'prototype2text': 'Prototype → Text'
-                    }
-
-                    for direction in ['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor', 'prototype2sensor', 'prototype2text']:
-                        if direction in all_results:
-                            metrics = all_results[direction].get(middle_k, {})
-                            # Handle both old format (single float) and new format (dict)
-                            if isinstance(metrics, dict):
-                                macro = metrics.get('macro', 0)
-                                weighted = metrics.get('weighted', 0)
-                            else:
-                                # Backward compatibility
-                                macro = weighted = metrics
-
-                            direction_display = display_map.get(direction, direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor'))
-                            print(f"{direction_display:<30} {macro:<.4f} ({macro*100:>5.2f}%)  {weighted:<.4f} ({weighted*100:>5.2f}%)")
+            self._print_retrieval_summary_table(all_results, label_level, directions_order)
 
         print(f"\n✅ All results saved in: {output_dir}")
 
@@ -5402,6 +5891,8 @@ class EmbeddingEvaluator:
                                       test_text_embeddings_path: str,
                                       max_samples: int = 10000,
                                       filter_noisy_labels: bool = False,
+                                      filter_minor_labels: bool = False,
+                                      keep_labels: Optional[List[str]] = None,
                                       save_results: bool = True) -> Dict[str, Any]:
         """Run ONLY retrieval metrics evaluation (skip classification).
 
@@ -5413,6 +5904,15 @@ class EmbeddingEvaluator:
         Skips:
         - Classification metrics (accuracy, F1, confusion matrices)
         - Most visualizations (t-SNE, per-class F1 plots)
+
+        Args:
+            filter_minor_labels: When True, drop dataset-specific rare/minor L1 labels
+                                 (see _MINOR_LABELS_BY_DATASET) in addition to the standard
+                                 noisy-label exclusions.  Implies filter_noisy_labels.
+            keep_labels: Optional whitelist of L1 labels to evaluate.  When set,
+                         only samples belonging to these L1 labels are included;
+                         all other samples are treated as noise and excluded.
+                         Example: keep_labels=['sleep', 'bed_to_toilet', 'take_medicine']
         """
         print("\n" + "="*80)
         print("RETRIEVAL-ONLY EVALUATION")
@@ -5420,6 +5920,10 @@ class EmbeddingEvaluator:
         print("="*80)
 
         output_dir = Path(self.config.get('output_dir', './retrieval_evaluation'))
+        # When a label whitelist is active, isolate results in their own subfolder
+        if keep_labels:
+            slug = 'keep_' + '_'.join(sorted(lbl.lower().strip() for lbl in keep_labels))[:80]
+            output_dir = output_dir / slug
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Create retrieval subdirectory for better organization
@@ -5465,17 +5969,47 @@ class EmbeddingEvaluator:
         test_labels_l1 = aligned_labels_l1  # Same labels for both
         test_labels_l2 = aligned_labels_l2  # Same labels for both
 
-        # Filter if needed
+        # Build any dataset-specific minor-label exclusion set
+        _extra_excl: Optional[set] = None
+        if filter_minor_labels:
+            filter_noisy_labels = True  # minor filter implies noisy filter
+            _extra_excl = self._MINOR_LABELS_BY_DATASET.get(self.dataset_name.lower(), set())
+            if _extra_excl:
+                print(f"⚠️  filter_minor_labels: will also drop {sorted(_extra_excl)} for dataset '{self.dataset_name}'")
+
+        # Filter noisy (and optionally minor) labels if requested
         if filter_noisy_labels:
-            noisy_l1_labels = {'no_activity', 'No_Activity', 'Other', 'other', 'unknown', 'Unknown'}
-            noisy_l2_labels = {'no_activity', 'No_Activity', 'Other', 'other', 'unknown', 'Unknown'}
             print("⚠️  Filtering noisy labels from test data...")
             test_text_emb, test_labels_l1, test_labels_l2, _ = \
-                self.filter_noisy_labels(test_text_emb, test_labels_l1, test_labels_l2)
+                self.filter_noisy_labels(test_text_emb, test_labels_l1, test_labels_l2,
+                                         extra_exclude=_extra_excl)
             test_sensor_emb, test_sensor_l1, test_sensor_l2, _ = \
-                self.filter_noisy_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2)
-            train_labels_l1 = [label for label in train_labels_l1 if label not in noisy_l1_labels]
-            train_labels_l2 = [label for label in train_labels_l2 if label not in noisy_l2_labels]
+                self.filter_noisy_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2,
+                                         extra_exclude=_extra_excl)
+            # Keep prototype label lists in sync
+            _all_excl = (
+                {'no_activity', 'no activity', 'other', 'unknown', 'none', 'null', 'nan',
+                 'miscellaneous', 'misc', 'no_sensor_readings'}
+                | (_extra_excl or set())
+            )
+            train_labels_l1 = [l for l in train_labels_l1 if l.lower().strip() not in _all_excl]
+            # Recompute L2 from surviving L1 so orphaned L2 labels are dropped automatically.
+            train_labels_l2 = list(dict.fromkeys(
+                self.map_l1_to_l2_labels(train_labels_l1, self.dataset_name)
+            ))
+
+        # Restrict to a user-defined label whitelist if provided
+        if keep_labels:
+            keep_set_norm = {lbl.lower().strip() for lbl in keep_labels}
+            print(f"\n🏷️  Restricting evaluation to {len(keep_labels)} L1 label(s): {sorted(keep_labels)}")
+            test_text_emb, test_labels_l1, test_labels_l2 = \
+                self.filter_by_keep_labels(test_text_emb, test_labels_l1, test_labels_l2, keep_labels)
+            test_sensor_emb, test_sensor_l1, test_sensor_l2 = \
+                self.filter_by_keep_labels(test_sensor_emb, test_sensor_l1, test_sensor_l2, keep_labels)
+            # Also restrict the prototype label list so we don't generate prototypes for excluded labels
+            train_labels_l1 = [l for l in train_labels_l1 if l.lower().strip() in keep_set_norm]
+            train_labels_l2 = list({self.map_l1_to_l2_labels([l], self.dataset_name)[0]
+                                     for l in train_labels_l1})
 
         # ===== 2. CREATE TEXT PROTOTYPES (PROJECTED) =====
         print("\n" + "="*60)
@@ -5617,6 +6151,18 @@ class EmbeddingEvaluator:
                 'recall_at_k': all_retrieval_results,
                 'per_label': all_per_label
             }
+
+            # Print per-label summary tables — prototype2sensor first, then instance directions
+            print(f"\n📋 Per-label retrieval summary tables for {retrieval_label_level}:")
+            for _dir in ['prototype2sensor', 'prototype2text',
+                         'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']:
+                if _dir in all_per_label:
+                    self._print_per_label_retrieval_table(
+                        per_label=all_per_label[_dir],
+                        direction=_dir,
+                        label_level=retrieval_label_level,
+                        k_values=[10, 50, 100],
+                    )
 
             # ===== 5. CREATE RETRIEVAL VISUALIZATIONS =====
             print(f"\n🎨 Creating retrieval visualizations for {retrieval_label_level}...")
@@ -5838,30 +6384,33 @@ class EmbeddingEvaluator:
 
             print(f"💾 Results saved: {results_file}")
 
+            # Build unified dicts for the markdown writer
+            _md_results   = {lvl: d.get('recall_at_k', {})
+                             for lvl, d in retrieval_results_by_level.items()}
+            _md_per_label = {lvl: d.get('per_label', {})
+                             for lvl, d in retrieval_results_by_level.items()}
+            self._write_retrieval_markdown_summary(
+                results_by_level=_md_results,
+                per_label_by_level=_md_per_label,
+                output_dir=retrieval_dir,
+                k_values=[10, 50, 100],
+            )
+
         # ===== 7. PRINT SUMMARY =====
-        print("\n" + "="*80)
-        print("🎯 RETRIEVAL-ONLY EVALUATION SUMMARY")
-        print("="*80)
+        print("\n" + "="*108)
+        print("🎯 RETRIEVAL-ONLY EVALUATION SUMMARY  (MRR · mAP · P@10 · P@50 · P@100)")
+        print("="*108)
 
-        middle_k = 50  # Use k=50 for summary
+        directions_order = ['prototype2sensor', 'prototype2text',
+                            'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']
+
         for retrieval_label_level in ['L1', 'L2']:
-            print(f"\n📊 {retrieval_label_level} RETRIEVAL METRICS (k={middle_k}):")
-            print(f"{'Direction':<30} {'Macro Precision':<20} {'Weighted Precision':<20}")
-            print("-" * 70)
-
+            if retrieval_label_level not in retrieval_results_by_level:
+                continue
             all_results = retrieval_results_by_level[retrieval_label_level]['recall_at_k']
-
-            for direction in ['text2sensor', 'sensor2text', 'text2text', 'sensor2sensor', 'prototype2sensor', 'prototype2text']:
-                if direction in all_results and all_results[direction]:
-                    metrics = all_results[direction].get(middle_k, {})
-                    if isinstance(metrics, dict):
-                        macro = metrics.get('macro', 0)
-                        weighted = metrics.get('weighted', 0)
-                    else:
-                        macro = weighted = metrics
-
-                    direction_display = direction.replace('2', ' → ').replace('prototype', 'Prototype').replace('text', 'Text').replace('sensor', 'Sensor')
-                    print(f"{direction_display:<30} {macro:<.4f} ({macro*100:>5.2f}%)  {weighted:<.4f} ({weighted*100:>5.2f}%)")
+            if not all_results:
+                continue
+            self._print_retrieval_summary_table(all_results, retrieval_label_level, directions_order)
 
         print(f"\n✅ Retrieval-only evaluation complete! Results saved in: {output_dir}")
 
@@ -6122,6 +6671,10 @@ def main():
                        help='Output directory for results')
     parser.add_argument('--filter_noisy_labels', action='store_true',
                        help='Filter out noisy labels like "Other" and "No_Activity"')
+    parser.add_argument('--filter_minor_labels', action='store_true',
+                       help='Filter noisy labels AND dataset-specific minor labels '
+                            '(milan: Meditate/Eve_Meds/Morning_Meds/Master_Bedroom_Activity; '
+                            'aruba: Respirate/Wash_Dishes; cairo: R1 wake/R2 wake)')
     parser.add_argument('--compare_filtering', action='store_true',
                        help='Compare filtered vs unfiltered results in a single chart')
     parser.add_argument('--run_nshot', action='store_true',
@@ -6176,6 +6729,7 @@ def main():
             test_text_embeddings_path=args.test_text_embeddings,
             max_samples=args.max_samples,
             filter_noisy_labels=args.filter_noisy_labels,
+            filter_minor_labels=args.filter_minor_labels,
             save_results=True
         )
         print(f"\n✅ Retrieval-only evaluation complete! Results saved in: {args.output_dir}")
@@ -6191,6 +6745,7 @@ def main():
             max_samples=args.max_samples,
             k_neighbors=args.k_neighbors,
             filter_noisy_labels=args.filter_noisy_labels,
+            filter_minor_labels=args.filter_minor_labels,
             save_results=True,
             use_multiple_prototypes=args.use_multiple_prototypes
         )

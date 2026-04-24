@@ -253,6 +253,96 @@ def compute_per_label_recall_at_k(
     return per_label_recalls
 
 
+def compute_all_metrics_per_label(
+    query_embeddings: np.ndarray,
+    target_embeddings: np.ndarray,
+    query_labels: np.ndarray,
+    target_labels: np.ndarray,
+    k_values: List[int] = [10, 50, 100],
+    exclude_self: bool = False
+) -> Tuple[Dict[str, Dict], Dict[str, int]]:
+    """
+    Compute MRR, mAP (full corpus), and P@k in a single pass.
+
+    For each query:
+      - MRR:  1/rank of the FIRST relevant item (full corpus, no cutoff).
+      - mAP:  mean precision at EVERY rank where a relevant item appears
+              (full corpus, no cutoff).
+      - P@k:  fraction of the top-k results that are relevant.
+
+    "Relevant" means target label == query label.
+
+    Args:
+        query_embeddings:  (N_q, D)
+        target_embeddings: (N_t, D)
+        query_labels:      (N_q,)
+        target_labels:     (N_t,)
+        k_values:          k values for P@k.
+        exclude_self:      mask diagonal when N_q == N_t.
+
+    Returns:
+        per_label_metrics: {label: {'mrr': float, 'map': float,
+                                    'p_at_10': float, …, 'count': int}}
+        per_label_counts:  {label: int}
+    """
+    n_queries = len(query_embeddings)
+    n_targets = len(target_embeddings)
+
+    similarities = compute_cosine_similarity(query_embeddings, target_embeddings)
+
+    if exclude_self and n_queries == n_targets:
+        np.fill_diagonal(similarities, -np.inf)
+
+    mrr_per_query   = np.zeros(n_queries, dtype=np.float64)
+    ap_per_query    = np.zeros(n_queries, dtype=np.float64)
+    p_at_k_per_query = {k: np.zeros(n_queries, dtype=np.float64) for k in k_values}
+
+    for i in range(n_queries):
+        query_label = query_labels[i]
+        ranked_idx  = np.argsort(similarities[i])[::-1]
+        relevance   = (target_labels[ranked_idx] == query_label)
+
+        relevant_positions = np.where(relevance)[0]
+        n_rel = len(relevant_positions)
+
+        # MRR
+        if n_rel > 0:
+            mrr_per_query[i] = 1.0 / (relevant_positions[0] + 1)
+
+        # full-corpus mAP
+        if n_rel > 0:
+            one_based  = relevant_positions + 1
+            precisions = np.arange(1, n_rel + 1) / one_based
+            ap_per_query[i] = float(np.mean(precisions))
+
+        # P@k
+        for k in k_values:
+            k_eff = min(k, n_targets)
+            p_at_k_per_query[k][i] = float(np.sum(relevance[:k_eff]) / k_eff)
+
+    # Aggregate per label
+    unique_labels     = sorted(list(set(query_labels)))
+    per_label_metrics = {}
+    per_label_counts  = {}
+
+    for label in unique_labels:
+        idx   = np.where(query_labels == label)[0]
+        count = len(idx)
+
+        entry: Dict = {
+            'mrr':   float(np.mean(mrr_per_query[idx])),
+            'map':   float(np.mean(ap_per_query[idx])),
+            'count': count,
+        }
+        for k in k_values:
+            entry[f'p_at_{k}'] = float(np.mean(p_at_k_per_query[k][idx]))
+
+        per_label_metrics[label] = entry
+        per_label_counts[label]  = count
+
+    return per_label_metrics, per_label_counts
+
+
 def compute_macro_and_weighted_metrics(
     per_label_scores: Dict[str, float],
     per_label_counts: Dict[str, int]
@@ -511,96 +601,105 @@ def compute_label_recall_at_k(
         else:
             raise RuntimeError(f"Unhandled direction '{direction}'")
 
-        # Compute for each K
+        # Compute all metrics (MRR, mAP, P@k) in a single pass
+        if verbose:
+            print(f"  Computing MRR, mAP, and P@{k_values}...")
+
+        _exclude = exclude_self and direction in {'sensor2sensor', 'text2text'}
+        per_label_metrics, per_label_count = compute_all_metrics_per_label(
+            query_embeddings=query_emb,
+            target_embeddings=target_emb,
+            query_labels=labels,
+            target_labels=labels,
+            k_values=k_values,
+            exclude_self=_exclude,
+        )
+
         results[direction] = {}
         if return_per_label:
             per_label_results[direction] = {}
 
+        # P@k for each k value
         for k in k_values:
+            p_at_k_scores = {lbl: per_label_metrics[lbl][f'p_at_{k}'] for lbl in per_label_metrics}
+            macro, weighted = compute_macro_and_weighted_metrics(p_at_k_scores, per_label_count)
+            results[direction][k] = {'macro': macro, 'weighted': weighted}
             if verbose:
-                print(f"  Computing for K={k}...")
-
-            # Get per-label recalls and counts (needed for macro/weighted computation)
-            per_label_recall, per_label_count = compute_per_label_recall_at_k(
-                query_embeddings=query_emb,
-                target_embeddings=target_emb,
-                query_labels=labels,
-                target_labels=labels,
-                k=k,
-                return_counts=True,
-                exclude_self=exclude_self and direction in {'sensor2sensor', 'text2text'}
-            )
-
-            # Compute macro and weighted averages
-            macro_recall, weighted_recall = compute_macro_and_weighted_metrics(
-                per_label_recall, per_label_count
-            )
-
-            # Store both metrics
-            results[direction][k] = {
-                'macro': macro_recall,
-                'weighted': weighted_recall
-            }
-
-            if verbose:
-                print(f"    Label-Precision@{k} (Macro): {macro_recall:.4f} ({macro_recall*100:.2f}%)")
-                print(f"    Label-Precision@{k} (Weighted): {weighted_recall:.4f} ({weighted_recall*100:.2f}%)")
-
-            # Store per-label metrics if requested
+                print(f"    P@{k:<5} Macro: {macro:.4f} ({macro*100:.2f}%)  Weighted: {weighted:.4f} ({weighted*100:.2f}%)")
             if return_per_label:
-                per_label_results[direction][k] = per_label_recall
+                per_label_results[direction][k] = p_at_k_scores
+
+        # MRR
+        mrr_scores = {lbl: per_label_metrics[lbl]['mrr'] for lbl in per_label_metrics}
+        mrr_macro, mrr_weighted = compute_macro_and_weighted_metrics(mrr_scores, per_label_count)
+        results[direction]['mrr'] = {'macro': mrr_macro, 'weighted': mrr_weighted}
+        if verbose:
+            print(f"    MRR        Macro: {mrr_macro:.4f} ({mrr_macro*100:.2f}%)  Weighted: {mrr_weighted:.4f} ({mrr_weighted*100:.2f}%)")
+
+        # full-corpus mAP
+        map_scores = {lbl: per_label_metrics[lbl]['map'] for lbl in per_label_metrics}
+        map_macro, map_weighted = compute_macro_and_weighted_metrics(map_scores, per_label_count)
+        results[direction]['map'] = {'macro': map_macro, 'weighted': map_weighted}
+        if verbose:
+            print(f"    mAP        Macro: {map_macro:.4f} ({map_macro*100:.2f}%)  Weighted: {map_weighted:.4f} ({map_weighted*100:.2f}%)")
+
+        if return_per_label:
+            per_label_results[direction]['mrr']   = mrr_scores
+            per_label_results[direction]['map']   = map_scores
+            per_label_results[direction]['count'] = per_label_count
 
     if return_per_label:
         return results, per_label_results
     return results
 
 
-def print_results_summary(results: Dict[str, Dict[int, Union[float, Dict[str, float]]]]) -> None:
-    """
-    Print a formatted summary of retrieval results.
+_DIRECTION_DISPLAY = {
+    'text2sensor':     'Text → Sensor',
+    'sensor2text':     'Sensor → Text',
+    'sensor2sensor':   'Sensor → Sensor',
+    'text2text':       'Text → Text',
+    'prototype2sensor': 'Prototype → Sensor',
+    'prototype2text':  'Prototype → Text',
+}
 
-    Args:
-        results: Results dictionary from compute_label_recall_at_k or compute_prototype_retrieval_metrics
-                Now includes both macro and weighted metrics
-    """
-    print("\n" + "="*80)
-    print("LABEL SCORE@K RESULTS SUMMARY (Instance recall + Prototype precision)")
-    print("="*80)
+
+def print_results_summary(results: Dict[str, Dict]) -> None:
+    """Print a formatted summary of retrieval results including MRR, mAP, and P@k."""
+    print("\n" + "="*90)
+    print("RETRIEVAL METRICS SUMMARY  (MRR · mAP · P@k)")
+    print("="*90)
 
     for direction, k_results in results.items():
-        # Format direction name
-        if direction == 'text2sensor':
-            direction_name = "Text -> Sensor"
-        elif direction == 'sensor2text':
-            direction_name = "Sensor -> Text"
-        elif direction == 'sensor2sensor':
-            direction_name = "Sensor -> Sensor"
-        elif direction == 'text2text':
-            direction_name = "Text -> Text"
-        elif direction == 'prototype2sensor':
-            direction_name = "Text Prototype -> Sensor"
-        elif direction == 'prototype2text':
-            direction_name = "Text Prototype -> Text"
-        else:
-            direction_name = direction
-
+        direction_name = _DIRECTION_DISPLAY.get(direction, direction)
         print(f"\n{direction_name}:")
-        print("-" * 60)
+        print("-" * 70)
 
-        # Sort by K value
-        sorted_k = sorted(k_results.keys())
-        for k in sorted_k:
-            metrics = k_results[k]
-            # Handle both old format (single float) and new format (dict with macro/weighted)
-            if isinstance(metrics, dict):
-                macro = metrics.get('macro', 0.0)
-                weighted = metrics.get('weighted', 0.0)
-                print(f"  K={k:3d}  =>  Macro: {macro:.4f} ({macro*100:.2f}%)  |  Weighted: {weighted:.4f} ({weighted*100:.2f}%)")
+        # Show ranked metrics in a logical order
+        _metric_order = [
+            ('mrr', 'MRR        '),
+            ('map', 'mAP        '),
+        ]
+        for metric_key, label in _metric_order:
+            if metric_key in k_results:
+                m     = k_results[metric_key]
+                macro    = m.get('macro', 0.0)
+                weighted = m.get('weighted', 0.0)
+                print(f"  {label}  Macro: {macro:.4f} ({macro*100:>6.2f}%)  |  "
+                      f"Weighted: {weighted:.4f} ({weighted*100:>6.2f}%)")
+
+        # Show P@k values (integer keys, sorted)
+        int_keys = sorted(k for k in k_results if isinstance(k, int))
+        for k in int_keys:
+            m = k_results[k]
+            if isinstance(m, dict):
+                macro    = m.get('macro', 0.0)
+                weighted = m.get('weighted', 0.0)
+                print(f"  P@{k:<8}     Macro: {macro:.4f} ({macro*100:>6.2f}%)  |  "
+                      f"Weighted: {weighted:.4f} ({weighted*100:>6.2f}%)")
             else:
-                # Backward compatibility
-                print(f"  K={k:3d}  =>  Label-Precision@K = {metrics:.4f} ({metrics*100:.2f}%)")
+                print(f"  P@{k:<8}     {m:.4f} ({m*100:.2f}%)")
 
-    print("\n" + "="*80)
+    print("\n" + "="*90)
 
 
 def load_text_prototypes_from_metadata(
@@ -782,14 +881,16 @@ def compute_prototype_retrieval_metrics(
         if return_per_label:
             per_label_results[direction] = {}
 
+        # Compute the full similarity matrix once for all metrics
+        similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
+
+        # ── P@k (with k_effective capping) ───────────────────────────────────
         for k in k_values:
             if verbose:
-                print(f"  Computing for K={k}...")
+                print(f"  Computing P@{k}...")
 
-            # Compute per-label precision for prototypes (truncate K to available instances)
             per_label_precision = {}
             per_label_count_dict = {}
-            similarities = compute_cosine_similarity(prototype_embeddings, target_emb)
 
             for i, proto_label in enumerate(prototype_labels):
                 proto_label_str = str(proto_label)
@@ -808,29 +909,66 @@ def compute_prototype_retrieval_metrics(
                 top_k_indices = np.argsort(proto_sims)[-k_effective:][::-1]
                 top_k_labels = target_labels[top_k_indices]
                 n_matching = np.sum(top_k_labels == proto_label)
-                precision_label = n_matching / k_effective
-                per_label_precision[proto_label_str] = float(precision_label)
-
+                per_label_precision[proto_label_str] = float(n_matching / k_effective)
                 per_label_count_dict[proto_label_str] = label_total
 
-            # Compute macro (unweighted) and weighted (by label prevalence) averages
             macro_precision, weighted_precision = compute_macro_and_weighted_metrics(
                 per_label_precision, per_label_count_dict
             )
-
-            # Store both metrics
-            results[direction][k] = {
-                'macro': macro_precision,
-                'weighted': weighted_precision
-            }
+            results[direction][k] = {'macro': macro_precision, 'weighted': weighted_precision}
 
             if verbose:
-                print(f"    Label-Precision@{k} (Macro): {macro_precision:.4f} ({macro_precision*100:.2f}%)")
-                print(f"    Label-Precision@{k} (Weighted): {weighted_precision:.4f} ({weighted_precision*100:.2f}%)")
+                print(f"    P@{k:<5} Macro: {macro_precision:.4f} ({macro_precision*100:.2f}%)  "
+                      f"Weighted: {weighted_precision:.4f} ({weighted_precision*100:.2f}%)")
 
-            # Store per-label metrics if requested
             if return_per_label:
                 per_label_results[direction][k] = per_label_precision
+
+        # Reuse per_label_count_dict from the last k iteration for aggregation weights
+        if not per_label_count_dict:
+            # Fall back: count from target_label_counts
+            per_label_count_dict = {str(lbl): target_label_counts.get(str(lbl), 0)
+                                    for lbl in prototype_labels}
+
+        # ── MRR and full-corpus mAP (no k_effective capping) ────────────────────
+        per_label_mrr = {}
+        per_label_map = {}
+
+        for i, proto_label in enumerate(prototype_labels):
+            proto_label_str = str(proto_label)
+            proto_sims = similarities[i]
+
+            ranked_idx = np.argsort(proto_sims)[::-1]
+            relevance  = (target_labels[ranked_idx] == proto_label)
+
+            relevant_positions = np.where(relevance)[0]
+            n_rel = len(relevant_positions)
+
+            if n_rel > 0:
+                per_label_mrr[proto_label_str] = float(1.0 / (relevant_positions[0] + 1))
+                ranks_1based = relevant_positions + 1
+                precs = np.arange(1, n_rel + 1) / ranks_1based
+                per_label_map[proto_label_str] = float(np.mean(precs))
+            else:
+                per_label_mrr[proto_label_str] = 0.0
+                per_label_map[proto_label_str] = 0.0
+
+        mrr_macro, mrr_weighted = compute_macro_and_weighted_metrics(per_label_mrr, per_label_count_dict)
+        map_macro, map_weighted = compute_macro_and_weighted_metrics(per_label_map, per_label_count_dict)
+
+        results[direction]['mrr'] = {'macro': mrr_macro, 'weighted': mrr_weighted}
+        results[direction]['map'] = {'macro': map_macro, 'weighted': map_weighted}
+
+        if verbose:
+            print(f"    MRR        Macro: {mrr_macro:.4f} ({mrr_macro*100:.2f}%)  "
+                  f"Weighted: {mrr_weighted:.4f} ({mrr_weighted*100:.2f}%)")
+            print(f"    mAP        Macro: {map_macro:.4f} ({map_macro*100:.2f}%)  "
+                  f"Weighted: {map_weighted:.4f} ({map_weighted*100:.2f}%)")
+
+        if return_per_label:
+            per_label_results[direction]['mrr']   = per_label_mrr
+            per_label_results[direction]['map']   = per_label_map
+            per_label_results[direction]['count'] = per_label_count_dict
 
     if return_per_label:
         return results, per_label_results

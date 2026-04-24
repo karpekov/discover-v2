@@ -745,7 +745,7 @@
       "Respirate": "Other",
       "Housekeeping": "Work",
 
-      "Enter_Home": "Enter_Home",
+      "Enter_Home": "Leave_Home",
       "Leave_Home": "Leave_Home",
       "no_activity": "No_Activity"
     },
