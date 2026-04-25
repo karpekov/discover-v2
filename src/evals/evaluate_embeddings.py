@@ -4673,6 +4673,214 @@ class EmbeddingEvaluator:
         save_path.write_text('\n'.join(lines), encoding='utf-8')
         print(f"📄 Retrieval summary markdown saved: {save_path}")
 
+    def _write_classification_markdown_summary(
+        self,
+        metrics_dict: Dict[str, Dict[str, Any]],
+        output_dir,
+        filename: str = 'classification_summary.md',
+    ) -> None:
+        """Write a markdown summary of classification metrics to *output_dir/filename*.
+
+        Args:
+            metrics_dict: {'text_noproj': {'metrics_l1': ..., 'metrics_l2': ...},
+                           'text_proj':   {'metrics_l1': ..., 'metrics_l2': ...},
+                           'sensor':      {'metrics_l1': ..., 'metrics_l2': ...}}
+            output_dir:   Path object for the output folder.
+            filename:     Name of the markdown file.
+        """
+        from datetime import datetime
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        save_path = output_dir / filename
+
+        checkpoint = self.config.get('checkpoint_path', 'N/A')
+        test_data  = self.config.get('test_data_path',  'N/A')
+
+        MODEL_DISPLAY = {
+            'text_noproj': 'Text (No Projection)',
+            'text_proj':   'Text (With Projection)',
+            'sensor':      'Sensor ⭐',
+        }
+        MODEL_ORDER = ['text_noproj', 'text_proj', 'sensor']
+
+        lines: List[str] = []
+
+        def h(level: int, text: str) -> str:
+            return '#' * level + ' ' + text
+
+        def md_table_row(cells: List[str]) -> str:
+            return '| ' + ' | '.join(cells) + ' |'
+
+        def md_table_sep(n: int) -> str:
+            return '| ' + ' | '.join(['---'] * n) + ' |'
+
+        def fmt(v) -> str:
+            return f'{float(v):.4f}' if v is not None else '—'
+
+        def fmtd(v) -> str:
+            """Format a delta value with leading +/- sign."""
+            return f'{float(v):+.4f}' if v is not None else '—'
+
+        # ── Header ────────────────────────────────────────────────────────────
+        lines += [
+            h(1, 'Classification Evaluation Summary'),
+            '',
+            f'**Dataset**: `{self.dataset_name}`  ',
+            f'**Checkpoint**: `{Path(checkpoint).name if checkpoint != "N/A" else "N/A"}`  ',
+            f'**Test data**: `{Path(test_data).name if test_data != "N/A" else "N/A"}`  ',
+            f'**Description style**: `{self.description_style}`  ',
+            f'**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
+            '',
+            '> Classification via 1-NN nearest text prototype in the embedding space.  ',
+            '> Prototypes are synthetic text embeddings generated from activity descriptions.  ',
+            '> L2 labels are derived from L1 predictions using dataset metadata mapping.',
+            '',
+            '---',
+            '',
+        ]
+
+        # ── Overall summary tables ─────────────────────────────────────────────
+        lines += [h(2, 'Overall Summary'), '']
+
+        for label_level, level_key in [('L1 (Primary Activities)', 'metrics_l1'),
+                                        ('L2 (Secondary Activities)', 'metrics_l2')]:
+            lines += [h(3, label_level), '']
+            header_cells = ['Model', 'F1 Macro', 'F1 Weighted', 'Precision', 'Recall', 'Accuracy', 'Classes', 'Samples']
+            lines += [md_table_row(header_cells), md_table_sep(len(header_cells))]
+
+            for model_key in MODEL_ORDER:
+                m = metrics_dict.get(model_key, {}).get(level_key, {})
+                if not m:
+                    continue
+                row = [
+                    MODEL_DISPLAY.get(model_key, model_key),
+                    fmt(m.get('f1_macro')),
+                    fmt(m.get('f1_weighted')),
+                    fmt(m.get('precision_macro')),
+                    fmt(m.get('recall_macro')),
+                    fmt(m.get('accuracy')),
+                    str(m.get('num_classes', '—')),
+                    str(m.get('num_samples', '—')),
+                ]
+                lines.append(md_table_row(row))
+            lines += ['']
+
+        # ── Improvement deltas ─────────────────────────────────────────────────
+        lines += [h(2, 'Improvements vs Baseline'), '']
+        lines += [
+            '> Baseline = **Text (No Projection)**. Positive delta = improvement.',
+            '',
+        ]
+
+        def _get(model_key, level_key, metric):
+            return metrics_dict.get(model_key, {}).get(level_key, {}).get(metric)
+
+        header_cells = ['Comparison', 'L1 F1-Macro', 'L1 F1-Weighted', 'L2 F1-Macro', 'L2 F1-Weighted']
+        lines += [md_table_row(header_cells), md_table_sep(len(header_cells))]
+
+        comparisons = [
+            ('Text (With Proj) vs No Proj',  'text_proj',  'text_noproj'),
+            ('Sensor vs Text (No Proj)',      'sensor',     'text_noproj'),
+            ('Sensor vs Text (With Proj)',    'sensor',     'text_proj'),
+        ]
+        for label, model_a, model_b in comparisons:
+            def _delta(level_key, metric):
+                a = _get(model_a, level_key, metric)
+                b = _get(model_b, level_key, metric)
+                return (a - b) if (a is not None and b is not None) else None
+
+            row = [
+                label,
+                fmtd(_delta('metrics_l1', 'f1_macro')),
+                fmtd(_delta('metrics_l1', 'f1_weighted')),
+                fmtd(_delta('metrics_l2', 'f1_macro')),
+                fmtd(_delta('metrics_l2', 'f1_weighted')),
+            ]
+            lines.append(md_table_row(row))
+        lines += ['', '---', '']
+
+        # ── Per-class F1 tables ────────────────────────────────────────────────
+        lines += [h(2, 'Per-class F1 Scores'), '']
+        lines += [
+            '> Sorted by F1 score descending. Precision / Recall / Support are drawn from '
+            "sklearn's `classification_report` when available.",
+            '',
+        ]
+
+        for label_level, level_key in [('L1', 'metrics_l1'), ('L2', 'metrics_l2')]:
+            lines += [h(3, f'{label_level} Labels'), '']
+
+            for model_key in MODEL_ORDER:
+                m = metrics_dict.get(model_key, {}).get(level_key, {})
+                if not m:
+                    continue
+
+                model_name = MODEL_DISPLAY.get(model_key, model_key)
+                lines += [h(4, model_name), '']
+
+                cr = m.get('classification_report')  # sklearn dict or None
+                per_class_f1 = m.get('per_class_f1', {})
+
+                if not per_class_f1 and not cr:
+                    lines += ['*No per-class data available.*', '']
+                    continue
+
+                # Build per-class rows from classification_report when available
+                if cr and isinstance(cr, dict):
+                    skip_keys = {'accuracy', 'macro avg', 'weighted avg'}
+                    class_rows = []
+                    for cls_name, cls_data in cr.items():
+                        if cls_name in skip_keys:
+                            continue
+                        if not isinstance(cls_data, dict):
+                            continue
+                        class_rows.append((
+                            cls_name,
+                            cls_data.get('f1-score', 0.0),
+                            cls_data.get('precision', 0.0),
+                            cls_data.get('recall', 0.0),
+                            cls_data.get('support', 0),
+                        ))
+                    # Sort by F1 desc
+                    class_rows.sort(key=lambda x: x[1], reverse=True)
+
+                    header_cells = ['Class', 'F1', 'Precision', 'Recall', 'Support']
+                    lines += [md_table_row(header_cells), md_table_sep(len(header_cells))]
+                    for cls_name, f1, prec, rec, sup in class_rows:
+                        lines.append(md_table_row([
+                            cls_name.replace('_', ' '),
+                            fmt(f1), fmt(prec), fmt(rec), str(int(sup)),
+                        ]))
+
+                    # Aggregate rows from classification_report
+                    lines.append(md_table_sep(len(header_cells)))
+                    for agg_key in ('macro avg', 'weighted avg'):
+                        agg = cr.get(agg_key, {})
+                        if agg:
+                            lines.append(md_table_row([
+                                f'**{agg_key.title()}**',
+                                fmt(agg.get('f1-score')),
+                                fmt(agg.get('precision')),
+                                fmt(agg.get('recall')),
+                                str(int(agg.get('support', 0))),
+                            ]))
+
+                elif per_class_f1:
+                    # Fallback: only F1 available
+                    sorted_classes = sorted(per_class_f1.items(), key=lambda x: x[1], reverse=True)
+                    header_cells = ['Class', 'F1']
+                    lines += [md_table_row(header_cells), md_table_sep(len(header_cells))]
+                    for cls_name, f1_val in sorted_classes:
+                        lines.append(md_table_row([cls_name.replace('_', ' '), fmt(f1_val)]))
+
+                lines += ['']
+
+            lines += ['---', '']
+
+        save_path.write_text('\n'.join(lines), encoding='utf-8')
+        print(f"📄 Classification summary markdown saved: {save_path}")
+
     def _save_retrieval_results_json(self,
                                      retrieval_results: Dict[str, Any],
                                      label_counts: Dict[str, int],
@@ -5742,6 +5950,15 @@ class EmbeddingEvaluator:
                 per_label_by_level=_md_per_label,
                 output_dir=output_dir,
                 k_values=[10, 50, 100],
+            )
+
+            self._write_classification_markdown_summary(
+                metrics_dict={
+                    'text_noproj': {'metrics_l1': metrics_l1_text_noproj, 'metrics_l2': metrics_l2_text_noproj},
+                    'text_proj':   {'metrics_l1': metrics_l1_text_proj,   'metrics_l2': metrics_l2_text_proj},
+                    'sensor':      {'metrics_l1': metrics_l1_sensor,       'metrics_l2': metrics_l2_sensor},
+                },
+                output_dir=output_dir,
             )
 
         # ===== 8. SAVE RESULTS =====
