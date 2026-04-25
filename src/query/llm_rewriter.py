@@ -12,8 +12,8 @@ auto  ← default
               Core insight: cosine-similarity retrieval handles OR poorly —
               "room A or room B" averages the embeddings. Separate sentences
               per room (or per time window) each retrieve their target precisely.
-              The LLM may paraphrase, split by location, split by time of day,
-              or combine strategies. Aims for ~6 sentences, up to 10.
+              Defaults to 1–3 sentences; only expands further when the activity
+              has genuinely distinct sensor locations or sub-actions. Cap: 6.
 
 single        One rich, descriptive sentence covering all variants.
               Best for a single broad sweep of the space.
@@ -31,7 +31,7 @@ All modes return List[str].  The caller decides how to use the list
 (single search vs. one search per sentence + merge).
 
 Use ``max_subqueries`` on ``LLMRewriter.rewrite`` to cap how many sentences
-are produced (defaults: 10 for auto, 8 for multi_location, 6 for multi_wording;
+are produced (defaults: 6 for auto, 8 for multi_location, 6 for multi_wording;
 single is always 1).
 
 Supported backends
@@ -60,14 +60,14 @@ def resolve_max_subqueries(mode: RewriteMode, max_subqueries: int | None) -> int
 
     ``max_subqueries`` overrides mode defaults when set (clamped 1–20).
     ``single`` always resolves to 1.
-    ``auto`` defaults to 10 (the prompt instructs the LLM to aim for ~6).
+    ``auto`` defaults to 6 (the prompt instructs the LLM to use as few as needed, typically 1–3).
     """
     if mode == "single":
         return 1
     if max_subqueries is not None:
         return max(1, min(int(max_subqueries), _MAX_SUBQUERIES_CAP))
     if mode == "auto":
-        return 10
+        return 6
     if mode == "multi_wording":
         return 6
     if mode == "multi_location":
@@ -420,9 +420,23 @@ If you are paraphrasing, every paraphrase still carries the temporal qualifier.
 
 ## Sentence count
 
-Aim for around 6 sentences. You may produce up to {n} if — and only if — more sentences
-are needed to cover genuinely distinct, non-redundant variants. Never exceed {n}.
-Prefer precision over volume; do not pad with near-duplicate sentences.
+Default to the minimum number of sentences that give complete coverage — usually 1–3.
+Only produce more sentences when the activity has genuinely distinct variants that
+a single sentence cannot cover:
+  - Multiple separate sensor locations where the same activity occurs but sensors differ
+    (e.g. "sitting in the living room armchair" vs. "sitting at the bedroom chair") →
+    one sentence per location.
+  - Distinct sub-actions each with a different sensor signature (e.g. opening the fridge
+    vs. standing at the counter for a cooking query) → one sentence per sub-action.
+  - A strong temporal split where the query explicitly names different time windows and
+    the sensor pattern differs meaningfully between them.
+
+Do NOT add sentences for:
+  - Minor paraphrases or synonyms of the same idea.
+  - The same location described with slightly different wording.
+  - Filling up the budget just because slots remain.
+
+Hard cap: never exceed {n} sentences. Prefer 1–3 unless the activity clearly warrants more.
 
 ## Output format
 
@@ -657,7 +671,7 @@ class LLMRewriter:
                             day-of-week constraints from output sentences (they
                             will be applied via a separate rule-based filter).
                             Has no effect in "auto" mode (the LLM decides).
-            max_subqueries: Max retrieval sentences (default: 10 for auto,
+            max_subqueries: Max retrieval sentences (default: 6 for auto,
                             8 for multi_location, 6 for multi_wording). Ignored
                             for single (always 1).
 
@@ -674,9 +688,10 @@ class LLMRewriter:
         if mode == "auto":
             uq = (
                 f"{user_query}\n\n"
-                f"[Produce 1–{n} retrieval sentences. Choose your expansion strategy "
-                f"based on the query — paraphrase, split by location, split by time, "
-                f"or combine. Aim for ~6; use up to {n} only when genuinely needed.]"
+                f"[Produce the minimum sentences needed — default to 1–3. "
+                f"Only use more (up to {n}) when the activity has genuinely distinct "
+                f"sensor locations or sub-actions that cannot be captured in one sentence. "
+                f"Do not paraphrase the same idea in multiple ways.]"
             )
         elif mode == "multi_location":
             uq = (

@@ -365,20 +365,39 @@ def _compute_stats(wa: WindowResult, wb: WindowResult) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 _SYNTHESIS_SYSTEM_PROMPT = """\
-You are summarising smart-home sensor retrieval counts for a research dashboard.
-Your only job is to describe the raw numbers you are given — nothing more.
+You are summarising smart-home sensor retrieval results for a research dashboard.
+Write in natural, conversational prose — no bullet points, no numbered lists, no headings.
+
+OUTPUT STRUCTURE — write exactly these three blocks, separated by blank lines:
+
+[INTRO]
+One sentence that names the activities you extracted, in plain language.
+Example: "Based on your question, I identified two activities: midnight snacking and watching TV at night."
+
+[SUMMARY]
+One sentence giving a plain top-line comparison across all activities.
+Example: "Overall, midnight snacking increased by 40% while late-night TV watching decreased by 18%."
+If there is only one activity, just state its change plainly.
+
+[DETAIL]
+For each activity, write a short paragraph (2–4 sentences) with this flow:
+  1. How it was detected — describe the sensor types and locations in natural language
+     (e.g. "kitchen motion sensors and the fridge door sensor"). NEVER name sensor IDs
+     (M003, D01, etc.) — describe locations and fixture names only.
+  2. The observed change — state the numbers plainly: occurrences in each window, daily
+     average, and percent change.
+Separate activities with a blank line. Do not label them with numbers or headers.
 
 STRICT RULES — violating any of these is a failure:
 1. Report ONLY what is in the data: occurrence counts, daily averages, and percent changes.
-2. NEVER mention statistical significance, p-values, confidence, or hypothesis testing.
-3. NEVER use hedging phrases such as: "not statistically significant", "may fall within
-   normal variability", "typical fluctuations", "within expected range", "should be
-   interpreted with caution", or any similar qualification.
-4. NEVER speculate about whether a change is "meaningful" or "clinically relevant".
-5. State changes as plain observed facts: "X increased by Y%", "Z dropped from A to B per day".
-6. Note daily variability (mean ± std) only if it changed substantially between windows.
-7. If multiple activities are given, briefly compare their magnitudes.
-8. 3–5 sentences of plain prose. No bullet points. No caveats. No hedging.
+2. NEVER name sensor IDs (M001, D03, T02, etc.) anywhere in the output.
+3. NEVER mention statistical significance, p-values, confidence, or hypothesis testing.
+4. NEVER mention variability, standard deviation, mean ± std, or fluctuations.
+5. NEVER use hedging phrases ("may fall within normal variability", "within expected range",
+   "should be interpreted with caution", or similar).
+6. NEVER speculate about whether a change is meaningful or clinically relevant.
+7. State changes as plain observed facts: "X increased by Y%", "Z dropped from A to B per day".
+8. No extra commentary beyond the three blocks. No closing remarks. No caveats.
 """
 
 
@@ -389,9 +408,11 @@ def _synthesize_report(
     window_a_label: str,
     window_b_label: str,
 ) -> str:
+    activity_names = ", ".join(res["activity"] for res in all_results)
     lines = [
         f"User question: {user_question}",
         f"Comparison: {window_a_label} (baseline) vs {window_b_label} (recent)",
+        f"Activities identified: {activity_names}",
         "",
     ]
     for res in all_results:
@@ -399,17 +420,19 @@ def _synthesize_report(
         wb = res["window_b"]
         st = res["stats"]
         lines += [
-            f"Activity: {res['activity']}",
+            f"=== {res['activity']} ===",
+            f"Retrieval reasoning (how it was detected): {res.get('query_reasoning', '').strip()}",
+            f"Example retrieval sentences: {'; '.join(res.get('rewritten_queries', []))}",
             f"  {window_a_label}: {wa['total_matches']} occurrences, "
-            f"{wa['mean_per_day']:.1f}/day ± {wa['std_per_day']:.1f}",
+            f"{wa['mean_per_day']:.1f}/day",
             f"  {window_b_label}: {wb['total_matches']} occurrences, "
-            f"{wb['mean_per_day']:.1f}/day ± {wb['std_per_day']:.1f}",
+            f"{wb['mean_per_day']:.1f}/day",
         ]
         if st["pct_change"] is not None:
             lines.append(f"  Change: {st['pct_change']:+.1f}% ({st['direction']})")
         lines.append("")
 
-    # max_subqueries=8 gives ~1700 token budget — enough for a paragraph
+    # max_subqueries=8 gives ~1700 token budget — enough for the structured report
     return backend.call("\n".join(lines), _SYNTHESIS_SYSTEM_PROMPT, max_subqueries=8)
 
 
