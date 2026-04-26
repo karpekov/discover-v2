@@ -11,6 +11,68 @@ This project implements a dual-tower architecture that learns to align sensor ev
 - **Training**: Bidirectional InfoNCE (CLIP) loss + multi-field MLM with span masking
 - **Retrieval**: FAISS-based similarity search for text-to-sensor and sensor-to-text queries
 
+## Multi-Household Training (all_casas)
+
+In addition to per-house training (milan / aruba / cairo), the pipeline supports
+training on all three houses simultaneously using a combined dataset.
+
+### Generating the combined dataset
+
+```bash
+conda activate discover-v2-env
+python scripts/combine_casas_datasets.py
+```
+
+This produces two separate subfolders mirroring the per-house structure:
+
+```
+data/processed/casas/all_casas/
+  FD_60/
+    vocab.json
+    train.json / val.json / test.json
+    {split}_captions_baseline.json
+    {split}_embeddings_baseline_clip.npz
+    val_{house}.json / test_{house}.json   ← per-household eval subsets
+  FD_60_p/
+    (same layout)
+```
+
+Key transformations:
+
+- **Sensor IDs are house-prefixed** (`M001` → `milan_M001`, `aruba_M001`) so
+  physically different sensors with the same raw name get distinct vocab tokens.
+- Each sample gains a `household` field (top-level and inside `metadata`) to
+  support per-household evaluation filtering.
+- Per-household test/val subsets (`test_{house}.json`, `val_{house}.json`) are
+  pre-generated for easy per-house evaluation without code changes.
+
+### Training on all_casas
+
+```bash
+# Uses FD_60 combined dataset by default
+python train.py --config configs/alignment/all_casas_fd60_seq_rb1_textclip_projmlp_clipmlm_v3.yaml
+```
+
+### Evaluation
+
+```bash
+# Whole combined test set
+python src/evals/evaluate_embeddings.py \
+    --checkpoint trained_models/all_casas/.../best_model.pt \
+    --test_data  data/processed/casas/all_casas/FD_60/test.json \
+    --vocab      data/processed/casas/all_casas/FD_60/vocab.json \
+    --output_dir results/evals/all_casas/combined
+
+# Per-household (example: milan only)
+python src/evals/evaluate_embeddings.py \
+    --checkpoint trained_models/all_casas/.../best_model.pt \
+    --test_data  data/processed/casas/all_casas/FD_60/test_milan.json \
+    --vocab      data/processed/casas/all_casas/FD_60/vocab.json \
+    --output_dir results/evals/all_casas/milan
+```
+
+---
+
 ## Current Project Structure (Post-Reorganization)
 
 ```
