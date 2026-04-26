@@ -270,8 +270,8 @@ def process_variant(variant: str, combined_vocab: dict, dry_run: bool):
         with open(out_path, "w") as f:
             json.dump({"samples": split_samples[split]}, f)
 
-    # --- Per-household evaluation subsets ---
-    for split in ("val", "test"):
+    # --- Per-household evaluation subsets (train / val / test) ---
+    for split in SPLITS:
         for house in HOUSES:
             subset = [s for s in split_samples[split] if s.get("household") == house]
             out_path = out_dir / f"{split}_{house}.json"

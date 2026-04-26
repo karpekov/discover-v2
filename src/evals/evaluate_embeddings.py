@@ -242,13 +242,17 @@ class EmbeddingEvaluator:
                 city_metadata = json.load(f)
 
             # Detect which dataset we're using from the data path
-            self.dataset_name = 'milan'  # default
-            if 'train_data_path' in self.config:
-                data_path = str(self.config['train_data_path'])
-                for name in ['milan', 'cairo', 'aruba', 'tulum', 'kyoto', 'aware_home']:
-                    if name in data_path.lower():
-                        self.dataset_name = name
-                        break
+            # An explicit 'dataset_name' in config always wins (e.g. from --dataset CLI flag)
+            if 'dataset_name' in self.config:
+                self.dataset_name = self.config['dataset_name']
+            else:
+                self.dataset_name = 'milan'  # default
+                if 'train_data_path' in self.config:
+                    data_path = str(self.config['train_data_path'])
+                    for name in ['milan', 'cairo', 'aruba', 'tulum', 'kyoto', 'aware_home']:
+                        if name in data_path.lower():
+                            self.dataset_name = name
+                            break
 
             dataset_metadata = city_metadata.get(self.dataset_name, {})
 
@@ -6916,6 +6920,11 @@ def main():
                        help='Use multiple prototypes per label from metadata (default: single averaged prototype)')
     parser.add_argument('--description_style', type=str, default='long_desc',
                        help='Description field to use from metadata (e.g., long_desc, short_desc, zeroshot_har_desc). Default: long_desc')
+    parser.add_argument('--dataset', type=str, default=None,
+                       help='Override dataset name for prototype/metadata lookup '
+                            '(e.g., milan, aruba, cairo). Auto-detected from train_data path by default. '
+                            'Required when train_data path does not contain the house name '
+                            '(e.g., when using all_casas combined data).')
 
     args = parser.parse_args()
 
@@ -6927,6 +6936,11 @@ def main():
         'output_dir': args.output_dir,
         'description_style': args.description_style,
     }
+
+    # Allow explicit dataset override (needed when path-based detection fails,
+    # e.g. --train_data points to all_casas combined data)
+    if args.dataset:
+        config['dataset_name'] = args.dataset
 
     # Only add vocab_path if the file exists
     if args.vocab and os.path.exists(args.vocab):
