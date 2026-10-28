@@ -1,0 +1,42 @@
+{
+  "name": "analyst_questions",
+  "description": "Caregiver questions for the behavioral analyst evals (src/analyst). One entry = one run. 'num' is the display number; runs/outputs use '<num:02d>_<id>' (e.g. 01_door_unlocked_front). 'group' links variants/sub-questions to a parent question; 'question' is passed verbatim to the planner.",
+  "homes": ["milan", "aruba", "cairo"],
+  "questions": [
+    {"num": 1, "id_sonia": "1a", "id": "door_unlocked_front", "category": "occurrence", "group": "door_unlocked", "question": "Does she ever leave the front door unlocked?"},
+    {"num": 2, "id_sonia": "1b", "id": "door_unlocked_garage", "category": "occurrence", "group": "door_unlocked", "question": "Does she ever leave the garage door unlocked?"},
+    {"num": 3, "id_sonia": "1c", "id": "door_unlocked_side", "category": "occurrence", "group": "door_unlocked", "question": "Does she ever leave the side door unlocked?"},
+
+    {"num": 4, "id_sonia": "2a", "id": "door_open_front", "category": "occurrence", "group": "door_open", "question": "Does she ever leave the front door open?"},
+    {"num": 5, "id_sonia": "2b", "id": "door_open_garage", "category": "occurrence", "group": "door_open", "question": "Does she ever leave the garage door open?"},
+    {"num": 6, "id_sonia": "2c", "id": "door_open_side", "category": "occurrence", "group": "door_open", "question": "Does she ever leave the side door open?"},
+
+    {"num": 7, "id_sonia": "3a", "id": "sleep_well", "category": "occurrence", "group": "sleep_well", "question": "Is she sleeping well?"},
+    {"num": 8, "id_sonia": "3b", "id": "sleep_long_stretches", "category": "occurrence", "group": "sleep_well", "question": "Is she sleeping for long stretches?"},
+    {"num": 9, "id_sonia": "3c", "id": "sleep_amount", "category": "occurrence", "group": "sleep_well", "question": "Is she getting a good amount of sleep each night?"},
+    {"num": 10, "id_sonia": "3d", "id": "sleep_up_at_night", "category": "occurrence", "group": "sleep_well", "question": "Is she up and about in the middle of the night?"},
+
+    {"num": 11, "id_sonia": "4", "id": "stairs_struggle", "category": "occurrence", "question": "Is she struggling to go up and down stairs?"},
+    {"num": 12, "id_sonia": "5", "id": "time_out_of_house", "category": "occurrence", "question": "How much time is she spending out of the house?"},
+    {"num": 13, "id_sonia": "6", "id": "regular_meals", "category": "occurrence", "question": "Is she eating regular meals?"},
+    {"num": 14, "id_sonia": "7", "id": "bathroom_too_frequent", "category": "occurrence", "question": "Is she going to the bathroom too frequently?"},
+
+    {"num": 15, "id_sonia": "8a", "id": "hydration", "category": "occurrence", "group": "hydration", "question": "Is she staying hydrated?"},
+    {"num": 16, "id_sonia": "8b", "id": "hydration_drinking_enough", "category": "occurrence", "group": "hydration", "question": "Is she drinking enough?"},
+    {"num": 17, "id_sonia": "8c", "id": "hydration_bathroom_not_too_frequent", "category": "occurrence", "group": "hydration", "question": "Is she not using the bathroom too frequently?"},
+
+    {"num": 18, "id_sonia": "9", "id": "medication_on_time", "category": "occurrence", "question": "Is she taking her medications on time?"},
+    {"num": 19, "id_sonia": "10", "id": "door_open_at_night", "category": "occurrence", "question": "Is the door ever open at night?"},
+    {"num": 20, "id_sonia": "11", "id": "night_activity_non_bathroom", "category": "occurrence", "question": "Is she up and about at night other than bathroom visits?"},
+    {"num": 21, "id_sonia": "12", "id": "recent_falls", "category": "occurrence", "question": "Has she had any recent falls?"},
+    {"num": 22, "id_sonia": "13", "id": "appliances_when_away", "category": "occurrence", "question": "Is she leaving appliances running when she's not home?"},
+    {"num": 23, "id_sonia": "14", "id": "visitors", "category": "occurrence", "question": "Does she have people come to visit?"},
+
+    {"num": 24, "id_sonia": "1", "id": "sudden_activity_change", "category": "change", "question": "Are there sudden changes in her activity, not getting up to go about her day, not going out as much?"},
+    {"num": 25, "id_sonia": "2", "id": "change_since_new_medication", "category": "change", "question": "Have there been any major changes since she started her new medication?"},
+    {"num": 26, "id_sonia": "3", "id": "appetite_change", "category": "change", "question": "Has there been a noticeable change in her appetite?"},
+    {"num": 27, "id_sonia": "4", "id": "routine_change", "category": "change", "question": "Has her routine changed in a major way?"},
+    {"num": 28, "id_sonia": "5", "id": "wake_time_shift", "category": "change", "question": "Has her morning wake-up time shifted?"},
+    {"num": 29, "id_sonia": "6", "id": "forgetting_things", "category": "change", "question": "Is she forgetting things?"}
+  ]
+}

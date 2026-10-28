@@ -45,6 +45,8 @@ logs/
 trained_models/
 results/
 OTHER/
+/figures/
+/metadata/analyst_llm_cache/
 
 # Large/binary artifacts
 *.pt

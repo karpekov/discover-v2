@@ -495,15 +495,15 @@ def generate_latex_comparison_table(
     lines: List[str] = [
         "\\begin{table*}[t]",
         "\\centering",
-        "\\small",
-        "\\resizebox{\\textwidth}{!}{%",
-        *tabular,
-        "}",
         (
             f"\\caption{{Prototype-to-sensor retrieval performance on CASAS datasets using their annotations, macro averaged."
             f"Best result per column in \\textbf{{bold}}.}}"
         ),
         "\\label{tab:retrieval_quant}",
+        "\\small",
+        "\\resizebox{\\textwidth}{!}{%",
+        *tabular,
+        "}",
         "\\end{table*}",
     ]
     output_path.write_text("\n".join(lines), encoding="utf-8")
@@ -526,7 +526,7 @@ _STANDALONE_PREAMBLE: List[str] = [
     r"\usepackage{array}",
     r"\usepackage{xcolor}",
     r"\usepackage{nicematrix}",
-    r"\providecommand{\ToolName}{\textbf{SensorRAG}}",
+    r"\providecommand{\ToolName}{\textbf{SensorQ}}",
 ]
 
 
@@ -705,15 +705,15 @@ def generate_all_labels_table(
     lines: List[str] = [
         "\\begin{table*}[t]",
         "\\centering",
-        "\\small",
-        "\\resizebox{\\textwidth}{!}{%",
-        *tabular,
-        "}",
         (
             "\\caption{\\ToolName prototype-to-sensor retrieval per L1 activity label "
             "(macro-averaged). {\\bf --} = label not present in that household.}"
         ),
         "\\label{tab:retrieval_quant_all_labels}",
+        "\\small",
+        "\\resizebox{\\textwidth}{!}{%",
+        *tabular,
+        "}",
         "\\end{table*}",
     ]
     output_path.write_text("\n".join(lines), encoding="utf-8")
@@ -740,7 +740,6 @@ def generate_all_labels_png(
 # ── qual table (retrieval_results_qual.tex / .png) ────────────────────────────
 
 QUAL_METRICS: List[str] = ["P@10", "mAP@10", "MRR@10"]
-_PLACEHOLDER = r"\textcolor{green!50!black}{\textit{x.xx}}"
 
 QUAL_QUERIES: List[str] = [
     "Kitchen Activity",
@@ -755,18 +754,99 @@ QUAL_QUERIES: List[str] = [
     "Sedentary Activity in the Morning",
 ]
 
+# Path where the human-rated retrieval CSV lives
+_QUAL_CSV_PATH = Path("results/evals/imwut_paper/custom_query_retrieval/retrieved_samples_rated.csv")
 
-def _build_qual_tabular(datasets: List[str]) -> List[str]:
-    """Return LaTeX lines from \\begin{NiceTabular} to \\end{NiceTabular}."""
-    sub_keys = datasets + ["average"]
-    ds_abbr  = {ds: ds.capitalize()[:2] + "." for ds in datasets}
+
+def load_qual_ratings(csv_path: Path) -> Dict[str, Dict[str, Dict[str, float]]]:
+    """Load retrieved_samples_rated.csv and compute P@10, mAP@10, MRR@10.
+
+    For queries that have multiple long-query variants (q1, q2, …) the metrics
+    are averaged across variants before being stored per (house, query).
+
+    Returns
+    -------
+    metrics[house][query][metric_name] = float
+    """
+    import csv as _csv
+    from collections import defaultdict
+
+    rows: List[dict] = []
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        for row in _csv.DictReader(f):
+            rows.append(row)
+
+    # Group by (house, custom_query, long_query_idx) → sorted list of (rank, rel)
+    groups: Dict[Tuple, List[Tuple[int, int]]] = defaultdict(list)
+    for row in rows:
+        r1 = row.get("R1", "").strip()
+        if r1 not in ("0", "1"):          # skip unrated rows
+            continue
+        key = (row["house"], row["custom_query"], row["long_query_idx"])
+        groups[key].append((int(row["rank"]), int(r1)))
+
+    # Compute per-variant metrics
+    variant_metrics: Dict[Tuple, Dict[str, float]] = {}
+    for key, results in groups.items():
+        results.sort()                    # sort by rank ascending
+        rel = [r for _, r in results]    # 0/1 list in rank order
+
+        # P@10
+        p10 = sum(rel) / len(rel) if rel else 0.0
+
+        # MRR@10 — reciprocal rank of first relevant result
+        mrr = 0.0
+        for k_idx, r in enumerate(rel):
+            if r == 1:
+                mrr = 1.0 / (k_idx + 1)
+                break
+
+        # mAP@10 — average precision capped at cutoff
+        n_rel = sum(rel)
+        if n_rel == 0:
+            ap = 0.0
+        else:
+            running, ap_sum = 0, 0.0
+            for k, r in enumerate(rel, start=1):
+                if r == 1:
+                    running += 1
+                    ap_sum  += running / k
+            ap = ap_sum / n_rel
+
+        variant_metrics[key] = {"P@10": p10, "mAP@10": ap, "MRR@10": mrr}
+
+    # Average variant metrics over long_query_idx for each (house, query)
+    query_lists: Dict[Tuple, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+    for (house, query, _qidx), mdict in variant_metrics.items():
+        for metric, val in mdict.items():
+            query_lists[(house, query)][metric].append(val)
+
+    result: Dict[str, Dict[str, Dict[str, float]]] = defaultdict(dict)
+    for (house, query), mdict in query_lists.items():
+        result[house][query] = {m: sum(vs) / len(vs) for m, vs in mdict.items()}
+
+    return dict(result)
+
+
+def _fmt_qual(val: Optional[float]) -> str:
+    """Format a qual metric value for LaTeX (two decimal places, dash if absent)."""
+    return f"{val:.2f}" if val is not None else r"\textemdash"
+
+
+def _build_qual_tabular(
+    datasets: List[str],
+    qual_data: Optional[Dict[str, Dict[str, Dict[str, float]]]] = None,
+) -> List[str]:
+    """Return LaTeX lines from \\begin{NiceTabular} to \\end{NiceTabular}.
+
+    If *qual_data* is provided (house → query → metric → float) the actual
+    computed values are inserted; otherwise the green placeholder is used.
+    """
+    sub_keys  = datasets + ["average"]
+    ds_abbr   = {ds: ds.capitalize()[:2] + "." for ds in datasets}
     ds_abbr["average"] = "Avg."
+    n         = len(QUAL_METRICS)
 
-    n        = len(QUAL_METRICS)
-    n_subcols = len(sub_keys)
-    ph_row   = [_PLACEHOLDER] * (n * n_subcols)
-
-    # Single | between metric groups; !{\vrule} for Ca./Avg. (interrupted)
     col_parts: List[str] = ["l|"]
     for i in range(n):
         col_parts.append("rrr!{\\vrule}r")
@@ -792,29 +872,85 @@ def _build_qual_tabular(datasets: List[str]) -> List[str]:
         "\\textbf{Query} & " + " & ".join(sub_abbrs * n) + " \\\\",
         "\\midrule",
     ]
+
+    # ── per-query rows ────────────────────────────────────────────────────────
     for query in QUAL_QUERIES:
-        lines.append(" & ".join([query] + ph_row) + " \\\\")
-    # Average row with heavier rule above it
+        cells: List[str] = []
+        for metric in QUAL_METRICS:
+            ds_vals: List[Optional[float]] = []
+            for ds in datasets:
+                v = qual_data.get(ds, {}).get(query, {}).get(metric) if qual_data else None
+                ds_vals.append(v)
+                cells.append(_fmt_qual(v))
+            # per-metric row average across datasets
+            valid = [v for v in ds_vals if v is not None]
+            cells.append(_fmt_qual(sum(valid) / len(valid) if valid else None))
+        lines.append(" & ".join([query] + cells) + " \\\\")
+
+    # ── macro-average row ─────────────────────────────────────────────────────
+    avg_cells: List[str] = []
+    for metric in QUAL_METRICS:
+        ds_avgs: List[Optional[float]] = []
+        for ds in datasets:
+            if qual_data and ds in qual_data:
+                vals = [
+                    qual_data[ds][q][metric]
+                    for q in QUAL_QUERIES
+                    if q in qual_data[ds] and metric in qual_data[ds][q]
+                ]
+                ds_avgs.append(sum(vals) / len(vals) if vals else None)
+            else:
+                ds_avgs.append(None)
+            avg_cells.append(_fmt_qual(ds_avgs[-1]))
+        valid = [v for v in ds_avgs if v is not None]
+        avg_cells.append(_fmt_qual(sum(valid) / len(valid) if valid else None))
+
     lines.append("\\specialrule{0.10em}{\\aboverulesep}{\\belowrulesep}")
-    lines.append(" & ".join(["\\textbf{Average}"] + ph_row) + " \\\\")
+    lines.append(" & ".join(["\\textbf{Average}"] + avg_cells) + " \\\\")
     lines += ["\\bottomrule", "\\end{NiceTabular}"]
     return lines
 
 
 def generate_qual_table(datasets: List[str], output_dir: Path) -> None:
-    """Write retrieval_results_qual.tex and retrieval_results_qual.png."""
-    tabular = _build_qual_tabular(datasets)
+    """Write retrieval_results_qual.tex and retrieval_results_qual.png.
+
+    If *retrieved_samples_rated.csv* exists in the custom_query_retrieval
+    output folder, real P@10 / mAP@10 / MRR@10 values are computed from it
+    and embedded; otherwise green placeholders are used.
+    """
+    qual_data: Optional[Dict] = None
+    csv_path = _QUAL_CSV_PATH
+    if not csv_path.is_absolute():
+        csv_path = Path.cwd() / csv_path
+
+    if csv_path.exists():
+        try:
+            qual_data = load_qual_ratings(csv_path)
+            print(f"✅  Qual ratings loaded from {csv_path}")
+        except Exception as exc:
+            print(f"[WARN] Could not load qual ratings: {exc}", file=sys.stderr)
+
+    has_data  = qual_data is not None
+    tabular   = _build_qual_tabular(datasets, qual_data)
+    caption   = (
+        "Qualitative retrieval results on CASAS datasets. "
+        "P@10, mAP@10, and MRR@10 are computed from human-rated top-10 retrievals "
+        "and averaged over long-query variants per short query. "
+        "A dash (---) indicates that the activity was not present in that household."
+        if has_data else
+        "Qualitative retrieval results on CASAS datasets "
+        "(\\textcolor{green!50!black}{\\textit{x.xx}} = placeholder)."
+    )
 
     tex_lines: List[str] = [
         "\\begin{table*}[t]",
         "\\centering",
+        f"\\caption{{{caption}}}",
+        "\\label{tab:retrieval_qual}",
         "\\small",
         "\\resizebox{\\textwidth}{!}{%",
         *tabular,
         "}",
-        "\\caption{Qualitative retrieval results on CASAS datasets "
-        "(\\textcolor{green!50!black}{\\textit{x.xx}} = placeholder).}",
-        "\\label{tab:retrieval_qual}",
         "\\end{table*}",
     ]
     tex_path = output_dir / "retrieval_results_qual.tex"
@@ -844,8 +980,10 @@ def table_to_latex(table: dict, datasets: List[str]) -> str:
     col_spec = "ll" + "r" * len(datasets)
 
     lines: List[str] = [
-        r"\begin{table}[ht]", r"\centering",
+        r"\begin{table}[ht]",
+        r"\centering",
         r"\caption{" + tex_escape(metric_name) + " — " + tex_escape(dir_display) + r" (macro)}",
+        r"\label{tab:" + metric_name.lower().replace(" ", "_") + r"}",
         r"\begin{tabular}{" + col_spec + r"}",
         r"\toprule",
         r"\textbf{Level} & \textbf{Activity} & " + ds_cols + r" \\",

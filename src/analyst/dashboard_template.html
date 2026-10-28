@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Analyst dashboard</title>
+<style>
+  :root { --ok:#16a34a; --okbg:#dcfce7; --part:#b45309; --partbg:#fef3c7; --no:#6b7280; --nobg:#f3f4f6;
+          --up:#c2410c; --down:#1d4ed8; --line:#e5e7eb; --ink:#111827; --sub:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:#f8fafc; }
+  header { position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; align-items:center; gap:20px; }
+  header h1 { font-size:17px; margin:0; }
+  header .meta { color:var(--sub); font-size:12px; }
+  nav button { border:0; background:none; padding:8px 12px; font-size:14px; cursor:pointer; border-bottom:2px solid transparent; color:var(--sub); }
+  nav button.active { color:var(--ink); border-color:#2563eb; font-weight:600; }
+  main { padding:18px 20px 60px; max-width:1800px; margin:0 auto; }
+  .tab { display:none; } .tab.active { display:block; }
+  h2 { font-size:15px; margin:22px 0 10px; }
+  .cards { display:flex; gap:12px; flex-wrap:wrap; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; min-width:150px; }
+  .card .v { font-size:22px; font-weight:600; } .card .l { color:var(--sub); font-size:12px; }
+  .homecards { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
+  .bar { display:flex; height:14px; border-radius:4px; overflow:hidden; margin:6px 0; background:var(--nobg); }
+  .bar div { height:100%; }
+  table { border-collapse:collapse; width:100%; background:#fff; }
+  th, td { border-bottom:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; }
+  th { background:#f1f5f9; font-size:12px; position:sticky; top:52px; }
+  tr.qrow { cursor:pointer; } tr.qrow:hover td { background:#f8fafc; }
+  td.cell { white-space:nowrap; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; white-space:nowrap; }
+  .s-detectable { background:var(--okbg); color:var(--ok); } .s-partial { background:var(--partbg); color:var(--part); }
+  .s-undetectable, .s-notrun { background:var(--nobg); color:var(--no); }
+  .arrows { font-weight:700; letter-spacing:1px; } .up { color:var(--up); } .down { color:var(--down); } .flat { color:#9ca3af; }
+  .badge { font-size:11px; padding:0 5px; border-radius:6px; background:#ede9fe; color:#5b21b6; margin-left:4px; }
+  .badge.rv-ok { background:#dcfce7; color:#166534; } .badge.rv-no { background:#f3f4f6; color:#4b5563; }
+  .badge.rv-bad { background:#fee2e2; color:#b91c1c; } .badge.rv-tie { background:#fef3c7; color:#92400e; }
+  .badge.rv-q { background:#dbeafe; color:#1e40af; }
+  .controls { display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+  .controls input, .controls select { padding:5px 8px; border:1px solid var(--line); border-radius:6px; font-size:13px; }
+  .controls button { padding:5px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; }
+  details.q { background:#fff; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; }
+  details.q { overflow:hidden; }
+  details.q > summary { padding:10px 12px; cursor:pointer; display:flex; gap:10px; align-items:center; list-style:none;
+    background:#eef2fb; border-left:4px solid #3A6BC4; }
+  details.q[data-cat="change"] > summary { background:#fdf4e7; border-left-color:#D98E04; }
+  details.q > summary:hover { filter:brightness(0.97); }
+  details.q > summary::-webkit-details-marker { display:none; }
+  details.q > summary::before { content:'▸'; color:var(--sub); width:10px; flex:none; }
+  details.q[open] > summary::before { content:'▾'; }
+  details.q > summary .qt { flex:1; font-weight:650; font-size:15px; color:#111827; }
+  details.q > summary .cat { color:var(--sub); font-size:11px; width:118px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
+  details.q[open] > summary { border-bottom:1px solid var(--line); }
+  .cols { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0; }
+  .col { padding:12px 14px; border-right:1px solid var(--line); min-width:0; }
+  .col:last-child { border-right:0; }
+  .col h3 { margin:0 0 6px; font-size:14px; display:flex; gap:8px; align-items:center; }
+  .col h3 .home { text-transform:capitalize; }
+  .headline { font-weight:500; font-style:italic; color:#374151; margin:6px 0; }
+  .body { color:#374151; font-size:13px; }
+  .fig { width:100%; border:1px solid var(--line); border-radius:4px; cursor:zoom-in; margin:6px 0; background:#fff; }
+  ul.lim { margin:4px 0; padding-left:18px; color:#4b5563; font-size:12.5px; }
+  details.sub { margin-top:8px; font-size:12.5px; } details.sub > summary { cursor:pointer; color:#2563eb; }
+  .concept { border-left:3px solid #c7d2fe; padding:4px 8px; margin:6px 0; background:#fafafa; }
+  .concept.skipped { border-color:#e5e7eb; color:var(--sub); }
+  .kv { color:var(--sub); } .mono { font-family:ui-monospace, Menlo, monospace; font-size:12px; }
+  .warn { color:#b91c1c; font-size:12.5px; }
+  .tbd { color:#dc2626; font-weight:600; }
+  .links a { margin-right:10px; font-size:12px; }
+  .muted { color:var(--sub); }
+  #lightbox { position:fixed; inset:0; background:rgba(0,0,0,.8); display:none; align-items:center; justify-content:center; z-index:20; cursor:zoom-out; }
+  #lightbox img { max-width:96vw; max-height:94vh; background:#fff; }
+  .legend { color:var(--sub); font-size:12px; margin:6px 0 10px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .heat { text-align:center; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Behavioral analyst</h1>
+  <span class="meta" id="meta"></span>
+  <nav>
+    <button data-tab="summary" class="active">Summary</button>
+    <button data-tab="questions">Questions</button>
+    <button data-tab="rater">Review</button>
+  </nav>
+</header>
+<main>
+  <section class="tab active" id="tab-summary"></section>
+  <section class="tab" id="tab-questions">
+    <div class="controls">
+      <input id="search" placeholder="Search questions, behaviors, reports…" size="40">
+      <select id="fcat"><option value="">All categories</option><option>occurrence</option><option>change</option></select>
+      <select id="fstat"><option value="">Any status</option><option value="detectable">Detectable in ≥1 home</option><option value="undetectable">Undetectable everywhere</option><option value="warn">Has warnings</option></select>
+      <button id="expand">Expand all</button><button id="collapse">Collapse all</button>
+      <span class="muted" id="count"></span>
+    </div>
+    <div id="qlist"></div>
+  </section>
+  <section class="tab" id="tab-rater"></section>
+</main>
+<div id="lightbox"><img alt=""></div>
+<script>
+const D = /*__DATA__*/null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const H = D.homes;
+const MARK = {detectable:'✓', partial:'◐', undetectable:'✗', 'not run':'–'};
+const scls = s => 's-' + (s || 'notrun').replace(' ', '');
+const arrowHtml = a => [...(a || '')].map(c => `<span class="${c === '↑' ? 'up' : c === '↓' ? 'down' : 'flat'}">${c}</span>`).join('');
+const pct = x => x == null ? '–' : (100 * x).toFixed(0) + '%';
+const pct1 = x => x == null ? '–' : (100 * x).toFixed(1) + '%';
+const S1 = {s1_ok:['S1 agreed','rv-ok','reviewer agrees the question is answerable'],
+            s1_no_ok:['S1 not answerable','rv-no','reviewer agrees the question is not answerable'],
+            s1_false_ans:['S1 false','rv-bad','analyst called it answerable; reviewer said no'],
+            s1_missed:['S1 missed','rv-bad','analyst called it not answerable; reviewer said yes'],
+            s1_unsure:['S1 tie','rv-tie','reviewers split or said unsure']};
+const latestScores = () => { const ps = Object.values(D.rater_packets || {}).filter(p => p.scores); return ps.length ? ps[ps.length - 1].scores : null; };
+const TBD = '<span class="tbd" title="not rated yet">xx.xx</span>';
+const rated = cell => (cell.concepts || []).some(c => !c.skipped);
+const conceptRated = c => Object.keys(c.rater || {}).length > 0;
+
+function wilson(k, n, z = 1.96) {
+  if (!n) return null;
+  const p = k / n, d = 1 + z * z / n, c = (p + z * z / (2 * n)) / d, h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, c - h), Math.min(1, c + h)];
+}
+
+function pooled(concepts, stratum) {
+  let k = 0, n = 0, items = 0;
+  for (const c of concepts) { const r = (c.rater || {})[stratum]; if (r && r.n_judgements) { n += r.n_judgements; k += r.yes_rate * r.n_judgements; items += r.n_items || 0; } }
+  return n ? {yes_rate: k / n, n_judgements: n, n_items: items, wilson_95ci: wilson(k, n)} : null;
+}
+
+function cellPrecision(cell) {
+  let k = 0, n = 0;
+  for (const c of cell.concepts || []) { const r = c.rater && c.rater.random; if (r && r.n_judgements) { n += r.n_judgements; k += r.yes_rate * r.n_judgements; } }
+  return n ? k / n : null;
+}
+
+function reviewBadges(cell) {
+  const r = cell.review;
+  if (!r) return '';
+  const s1 = S1[r.step1];
+  let h = s1 ? `<span class="badge ${s1[1]}" title="Step 1: ${s1[2]}">${s1[0]}</span>` : '';
+  const s2 = r.step2;
+  if (s2 && s2.n_decided) h += `<span class="badge rv-q" title="Step 2: share of retrieval queries rated relevant (n=${s2.n_decided}${s2.unsure ? `, ${s2.unsure} unsure` : ''})">S2 ${pct(s2.yes_rate)}</span>`;
+  return h;
+}
+
+function chip(cell) {
+  const s = cell.status;
+  const rev = reviewBadges(cell);
+  if (s === 'undetectable' || s === 'not run') return `<span class="chip ${scls(s)}">${MARK[s]}</span> ${rev}`;
+  if (D.review) return `<span class="chip ${scls(s)}">${MARK[s]}</span> <span class="arrows">${arrowHtml(cell.arrows)}</span> ${esc(cell.short)} ${rev}`;
+  const p = cellPrecision(cell);
+  return `<span class="chip ${scls(s)}">${MARK[s]}</span> <span class="arrows">${arrowHtml(cell.arrows)}</span> ${esc(cell.short)}` +
+         (p != null ? `<span class="badge" title="rater precision (random stratum)">P ${pct(p)}</span>` :
+          rated(cell) ? `<span class="badge" title="rater precision (random stratum)">P ${TBD}</span>` : '');
+}
+
+// ---------------------------------------------------------------- summary tab
+function renderSummary() {
+  const cells = D.questions.flatMap(q => H.map(h => q.cells[h]).filter(Boolean));
+  const cnt = s => cells.filter(c => c.status === s).length;
+  const behaviors = cells.flatMap(c => (c.concepts || []).filter(x => !x.skipped));
+  const warns = cells.filter(c => (c.warnings || []).length).length;
+  const pk = Object.entries(D.rater_packets || {});
+  const items = pk.length ? Object.values(pk[pk.length - 1][1].n_items).reduce((a, b) => a + b, 0) : 0;
+  const sc = latestScores();
+  const R = D.review;
+  const stepKpi = (key, label) => {
+    const m = R && R.steps[key];
+    return [m && m.yes_rate != null ? pct1(m.yes_rate) : '–', label + (m ? ` (n=${m.n_decided})` : '')];
+  };
+  const kpi = [
+    [D.questions.length, 'questions'], [cells.length, 'runs (question × home)'],
+    [cnt('detectable'), 'detectable runs'], [cnt('partial'), 'partly detectable'], [cnt('undetectable'), 'undetectable'],
+    [behaviors.length, 'behaviors analyzed'], [warns, 'runs with warnings'],
+  ];
+  if (R) kpi.push(stepKpi('step1', 'step 1 · agrees with analyst'), stepKpi('step2', 'step 2 · queries relevant'));
+  else kpi.push(
+    [items, 'rater items' + (pk.length ? ` (${pk[pk.length - 1][0]})` : '')],
+    [sc ? (sc.overall.random ? pct(sc.overall.random.yes_rate) : '–') : TBD, 'rater precision (random)']);
+  let html = `<div class="cards">${kpi.map(([v, l]) => `<div class="card"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>`;
+
+  html += '<h2>Per home</h2><div class="homecards">';
+  for (const h of H) {
+    const hc = D.questions.map(q => q.cells[h]).filter(Boolean);
+    const c = s => hc.filter(x => x.status === s).length;
+    const ar = D.questions.filter(q => q.category === 'change').map(q => (q.cells[h] || {}).arrows || '').join('');
+    const hi = D.home_info[h] || {};
+    const seg = (n, col) => `<div style="width:${100 * n / hc.length}%;background:${col}" title="${n}"></div>`;
+    const ps = hc.map(cellPrecision).filter(x => x != null);
+    const hs = R && R.per_home[h] && R.per_home[h].steps;
+    const homeReview = hs
+      ? `step 1 agreement ${pct1(hs.step1.yes_rate)} (n=${hs.step1.n_decided}${hs.step1.unsure ? `, ${hs.step1.unsure} unsure` : ''}) · step 2 queries ${pct1(hs.step2.yes_rate)} (n=${hs.step2.n_decided})`
+      : `mean rater precision: ${ps.length ? pct(ps.reduce((a, b) => a + b, 0) / ps.length) : hc.some(rated) ? TBD : '–'}`;
+    html += `<div class="card"><b style="text-transform:capitalize">${h}</b>
+      <div class="muted">data ${esc((hi.data_range || []).join(' → '))} · γ = ${hi.threshold ?? '–'}</div>
+      <div class="bar">${seg(c('detectable'), '#86efac')}${seg(c('partial'), '#fcd34d')}${seg(c('undetectable'), '#d1d5db')}</div>
+      <div>✓ ${c('detectable')} &nbsp; ◐ ${c('partial')} &nbsp; ✗ ${c('undetectable')}</div>
+      <div class="muted">change questions: <span class="up">↑ ${[...ar].filter(x => x === '↑').length}</span> ·
+        <span class="down">↓ ${[...ar].filter(x => x === '↓').length}</span> · → ${[...ar].filter(x => x === '→').length}</div>
+      <div class="muted">${homeReview}</div>
+    </div>`;
+  }
+  html += '</div>';
+
+  html += `<h2>All questions</h2><div class="legend">✓ detectable · ◐ partly detectable · ✗ undetectable.
+    Arrows (change questions, one per behavior): <span class="up">↑</span>/<span class="down">↓</span> significant increase/decrease of share of active time,
+    or later/earlier for timing (p &lt; 0.05); → no significant change.` +
+    (R ? ` <b>S1</b> is whether the reviewer agrees with the analyst that the question is answerable. <b>S2</b> is the share of that question's retrieval queries rated relevant.` : '') +
+    ` Hover a cell for the report headline; click a row to open it.</div>
+    <table><tr><th>category</th><th>id</th><th>question</th>${H.map(h => `<th style="text-transform:capitalize">${h}</th>`).join('')}</tr>`;
+  for (const q of D.questions) {
+    html += `<tr class="qrow" data-key="${q.key}"><td class="muted">${q.category}</td><td>${esc(q.id_sonia)}</td><td>${esc(q.question)}</td>` +
+      H.map(h => { const c = q.cells[h] || {status:'not run'}; return `<td class="cell" title="${esc(c.headline || '')}">${chip(c)}</td>`; }).join('') + '</tr>';
+  }
+  html += '</table>';
+
+  html += '<h2>Why questions were skipped (planner detectability notes)</h2><table><tr><th>question</th><th>home</th><th>behavior</th><th>reason</th></tr>';
+  for (const q of D.questions) for (const h of H) for (const c of ((q.cells[h] || {}).concepts || []).filter(c => c.skipped))
+    html += `<tr><td>${esc(q.id_sonia)} ${esc(q.question)}</td><td>${h}</td><td>${esc(c.name)}</td><td class="muted">${esc(c.detectability_note)}</td></tr>`;
+  html += '</table>';
+  $('tab-summary').innerHTML = html;
+  document.querySelectorAll('tr.qrow').forEach(tr => tr.onclick = () => openQuestion(tr.dataset.key));
+}
+
+// ---------------------------------------------------------------- questions tab
+function conceptHtml(c) {
+  if (c.skipped) return `<div class="concept skipped"><b>${esc(c.name)}</b> — skipped (not detectable)<div>${esc(c.detectability_note)}</div></div>`;
+  const f = c.filters, fl = [...f.time_of_day, ...f.days_of_week, ...f.rooms, ...f.required_sensors].map(esc).join(', ');
+  const t = c.timing;
+  let timing = '';
+  if (t && t.daily_time) {
+    timing = `<div><span class="kv">timing (${t.event}, window ${esc(t.start_window)}):</span> median ${t.daily_time.median}, IQR ${t.daily_time.iqr_minutes} min, on ${t.days_with_event_pct}% of days` +
+      (t.trend ? `; trend ${t.trend.slope_minutes_per_week} min/wk (p=${t.trend.kendall_p_value})` : '') +
+      (t.compare ? `; last vs first third ${t.compare.median_shift_minutes} min (p=${t.compare.mann_whitney_p_value})` : '') +
+      (t.pct_days_within_10min_after_time_bucket_edge > 30 ? ` <span class="warn">· ${t.pct_days_within_10min_after_time_bucket_edge}% of days pinned to a time-bucket edge</span>` : '') + '</div>';
+  } else if (t && t.peak_hours) {
+    timing = `<div><span class="kv">timing (all sessions):</span> peaks ${t.peak_hours.map(p => `${p.hour} (${p.pct_of_days}% of days)`).join(', ')}</div>`;
+  }
+  const rater = D.review ? '' : (!conceptRated(c) ? ['random', 'top', 'negative'].map(s => `${s}: ${TBD}`).join(' · ') : Object.entries(c.rater).map(([s, r]) => `${s}: ${pct(r.yes_rate)} (n=${r.n_judgements}${r.wilson_95ci ? `, CI ${pct(r.wilson_95ci[0])}–${pct(r.wilson_95ci[1])}` : ''})`).join(' · '));
+  const step2 = c.step2 && c.step2.n_items
+    ? `<div><span class="kv">step 2, queries relevant:</span> ${c.step2.n_decided ? pct1(c.step2.yes_rate) : '–'} (n=${c.step2.n_decided}${c.step2.unsure ? `, ${c.step2.unsure} unsure` : ''})</div>` : '';
+  const gt = Object.entries(c.gt_label_mix || {}).map(([k, v]) => `${esc(k)} ${(100 * v).toFixed(0)}%`).join(', ');
+  return `<div class="concept"><b>${esc(c.name)}</b> <span class="muted mono">${esc(c.id)}</span>
+    <div>${esc(c.definition)}</div>
+    <div><span class="kv">primary:</span> ${esc(c.primary)}</div>
+    <div><span class="kv">matched:</span> ${c.n_matched.toLocaleString()} / ${c.n_eligible.toLocaleString()} eligible windows
+      (${c.n_matched_without_structural_filters.toLocaleString()} without room/sensor filters) · ${c.min_per_day} min/day · ${c.share_pct}% of active time · ${c.episodes_per_day} episodes/day</div>
+    ${timing}
+    <div><span class="kv">filters:</span> ${fl || 'none'}${f.timing_hours && f.timing_hours.length ? ` · start window ${f.timing_hours.join('–')}h` : ''}</div>
+    <div><span class="kv">detectability:</span> ${esc(c.detectability_note)}</div>
+    <div class="kv">queries:</div><ul class="lim">${c.queries.map(x => `<li>${esc(x.q)} <span class="muted">→ ${x.n.toLocaleString()}</span></li>`).join('')}</ul>
+    ${step2}
+    ${rater ? `<div><span class="kv">rater yes-rate:</span> ${rater}</div>` : ''}
+    ${gt ? `<div class="muted" title="Ground-truth CASAS labels of matched windows; diagnostic only, never shown to the LLM">GT label mix (diagnostic): ${gt}</div>` : ''}
+  </div>`;
+}
+
+function decoyHtml(cell) {
+  const ds = (cell.review && cell.review.decoys) || [];
+  if (!ds.length) return '';
+  return `<div class="kv">far-caption decoys:</div><ul class="lim">${ds.map(d =>
+    `<li>${esc(d.query)} <span class="muted">max cosine ${d.score == null ? '–' : d.score.toFixed(3)} · ${esc(d.rating || 'unrated')}</span></li>`).join('')}</ul>`;
+}
+
+function colHtml(h, c) {
+  if (!c || c.status === 'not run') return `<div class="col"><h3>${h}</h3><span class="muted">not run</span></div>`;
+  const nAnalyzed = c.concepts.filter(x => !x.skipped).length;
+  return `<div class="col"><h3><span class="home">${h}</span> ${chip(c)}</h3>
+    <div class="headline">${esc(c.headline)}</div>
+    ${c.figure ? `<img class="fig" loading="lazy" src="${c.figure}" alt="figure">` : ''}
+    <div class="body">${esc(c.body)}</div>
+    ${(c.findings || []).length ? `<div class="kv" style="margin-top:6px">Findings</div><ol class="lim">${c.findings.map(f =>
+      `<li>${esc(f.statement)} <span class="muted">(${esc((c.concepts.find(x => x.id === f.concept_id) || {}).name || f.concept_id)}; ${esc(f.kind)})</span></li>`).join('')}</ol>` : ''}
+    ${c.limitations.length ? `<ul class="lim">${c.limitations.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+    ${c.arrow_names.length ? `<div class="muted">trend per behavior: ${c.arrow_names.map(a => `${esc(a.name)} ${arrowHtml(a.arrow)}`).join(' · ')}</div>` : ''}
+    ${[...c.warnings].length ? `<div class="warn">⚠ ${c.warnings.map(esc).join('; ')}</div>` : ''}
+    ${decoyHtml(c)}
+    <details class="sub"><summary>Behaviors & retrieval (${nAnalyzed}/${c.concepts.length} analyzed)</summary>${c.concepts.map(conceptHtml).join('')}</details>
+    <details class="sub"><summary>Plan</summary>
+      <div><i>${esc(c.interpretation)}</i></div>
+      <div><span class="kv">analyses:</span> ${c.analyses.map(esc).join(', ')} · <span class="kv">scope:</span> ${esc(c.scope.join(' → '))}</div>
+      ${c.caveats.length ? `<ul class="lim">${c.caveats.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    </details>
+    <div class="links">${Object.entries(c.links).map(([n, p]) => `<a href="${p}" target="_blank">${n}</a>`).join('')}</div>
+  </div>`;
+}
+
+function renderQuestions() {
+  $('qlist').innerHTML = D.questions.map(q => `<details class="q" id="q-${q.key}" data-cat="${q.category}">
+    <summary><span class="cat">${q.category} ${esc(q.id_sonia)}</span><span class="qt">${esc(q.question)}</span>
+      ${H.map(h => `<span title="${h}">${(q.cells[h] ? chip(q.cells[h]) : '')}</span>`).join(' ')}</summary>
+    <div class="cols">${H.map(h => colHtml(h, q.cells[h])).join('')}</div></details>`).join('');
+  document.querySelectorAll('img.fig').forEach(img => img.onclick = () => { $('lightbox').querySelector('img').src = img.src; $('lightbox').style.display = 'flex'; });
+  applyFilters();
+}
+
+function applyFilters() {
+  const s = $('search').value.toLowerCase(), cat = $('fcat').value, st = $('fstat').value;
+  let shown = 0;
+  for (const q of D.questions) {
+    const el = $('q-' + q.key), cells = H.map(h => q.cells[h]).filter(Boolean);
+    let ok = (!cat || q.category === cat) && (!s || el.textContent.toLowerCase().includes(s));
+    if (st === 'detectable') ok = ok && cells.some(c => c.status === 'detectable' || c.status === 'partial');
+    if (st === 'undetectable') ok = ok && cells.every(c => c.status === 'undetectable');
+    if (st === 'warn') ok = ok && cells.some(c => (c.warnings || []).length);
+    el.style.display = ok ? '' : 'none'; shown += ok;
+  }
+  $('count').textContent = `${shown} / ${D.questions.length} questions`;
+}
+
+function openQuestion(key) {
+  showTab('questions');
+  const el = $('q-' + key); el.open = true; el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ---------------------------------------------------------------- rater tab
+function stepRow(steps, key) {
+  const m = steps && steps[key];
+  if (!m || m.yes_rate == null) return '–';
+  const ci = m.wilson_95ci;
+  return `${pct1(m.yes_rate)} <span class="muted">(n=${m.n_decided}${m.unsure ? `, ${m.unsure} unsure` : ''}${ci ? `, ${pct(ci[0])}–${pct(ci[1])}` : ''})</span>`;
+}
+
+function renderReview() {
+  const R = D.review;
+  const rows = [['step1', '1 · agrees with the analyst’s answerable / not'],
+                ['step1_answerable', '1a · analyst said answerable'],
+                ['step1_not_answerable', '1b · analyst said not answerable'],
+                ['step2', '2 · retrieval query is relevant'],
+                ['step2_decoy', '2b · far-caption decoy is relevant (want ~0)']];
+  const later = [['step3_top', '3 · top matches are the behavior'],
+                 ['step3_random', '3 · random matches are the behavior'],
+                 ['step3_negative', '3 · negatives are the behavior (want ~0)'],
+                 ['step4', '4 · finding is supported']];
+  const decoyCell = (home) => {
+    const ds = (R.decoys || []).filter(d => !home || d.home === home);
+    const steps = home ? ((R.per_home[home] || {}).steps) : R.steps;
+    const m = steps && steps.step2_decoy;
+    if (m && m.yes_rate != null) return stepRow(steps, 'step2_decoy');
+    return `<span class="muted">not rated (n=${ds.length})</span>`;
+  };
+  const table = (keys) => `<table><tr><th>step</th><th>all</th>${H.map(h => `<th style="text-transform:capitalize">${h}</th>`).join('')}</tr>` +
+    keys.map(([k, lab]) => `<tr><td>${lab}</td><td>${k === 'step2_decoy' ? decoyCell(null) : stepRow(R.steps, k)}</td>${H.map(h => `<td>${k === 'step2_decoy' ? decoyCell(h) : stepRow((R.per_home[h] || {}).steps, k)}</td>`).join('')}</tr>`).join('') + '</table>';
+  let html = `<h2>Review ${esc(R.name)}</h2>
+    <p class="muted">${R.n_items_rated} / ${R.n_items} items rated · ${R.n_ratings} ratings · reviewers: ${R.reviewers.map(esc).join(', ')}.
+    Majority vote per item (a tie counts as unsure). Step 1 is one item per question × home: a “yes” means the reviewer agrees with the analyst, not that they said the question is answerable. Step 2 is one item per retrieval query the planner wrote; far-caption decoys are scored separately and do not change that rate. Milan steps 1–3 are rated by three reviewers; Aruba and Cairo by one. Step 4 is the first reviewer only.</p>
+    <h2>Steps 1 and 2</h2>${table(rows)}
+    <h2>Steps 3 and 4</h2>${table(later)}
+    <h2>Per reviewer</h2>
+    <table><tr><th>reviewer</th><th>step 1 agreement</th><th>step 2 queries</th><th>step 3 top</th><th>step 3 random</th><th>step 3 negatives</th><th>step 4 findings</th></tr>
+    ${Object.entries(R.per_reviewer).map(([rv, v]) => `<tr><td>${esc(rv)}</td>` +
+      ['step1', 'step2', 'step3_top', 'step3_random', 'step3_negative', 'step4'].map(k => `<td>${stepRow(v.steps, k)}</td>`).join('') +
+      '</tr>').join('')}</table>
+    <h2>Per reviewer, by home</h2>
+    <table><tr><th>reviewer</th><th>home</th><th>step 1 agreement</th><th>step 2 queries</th><th>step 3 top</th><th>step 3 random</th><th>step 3 negatives</th><th>step 4 findings</th></tr>
+    ${Object.entries(R.per_reviewer).map(([rv]) => H.filter(h => ((R.per_reviewer_home || {})[rv] || {})[h]).map(h =>
+      `<tr><td>${esc(rv)}</td><td style="text-transform:capitalize">${esc(h)}</td>` +
+      ['step1', 'step2', 'step3_top', 'step3_random', 'step3_negative', 'step4'].map(k => `<td>${stepRow(R.per_reviewer_home[rv][h], k)}</td>`).join('') +
+      '</tr>').join('')).join('')}</table>
+    <h2>Cohen's κ (yes/no only, per step)</h2>
+    <p class="muted">Step 2 includes the far-caption decoys. The relevance rate above does not: that row is only the planner's queries.</p>
+    <table style="max-width:720px"><tr><th>pair</th><th>step 1</th><th>step 2</th><th>step 3</th><th>step 4</th></tr>`;
+  const pairs = Object.entries(R.kappa || {});
+  html += pairs.length ? pairs.map(([pair, steps]) => `<tr><td>${esc(pair)}</td>` +
+    ['step1', 'step2', 'step3', 'step4'].map(k => { const v = steps[k] || {}; return `<td>${v.kappa == null ? '–' : v.kappa.toFixed(3)} <span class="muted">n=${v.n ?? 0}</span></td>`; }).join('') + '</tr>').join('')
+    : '<tr><td class="muted" colspan="5">needs two reviewers on the same items</td></tr>';
+  html += '</table>';
+  const F = R.fleiss || {};
+  const fleissCell = (k) => {
+    const v = F[k] || {};
+    return v.kappa == null ? '–' : `${v.kappa.toFixed(3)} <span class="muted">n=${v.n ?? 0}, ${v.raters ?? 0} raters</span>`;
+  };
+  html += `<h2>Fleiss' κ (yes/no only, per step)</h2>
+    <p class="muted">One coefficient across every reviewer who rated that step. An item counts only when each of those reviewers marked it yes or no. Step 2 includes the far-caption decoys. Undefined when fewer than two reviewers rated the step.</p>
+    <table style="max-width:860px"><tr><th>step 1</th><th>step 2</th><th>step 3</th><th>step 4</th></tr>
+    <tr>${['step1', 'step2', 'step3', 'step4'].map(k => `<td>${fleissCell(k)}</td>`).join('')}</tr></table>`;
+  const decoys = R.decoys || [];
+  if (decoys.length) {
+    html += `<h2>Far-caption decoys</h2>
+      <p class="muted">${decoys.length} captions of windows far from that question's queries (one per question, a second on the question with the most planner queries). Alex and Archith rated every one of these no. They count in step 2 κ and not in the planner-query relevance rate.</p>
+      <table><tr><th>home</th><th>question</th><th>caption</th><th>max cosine</th></tr>
+      ${decoys.map(d => { const q = D.questions.find(x => x.key === d.question_id) || {}; return `<tr><td>${esc(d.home)}</td><td>${esc(q.id_sonia || '')} ${esc(d.question_id)}</td><td>${esc(d.query)}</td><td>${d.score == null ? '–' : d.score.toFixed(3)}</td></tr>`; }).join('')}</table>`;
+  }
+  html += `<h2>Per question</h2>
+    <table><tr><th>id</th><th>question</th>${H.map(h => `<th>${h} step 1</th><th>${h} step 2</th>`).join('')}</tr>`;
+  for (const q of D.questions) {
+    html += `<tr><td>${esc(q.id_sonia)}</td><td>${esc(q.question)}</td>` + H.map(h => {
+      const c = q.cells[h] || {}; const r = c.review;
+      if (!r) return '<td>–</td><td>–</td>';
+      const s1 = S1[r.step1];
+      const s2 = r.step2 && r.step2.n_items ? (r.step2.n_decided ? `${pct1(r.step2.yes_rate)} <span class="muted">n=${r.step2.n_decided}</span>` : '–') : '–';
+      return `<td>${s1 ? `<span class="badge ${s1[1]}">${s1[0]}</span>` : '–'}</td><td>${s2}</td>`;
+    }).join('') + '</tr>';
+  }
+  return html + '</table>';
+}
+
+function renderRater() {
+  if (D.review) { $('tab-rater').innerHTML = renderReview(); return; }
+  const pk = Object.entries(D.rater_packets || {});
+  let html = '<h2>Rater packets</h2>';
+  if (!pk.length) html += '<p class="muted">No rater packets yet (<span class="mono">run.py packet --name v1</span>).</p>';
+  else {
+    html += '<table><tr><th>packet</th>' + H.map(h => `<th>${h} items</th>`).join('') + '<th>behaviors</th><th>strata</th><th>ratings</th></tr>';
+    for (const [name, p] of pk) html += `<tr><td>${name}</td>${H.map(h => `<td>${p.n_items[h] || 0}</td>`).join('')}<td>${p.n_behaviors}</td>
+      <td>${Object.entries(p.strata).map(([s, n]) => `${s} ${n}`).join(', ')}</td><td>${p.scores ? `${p.scores.raters.length} rater${p.scores.raters.length > 1 ? 's' : ''}: ${p.scores.raters.map(esc).join(', ')}` : '<span class="muted">not scored yet</span>'}</td></tr>`;
+    html += '</table>';
+  }
+  const sc = latestScores();
+  const pct1 = x => (100 * x).toFixed(1) + '%';
+  const row = r => r ? `${pct1(r.yes_rate)} <span class="muted">(n=${r.n_judgements}${r.wilson_95ci ? `, ${pct(r.wilson_95ci[0])}–${pct(r.wilson_95ci[1])}` : ''})</span>` : TBD;
+  html += `<p class="muted"><span class="tbd">xx.xx</span> = not rated yet; filled in by
+    <span class="mono">python src/analyst/run.py score --name v1 --ratings ratings_*.csv</span> (pass all rating CSVs together).</p>`;
+  const kEntries = sc ? Object.entries(sc.cohen_kappa) : [];
+  const kappa = kEntries.length ? kEntries.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.kappa ?? '–'}</td><td>${v.n}</td></tr>`).join('')
+                                : `<tr><td class="muted">needs ≥ 2 raters on the same items</td><td>${TBD}</td><td>${TBD}</td></tr>`;
+  const homeConcepts = h => D.questions.flatMap(q => ((q.cells[h] || {}).concepts || []).filter(c => !c.skipped));
+  const homeCell = (h, s) => { const cs = homeConcepts(h); return !cs.length ? '–' : row(pooled(cs, s)); };
+  html += `<h2>Overall (raters: ${sc ? sc.raters.map(esc).join(', ') : TBD})</h2>
+    <table><tr><th>stratum</th><th>all rated items</th>${H.map(h => `<th style="text-transform:capitalize">${h}</th>`).join('')}</tr>
+    ${['random', 'top', 'negative'].map(s => `<tr><td>${s}</td><td>${row(sc && sc.overall[s])}</td>${H.map(h => `<td>${homeCell(h, s)}</td>`).join('')}</tr>`).join('')}</table>
+    <p class="muted">yes-rate on <i>random</i> = precision of the analyzed set; <i>top</i> = highest-scoring matches;
+      <i>negative</i> = eligible but unmatched windows under the same filters (a high yes-rate here means missed instances or a lenient rater).</p>
+    <table style="max-width:560px"><tr><th>rater pair</th><th>Cohen's κ</th><th>n</th></tr>${kappa}</table>`;
+  const all = H.flatMap(homeConcepts).filter(conceptRated);
+  if (all.length) {
+    const structural = c => c.filters.rooms.length || c.filters.required_sensors.length;
+    const groups = [['room / sensor filter', all.filter(structural)], ['embedding only', all.filter(c => !structural(c))]];
+    html += `<h2>By retrieval type</h2><table style="max-width:900px"><tr><th>behaviors</th><th>n</th><th>random</th><th>top</th><th>negative</th></tr>
+      ${groups.map(([g, cs]) => `<tr><td>${g}</td><td>${cs.length}</td>${['random', 'top', 'negative'].map(s => `<td>${row(pooled(cs, s))}</td>`).join('')}</tr>`).join('')}</table>
+      <p class="muted">Negatives are drawn from windows that already pass the room / sensor filters, so for filtered behaviors
+      (e.g. door use requires the door sensor) they often contain the activity too — read their negative yes-rate as missed instances
+      below the similarity threshold, not as rater false positives.</p>`;
+  }
+  const heat = x => x == null ? '#fff' : `hsl(${120 * x}, 70%, 85%)`;
+  html += `<h2>Precision per question × home (random stratum, pooled over behaviors)</h2><table><tr><th>id</th><th>question</th>${H.map(h => `<th class="heat">${h}</th>`).join('')}</tr>`;
+  for (const q of D.questions) html += `<tr><td>${esc(q.id_sonia)}</td><td>${esc(q.question)}</td>` + H.map(h => {
+    const c = q.cells[h]; const p = c ? cellPrecision(c) : null;
+    const v = p != null ? pct(p) : c && rated(c) ? TBD : '–';
+    return `<td class="heat" style="background:${heat(p)}">${v}</td>`; }).join('') + '</tr>';
+  html += '</table><h2>Per behavior</h2><table><tr><th>question / home</th><th>behavior</th><th>random</th><th>top</th><th>negative</th></tr>';
+  for (const q of D.questions) for (const h of H) for (const c of ((q.cells[h] || {}).concepts || []).filter(c => !c.skipped)) {
+    const r = c.rater || {};
+    html += `<tr><td>${esc(q.id_sonia)} · ${h}</td><td>${esc(c.name)}</td><td>${row(r.random)}</td><td>${row(r.top)}</td><td>${row(r.negative)}</td></tr>`;
+  }
+  $('tab-rater').innerHTML = html + '</table>';
+}
+
+// ---------------------------------------------------------------- wiring
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+  history.replaceState(null, '', '#' + name);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+$('search').oninput = $('fcat').onchange = $('fstat').onchange = applyFilters;
+$('expand').onclick = () => document.querySelectorAll('details.q').forEach(d => { if (d.style.display !== 'none') d.open = true; });
+$('collapse').onclick = () => document.querySelectorAll('details.q').forEach(d => d.open = false);
+$('lightbox').onclick = () => $('lightbox').style.display = 'none';
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('lightbox').style.display = 'none'; });
+$('meta').textContent = `${D.set_name} · generated ${D.generated_at}`;
+renderSummary(); renderQuestions(); renderRater();
+if (location.hash) showTab(location.hash.slice(1));
+</script>
+</body>
+</html>

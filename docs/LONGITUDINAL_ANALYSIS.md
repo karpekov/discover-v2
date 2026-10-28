@@ -1,5 +1,8 @@
 # Longitudinal Analysis Module
 
+> Superseded for the paper by `src/analyst/` (LLM-planned analysis with coverage-normalized
+> minutes, trend statistics, and rater export) — see `docs/ANALYST.md`.
+
 ## Overview
 
 `src/evals/longitudinal/` provides a pipeline that runs an LLM-rewritten natural-language query through FAISS retrieval, then analyses **when** the matched sensor sequences occurred over calendar time.

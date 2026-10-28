@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sensor replay rating</title>
+<style>
+  :root { --accent:#3A6BC4; --target:#f5c542; --bg:#f6f7fb; --text:#1a1a2e; --sub:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif; color:var(--text); background:var(--bg); }
+  header { display:flex; gap:16px; align-items:center; padding:10px 16px; background:#fff; border-bottom:1px solid #e5e7eb; }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  header input { padding:5px 8px; border:1px solid #ccc; border-radius:6px; }
+  header .grow { flex:1; }
+  button { cursor:pointer; border:1px solid #cfd4dc; background:#fff; border-radius:6px; padding:6px 12px; font-size:13px; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #layout { display:flex; height:calc(100vh - 52px); }
+  #list { width:120px; overflow-y:auto; background:#fff; border-right:1px solid #e5e7eb; }
+  #list div { padding:6px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid #f0f0f0; }
+  #list div.active { background:#e8eefc; font-weight:600; }
+  #list div.yes::after { content:" ✓"; color:#16a34a; }
+  #list div.no::after { content:" ✗"; color:#dc2626; }
+  #list div.unsure::after { content:" ?"; color:#d97706; }
+  #main { flex:1; display:flex; flex-direction:column; padding:12px 16px; min-width:0; }
+  #prompt { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; margin-bottom:10px; }
+  #prompt .behavior { font-size:17px; font-weight:600; }
+  #prompt .definition { color:#374151; margin-top:4px; font-size:14px; }
+  #stage { flex:1; display:flex; gap:12px; min-height:0; }
+  #canvasWrap { flex:1; position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:8px; min-width:0; }
+  canvas#map { width:100%; height:100%; display:block; }
+  #side { width:260px; display:flex; flex-direction:column; gap:10px; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; font-size:13px; }
+  #clock { font-size:22px; font-variant-numeric:tabular-nums; font-weight:600; }
+  #inTarget { margin-top:4px; font-weight:600; }
+  #timeline { height:34px; margin-top:10px; position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; }
+  #controls { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .rate button { width:100%; margin-bottom:6px; padding:9px; font-size:14px; }
+  .rate button.sel-yes { background:#16a34a; color:#fff; } .rate button.sel-no { background:#dc2626; color:#fff; }
+  .rate button.sel-unsure { background:#d97706; color:#fff; }
+  textarea { width:100%; height:60px; font-family:inherit; font-size:12px; }
+  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  .hint { color:var(--sub); font-size:11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Sensor replay rating</h1>
+  <label>Rater ID <input id="rater" placeholder="your initials"></label>
+  <span id="progress" class="hint"></span>
+  <span class="grow"></span>
+  <button id="instructionsBtn">Instructions</button>
+  <button class="primary" id="exportBtn">Export ratings CSV</button>
+</header>
+<div id="layout">
+  <div id="list"></div>
+  <div id="main">
+    <div id="prompt">
+      <div class="hint">Does the <b style="color:#b45309">highlighted segment</b> of this replay show the following behavior?</div>
+      <div class="behavior" id="behavior"></div>
+      <div class="definition" id="definition"></div>
+    </div>
+    <div id="stage">
+      <div id="canvasWrap"><canvas id="map"></canvas></div>
+      <div id="side">
+        <div class="card">
+          <div id="clock">--:--:--</div>
+          <div class="hint" id="date"></div>
+          <div id="inTarget"></div>
+        </div>
+        <div class="card legend">
+          <div><span style="background:#dc2626"></span>motion (highlighted segment)</div>
+          <div><span style="background:#9ca3af"></span>motion (context before/after)</div>
+          <div><span style="background:#2563eb;border-radius:2px"></span>door open</div>
+          <div class="hint" style="margin-top:6px">Lines show the most recent movement path.</div>
+        </div>
+        <div class="card rate">
+          <button data-r="yes">Yes (y)</button>
+          <button data-r="no">No (n)</button>
+          <button data-r="unsure">Unsure (u)</button>
+          <textarea id="note" placeholder="optional note"></textarea>
+        </div>
+        <div class="hint">Space: play/pause · ←/→: previous/next item · t: jump to segment</div>
+      </div>
+    </div>
+    <div id="timeline"><canvas id="tl" style="width:100%;height:100%;display:block"></canvas></div>
+    <div id="controls">
+      <button id="playBtn">▶ Play</button>
+      <button id="targetBtn">Jump to segment</button>
+      <label class="hint">Speed
+        <select id="speed"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select>×
+      </label>
+      <span class="grow"></span>
+      <button id="prevBtn">← Prev</button>
+      <button id="nextBtn">Next →</button>
+    </div>
+  </div>
+</div>
+<script>
+const DATA = /*__DATA__*/null;
+const STORE = `rater:${DATA.packet}:${DATA.home}`;
+const state = JSON.parse(localStorage.getItem(STORE) || '{"rater":"","ratings":{}}');
+let cur = 0, t = 0, playing = false, lastFrame = null;
+const img = new Image(); img.src = DATA.image.src;
+const map = document.getElementById('map'), ctx = map.getContext('2d');
+const tl = document.getElementById('tl'), tctx = tl.getContext('2d');
+const $ = id => document.getElementById(id);
+$('title').textContent = `Sensor replay rating — ${DATA.home}`;
+$('rater').value = state.rater;
+$('rater').oninput = e => { state.rater = e.target.value.trim(); save(); };
+
+function save() { localStorage.setItem(STORE, JSON.stringify(state)); renderList(); }
+function item() { return DATA.items[cur]; }
+
+function renderList() {
+  const list = $('list'); list.innerHTML = '';
+  DATA.items.forEach((it, i) => {
+    const d = document.createElement('div');
+    const r = state.ratings[it.id];
+    d.textContent = it.id; d.className = (i === cur ? 'active ' : '') + (r ? r.rating : '');
+    d.onclick = () => select(i); list.appendChild(d);
+  });
+  const done = Object.keys(state.ratings).filter(k => DATA.items.some(i => i.id === k)).length;
+  $('progress').textContent = `${done} / ${DATA.items.length} rated`;
+}
+
+function select(i) {
+  cur = Math.max(0, Math.min(DATA.items.length - 1, i));
+  const it = item();
+  $('behavior').textContent = it.behavior; $('definition').textContent = it.definition;
+  const r = state.ratings[it.id];
+  $('note').value = r ? (r.note || '') : '';
+  document.querySelectorAll('.rate button').forEach(b => b.className = r && r.rating === b.dataset.r ? `sel-${b.dataset.r}` : '');
+  t = Math.max(0, it.target[0] - 5); playing = false; $('playBtn').textContent = '▶ Play';
+  renderList(); draw();
+}
+
+function rate(r) {
+  if (!state.rater) { alert('Please enter your rater ID first.'); $('rater').focus(); return; }
+  state.ratings[item().id] = { rating: r, note: $('note').value, rated_at: new Date().toISOString() };
+  save(); select(cur + 1 < DATA.items.length ? cur + 1 : cur);
+}
+document.querySelectorAll('.rate button').forEach(b => b.onclick = () => rate(b.dataset.r));
+$('note').onchange = () => { const r = state.ratings[item().id]; if (r) { r.note = $('note').value; save(); } };
+
+function fit() {
+  const w = map.clientWidth, h = map.clientHeight, dpr = window.devicePixelRatio || 1;
+  map.width = w * dpr; map.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  tl.width = tl.clientWidth * dpr; tl.height = tl.clientHeight * dpr; tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const s = Math.min(w / DATA.image.w, h / DATA.image.h);
+  return { s, ox: (w - DATA.image.w * s) / 2, oy: (h - DATA.image.h * s) / 2 };
+}
+
+function draw() {
+  const it = item(), { s, ox, oy } = fit();
+  const P = id => { const c = DATA.sensors[id]; return c ? [ox + c[0] * s, oy + c[1] * s] : null; };
+  ctx.clearRect(0, 0, map.width, map.height);
+  if (img.complete && img.width) { ctx.globalAlpha = 0.6; ctx.drawImage(img, ox, oy, DATA.image.w * s, DATA.image.h * s); ctx.globalAlpha = 1; }
+  for (const id in DATA.sensors) { const p = P(id); ctx.fillStyle = '#d1d5db'; ctx.beginPath(); ctx.arc(p[0], p[1], 4, 0, 7); ctx.fill(); }
+
+  const active = {}, path = [];
+  for (const [et, sid, st] of it.events) {
+    if (et > t) break;
+    active[sid] = { on: st === 'ON' || st === 'OPEN', t: et, st };
+    if (st === 'ON' && P(sid) && (!path.length || path[path.length - 1].sid !== sid)) path.push({ sid, t: et });
+  }
+  const recent = path.filter(p => t - p.t < 30).slice(-6);
+  for (let i = 1; i < recent.length; i++) {
+    const a = P(recent[i - 1].sid), b = P(recent[i].sid);
+    ctx.strokeStyle = `rgba(220,38,38,${0.15 + 0.6 * i / recent.length})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+  }
+  const inT = t >= it.target[0] && t <= it.target[1];
+  for (const sid in active) {
+    const a = active[sid], p = P(sid); if (!p) continue;
+    const age = t - a.t, door = a.st === 'OPEN' || a.st === 'CLOSE';
+    if (!a.on && age > 2) continue;
+    const alpha = a.on ? Math.max(0.35, 1 - age / 20) : 0.3;
+    const r = 7 + 10 * Math.max(0, 1 - age / 3);
+    ctx.fillStyle = door ? `rgba(37,99,235,${alpha})` : (inT ? `rgba(220,38,38,${alpha})` : `rgba(156,163,175,${alpha})`);
+    ctx.beginPath(); door ? ctx.rect(p[0] - r / 2, p[1] - r / 2, r, r) : ctx.arc(p[0], p[1], r, 0, 7); ctx.fill();
+  }
+  if (inT) { ctx.strokeStyle = '#f5c542'; ctx.lineWidth = 6; ctx.strokeRect(3, 3, map.clientWidth - 6, map.clientHeight - 6); }
+
+  const clock = new Date(new Date(it.clock_start).getTime() + t * 1000);
+  $('clock').textContent = clock.toTimeString().slice(0, 8);
+  $('date').textContent = `${it.weekday}, ${clock.toLocaleDateString('en-CA')}`;
+  $('inTarget').innerHTML = inT ? '<span style="color:#b45309">● in highlighted segment</span>' : '<span class="hint">context (before/after)</span>';
+
+  const W = tl.clientWidth, H = tl.clientHeight, X = v => v / it.duration * W;
+  tctx.clearRect(0, 0, W, H);
+  tctx.fillStyle = 'rgba(245,197,66,0.45)'; tctx.fillRect(X(it.target[0]), 0, X(it.target[1]) - X(it.target[0]), H);
+  tctx.fillStyle = '#6b7280';
+  for (const [et, , st] of it.events) if (st === 'ON' || st === 'OPEN') tctx.fillRect(X(et), H * 0.3, 1, H * 0.4);
+  tctx.fillStyle = '#3A6BC4'; tctx.fillRect(X(t) - 1, 0, 3, H);
+}
+
+function loop(ts) {
+  if (playing) {
+    if (lastFrame !== null) t += (ts - lastFrame) / 1000 * +$('speed').value;
+    if (t >= item().duration) { t = item().duration; playing = false; $('playBtn').textContent = '▶ Play'; }
+    draw();
+  }
+  lastFrame = ts; requestAnimationFrame(loop);
+}
+function togglePlay() { if (t >= item().duration) t = 0; playing = !playing; $('playBtn').textContent = playing ? '❚❚ Pause' : '▶ Play'; }
+$('playBtn').onclick = togglePlay;
+$('targetBtn').onclick = () => { t = Math.max(0, item().target[0] - 3); playing = true; $('playBtn').textContent = '❚❚ Pause'; };
+$('prevBtn').onclick = () => select(cur - 1); $('nextBtn').onclick = () => select(cur + 1);
+$('timeline').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); t = (e.clientX - r.left) / r.width * item().duration; draw(); };
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowRight') select(cur + 1); else if (e.key === 'ArrowLeft') select(cur - 1);
+  else if (e.key === 'y') rate('yes'); else if (e.key === 'n') rate('no'); else if (e.key === 'u') rate('unsure');
+  else if (e.key === 't') $('targetBtn').onclick();
+});
+$('exportBtn').onclick = () => {
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [['rater', 'packet', 'home', 'question_id', 'concept_id', 'item_id', 'rating', 'note', 'rated_at'].join(',')];
+  for (const it of DATA.items) {
+    const r = state.ratings[it.id];
+    if (r) rows.push([state.rater, DATA.packet, DATA.home, it.question_id, it.concept_id, it.id, r.rating, r.note, r.rated_at].map(esc).join(','));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+  a.download = `ratings_${DATA.packet}_${DATA.home}_${state.rater || 'anon'}.csv`; a.click();
+};
+$('instructionsBtn').onclick = () => alert(
+  'Each item replays ambient sensor activations on the floor plan of the home.\n\n' +
+  'Red circles: motion sensors firing during the highlighted segment; grey: context before/after; blue squares: doors.\n\n' +
+  'Watch the highlighted segment (yellow band on the timeline; use "Jump to segment"). Context is shown only to help you interpret it.\n\n' +
+  'Answer YES if the highlighted segment is consistent with the described behavior, NO if it is not, UNSURE if it cannot be judged.\n\n' +
+  'Ratings are saved in this browser automatically. When done, click "Export ratings CSV" and send the file back.');
+window.onresize = draw; img.onload = draw;
+select(0); requestAnimationFrame(loop);
+</script>
+</body>
+</html>

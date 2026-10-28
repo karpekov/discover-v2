@@ -2,24 +2,234 @@
     "milan": {
         "queries": [
             {
-                "short_query": "Night wandering",
-                "long_query": "Night Wandering activity takes place when a person moves between master bedroom and master bathroom and kitchen and office and living room and guest bathroom and hallway areas during nighttime hours with multiple transitions"
+                "short_query": "Kitchen Activity",
+                "long_queries": [
+                    "Motion observed in the kitchen.",
+                    "Activity detected near the stove in the kitchen.",
+                    "Movement observed at the fridge in the kitchen.",
+                    "Activity detected at the medicine and pill cabinet in the kitchen."
+                ]
             },
             {
-                "short_query": "Sedentary activity",
-                "long_query": "Sedentary activity takes place when a person sits quietly in the living room armchair or office chair or dining table with minimal movement for extended periods"
+                "short_query": "Eating a Meal",
+                "long_queries": [
+                    "Sustained presence and activity observed at the dining table in the living room."
+                ]
+            },
+            {
+                "short_query": "Working at a Desk",
+                "long_queries": [
+                    "The dweller shows sustained activity at the working desk in the office.",
+                    "Motion is observed for an extended period at the working desk in the office."
+                ]
+            },
+            {
+                "short_query": "Watching TV",
+                "long_queries": [
+                    "Sustained motion is observed at the TV armchair in the office."
+                ]
+            },
+            {
+                "short_query": "Using Bathroom at Night",
+                "long_queries": [
+                    "Motion observed for a period in the guest bathroom at night.",
+                    "Motion observed for a period in the master bathroom at night."
+                ]
+            },
+            {
+                "short_query": "Using Kitchen at Night",
+                "long_queries": [
+                    "Motion observed in the kitchen at night.",
+                    "Activity detected at the fridge in the kitchen at night.",
+                    "Activity detected at the stove in the kitchen at night.",
+                    "Activity detected at the medicine and pill cabinet in the kitchen at night."
+                ]
+            },
+            {
+                "short_query": "Wandering around the house during the day",
+                "long_queries": [
+                    "Movement observed across multiple rooms and various areas of the house during the day.",
+                    "Transitions between different rooms and general activity throughout the home are detected during the day."
+                ]
+            },
+            {
+                "short_query": "Wandering around the house during the night",
+                "long_queries": [
+                    "Movement observed across various rooms of the house during the night.",
+                    "During the night, the dweller shows activity and transitions between different areas of the home.",
+                    "Motion detected in multiple rooms, indicating movement throughout the house during the night."
+                ]
+            },
+            {
+                "short_query": "Sedentary Activity",
+                "long_queries": [
+                    "Sustained presence is observed in the living room armchair.",
+                    "Sustained presence is observed at the working desk in the office.",
+                    "Sustained presence is observed in the TV armchair in the office.",
+                    "Sustained presence is observed in the bed in the master bedroom."
+                ]
+            },
+            {
+                "short_query": "Sedentary Activity in the Morning",
+                "long_queries": [
+                    "In the morning, sustained presence is observed in the living room, showing activity at the armchair or dining table.",
+                    "In the morning, sustained presence is observed in the master bedroom, showing activity in the sleeping area.",
+                    "In the morning, sustained presence is observed in the office, showing activity at the working desk or TV armchair."
+                ]
             }
         ]
     },
     "aruba": {
         "queries": [
             {
-                "short_query": "Night wandering",
-                "long_query": "Night Wandering activity takes place when a person moves between master bedroom and master bathroom and kitchen and office and living room and guest bathroom and hallway areas during nighttime hours with multiple transitions"
+                "short_query": "Kitchen Activity",
+                "long_queries": [
+                    "The resident is active in the kitchen, with movement detected by motion sensors in the dining table area and other parts of the kitchen.",
+                    "The kitchen back door is opened or closed."
+                ]
             },
             {
-                "short_query": "Sedentary activity",
-                "long_query": "Sedentary activity takes place when a person sits quietly in the living room armchair or office chair or dining table with minimal movement for extended periods"
+                "short_query": "Eating a Meal",
+                "long_queries": [
+                    "The resident is active for a sustained period in the dining room, indicating eating a meal.",
+                    "The resident is active for a sustained period in the kitchen's dining table area, indicating eating a meal."
+                ]
+            },
+            {
+                "short_query": "Working at a Desk",
+                "long_queries": [
+                    "The individual exhibits sustained motion sensor activation at the desk in the office, indicating prolonged presence and activity.",
+                    "The resident shows continuous presence at the office desk, with repeated motion sensor events from the desk sensor."
+                ]
+            },
+            {
+                "short_query": "Watching TV",
+                "long_queries": []
+            },
+            {
+                "short_query": "Using Bathroom at Night",
+                "long_queries": [
+                    "The dweller is active in the bathroom at night, with motion sensor activations and door sensor events.",
+                    "The dweller is active in the master bathroom at night, with motion sensor activations near the toilet and bathroom."
+                ]
+            },
+            {
+                "short_query": "Using Kitchen at Night",
+                "long_queries": [
+                    "The dweller is active in the kitchen at night, with sustained motion detected by sensors in the dining table area and near the back door.",
+                    "Movement is observed in the kitchen during nighttime hours, indicating the resident is using the kitchen.",
+                    "Presence is detected in the kitchen at night, with motion sensors activating repeatedly."
+                ]
+            },
+            {
+                "short_query": "Wandering around the house during the day",
+                "long_queries": [
+                    "The dweller exhibits movement across multiple rooms and hallways during the day.",
+                    "The individual shows frequent transitions between different areas of the house, activating various motion sensors during the day.",
+                    "Activity is detected in several distinct rooms and common areas, indicating general movement throughout the home during the day."
+                ]
+            },
+            {
+                "short_query": "Wandering around the house during the night",
+                "long_queries": [
+                    "The resident exhibits movement across various rooms and hallways during the night.",
+                    "Activity is detected in multiple areas of the home, indicating transitions between rooms during the night.",
+                    "The individual shows sustained presence in different parts of the house during the night, with motion sensors activating in various rooms."
+                ]
+            },
+            {
+                "short_query": "Sedentary Activity",
+                "long_queries": [
+                    "The resident is present for an extended period in the living room, with sustained motion near the couch.",
+                    "The individual remains in the master bedroom, showing prolonged presence near the nightstand or bed.",
+                    "The dweller is stationary in the office, with continuous motion detected at the desk.",
+                    "The person stays in the dining area or kitchen, with sustained presence at the dining table."
+                ]
+            },
+            {
+                "short_query": "Sedentary Activity in the Morning",
+                "long_queries": [
+                    "The individual remains present in the living room, indicating sustained sedentary activity in the morning.",
+                    "The resident stays in the office, suggesting prolonged sedentary activity at the desk in the morning.",
+                    "The dweller is present in the master bedroom near the nightstand, indicating sedentary activity in the morning.",
+                    "The person remains in the dining room or kitchen dining table area, showing sustained sedentary activity in the morning."
+                ]
+            }
+        ]
+    },
+    "cairo": {
+        "queries": [
+            {
+                "short_query": "Kitchen Activity",
+                "long_queries": [
+                    "The person is present and moving in the kitchen.",
+                    "The person is active at the pantry in the kitchen.",
+                    "The person is active at the dining table in the kitchen."
+                ]
+            },
+            {
+                "short_query": "Eating a Meal",
+                "long_queries": [
+                    "The person remains present at the dining table in the kitchen.",
+                    "The person remains present in the dining room."
+                ]
+            },
+            {
+                "short_query": "Working at a Desk",
+                "long_queries": [
+                    "The person remains in the office, indicating sustained activity."
+                ]
+            },
+            {
+                "short_query": "Watching TV",
+                "long_queries": []
+            },
+            {
+                "short_query": "Using Bathroom at Night",
+                "long_queries": []
+            },
+            {
+                "short_query": "Using Kitchen at Night",
+                "long_queries": [
+                    "The person is present in the kitchen at night.",
+                    "Motion is detected in the kitchen at night, potentially including activity at the pantry or dining table.",
+                    "Activity occurs in the kitchen at night."
+                ]
+            },
+            {
+                "short_query": "Wandering around the house during the day",
+                "long_queries": [
+                    "The person moves through various rooms of the house during the day, indicating frequent transitions between different areas.",
+                    "Movement is detected across multiple locations in the home during the day, showing the individual is wandering.",
+                    "The occupant transitions between different rooms and areas of the house during the day, with widespread motion activity."
+                ]
+            },
+            {
+                "short_query": "Wandering around the house during the night",
+                "long_queries": [
+                    "The person exhibits movement across multiple rooms of the house during the night.",
+                    "Motion sensors activate in various areas, indicating transitions between different rooms during the night.",
+                    "Activity is detected in several distinct locations throughout the house, suggesting movement and presence in different rooms during the night."
+                ]
+            },
+            {
+                "short_query": "Sedentary Activity",
+                "long_queries": [
+                    "The person remains seated on the couch in the living room.",
+                    "The person remains resting or lying in the bed in the bedroom.",
+                    "The person remains seated at the dining table.",
+                    "The person remains present in the office, indicating sedentary activity."
+                ]
+            },
+            {
+                "short_query": "Sedentary Activity in the Morning",
+                "long_queries": [
+                    "The person remains in the bedroom, indicating sustained presence on the bed in the morning.",
+                    "The person remains in the living room, indicating sustained presence on the couch in the morning.",
+                    "The person remains in the kitchen, indicating sustained presence at the dining table in the morning.",
+                    "The person remains in the office, indicating sustained presence in the morning.",
+                    "The person remains in the dining room, indicating sustained presence in the morning."
+                ]
             }
         ]
     }

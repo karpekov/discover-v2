@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Analyst review</title>
+<link rel="stylesheet" href="style.css">
+<script src="data/manifest.js"></script>
+</head>
+<body>
+<header>
+  <h1>Analyst review</h1>
+  <label>Reviewer <input id="reviewer" placeholder="your name or initials"></label>
+  <label>House <select id="home"><option value="">— pick a house —</option></select></label>
+  <nav id="steps"></nav>
+  <span class="grow"></span>
+  <button id="helpBtn">Instructions</button>
+  <button class="primary" id="exportBtn">Export ratings CSV</button>
+</header>
+<main id="content"></main>
+
+<div id="modal" class="modal"><div class="modal-body"><button class="close" id="modalClose">✕</button><div id="modalContent"></div></div></div>
+<div id="lightbox" class="lightbox"><img alt=""></div>
+
+<template id="tpl-help">
+  <h2>How to review</h2>
+  <p>Enter your name, pick a house and go through the four steps in order. Items are shown one at a time.
+     Answer with the keyboard — <kbd>y</kbd> or <kbd>1</kbd> = Yes, <kbd>n</kbd> or <kbd>2</kbd> = No,
+     <kbd>u</kbd> or <kbd>3</kbd> = Unsure — and the next item opens automatically. <kbd>←</kbd>/<kbd>→</kbd> move
+     back and forward (you can change any answer). A short note is welcome for No / Unsure.</p>
+  <ol>
+    <li><b>Answerable?</b> Look at the house map (motion and door sensors only — no cameras, wearables, appliance
+        or lock sensors). Could a caregiver question be answered, at least partly, from these sensors?</li>
+    <li><b>Queries.</b> To answer a question, it was split into behaviors, and each behavior is searched in the
+        sensor data with short descriptions ("data queries"). Is each query relevant for finding that behavior?</li>
+    <li><b>Retrieval.</b> Replays of single moments (about one minute, with 2 minutes of context before and after)
+        on the floor plan. Does the <b>highlighted segment</b> show the described behavior? <kbd>space</kbd>
+        play/pause, <kbd>t</kbd> jump to the segment.</li>
+    <li><b>Findings.</b> Claims from the analysis of each question. Using the figure and key statistics, is each
+        finding correct and supported? Judge each one on its own — e.g. "sleeps 27 min/day" can be wrong while
+        "this did not change over time" is right.</li>
+  </ol>
+  <p>Ratings are saved in this browser automatically (per house). When a house is done, click <b>Export ratings
+     CSV</b> and send the file back.</p>
+</template>
+
+<template id="tpl-intro-1">
+  <p>The home has only <b>ambient sensors</b>: motion sensors (red dots, they fire when someone moves nearby) and
+     door sensors (blue squares, open / close). There are no cameras, microphones, wearables, appliance or lock
+     sensors. A question is <b>answerable</b> if patterns of these sensors over time could answer it, at least
+     partly.</p>
+  <ul>
+    <li>"How much time does she spend in the living room?" → <b>Yes</b> (living-room motion).</li>
+    <li>"Is she getting enough exercise?" → <b>Yes</b>, partly (movement around the house, not outside).</li>
+    <li>"Is her blood pressure stable?" → <b>No</b> (no sensor measures it).</li>
+  </ul>
+  <p>Judge the question itself, using the map and sensor list of <i>this</i> house: the answer can differ between
+     homes, depending on which rooms and doors have sensors.</p>
+</template>
+<template id="tpl-intro-2">
+  <p>To answer a question, the analyst splits it into one or more <b>behaviors</b> (e.g. "Nighttime sleep") and
+     writes short text descriptions of how each behavior looks in the sensor data. These descriptions are the
+     <b>data queries</b>: each one is matched against ~1-minute windows of sensor data to find moments of that
+     behavior. Fixed constraints (rooms, sensors, time of day) are listed as <b>Filters</b>.</p>
+  <ul>
+    <li><b>Yes</b>: sensor activity matching this description would be evidence of the behavior, and the behavior
+        helps answer the question.</li>
+    <li><b>No</b>: it describes a different activity, is too vague (would match lots of unrelated activity), or is
+        irrelevant to the question.</li>
+  </ul>
+</template>
+<template id="tpl-intro-3">
+  <p>Each sample is a short moment of sensor data (about 1 minute, the <b>highlighted segment</b>, with 2 minutes
+     of context before and after) replayed on the floor plan. Samples from all questions are mixed in random order.
+     Some were found by the system for the behavior shown, others are unrelated control samples, so <b>No</b> is
+     expected regularly.</p>
+  <ul>
+    <li><b>Yes</b>: the movement during the highlighted segment (rooms, sensors, doors, time of day) is consistent
+        with the described behavior.</li>
+    <li><b>No</b>: it shows something else. <b>Unsure</b>: the data cannot tell either way.</li>
+  </ul>
+  <p><kbd>space</kbd> play / pause · <kbd>t</kbd> jump to the segment · click the timeline to seek.</p>
+</template>
+<template id="tpl-intro-4">
+  <p>Each <b>finding</b> is one atomic claim from the analyst's report for a question: an amount (e.g. "sleeps
+     about 27 min per day"), a change over time (e.g. "this did not change over the period"), a time-of-day pattern
+     or a comparison. Check each one against the figure and the key statistics:</p>
+  <ul>
+    <li>Amounts are <b>matched minutes</b>: the data come in ~1-minute windows, and a window counts when its
+        sensor activity looks like the behavior. "22 min/day" means about 22 such windows per day (e.g. kitchen activity
+        near the medicine cabinet), not 22 minutes of the behavior itself. Matches less than 2 minutes apart form one
+        <b>episode</b>, so episodes per day is always smaller than minutes per day.</li>
+    <li>Figure: matched minutes per day (dots), 7-day mean and trend line; the small table
+        shows time of day; the floor plan shows where matched activity happened. The bar chart below it shows
+        matched minutes per day for each hour of the day (starting at noon, so the night is in one piece).</li>
+    <li><b>Yes</b>: the number / direction agrees with the statistics and figure and the wording is not overstated
+        (e.g. "increased" needs a significant trend). <b>No</b>: wrong or unsupported.</li>
+  </ul>
+  <p>Changes over time are summarized in the statistics as the first third vs the last third of the observed days
+     (average minutes per day and share of active time) plus a trend over all days. <b>Statistically significant</b>
+     means the change is unlikely to be chance (p-value below 0.05, shown in parentheses); "no statistically
+     significant change" means the data do not show a reliable increase or decrease, even if the averages differ.</p>
+  <p>Judge every finding on its own; one can be wrong while the next is right.</p>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

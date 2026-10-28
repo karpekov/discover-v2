@@ -1,0 +1,37 @@
+# Questions for the behavioral analyst (src/analyst/run.py).
+# Each question runs on every home in `homes` unless it lists its own `homes`.
+# Data spans: milan ~7 weeks usable (2009-11-13 → 2010-01-06), cairo ~8 weeks, aruba ~7 months.
+
+name: dev_questions
+homes: [milan, aruba, cairo]
+
+questions:
+  - id: sedentary_trend
+    question: "How has the resident's sedentary activity been changing over the past months?"
+
+  - id: night_bathroom
+    question: "Are the resident's night-time bathroom visits becoming more frequent?"
+
+  - id: sleep_disruption
+    question: "Is the resident's sleep becoming more disrupted, with more getting up and moving around during the night?"
+
+  - id: night_wandering
+    question: "Is the resident wandering around the house at night more than before?"
+
+  - id: kitchen_timing
+    question: "At what times of day does the resident use the kitchen, and has the amount of kitchen activity changed over time?"
+
+  - id: meal_regularity
+    question: "Has the resident been having meals at the dining table less often recently compared to the beginning of the observation period?"
+
+  - id: leaving_home
+    question: "How often does the resident leave or come back home, and is this changing over time?"
+
+  - id: morning_routine
+    question: "How active is the resident in the early morning, and does it differ between weekdays and weekends?"
+
+  - id: desk_work
+    question: "How much time does the resident spend working at a desk, and is there a trend over the weeks?"
+
+  - id: overall_mobility
+    question: "Is the resident becoming less mobile around the house overall, moving between rooms less often?"

@@ -1,5 +1,8 @@
 # LLM Query Rewriter
 
+> For question → report analysis (paper pipeline) use `src/analyst/` — see
+> `docs/ANALYST.md`. `src/query/llm_reasoning.py` is the earlier prototype.
+
 ## Overview
 
 `src/query/` adds an LLM intermediary layer between the user and the FAISS-based

@@ -166,12 +166,13 @@ def evaluate_dataset(
     filter_minor:        bool,
     description_style:   str,
     base_dir:            Path,
+    data_variant:        str = "FD_60_p",
 ) -> Dict:
     """Run threshold evaluation for one dataset. Returns structured result dict."""
 
     model_name   = f"{dataset}_{model_suffix}"
     checkpoint   = base_dir / "trained_models" / dataset / model_name / "best_model.pt"
-    data_root    = base_dir / "data" / "processed" / "casas" / dataset / "FD_60_p"
+    data_root    = base_dir / "data" / "processed" / "casas" / dataset / data_variant
 
     print(f"\n{'='*70}")
     print(f"  DATASET: {dataset.upper()}")
@@ -182,7 +183,7 @@ def evaluate_dataset(
         "train_data_path": str(data_root / "train.json"),
         "test_data_path":  str(data_root / "test.json"),
         "vocab_path":      str(data_root / "vocab.json"),
-        "output_dir":      str(base_dir / "results" / "evals" / dataset / "FD_60_p" / model_name),
+        "output_dir":      str(base_dir / "results" / "evals" / dataset / data_variant / model_name),
         "description_style": description_style,
     }
 
@@ -537,6 +538,8 @@ def main() -> None:
     parser.add_argument("--description_style",    default="long_desc")
     parser.add_argument("--output_dir",    default="results/evals/imwut_paper")
     parser.add_argument("--base_dir",      default=".")
+    parser.add_argument("--data_variant",  default="FD_60_p",
+                        help="Processed data folder under data/processed/casas/<home>/ (e.g. FD_60, FD_60_p)")
     args = parser.parse_args()
 
     base_dir    = Path(args.base_dir).resolve()
@@ -557,6 +560,7 @@ def main() -> None:
             filter_minor=args.filter_minor_labels,
             description_style=args.description_style,
             base_dir=base_dir,
+            data_variant=args.data_variant,
         )
         per_dataset_results.append(result)
 
@@ -568,6 +572,8 @@ def main() -> None:
     json_obj = build_json(per_dataset_results, agg, args.model_suffix, thresholds)
 
     stem     = "retrieval_threshold_sensitivity"
+    if args.data_variant != "FD_60_p":
+        stem = f"{stem}_{args.data_variant}"
     md_path  = output_dir / f"{stem}.md"
     json_path = output_dir / f"{stem}.json"
 
