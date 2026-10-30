@@ -163,7 +163,10 @@ rating in that step, then collapsed (click to reopen).
 All steps are reviewed regardless of earlier answers; export CSV columns
 reviewer, packet, home, step, question_id, concept_id, item_id, rating, note, rated_at.
 
-`review-score`: majority vote per item across reviewers (tie → unsure); per question × home a step
+`review-score`: majority vote per item across reviewers (tie → unsure), excluding `review.EXCLUDED_REVIEWERS`
+(Alex) from the vote, per-step rates and Fleiss' κ; excluded reviewers keep their own funnel and pairwise Cohen's κ.
+When exactly 3 counted reviewers tie (an unsure split them), Alex's yes/no breaks it (`review.consensus_votes`,
+also used by `imwut_tables.py`); per question × home a step
 passes by majority of its decided items (step 3: top + random only). Funnel: all → answerable
 (agreed) / not answerable (agreed) / wrongly answerable / missed / unsure → correct queries →
 good retrieval → correct analysis. Writes `<name>_results/`: sankey_{consensus,home_*,reviewer_*}.{png,pdf},
@@ -188,4 +191,5 @@ with Wilson CI; step-3 negatives yes-rate should be ~0; pairwise κ per step).
 | `dashboard.py` + `dashboard_template.html` | static results dashboard |
 | `review.py` + `review_app/` | 4-step reviewer package, scoring, Sankey funnel |
 | `pipeline.py` / `run.py` | orchestration / CLI |
-| `imwut_tables.py` | paper tables in `results/analyst/imwut_tables/`. `analyst_review` (review-tab rates; Fleiss' κ on Milan), `analyst_funnel` (`tab:analyst_funnel`), `analyst_questions` (`tab:analyst_questions`, 9 questions with ellipsis rows; check if the analyst answered; answered count over all 29; caption points at `tab:analyst_questions_all`), `analyst_questions_all` (appendix, all 29, same answered count) |
+| `figures/src/routine_change_dashboard/` | paper figure "Paper charts": one run (Aruba, `27_routine_change`) as 4 stages. `prepare_data.py` (conda env) → `data.js` + `floorplan.png`; `npm start` → http://localhost:5178 with PNG/PDF download; `npm run build` → `figures/routine_change_dashboard.{png,pdf}`. Text/colors are hand-tuned in `figure.js` (`SHORT`, `COLOR`); layout in pt at 394 pt width |
+| `imwut_tables.py` | paper tables in `results/analyst/imwut_tables/`. `analyst_review` (review-tab rates; Fleiss' κ per home; Alex's rating is dropped from any item with more than 3 ratings, `MAX_RATINGS`; reviewer counts in the caption are computed), `analyst_funnel` (`tab:analyst_funnel`), `analyst_questions` (`tab:analyst_questions`, 9 questions with ellipsis rows; check if the analyst answered; answered count over all 29; caption points at `tab:analyst_questions_all`), `analyst_questions_all` (appendix, all 29, same answered count) |

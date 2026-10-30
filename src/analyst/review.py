@@ -486,9 +486,45 @@ def add_decoy_queries(rdir: Path, qfile: dict, question_key: Callable[[dict], st
 
 # --------------------------------------------------------------------------- scoring
 
+# Reviewer-name prefixes kept out of the consensus, per-step rates, and Fleiss' κ.
+# Their ratings still get a per-reviewer view and pairwise Cohen's κ.
+EXCLUDED_REVIEWERS = ("alexkarpekov",)
+
+
+def _is_excluded(reviewer: str) -> bool:
+    return str(reviewer).startswith(EXCLUDED_REVIEWERS)
+
+
+def _consensus_ratings(ratings: pd.DataFrame) -> pd.DataFrame:
+    return ratings[~ratings["reviewer"].map(_is_excluded)]
+
+
 def _vote(vals: List[str]) -> str:
     y, n = vals.count("yes"), vals.count("no")
     return "yes" if y > n else "no" if n > y else "unsure"
+
+
+TIEBREAK_PANEL = 3
+
+
+def consensus_votes(ratings: pd.DataFrame, counted: pd.DataFrame | None = None) -> Dict[str, str]:
+    """Majority vote per item over ``counted`` (default: ``ratings`` without EXCLUDED_REVIEWERS).
+
+    When exactly TIEBREAK_PANEL non-excluded reviewers rated an item and they tie (an unsure split them),
+    an excluded reviewer's yes/no on that item breaks the tie.
+    """
+    if counted is None:
+        counted = _consensus_ratings(ratings)
+    counted = counted[counted["rating"].isin(["yes", "no", "unsure"])]
+    votes = {i: _vote(v) for i, v in counted.groupby("item_id")["rating"].apply(list).items()}
+    excl = counted["reviewer"].map(_is_excluded)
+    panel = counted[~excl].groupby("item_id").size()
+    has_excluded = set(counted.loc[excl, "item_id"])
+    breakers = ratings[ratings["reviewer"].map(_is_excluded) & ratings["rating"].isin(["yes", "no"])]
+    for item, rating in zip(breakers["item_id"], breakers["rating"]):
+        if votes.get(item) == "unsure" and panel.get(item, 0) == TIEBREAK_PANEL and item not in has_excluded:
+            votes[item] = rating
+    return votes
 
 
 def _majority_pass(vals: List[str]):
@@ -575,13 +611,15 @@ def score_review(key_dir: Path, rating_csvs: List[Path]) -> dict:
     reviewers = sorted(ratings["reviewer"].unique())
     rated_homes = sorted(ratings["home"].unique())
     key = key[key["home"].isin(rated_homes)]
+    counted = _consensus_ratings(ratings)
+    voters = sorted(counted["reviewer"].unique())
 
-    by_item = ratings.groupby("item_id")["rating"].apply(list).to_dict()
-    consensus = {i: _vote(v) for i, v in by_item.items()}
+    consensus = consensus_votes(ratings, counted)
     cons_df = pd.DataFrame({"item_id": list(consensus), "vote": list(consensus.values())})
-    res = {"reviewers": reviewers, "homes": rated_homes,
-           "n_ratings": int(len(ratings)), "n_items": int(len(key)),
-           "n_items_rated": int(key["item_id"].isin(ratings["item_id"]).sum()),
+    res = {"reviewers": reviewers, "consensus_reviewers": voters,
+           "excluded_reviewers": [r for r in reviewers if r not in voters], "homes": rated_homes,
+           "n_ratings": int(len(counted)), "n_ratings_all": int(len(ratings)), "n_items": int(len(key)),
+           "n_items_rated": int(key["item_id"].isin(counted["item_id"]).sum()),
            "consensus": {"funnel": _funnel(key, consensus), "steps": _step_metrics(key, cons_df)},
            "per_home": {}, "per_reviewer": {}, "kappa": {}}
     for h in rated_homes:
@@ -613,7 +651,7 @@ def score_review(key_dir: Path, rating_csvs: List[Path]) -> dict:
     res["fleiss"] = {}
     for s in (1, 2, 3, 4):
         sub = wide.loc[wide.index.intersection(step_of[step_of.eq(s)].index)]
-        active = [rv for rv in reviewers if rv in sub.columns and sub[rv].isin(["yes", "no"]).any()]
+        active = [rv for rv in voters if rv in sub.columns and sub[rv].isin(["yes", "no"]).any()]
         if len(active) < 2 or sub.empty:
             res["fleiss"][f"step{s}"] = {"kappa": None, "n": 0, "raters": len(active)}
             continue
@@ -691,11 +729,14 @@ def write_review_report(res: dict, out_dir: Path) -> Path:
     """Sankey figures (consensus, per home, per reviewer) + step metrics as a small HTML page."""
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "review_scores.json").write_text(json.dumps(res, indent=1, default=str))
-    figs = [("consensus", f"All rated homes ({', '.join(res['homes'])}) — majority vote of {len(res['reviewers'])} reviewer(s)",
+    voters = res.get("consensus_reviewers", res["reviewers"])
+    excluded = res.get("excluded_reviewers", [])
+    figs = [("consensus", f"All rated homes ({', '.join(res['homes'])}) — majority vote of {len(voters)} reviewer(s)",
              res["consensus"])]
     figs += [(f"home_{h}", f"{h.capitalize()} — majority vote", v) for h, v in res["per_home"].items()]
     if len(res["reviewers"]) > 1:
-        figs += [(f"reviewer_{r}", f"Reviewer {r}", v) for r, v in res["per_reviewer"].items()]
+        figs += [(f"reviewer_{r}", f"Reviewer {r}" + (" (not in consensus)" if r in excluded else ""), v)
+                 for r, v in res["per_reviewer"].items()]
     pd.DataFrame([{"scope": n, **q} for n, _, v in figs for q in v["funnel"]["per_question"]]).to_csv(
         out_dir / "funnel_per_question.csv", index=False)
 
@@ -733,8 +774,9 @@ body{{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;margin:24px;
 table{{border-collapse:collapse;margin:8px 0 18px}} td,th{{border-bottom:1px solid #e5e7eb;padding:5px 10px;text-align:left;font-size:13px}}
 th{{background:#f3f4f6}} .m{{color:#6b7280;font-size:11px}} img{{max-width:100%;border:1px solid #e5e7eb}}</style></head><body>
 <h1>Analyst review results</h1>
-<p class=m>Reviewers: {', '.join(res['reviewers'])} · {res['n_ratings']} ratings · {res['n_items_rated']}/{res['n_items']} items rated ·
-majority vote per item; a step passes by majority of its decided items; unsure excluded.</p>
+<p class=m>Consensus reviewers: {', '.join(voters)} · {res['n_ratings']} ratings · {res['n_items_rated']}/{res['n_items']} items rated ·
+majority vote per item; a step passes by majority of its decided items; unsure excluded.
+{f"Shown but not counted: {', '.join(excluded)} (own funnel and pairwise κ only)." if excluded else ""}</p>
 {imgs}
 <h2>Per-step item accuracy (ungated)</h2>
 <table><tr><th>step</th>{''.join(f'<th>{n}</th>' for n, _ in scopes)}</tr>{rows}</table>
@@ -742,7 +784,7 @@ majority vote per item; a step passes by majority of its decided items; unsure e
 <p class=m>Step 2 includes far-caption decoys. Pairwise only.</p>
 <table><tr><th>pair</th><th>step 1</th><th>step 2</th><th>step 3</th><th>step 4</th></tr>{kappa}</table>
 <h2>Fleiss' κ</h2>
-<p class=m>One coefficient per step across reviewers who rated it. An item counts only when each of them marked it yes or no. Step 2 includes decoys. Undefined when fewer than two reviewers rated the step.</p>
+<p class=m>One coefficient per step across consensus reviewers who rated it. An item counts only when each of them marked it yes or no. Step 2 includes decoys. Undefined when fewer than two reviewers rated the step.</p>
 <table><tr><th>step 1</th><th>step 2</th><th>step 3</th><th>step 4</th></tr><tr>{fleiss_cells}</tr></table>
 </body></html>"""
     path = out_dir / "review_report.html"

@@ -1,7 +1,7 @@
 """Paper tables for the analyst, written to results/analyst/imwut_tables/.
 
 `analyst_review` is the review-tab summary: majority-vote quality of each step,
-pooled and per home, with Fleiss' κ for the three Milan reviewers.
+pooled and per home, with Fleiss' κ for each home's reviewer panel.
 `analyst_funnel` is the question-level funnel (Milan, Aruba, Cairo, All).
 `analyst_questions` is nine questions: rotated category, full wording, and a check
 or cross for whether the analyst answered. `analyst_questions_all` is the same
@@ -26,10 +26,12 @@ if str(_SRC) not in sys.path:
 
 from analyst.config import PROJECT_ROOT, RESULTS_DIR  # noqa: E402
 from analyst.rater import _fleiss  # noqa: E402
-from analyst.review import _funnel, _vote  # noqa: E402
+from analyst.review import _funnel, consensus_votes  # noqa: E402
 
 RUN = RESULTS_DIR / "runs" / "analyst_questions"
 REVIEW = "review_v2"
+ALEX = "alexkarpekov"
+MAX_RATINGS = 3
 OUT = RESULTS_DIR / "imwut_tables"
 HOMES = ["milan", "aruba", "cairo"]
 SCOPES = ["all", *HOMES]
@@ -38,39 +40,62 @@ SCOPES = ["all", *HOMES]
 # rate key is the step metric. kappa key is the step number (2 includes decoys).
 ROWS = [
     ("group", None, r"1.\ Is the question answerable?"),
-    ("rate", "step1", r"Agrees with the analyst"),
-    ("rate", "step1_answerable", r"\quad Analyst said answerable"),
-    ("rate", "step1_not_answerable", r"\quad Analyst said not answerable"),
-    ("kappa", 1, r"\quad Fleiss' $\kappa$"),
-    ("group", None, r"2.\ Is the retrieval query relevant?"),
+    ("rate", "step1", r"Agrees with \ToolName{}"),
+    ("rate", "step1_answerable", r"\hspace{0.4em}\ToolName{} said answerable"),
+    ("rate", "step1_not_answerable", r"\hspace{0.4em}\ToolName{} said not answerable"),
+    ("kappa", 1, r"\hspace{0.4em}Fleiss' $\kappa$"),
+    ("group", None, r"2.\ Is the re-written query relevant"),
     ("rate", "step2", r"Planner query"),
-    ("rate", "step2_decoy", r"\quad Far-caption decoy$^{\downarrow}$"),
-    ("kappa", 2, r"\quad Fleiss' $\kappa$"),
-    ("group", None, r"3.\ Does the minute show the behavior?"),
+    ("rate", "step2_decoy", r"\hspace{0.4em}Negative Examples$^{\downarrow}$"),
+    ("kappa", 2, r"\hspace{0.4em}Fleiss' $\kappa$"),
+    ("group", None, r"3.\ Retrieved data sample contains the behavior"),
     ("rate", "step3_top", r"Top match"),
     ("rate", "step3_random", r"Random match"),
-    ("rate", "step3_negative", r"Far negative$^{\downarrow}$"),
-    ("kappa", 3, r"\quad Fleiss' $\kappa$"),
+    ("rate", "step3_negative", r"Negative Examples$^{\downarrow}$"),
+    ("kappa", 3, r"\hspace{0.4em}Fleiss' $\kappa$"),
     ("group", None, r"4.\ Is the finding supported?"),
     ("rate", "step4", r"Finding"),
-    ("kappa", 4, r"\quad Fleiss' $\kappa$"),
+    ("kappa", 4, r"\hspace{0.4em}Fleiss' $\kappa$"),
 ]
 
 NOTE = (
-    r"Each cell is the share of decided items on which the majority vote agrees with the system, "
+    r"Each cell is the share of decided items on which the majority vote agrees with \ToolName{}, "
     r"with yeses over decided items in parentheses. "
     r"All is the pool of items, not the mean of the homes. "
     r"A yes in step~1 means the vote matches \ToolName{}'s answerable\,/\,not verdict. "
-    r"A yes in steps~2--4 means the query was judged relevant, the minute shows the behavior, "
+    r"A yes in steps~2--4 means the query was judged relevant, "
+    r"the retrieved sample contains the behavior, "
     r"or the finding is supported. "
     r"Rows marked $^{\downarrow}$ are controls and should be low. "
-    r"Ties and \emph{unsure} ratings are excluded"
-    r"UNSURE_CLAUSE. "
-    r"Milan steps 1--3 have three reviewers; Aruba and Cairo have one. "
-    r"Fleiss' $\kappa$ is that three-reviewer coefficient and is shown under Milan. "
-    r"Step~2 $\kappa$ includes the decoy queries; the planner-query rate does not. "
-    r"Findings were rated by one reviewer, so step~4 has no $\kappa$."
+    r"REVIEWERS_CLAUSE. "
+    r"Fleiss' $\kappa$ is how much the raters agree with each other."
 )
+
+_NUM_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+
+
+def _reviewer_clause(key: pd.DataFrame, ratings: pd.DataFrame) -> str:
+    """'Milan steps 1--3 have four reviewers; ...; step~4 has one in every home', from who rated what."""
+    rated = (ratings.loc[ratings["rating"].isin(["yes", "no"]), ["item_id", "reviewer"]]
+             .merge(key[["item_id", "home", "step"]], on="item_id"))
+    n = rated.groupby(["home", "step"])["reviewer"].nunique()
+    parts = []
+    for home in HOMES:
+        c = [int(n.get((home, s), 0)) for s in (1, 2, 3)]
+        if len(set(c)) == 1:
+            parts.append(f"{home.capitalize()} steps 1--3 have {_NUM_WORDS[c[0]]} "
+                         f"reviewer{'s' if c[0] != 1 else ''}")
+        else:
+            parts.append(f"{home.capitalize()} has " + ", ".join(
+                f"{_NUM_WORDS[k]} in step~{s}" for s, k in zip((1, 2, 3), c)))
+    s4 = {int(n.get((h, 4), 0)) for h in HOMES}
+    if len(s4) == 1:
+        k = s4.pop()
+        parts.append(f"step~4 has {_NUM_WORDS[k]} reviewer{'s' if k != 1 else ''} in every home")
+    else:
+        parts.append("step~4 has " + ", ".join(
+            f"{_NUM_WORDS[int(n.get((h, 4), 0))]} in {h.capitalize()}" for h in HOMES))
+    return "; ".join(parts)
 
 
 def _as_bool(v) -> bool:
@@ -83,11 +108,15 @@ def _load() -> tuple[pd.DataFrame, dict, pd.DataFrame]:
     ratings = pd.concat([pd.read_csv(p) for p in sorted((RUN / "review" / REVIEW).glob("*.csv"))],
                         ignore_index=True)
     ratings["rating"] = ratings["rating"].astype(str).str.lower().str.strip()
-    ratings = ratings.drop_duplicates(["reviewer", "item_id"], keep="last")
+    all_ratings = ratings.drop_duplicates(["reviewer", "item_id"], keep="last")
+    # Alex steps aside on any item with more than MAX_RATINGS ratings, so external reviewers replace him.
+    # He still breaks an unsure tie among those three (consensus_votes).
+    rated = all_ratings[all_ratings["rating"].isin(["yes", "no", "unsure"])]
+    crowded = rated.groupby("item_id")["reviewer"].transform("size") > MAX_RATINGS
+    ratings = all_ratings.drop(rated.index[crowded & rated["reviewer"].str.startswith(ALEX)])
     key["analyst_answerable"] = key["analyst_answerable"].map(_as_bool)
     key["stratum"] = key["stratum"].fillna("").astype(str)
-    by_item = ratings.groupby("item_id")["rating"].apply(list).to_dict()
-    consensus = {i: _vote(v) for i, v in by_item.items()}
+    consensus = consensus_votes(all_ratings, counted=ratings)
     return key, consensus, ratings
 
 
@@ -148,59 +177,60 @@ def _rate_cell(c: dict) -> str:
     if not n:
         return r"\textemdash"
     pct = 100.0 * c["yes"] / n
-    return rf"{pct:.1f}\% {{\scriptsize({c['yes']}/{n})}}"
+    # Same size as the Fleiss κ point estimates (the table's \small). The count
+    # stays smaller so the widest cells still fit in a 15% column.
+    return rf"{pct:.1f}\%\hspace{{0.35em}}{{\tiny({c['yes']}/{n})}}"
 
 
 def _kappa_cell(k: dict | None) -> str:
     if not k or not k["n"]:
         return r"\textemdash"
-    raters = k.get("raters")
-    who = f", {raters} raters" if raters else ""
-    return rf"{k['kappa']:.3f} {{\scriptsize($n{{=}}{k['n']}${who})}}"
+    # [t] keeps the value on the row's top line. arraystretch is set before the tabular
+    # so the strut is actually tight. \tabularnewline, not \\[dimen]: arydshln (loaded in
+    # the paper) breaks on an optional argument to \\.
+    return (
+        r"{\renewcommand{\arraystretch}{0.6}"
+        r"\begin{tabular}[t]{@{}c@{}}"
+        rf"{k['kappa']:.2f}\tabularnewline"
+        rf"{{\tiny($n{{=}}{k['n']}$)}}"
+        r"\end{tabular}}"
+    )
 
 
-def _unsure_clause(by_scope: dict) -> str:
-    """Parenthetical of excluded unsure counts, Milan first, then any other home that has some."""
-    labels = {
-        "step1": "step 1",
-        "step2": "planner queries",
-        "step3_top": "top matches",
-        "step3_random": "random matches",
-        "step3_negative": "far negatives",
-        "step4": "findings",
-    }
-    parts = []
-    for scope, title in (("milan", "Milan"), ("aruba", "Aruba"), ("cairo", "Cairo")):
-        bits = [f"{labels[k]} ({by_scope[scope][k]['unsure']})"
-                for k in labels if by_scope[scope][k]["unsure"]]
-        if bits:
-            parts.append(f"{title}: " + ", ".join(bits))
-    if not parts:
-        return ""
-    return r" (" + "; ".join(parts) + ")"
-
-
-def build_tabular(by_scope: dict, kappa_milan: dict) -> list[str]:
-    headers = " & ".join([r"\textbf{Step}"] + [rf"\textbf{{{s.capitalize()}}}" for s in SCOPES])
+def build_tabular(by_scope: dict, kappa_by_home: dict) -> list[str]:
+    headers = " & ".join([r"\textbf{Pipeline Step}"] + [rf"\textbf{{{s.capitalize()}}}" for s in SCOPES])
+    # Step is 40% of the line; All, Milan, Aruba, and Cairo are 15% each.
+    # All is a p column so \columncolor fills the whole column. \tabcolsep 0 keeps the five widths on \linewidth.
     lines = [
-        r"\setlength{\tabcolsep}{7pt}",
-        r"\begin{tabular}{@{}lcccc@{}}",
+        r"\setlength{\tabcolsep}{0pt}",
+        r"\begin{tabular}{@{}w{l}{0.40\linewidth}"
+        r">{\columncolor{black!5}\centering\arraybackslash}p{0.15\linewidth}"
+        r"*{3}{w{c}{0.15\linewidth}}@{}}",
         r"\toprule",
         headers + r" \\",
         r"\midrule",
     ]
     for kind, key, label in ROWS:
         if kind == "group":
-            if lines[-1] != r"\midrule":
-                lines.append(r"\addlinespace[4pt]")
-            lines.append(r"\multicolumn{5}{@{}l}{\textbf{" + label + r"}} \\")
+            # Column 1 only, so the All cell keeps its color. No \vspace here:
+            # inside this p column it drops the heading below the row and opens a tall gap.
+            lines.append(
+                r"\multicolumn{1}{@{}>{\raggedright\arraybackslash}p{0.40\linewidth}}{\textbf{"
+                + label + r"}} & & & & \\"
+            )
             continue
         if kind == "rate":
             cells = [_rate_cell(by_scope[s][key]) for s in SCOPES]
+            end = r" \\"
         else:
-            # κ exists only for Milan. Repeating it under All would imply a pooled pair.
-            cells = [r"\textemdash" if s != "milan" else _kappa_cell(kappa_milan.get(key)) for s in SCOPES]
-        lines.append(" & ".join([label, *cells]) + r" \\")
+            # κ is per home. All stays blank: the homes do not share one rater panel.
+            # Plain \\ : arydshln breaks on \\[dimen]. The inner arraystretch keeps the second line tight.
+            cells = [
+                r"\textemdash" if s == "all" else _kappa_cell((kappa_by_home.get(s) or {}).get(key))
+                for s in SCOPES
+            ]
+            end = r" \\"
+        lines.append(" & ".join([label, *cells]) + end)
     lines += [r"\bottomrule", r"\end{tabular}"]
     return lines
 
@@ -219,8 +249,9 @@ def _tex_fragment(tabular: list[str], note: str, *, label: str, env: str = "tabl
     ])
 
 
-def _standalone(tabular: list[str], note: str, *, width_cm: float = 16.2) -> str:
-    note_cm = width_cm - 0.2
+def _standalone(tabular: list[str], note: str, *, width_cm: float = 16.2, page_width: str | None = None) -> str:
+    width = page_width or f"{width_cm}cm"
+    note_width = rf"\dimexpr{width}-6pt\relax" if page_width else f"{width_cm - 0.2}cm"
     return "\n".join([
         r"\documentclass[border=8pt]{standalone}",
         r"\usepackage{booktabs}",
@@ -228,16 +259,17 @@ def _standalone(tabular: list[str], note: str, *, width_cm: float = 16.2) -> str
         r"\usepackage{amsmath}",
         r"\usepackage{amssymb}",
         r"\usepackage{array}",
+        r"\usepackage[table]{xcolor}",
         r"\usepackage{graphicx}",
         r"\usepackage{multirow}",
         r"\begin{document}",
-        rf"\begin{{minipage}}{{{width_cm}cm}}",
+        rf"\begin{{minipage}}{{{width}}}",
         r"\centering",
         r"\small",
         r"\renewcommand{\arraystretch}{1.05}",
         *tabular,
         r"\vspace{6pt}",
-        rf"\parbox{{{note_cm}cm}}{{\footnotesize " + note + "}",
+        rf"\parbox{{{note_width}}}{{\footnotesize " + note + "}",
         r"\end{minipage}",
         r"\end{document}",
         "",
@@ -290,15 +322,26 @@ def write_review_table() -> Path:
     by_scope = {"all": _metrics(key, consensus)}
     for home in HOMES:
         by_scope[home] = _metrics(key[key.home == home], consensus)
-    milan_ids = set(key.loc[key.home == "milan", "item_id"])
-    kappa_milan = _fleiss_by_step(key[key.item_id.isin(milan_ids)], ratings[ratings.item_id.isin(milan_ids)])
-    note = NOTE.replace("UNSURE_CLAUSE", _unsure_clause(by_scope))
-    tabular = build_tabular(by_scope, kappa_milan)
+    kappa_by_home = {}
+    for home in HOMES:
+        ids = set(key.loc[key.home == home, "item_id"])
+        kappa_by_home[home] = _fleiss_by_step(
+            key[key.item_id.isin(ids)], ratings[ratings.item_id.isin(ids)])
+    note = NOTE.replace("REVIEWERS_CLAUSE", _reviewer_clause(key, ratings))
+    tabular = build_tabular(by_scope, kappa_by_home)
     OUT.mkdir(parents=True, exist_ok=True)
     tex_path = OUT / "analyst_review.tex"
-    tex_path.write_text(_tex_fragment(tabular, note, label="tab:analyst_review"), encoding="utf-8")
+    tex_path.write_text(
+        "% requires array, xcolor (table option; load xcolor before arydshln)\n"
+        + _tex_fragment(tabular, note, label="tab:analyst_review"),
+        encoding="utf-8",
+    )
     print(f"TEX  {tex_path}")
-    _compile(_standalone(tabular, note), OUT / "analyst_review.pdf", OUT / "analyst_review.png")
+    _compile(
+        _standalone(tabular, note, page_width="394pt"),
+        OUT / "analyst_review.pdf",
+        OUT / "analyst_review.png",
+    )
     return tex_path
 
 
@@ -321,7 +364,7 @@ FUNNEL_NOTE = (
     r"The first five rows partition those questions. "
     r"Missed means the vote said answerable and \ToolName{} said not; "
     r"wrongly judged answerable is the reverse. "
-    r"Step-1 unsure is a split among the Milan reviewers, and those questions stop. "
+    r"Step-1 unsure is a tied vote among the home's reviewers, and those questions stop. "
     r"The last three rows count how many of the agreed-answerable questions also passed "
     r"the query check, then retrieval, then the findings."
 )

@@ -345,20 +345,22 @@ function renderReview() {
   };
   const table = (keys) => `<table><tr><th>step</th><th>all</th>${H.map(h => `<th style="text-transform:capitalize">${h}</th>`).join('')}</tr>` +
     keys.map(([k, lab]) => `<tr><td>${lab}</td><td>${k === 'step2_decoy' ? decoyCell(null) : stepRow(R.steps, k)}</td>${H.map(h => `<td>${k === 'step2_decoy' ? decoyCell(h) : stepRow((R.per_home[h] || {}).steps, k)}</td>`).join('')}</tr>`).join('') + '</table>';
+  const rvLabel = (rv) => esc(rv) + ((R.excluded_reviewers || []).includes(rv) ? ' <span class="muted">(not counted)</span>' : '');
   let html = `<h2>Review ${esc(R.name)}</h2>
-    <p class="muted">${R.n_items_rated} / ${R.n_items} items rated · ${R.n_ratings} ratings · reviewers: ${R.reviewers.map(esc).join(', ')}.
-    Majority vote per item (a tie counts as unsure). Step 1 is one item per question × home: a “yes” means the reviewer agrees with the analyst, not that they said the question is answerable. Step 2 is one item per retrieval query the planner wrote; far-caption decoys are scored separately and do not change that rate. Milan steps 1–3 are rated by three reviewers; Aruba and Cairo by one. Step 4 is the first reviewer only.</p>
+    <p class="muted">${R.n_items_rated} / ${R.n_items} items rated · ${R.n_ratings} ratings · counted reviewers: ${(R.consensus_reviewers || R.reviewers).map(esc).join(', ')}.
+    ${(R.excluded_reviewers || []).length ? `Not counted (shown in the per-reviewer tables and pairwise κ only): ${R.excluded_reviewers.map(esc).join(', ')}.` : ''}
+    Majority vote per item over the counted reviewers (a tie counts as unsure; an item nobody counted rated is unsure). Step 1 is one item per question × home: a “yes” means the reviewer agrees with the analyst, not that they said the question is answerable. Step 2 is one item per retrieval query the planner wrote; far-caption decoys are scored separately and do not change that rate.</p>
     <h2>Steps 1 and 2</h2>${table(rows)}
     <h2>Steps 3 and 4</h2>${table(later)}
     <h2>Per reviewer</h2>
     <table><tr><th>reviewer</th><th>step 1 agreement</th><th>step 2 queries</th><th>step 3 top</th><th>step 3 random</th><th>step 3 negatives</th><th>step 4 findings</th></tr>
-    ${Object.entries(R.per_reviewer).map(([rv, v]) => `<tr><td>${esc(rv)}</td>` +
+    ${Object.entries(R.per_reviewer).map(([rv, v]) => `<tr><td>${rvLabel(rv)}</td>` +
       ['step1', 'step2', 'step3_top', 'step3_random', 'step3_negative', 'step4'].map(k => `<td>${stepRow(v.steps, k)}</td>`).join('') +
       '</tr>').join('')}</table>
     <h2>Per reviewer, by home</h2>
     <table><tr><th>reviewer</th><th>home</th><th>step 1 agreement</th><th>step 2 queries</th><th>step 3 top</th><th>step 3 random</th><th>step 3 negatives</th><th>step 4 findings</th></tr>
     ${Object.entries(R.per_reviewer).map(([rv]) => H.filter(h => ((R.per_reviewer_home || {})[rv] || {})[h]).map(h =>
-      `<tr><td>${esc(rv)}</td><td style="text-transform:capitalize">${esc(h)}</td>` +
+      `<tr><td>${rvLabel(rv)}</td><td style="text-transform:capitalize">${esc(h)}</td>` +
       ['step1', 'step2', 'step3_top', 'step3_random', 'step3_negative', 'step4'].map(k => `<td>${stepRow(R.per_reviewer_home[rv][h], k)}</td>`).join('') +
       '</tr>').join('')).join('')}</table>
     <h2>Cohen's κ (yes/no only, per step)</h2>
@@ -375,7 +377,7 @@ function renderReview() {
     return v.kappa == null ? '–' : `${v.kappa.toFixed(3)} <span class="muted">n=${v.n ?? 0}, ${v.raters ?? 0} raters</span>`;
   };
   html += `<h2>Fleiss' κ (yes/no only, per step)</h2>
-    <p class="muted">One coefficient across every reviewer who rated that step. An item counts only when each of those reviewers marked it yes or no. Step 2 includes the far-caption decoys. Undefined when fewer than two reviewers rated the step.</p>
+    <p class="muted">One coefficient across every counted reviewer who rated that step. An item counts only when each of those reviewers marked it yes or no. Step 2 includes the far-caption decoys. Undefined when fewer than two reviewers rated the step.</p>
     <table style="max-width:860px"><tr><th>step 1</th><th>step 2</th><th>step 3</th><th>step 4</th></tr>
     <tr>${['step1', 'step2', 'step3', 'step4'].map(k => `<td>${fleissCell(k)}</td>`).join('')}</tr></table>`;
   const decoys = R.decoys || [];

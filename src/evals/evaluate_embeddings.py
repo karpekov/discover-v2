@@ -772,6 +772,23 @@ class EmbeddingEvaluator:
         except Exception as e:
             raise RuntimeError(f"Could not load descriptions from metadata: {e}")
 
+    def encode_texts_raw_clip(self, texts: List[str]) -> np.ndarray:
+        """Encode texts with frozen CLIP only (L2-normalised pooler_output, no learned projection).
+
+        Matches how the *_embeddings_baseline_clip.npz caption files were produced
+        (src/text_encoders/frozen/clip.py), so queries and captions share one space.
+        """
+        if getattr(self.text_encoder, '_clip_model', None) is None:
+            from transformers import CLIPTextModel, CLIPTokenizer
+            self.text_encoder._clip_model = CLIPTextModel.from_pretrained(self.text_encoder.model_name).to(self.device)
+            self.text_encoder._clip_tokenizer = CLIPTokenizer.from_pretrained(self.text_encoder.model_name)
+            self.text_encoder._clip_model.eval()
+
+        inputs = self.text_encoder._clip_tokenizer(texts, padding=True, truncation=True, return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            embeddings = self.text_encoder._clip_model(**inputs).pooler_output
+        return F.normalize(embeddings, p=2, dim=-1).cpu().numpy()
+
     def create_text_prototypes(self, labels: List[str], apply_projection: bool = True, use_multiple_prototypes: bool = False) -> Tuple[Dict[str, np.ndarray], Dict[str, int]]:
         """Create text-based prototypes using the text encoder with multiple captions per label.
 
@@ -820,19 +837,7 @@ class EmbeddingEvaluator:
                     # Use encode_texts_clip which includes projection
                     caption_embeddings = self.text_encoder.encode_texts_clip(descriptions, self.device).cpu().numpy()
                 else:
-                    # Encode WITHOUT projection (raw CLIP embeddings)
-                    # Load CLIP model if needed
-                    if not hasattr(self.text_encoder, '_clip_model') or self.text_encoder._clip_model is None:
-                        from transformers import CLIPTextModel, CLIPTokenizer
-                        self.text_encoder._clip_model = CLIPTextModel.from_pretrained(self.text_encoder.model_name).to(self.device)
-                        self.text_encoder._clip_tokenizer = CLIPTokenizer.from_pretrained(self.text_encoder.model_name)
-                        self.text_encoder._clip_model.eval()
-
-                    inputs = self.text_encoder._clip_tokenizer(descriptions, padding=True, truncation=True, return_tensors="pt").to(self.device)
-                    outputs = self.text_encoder._clip_model(**inputs)
-                    embeddings = outputs.pooler_output
-                    embeddings = F.normalize(embeddings, p=2, dim=-1)
-                    caption_embeddings = embeddings.cpu().numpy()
+                    caption_embeddings = self.encode_texts_raw_clip(descriptions)
 
                 if use_multiple_prototypes:
                     # Keep all embeddings separate (shape: n_descriptions, embedding_dim)
@@ -4558,7 +4563,7 @@ class EmbeddingEvaluator:
             '',
         ]
 
-        direction_order = ['prototype2sensor', 'prototype2text',
+        direction_order = ['prototype2sensor', 'prototype2text', 'prototype2text_noproj',
                            'text2sensor', 'sensor2text',
                            'sensor2sensor', 'text2text']
 
@@ -5778,6 +5783,24 @@ class EmbeddingEvaluator:
                     return_per_label=True
                 )
 
+                # Pure-CLIP text-only baseline: same query sentences and same caption per window,
+                # both as frozen CLIP embeddings (no learned projection on either side).
+                prototype_emb_raw = self.encode_texts_raw_clip([label_to_text_filtered[l] for l in prototype_labels])
+                noproj_results, noproj_per_label = compute_prototype_retrieval_metrics(
+                    prototype_embeddings=prototype_emb_raw,
+                    prototype_labels=prototype_labels,
+                    text_embeddings=test_text_emb,
+                    target_labels=labels_for_retrieval,
+                    label_counts=label_counts_dict,
+                    k_values=[10, 50, 100],
+                    directions=['prototype2text'],
+                    normalize=True,
+                    verbose=True,
+                    return_per_label=True
+                )
+                prototype_retrieval_results['prototype2text_noproj'] = noproj_results['prototype2text']
+                prototype_per_label['prototype2text_noproj'] = noproj_per_label['prototype2text']
+
                 # Combine all retrieval results
                 all_retrieval_results = {**instance_retrieval_results, **prototype_retrieval_results}
 
@@ -5918,7 +5941,7 @@ class EmbeddingEvaluator:
             all_per_label_combined = {**instance_per_label}
             if prototype_per_label:
                 all_per_label_combined.update(prototype_per_label)
-            for _dir in ['prototype2sensor', 'prototype2text',
+            for _dir in ['prototype2sensor', 'prototype2text', 'prototype2text_noproj',
                          'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']:
                 if _dir in all_per_label_combined:
                     self._print_per_label_retrieval_table(
@@ -6081,7 +6104,7 @@ class EmbeddingEvaluator:
         print("📊 RETRIEVAL METRICS SUMMARY  (MRR · mAP · P@10 · P@50 · P@100)")
         print("="*108)
 
-        directions_order = ['prototype2sensor', 'prototype2text',
+        directions_order = ['prototype2sensor', 'prototype2text', 'prototype2text_noproj',
                             'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']
 
         for label_level in ['L1', 'L2']:
@@ -6375,7 +6398,7 @@ class EmbeddingEvaluator:
 
             # Print per-label summary tables — prototype2sensor first, then instance directions
             print(f"\n📋 Per-label retrieval summary tables for {retrieval_label_level}:")
-            for _dir in ['prototype2sensor', 'prototype2text',
+            for _dir in ['prototype2sensor', 'prototype2text', 'prototype2text_noproj',
                          'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']:
                 if _dir in all_per_label:
                     self._print_per_label_retrieval_table(
@@ -6622,7 +6645,7 @@ class EmbeddingEvaluator:
         print("🎯 RETRIEVAL-ONLY EVALUATION SUMMARY  (MRR · mAP · P@10 · P@50 · P@100)")
         print("="*108)
 
-        directions_order = ['prototype2sensor', 'prototype2text',
+        directions_order = ['prototype2sensor', 'prototype2text', 'prototype2text_noproj',
                             'text2sensor', 'sensor2text', 'sensor2sensor', 'text2text']
 
         for retrieval_label_level in ['L1', 'L2']:

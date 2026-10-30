@@ -755,7 +755,7 @@
     "label_to_text": {
       "Sleeping": {
         "short_desc": "sleeping in bed in master bedroom, usually at night time",
-        "long_desc": ["Prolonged or intermittent bed-area motion in the master bedroom, often at night, reflecting sleep and related nighttime activity."],
+        "long_desc": ["Sleeping in the master bedroom: brief, sparse activations near the nightstand near the bed, occurring late at night through early morning."],
         "zeroshot_har_desc": "Sleeping activity takes place for hours when the resident sleeps in the bedroom",
         "multiple_desc": [
           "Sleeping in the master bedroom with prolonged stillness in the bed area.",
@@ -1345,6 +1345,21 @@
           "Late-night to early-morning stillness in the bedroom consistent with uninterrupted sleep."
         ]
       },
+      "Sleep": {
+        "short_desc": "sleeping in the bedroom at night",
+        "long_desc": ["Extended nighttime rest with sustained activity on bed sensors in the bedroom, consistent with sleep."],
+        "zeroshot_har_desc": "Sleep activity takes place for hours during the night when a resident sleeps in the bedroom on the bed",
+        "multiple_desc": [
+          "Long nighttime stay in the bedroom with continuous presence on the bed sensors and minimal motion elsewhere.",
+          "Sustained overnight inactivity in the bedroom reflecting deep sleep on the bed.",
+          "Extended rest in the bedroom with only minor shifts detected on the bed area sensors.",
+          "Prolonged nighttime stillness in the bed area with no movement into other rooms.",
+          "Nighttime rest pattern with consistent bed sensor activation over several hours.",
+          "Sleep period in the bedroom with sparse motion near the bed and no hallway activity.",
+          "Overnight bed occupancy in the bedroom showing low-frequency sensor events.",
+          "Late-night to early-morning stillness in the bedroom consistent with uninterrupted sleep."
+        ]
+      },
       "Bed to toilet": {
         "short_desc": "brief after-midnight bedroom and hallway movement representing a nighttime bathroom trip",
         "long_desc": ["Brief movement occurring in the middle of the night. Sensors activate in the bedroom"],
@@ -1362,7 +1377,7 @@
       },
       "Night wandering": {
         "short_desc": "after-midnight movement through the bedroom, hallway, and living room",
-        "long_desc": ["Nocturnal movement occurring predominantly after midnight, with sensors activating in the bedroom (M005, M006, M007, M009 near the bed), hallway (M002, M003), living room (M014 near basement stairs), and occasionally the second floor stairs (M010) and kitchen. The resident moves between the bedroom and other parts of the house without a clear destination. Lasts roughly 40 seconds."],
+        "long_desc": ["Nocturnal movement occurring predominantly after midnight, with sensors activating in the bedroom near the bed, hallway, living room near basement stairs, and occasionally the second floor stairs and kitchen."],
         "zeroshot_har_desc": "Night Wandering activity takes place after midnight when a person moves without purpose between the bedroom, hallway, living room, and stairs",
         "multiple_desc": [
           "Irregular late-night movement touching the bedroom, hallway, and living room without settling in any one area.",
@@ -1463,6 +1478,21 @@
           "Long periods of inactivity in the office punctuated by brief hallway or bedroom-wing movement.",
           "Focused time in the office with occasional sensor activations in the adjacent areas.",
           "Office work with sparse movement toward the hallway and guest bedroom, spanning variable durations."
+        ]
+      },
+      "Work": {
+        "short_desc": "working in the office with movement to hallway and living room couch",
+        "long_desc": ["Work activity with the office sensor most active, followed by the hallway and the living room couch area (left seat and right seat). "],
+        "zeroshot_har_desc": "Work in Office activity takes place when a resident works in the office (M001) with frequent movement to the adjacent hallway and living room couch, spread throughout the day",
+        "multiple_desc": [
+          "Sustained presence in the office with movement to the surrounding hallway and occasional stops on the living room couch.",
+          "Extended time in the office area with brief excursions into the hallway and the living room couch area.",
+          "Work session in the office across morning, afternoon, or evening hours, with the resident occasionally moving to the living room couch.",
+          "Office-centered activity with hallway transitions and brief visits to the bedroom or living room.",
+          "Office activity with intermittent motion detected near the stairs and hallway.",
+          "Long periods of inactivity in the office punctuated by brief hallway or bedroom-wing movement.",
+          "Focused time in the office with occasional sensor activations in the adjacent areas.",
+          "Office work with sparse movement toward the hallway and guest bedroom."
         ]
       },
       "Laundry": {

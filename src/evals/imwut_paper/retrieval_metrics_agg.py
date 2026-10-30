@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -41,8 +42,18 @@ from typing import Dict, List, Optional, Tuple
 
 # Directions to analyse: (json_key, short_tag, display_name)
 DIRECTIONS: List[Tuple[str, str, str]] = [
-    ("prototype2sensor", "p2s", "Prototype → Sensor"),
-    ("prototype2text",   "p2t", "Prototype → Text"),
+    ("prototype2sensor",      "p2s",        "Prototype → Sensor"),
+    ("prototype2text_noproj", "p2t_noproj", "Prototype → Text (pure CLIP)"),
+    ("prototype2text",        "p2t",        "Prototype → Text (CLIP + learned projection)"),
+]
+
+# Pre-specified significance test: \ToolName vs the pure-CLIP baseline. mAP and
+# P@100 were fixed in advance; the rest are only shown as stars in the table.
+SIG_TOOL_DIR     = "prototype2sensor"
+SIG_BASELINE_DIR = "prototype2text_noproj"
+SIG_METRICS: List[Tuple[str, str]] = [
+    ("map", "primary"), ("100", "secondary"),
+    ("10", "exploratory"), ("50", "exploratory"), ("mrr", "exploratory"),
 ]
 
 METRICS: List[Tuple[str, str]] = [
@@ -350,89 +361,323 @@ def table_to_markdown(table: dict, datasets: List[str]) -> str:
 
 # ── LaTeX comparison table (auto-saved as retrieval_results_quant.tex) ───────
 
-# Number of L1 activity classes per dataset — used for random baseline.
-RANDOM_BASELINE_N: Dict[str, int] = {"milan": 11, "aruba": 9, "cairo": 8}
-
 # Metric display order for the comparison table (left → right).
-LATEX_METRIC_ORDER: List[str] = ["P@10", "P@50", "P@100", "mAP", "MRR"]
+LATEX_METRIC_ORDER: List[str] = ["mAP", "P@10", "P@50", "P@100", "MRR"]
 
 # Maps direction json_key → row label in the LaTeX table.
 DIRECTION_ROW_LABELS: Dict[str, str] = {
-    "prototype2text":   "Text-Only Baseline",
-    "prototype2sensor": "\\ToolName",
+    "prototype2text_noproj": "Text Only: Pure CLIP",
+    "prototype2text":        "Text Only: CLIP + Learned Projection",
+    "prototype2sensor":      "\\ToolName",
 }
 
 
-def compute_random_baselines(datasets: List[str]) -> Dict[str, Dict[str, Optional[float]]]:
-    """Return {metric_name: {dataset: value, 'average': value}} for a random ranker.
+def load_l1_label_counts(
+    ds: str, model_suffix: str, base_dir: Path, results_subdir: str
+) -> Tuple[Dict[str, int], List[str]]:
+    """Return (window count per L1 label over the whole retrieval index, query labels)."""
+    run_dir = base_dir / ds / results_subdir / f"{ds}_{model_suffix}"
+    index_counts = load_json(run_dir / "retrieval" / "retrieval_results_l1.json")["label_counts"]
+    query_labels = list(
+        load_json(run_dir / "comprehensive_results.json")["retrieval_metrics"]["L1"]
+        ["prototype_based"]["per_label"]["prototype2sensor"]["count"]
+    )
+    return {k: int(v) for k, v in index_counts.items()}, query_labels
 
-    P@k / mAP baseline = 1/N.
-    MRR baseline       = mean(1/i for i in 1..N).
+
+def expected_random_metrics(n: int, M: int) -> Dict[str, float]:
+    """Exact expected P@k, AP and RR for one query under a uniformly random ranking
+    of M windows of which n are relevant.
+
+    P@k (incl. k capped at n) = n/M.
+    RR: P(first relevant at rank r) = C(M-r, n-1) / C(M, n).
+    AP: H_M/M + (n-1)(M-H_M) / (M(M-1)).
     """
+    log_c_mn = math.lgamma(M + 1) - math.lgamma(n + 1) - math.lgamma(M - n + 1)
+    rr = sum(
+        math.exp(math.lgamma(M - r + 1) - math.lgamma(n) - math.lgamma(M - r - n + 2) - log_c_mn) / r
+        for r in range(1, M - n + 2)
+    )
+    h_m = sum(1.0 / i for i in range(1, M + 1))
+    ap = h_m / M + ((n - 1) * (M - h_m) / (M * (M - 1)) if M > 1 else 0.0)
+    return {"P@k": n / M, "mAP": ap, "MRR": rr}
+
+
+def compute_random_baselines(
+    datasets: List[str],
+    label_counts: Dict[str, Tuple[Dict[str, int], List[str]]],
+) -> Dict[str, Dict[str, Optional[float]]]:
+    """Return {metric_name: {dataset: value, 'average': value}} for a uniformly random
+    ranking of each dataset's retrieval index, macro-averaged over query labels."""
+    per_ds: Dict[str, Dict[str, float]] = {}
+    for ds in datasets:
+        if ds not in label_counts:
+            continue
+        index_counts, query_labels = label_counts[ds]
+        M = sum(index_counts.values())
+        per_label = [expected_random_metrics(index_counts[l], M) for l in query_labels]
+        per_ds[ds] = {m: sum(p[m] for p in per_label) / len(per_label) for m in ("P@k", "mAP", "MRR")}
+
     rows: Dict[str, Dict[str, Optional[float]]] = {}
     for metric_name in LATEX_METRIC_ORDER:
-        row: Dict[str, Optional[float]] = {}
-        for ds in datasets:
-            N = RANDOM_BASELINE_N.get(ds)
-            if N is None:
-                row[ds] = None
-            elif metric_name == "MRR":
-                row[ds] = round(sum(1.0 / i for i in range(1, N + 1)) / N, 4)
-            else:
-                row[ds] = round(1.0 / N, 4)
+        key = "P@k" if metric_name.startswith("P@") else metric_name
+        row: Dict[str, Optional[float]] = {
+            ds: round(per_ds[ds][key], 4) if ds in per_ds else None for ds in datasets
+        }
         present = [v for v in row.values() if v is not None]
         row["average"] = round(sum(present) / len(present), 4) if present else None
         rows[metric_name] = row
     return rows
 
 
-def _fmt_cell(value: Optional[float], is_best: bool) -> str:
+def wilcoxon_signed_rank_exact(x: List[float], y: List[float]) -> Dict[str, Optional[float]]:
+    """Two-sided exact Wilcoxon signed-rank test of x vs y (paired).
+
+    Zero differences are dropped (Wilcoxon's method); tied |d| get average ranks and
+    the null distribution of W+ is enumerated exactly over all 2^n sign assignments
+    of the observed ranks.
+    """
+    d = [round(a - b, 10) for a, b in zip(x, y)]
+    nz = [v for v in d if v != 0.0]
+    n = len(nz)
+    res: Dict[str, Optional[float]] = {
+        "n_labels": len(d),
+        "n_nonzero": n,
+        "wins": sum(v > 0 for v in d),
+        "losses": sum(v < 0 for v in d),
+        "ties": sum(v == 0.0 for v in d),
+        "mean_diff": sum(d) / len(d) if d else None,
+        "median_diff": sorted(d)[len(d) // 2] if len(d) % 2 else
+                       (sorted(d)[len(d) // 2 - 1] + sorted(d)[len(d) // 2]) / 2 if d else None,
+        "w_plus": None, "w_minus": None, "p_value": None,
+    }
+    if n == 0:
+        res["p_value"] = 1.0
+        return res
+
+    order = sorted(range(n), key=lambda i: abs(nz[i]))
+    ranks2 = [0] * n  # doubled average ranks → integers
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and abs(nz[order[j + 1]]) == abs(nz[order[i]]):
+            j += 1
+        for k in range(i, j + 1):
+            ranks2[order[k]] = i + j + 2  # 2 * mean(i+1 .. j+1)
+        i = j + 1
+
+    total2 = sum(ranks2)
+    w2_obs = sum(r for r, v in zip(ranks2, nz) if v > 0)
+    counts = [0] * (total2 + 1)
+    counts[0] = 1
+    for r in ranks2:
+        for s in range(total2, r - 1, -1):
+            counts[s] += counts[s - r]
+    dev_obs = abs(2 * w2_obs - total2)
+    extreme = sum(c for s, c in enumerate(counts) if abs(2 * s - total2) >= dev_obs)
+    res["w_plus"] = w2_obs / 2
+    res["w_minus"] = (total2 - w2_obs) / 2
+    res["p_value"] = min(1.0, extreme / 2 ** n)
+    return res
+
+
+def compute_significance(
+    datasets: List[str],
+    per_label_by_dir: Dict[str, Dict[str, Dict[str, Dict[str, float]]]],
+) -> Dict:
+    """Pre-specified test: SIG_TOOL_DIR vs SIG_BASELINE_DIR over L1 labels, per home and pooled."""
+    tool, base = per_label_by_dir.get(SIG_TOOL_DIR, {}), per_label_by_dir.get(SIG_BASELINE_DIR, {})
+    out: Dict = {
+        "comparison": f"{DIRECTION_ROW_LABELS[SIG_TOOL_DIR]} vs {DIRECTION_ROW_LABELS[SIG_BASELINE_DIR]}",
+        "directions": [SIG_TOOL_DIR, SIG_BASELINE_DIR],
+        "test": "two-sided exact Wilcoxon signed-rank over L1 labels (zero differences dropped, "
+                "ties given average ranks, exact null enumeration)",
+        "label_level": "L1",
+        "metrics": {},
+    }
+    for mk, role in SIG_METRICS:
+        mname = dict(METRICS)[mk]
+        entry: Dict = {"role": role, "per_home": {}, "pooled": None}
+        pooled_x: List[float] = []
+        pooled_y: List[float] = []
+        for ds in datasets:
+            labels = sorted(
+                l for l in tool.get(ds, {})
+                if l.startswith("[L1]") and mk in tool[ds][l] and mk in base.get(ds, {}).get(l, {})
+            )
+            x = [tool[ds][l][mk] for l in labels]
+            y = [base[ds][l][mk] for l in labels]
+            if not labels:
+                continue
+            r = wilcoxon_signed_rank_exact(x, y)
+            r["per_label"] = {l[4:].strip(): {"tool": a, "baseline": b} for l, a, b in zip(labels, x, y)}
+            entry["per_home"][ds] = r
+            pooled_x += x
+            pooled_y += y
+        entry["pooled"] = wilcoxon_signed_rank_exact(pooled_x, pooled_y) if pooled_x else None
+        out["metrics"][mname] = entry
+    return out
+
+
+def significance_to_markdown(sig: Dict, datasets: List[str]) -> str:
+    lines = [
+        f"## Significance — {sig['comparison']}",
+        "",
+        f"> {sig['test']}. Pre-specified: mAP primary, P@100 secondary; P@10, P@50 and MRR exploratory. "
+        "Per home and pooled across homes.",
+        "",
+        "| Metric | Scope | Labels | Wins / Losses / Ties | Mean Δ | Median Δ | W+ | W− | p |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for mname, entry in sig["metrics"].items():
+        scopes = [(ds.capitalize(), entry["per_home"].get(ds)) for ds in datasets] + [("Pooled", entry["pooled"])]
+        for scope, r in scopes:
+            if not r:
+                continue
+            lines.append(
+                f"| {mname} ({entry['role']}) | {scope} | {r['n_labels']} | "
+                f"{r['wins']} / {r['losses']} / {r['ties']} | {r['mean_diff']:+.3f} | {r['median_diff']:+.3f} | "
+                f"{r['w_plus'] if r['w_plus'] is not None else MISSING} | "
+                f"{r['w_minus'] if r['w_minus'] is not None else MISSING} | {r['p_value']:.4f} |"
+            )
+    lines.append("")
+    return "\n".join(lines)
+
+
+# Stars that must come out of the saved Wilcoxon tests (SensorQ vs Pure CLIP).
+# * p<0.05, ** p<0.01. No p<0.001 and no p<0.1 marks occur.
+_EXPECTED_STARS: Dict[Tuple[str, str], str] = {
+    ("mAP", "average"): "**",
+    ("mAP", "milan"): "*",
+    ("mAP", "cairo"): "**",
+    ("P@50", "average"): "*",
+    ("P@50", "cairo"): "*",
+    ("P@100", "average"): "**",
+    ("P@100", "cairo"): "**",
+}
+_WILCOXON_JSON = (
+    Path(__file__).resolve().parents[3]
+    / "results/evals/imwut_paper/retrieval_v3/wilcoxon_vs_pure_clip.json"
+)
+
+
+def _star_mark(p: Optional[float]) -> str:
+    if p is None:
+        return ""
+    if p < 0.001:
+        raise SystemExit(f"Wilcoxon p={p} is below 0.001; the table has no *** level")
+    if p < 0.01:
+        return "**"
+    if p < 0.05:
+        return "*"
+    return ""
+
+
+def _sig_record(significance: Dict, metric: str, sk: str) -> Optional[Dict]:
+    entry = significance.get("metrics", {}).get(metric, {})
+    if sk == "average":
+        return entry.get("pooled")
+    return entry.get("per_home", {}).get(sk)
+
+
+def _assert_significance(significance: Dict, sub_keys: List[str]) -> Dict[Tuple[str, str], str]:
+    """Stars for SensorQ vs Pure CLIP. Stops if the saved tests disagree with the table."""
+    if _WILCOXON_JSON.exists():
+        saved = json.loads(_WILCOXON_JSON.read_text())
+        for metric in ("mAP", "P@100"):
+            for scope in ("milan", "aruba", "cairo", "pooled"):
+                sk = "average" if scope == "pooled" else scope
+                rec = _sig_record(significance, metric, sk)
+                got = None if not rec else rec.get("p_value")
+                exp = saved["results"][metric][scope]["p"]
+                if got is None or abs(float(got) - float(exp)) > 1e-9:
+                    raise SystemExit(
+                        f"Wilcoxon JSON {metric} {scope} p={exp} but table source has p={got}"
+                    )
+    marks: Dict[Tuple[str, str], str] = {}
+    for metric in LATEX_METRIC_ORDER:
+        for sk in sub_keys:
+            rec = _sig_record(significance, metric, sk)
+            p = None if not rec else rec.get("p_value")
+            mark = _star_mark(None if p is None else float(p))
+            if mark and rec["w_plus"] < rec["w_minus"]:
+                raise SystemExit(
+                    f"{metric} {sk}: p={p} favors Pure CLIP (W+={rec['w_plus']}, W-={rec['w_minus']}). "
+                    "Stopping; no star was written."
+                )
+            marks[(metric, sk)] = mark
+    if marks != {**{k: "" for k in marks}, **_EXPECTED_STARS}:
+        bad = {k: marks[k] for k in marks if marks[k] != _EXPECTED_STARS.get(k, "")}
+        raise SystemExit(f"Significance marks disagree with the current table: {bad}")
+    return marks
+
+
+def _fmt_value(value: Optional[float], *, bold: bool, grey: bool, stars: str) -> str:
     if value is None:
-        return MISSING
-    s = f"{value:.2f}"
-    return f"\\textbf{{{s}}}" if is_best else s
+        text = MISSING
+    else:
+        text = f"{value:.2f}"
+        if bold:
+            text = f"\\textbf{{{text}}}"
+    if stars == "**":
+        # Right-aligned cell: the double star is wider than the right padding and
+        # crosses the rule. Pull the number left into the existing left padding and
+        # give that width back on the right, so the zero-width star stays inside
+        # the cell and the column does not grow. \hspace* so the leading skip is
+        # not discarded at the start of the entry.
+        text = f"\\hspace*{{-3pt}}{text}\\rlap{{$^{{{stars}}}$}}\\hspace{{3pt}}"
+    elif stars:
+        text += f"\\rlap{{$^{{{stars}}}$}}"
+    if grey:
+        text = f"{{\\color{{black!50}}{text}}}"
+    return text
 
 
 def _build_comparison_tabular(
     datasets: List[str],
     random_baselines: Dict[str, Dict[str, Optional[float]]],
     summaries_by_dir: Dict[str, Dict[str, Dict[str, Optional[float]]]],
+    significance: Optional[Dict] = None,
 ) -> List[str]:
     """Return LaTeX lines from \\begin{tabular} to \\end{tabular} (inclusive)."""
-    sub_keys = datasets + ["average"]
+    sub_keys = ["average"] + datasets
     ds_abbr  = {ds: ds.capitalize()[:2] + "." for ds in datasets}
     ds_abbr["average"] = "Avg."
 
-    our_method_label = DIRECTION_ROW_LABELS.get("prototype2sensor")
-    non_our: List[Tuple[str, Dict]] = [("Random Baseline", random_baselines)]
-    our: List[Tuple[str, Dict]] = []
-    for dir_key, _, _ in DIRECTIONS:
-        label = DIRECTION_ROW_LABELS.get(dir_key, dir_key)
-        data  = summaries_by_dir.get(dir_key, {})
-        (our if label == our_method_label else non_our).append((label, data))
-    row_defs = non_our + our  # Our Method always last
+    # grey rows are reference points and are never bold. Bold is Pure CLIP vs \ToolName only.
+    clip = summaries_by_dir.get("prototype2text_noproj", {})
+    proj = summaries_by_dir.get("prototype2text", {})
+    ours = summaries_by_dir.get("prototype2sensor", {})
+    row_defs: List[Tuple[str, str, Dict]] = [
+        ("grey", "Random (chance)", random_baselines),
+        ("base", "Text only (Pure CLIP)", clip),
+        ("grey", r"\quad$\hookrightarrow$ + learned projection", proj),
+        ("ours", r"\textbf{\ToolName} (ours)", ours),
+    ]
+    stars = _assert_significance(significance, sub_keys) if significance else {}
 
-    best: Dict[Tuple[str, str], float] = {}
-    for metric in LATEX_METRIC_ORDER:
-        for sk in sub_keys:
-            vals    = [d.get(metric, {}).get(sk) for _, d in row_defs]
-            present = [v for v in vals if v is not None]
-            if present:
-                best[(metric, sk)] = max(present)
+    def _bold(metric: str, sk: str, role: str) -> bool:
+        if role == "grey":
+            return False
+        a, b = clip.get(metric, {}).get(sk), ours.get(metric, {}).get(sk)
+        if a is None or b is None:
+            return False
+        sa, sb = f"{a:.2f}", f"{b:.2f}"
+        return sa >= sb if role == "base" else sb >= sa
 
     # Metrics after which a double rule separates the next group
     _DOUBLE_AFTER = {"P@100", "mAP"}
 
     n = len(LATEX_METRIC_ORDER)
 
-    # Column spec: l | rrr|r | rrr|r | rrr|r || rrr|r || rrr|r
-    #   - rrr|r  : single rule between Ca. and Avg. within every group
+    # Column spec: l | r|rrr | r|rrr | r|rrr || r|rrr || r|rrr
+    #   - r|rrr  : shaded Avg. first, single rule before the homes in every group
     #   - |  / || : single / double rule between metric groups
     col_parts: List[str] = ["l|"]
     for i, metric in enumerate(LATEX_METRIC_ORDER):
         # !{\vrule} is drawn traditionally (interrupted by hlines); | is drawn by
-        # nicematrix via TikZ (uninterrupted). Use !{\vrule} for Ca./Avg. separator.
-        col_parts.append("rrr!{\\vrule}r")
+        # nicematrix via TikZ (uninterrupted). Use !{\vrule} for the Avg./Mi. separator.
+        col_parts.append("r!{\\vrule}rrr")
         if i < n - 1:
             col_parts.append("||" if metric in _DOUBLE_AFTER else "|")
     col_spec = "".join(col_parts)
@@ -456,8 +701,15 @@ def _build_comparison_tabular(
     ]
     sub_abbrs = [ds_abbr[sk] for sk in sub_keys]
 
+    # NiceTabular ignores \columncolor in the preamble, so shade in \CodeBefore,
+    # from the sub-header row (row 2) down, leaving the metric-name row white.
+    n_rows = 2 + len(row_defs)
+    avg_shading = " ".join(
+        f"\\rectanglecolor{{black!5}}{{2-{2 + i * 4}}}{{{n_rows}-{2 + i * 4}}}" for i in range(n)
+    )
     lines: List[str] = [
         f"\\begin{{NiceTabular}}{{{col_spec}}}",
+        f"\\CodeBefore {avg_shading} \\Body",
         "\\toprule",
         " & ".join([""] + mc_headers) + " \\\\",
         "".join(hdr_cmidrules),
@@ -465,19 +717,23 @@ def _build_comparison_tabular(
         "\\midrule",
     ]
     last_idx = len(row_defs) - 1
-    for i, (label, data) in enumerate(row_defs):
-        cells = [label]
+    for i, (role, label, data) in enumerate(row_defs):
+        shown = f"{{\\color{{black!50}}{label}}}" if role == "grey" else label
+        cells = [shown]
         for metric in LATEX_METRIC_ORDER:
             for sk in sub_keys:
-                v       = data.get(metric, {}).get(sk)
-                top     = best.get((metric, sk))
-                is_best = v is not None and top is not None and abs(v - top) < 1e-9
-                cells.append(_fmt_cell(v, is_best))
+                mark = stars.get((metric, sk), "") if role == "ours" else ""
+                cells.append(_fmt_value(
+                    data.get(metric, {}).get(sk),
+                    bold=_bold(metric, sk, role),
+                    grey=role == "grey",
+                    stars=mark,
+                ))
         lines.append(" & ".join(cells) + " \\\\")
         if i == 0:
             lines.append("\\midrule")
         elif i == last_idx - 1:
-            # Heavier rule above Our Method row (same weight as \toprule/\bottomrule)
+            # Heavier rule above the \ToolName row (same weight as \toprule/\bottomrule)
             lines.append("\\specialrule{0.10em}{\\aboverulesep}{\\belowrulesep}")
     lines += ["\\bottomrule", "\\end{NiceTabular}"]
     return lines
@@ -489,23 +745,28 @@ def generate_latex_comparison_table(
     summaries_by_dir: Dict[str, Dict[str, Dict[str, Optional[float]]]],
     output_path: Path,
     label_level: str = "L1",
+    significance: Optional[Dict] = None,
 ) -> None:
-    """Write a 3-row LaTeX comparison table wrapped in table* for an ACM paper."""
-    tabular = _build_comparison_tabular(datasets, random_baselines, summaries_by_dir)
+    """Write the LaTeX comparison table wrapped in table* for an ACM paper."""
+    tabular = _build_comparison_tabular(datasets, random_baselines, summaries_by_dir, significance)
     lines: List[str] = [
+        "% requires nicematrix, booktabs, xcolor",
         "\\begin{table*}[t]",
         "\\centering",
-        (
-            f"\\caption{{Prototype-to-sensor retrieval performance on CASAS datasets using their annotations, macro averaged."
-            f"Best result per column in \\textbf{{bold}}.}}"
-        ),
+        "\\caption{Text-to-sensor retrieval on CASAS test windows: mean Average Precision (mAP), Precision at $k$ (P@$k$), and Mean Reciprocal Rank (MRR), macro-averaged over",
+        "activities, for the Milan (Mi.), Aruba (Ar.), and Cairo (Ca.) homes and their mean (Avg., shaded).",
+        "Pure CLIP caption embeddings are the main baseline; Random gives a lower bound, and CLIP + learned projection row shows the effect of adding \\ToolName{}'s text projection to the baseline.",
+        "On average over homes, \\ToolName{} outperforms Pure CLIP on every metric except MRR.",
+        "Bold marks show the best result between the baseline and \\ToolName{} in each column.",
+        "$^{*}$ ($p<0.05$) and $^{**}$ ($p<0.01$) mark significant improvements over the baseline",
+        "(two-sided exact Wilcoxon signed-rank test over activities); no metric favors Pure CLIP significantly.}",
         "\\label{tab:retrieval_quant}",
         "\\small",
         "\\resizebox{\\textwidth}{!}{%",
         *tabular,
         "}",
-        "\\end{table*}",
     ]
+    lines.append("\\end{table*}")
     output_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"✅  TEX  saved: {output_path}")
 
@@ -608,9 +869,10 @@ def generate_png_preview(
     summaries_by_dir: Dict[str, Dict[str, Dict[str, Optional[float]]]],
     output_path: Path,
     label_level: str = "L1",
+    significance: Optional[Dict] = None,
 ) -> None:
     """Compile the quant comparison table to PNG (exact Overleaf rendering)."""
-    tabular = _build_comparison_tabular(datasets, random_baselines, summaries_by_dir)
+    tabular = _build_comparison_tabular(datasets, random_baselines, summaries_by_dir, significance)
     standalone = "\n".join([*_STANDALONE_PREAMBLE, r"\begin{document}", r"\small",
                              *tabular, r"\end{document}"])
     _compile_to_png(standalone, output_path)
@@ -706,8 +968,9 @@ def generate_all_labels_table(
         "\\begin{table*}[t]",
         "\\centering",
         (
-            "\\caption{\\ToolName prototype-to-sensor retrieval per L1 activity label "
-            "(macro-averaged). {\\bf --} = label not present in that household.}"
+            "\\caption{\\ToolName{} text-to-sensor retrieval per annotated activity, with one natural-language "
+            "query per activity. $n$ is the number of relevant test windows; {\\bf --} marks an activity not "
+            "present in that home.}"
         ),
         "\\label{tab:retrieval_quant_all_labels}",
         "\\small",
@@ -1038,6 +1301,7 @@ def main() -> None:
     # Stash p2s per-label data for the per-L1-label all_labels table
     p2s_per_label:       Dict[str, Dict[str, Dict[str, float]]] = {}
     p2s_ordered_l1:      List[str] = []
+    per_label_by_dir:    Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
 
     # ── one output file per direction ─────────────────────────────────────────
     for dir_key, dir_tag, dir_display in DIRECTIONS:
@@ -1051,6 +1315,7 @@ def main() -> None:
             direction=dir_key,
         )
 
+        per_label_by_dir[dir_key] = per_label
         if dir_key == "prototype2sensor":
             p2s_per_label  = per_label
             p2s_ordered_l1 = [lbl for lbl in ordered_labels if lbl.startswith("[L1]")]
@@ -1117,7 +1382,14 @@ def main() -> None:
         latex_summaries[dir_key] = summary["L1"]
 
     # ── LaTeX + HTML comparison table (all directions collected) ─────────────
-    random_baselines = compute_random_baselines(args.datasets)
+    label_counts: Dict[str, Tuple[Dict[str, int], List[str]]] = {}
+    for ds in args.datasets:
+        try:
+            label_counts[ds] = load_l1_label_counts(ds, args.model_suffix, base_dir, args.results_subdir)
+        except (FileNotFoundError, KeyError) as exc:
+            print(f"[WARN] No label counts for random baseline ({ds}): {exc}", file=sys.stderr)
+    random_baselines = compute_random_baselines(args.datasets, label_counts)
+    significance = compute_significance(args.datasets, per_label_by_dir)
 
     generate_latex_comparison_table(
         datasets=args.datasets,
@@ -1125,6 +1397,7 @@ def main() -> None:
         summaries_by_dir=latex_summaries,
         output_path=output_dir / "retrieval_results_quant.tex",
         label_level="L1",
+        significance=significance,
     )
     generate_png_preview(
         datasets=args.datasets,
@@ -1132,8 +1405,55 @@ def main() -> None:
         summaries_by_dir=latex_summaries,
         output_path=output_dir / "retrieval_results_quant.png",
         label_level="L1",
+        significance=significance,
     )
     generate_qual_table(args.datasets, output_dir)
+
+    # ── combined quant results + significance (retrieval_results_quant.{json,md}) ──
+    rows = {"Random": random_baselines}
+    rows.update({DIRECTION_ROW_LABELS[d]: latex_summaries.get(d, {}) for d, _, _ in DIRECTIONS})
+    l1_per_label = {
+        DIRECTION_ROW_LABELS[d]: {
+            ds: {lbl[4:].strip(): v for lbl, v in per_label_by_dir.get(d, {}).get(ds, {}).items()
+                 if lbl.startswith("[L1]")}
+            for ds in args.datasets
+        }
+        for d, _, _ in DIRECTIONS
+    }
+    quant_json = output_dir / "retrieval_results_quant.json"
+    with open(quant_json, "w") as f:
+        json.dump({
+            "model_suffix":   args.model_suffix,
+            "results_subdir": args.results_subdir,
+            "label_level":    "L1",
+            "aggregation":    "macro over L1 labels per home; 'average' = mean over homes",
+            "index_size":     {ds: sum(c.values()) for ds, (c, _) in label_counts.items()},
+            "rows":           rows,
+            "per_label":      l1_per_label,
+            "significance":   significance,
+        }, f, indent=2)
+    print(f"✅  JSON  saved: {quant_json}")
+
+    md_lines = [
+        "# Retrieval Results (L1, macro)",
+        "",
+        f"**Model suffix**: `{args.model_suffix}` · **Data**: `{args.results_subdir}` test split · "
+        f"**Index size**: " + ", ".join(f"{ds} {sum(c.values())}" for ds, (c, _) in label_counts.items()),
+        "",
+        "| Method | " + " | ".join(f"{m} {ds[:2].capitalize()}." for m in LATEX_METRIC_ORDER
+                                   for ds in args.datasets + ["avg"]) + " |",
+        "| --- | " + " | ".join(["---"] * len(LATEX_METRIC_ORDER) * (len(args.datasets) + 1)) + " |",
+    ]
+    for name, data in rows.items():
+        cells = [
+            f"{v:.2f}" if (v := data.get(m, {}).get(sk)) is not None else MISSING
+            for m in LATEX_METRIC_ORDER for sk in args.datasets + ["average"]
+        ]
+        md_lines.append(f"| {name} | " + " | ".join(cells) + " |")
+    md_lines += ["", significance_to_markdown(significance, args.datasets)]
+    quant_md = output_dir / "retrieval_results_quant.md"
+    quant_md.write_text("\n".join(md_lines), encoding="utf-8")
+    print(f"✅  MD   saved: {quant_md}")
 
     # ── per-L1-label all_labels table ─────────────────────────────────────────
     generate_all_labels_table(

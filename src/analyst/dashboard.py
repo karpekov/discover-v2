@@ -17,7 +17,7 @@ import pandas as pd
 
 from .config import get_home
 from .rater import _wilson
-from .review import _step_metrics, _vote
+from .review import _step_metrics, consensus_votes
 from .summary import primary_stat, status, trend_arrows
 
 _TEMPLATE = Path(__file__).with_name("dashboard_template.html")
@@ -106,7 +106,7 @@ def _load_review(rdir: Path) -> dict:
         ratings = pd.concat([pd.read_csv(p) for p in rating_paths], ignore_index=True)
         ratings["rating"] = ratings["rating"].astype(str).str.lower().str.strip()
         ratings = ratings.drop_duplicates(["reviewer", "item_id"], keep="last")
-        consensus = {i: _vote(v) for i, v in ratings.groupby("item_id")["rating"].apply(list).items()}
+        consensus = consensus_votes(ratings)
         outcome = {}
         for q in scores["consensus"]["funnel"]["per_question"]:
             step1 = next((n for n in q["path"] if str(n).startswith("s1_")), q["outcome"])
@@ -140,6 +140,8 @@ def _load_review(rdir: Path) -> dict:
     return {
         "name": name,
         "reviewers": scores["reviewers"],
+        "consensus_reviewers": scores.get("consensus_reviewers", scores["reviewers"]),
+        "excluded_reviewers": scores.get("excluded_reviewers", []),
         "n_ratings": scores["n_ratings"],
         "n_items": scores["n_items"],
         "n_items_rated": scores["n_items_rated"],

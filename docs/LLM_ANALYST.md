@@ -334,12 +334,16 @@ Questions are shown in one fixed shuffled order (seeded, same order in every hom
 the order in the question file. Keys: y/1 yes, n/2 no, u/3 unsure, then the next item.
 The answer key (`review_v2_key/`) was not in the packet.
 
-Two reviewers. `alexkarpekov_oct241` rated all three homes on 24–25 October 2026.
-`Archith Iyer` rated Milan only, including the Milan decoys. After the inventory edits,
-1,374 items are in the key and 1,373 have a rating (1,797 rating rows). The one unrated
-item is an Aruba retrieval sample that was already missing in v1. Majority vote: a yes/no
-tie, or no decided rating, is unsure. An unsure rating is ignored when the other rater
-decided. Aruba and Cairo have one rater, so the vote is his. Cohen's κ is Milan only.
+Four reviewers. `alexkarpekov_oct241` rated all three homes and every step. `Archith Iyer`
+rated all three homes on steps 1–3. `Edan Eyal` rated Milan and Aruba on steps 1–3.
+`Ankith Chandra` rated all three homes on steps 1–3. None of them rated findings.
+Consensus, per-step rates, and Fleiss' κ exclude Alex (`review.EXCLUDED_REVIEWERS`). His
+yes/no breaks a tie only when exactly three other reviewers split because one said unsure.
+The paper tables (`imwut_tables.py`) instead keep Alex on an item until it has more than
+three ratings, then drop him and use the same tie-break. Cairo therefore counts Ankith and
+Archith on the dashboard (a split is a tie) and Alex, Ankith, and Archith in the paper
+tables. Step 4 is Alex alone, so the dashboard has no step-4 consensus. Fleiss' κ is per
+home in the paper table and pooled in the dashboard, over reviewers who rated that step.
 
 ### Step 1 — is the question answerable here?
 
@@ -675,6 +679,8 @@ that is layout only.
 | `results/analyst/runs/analyst_questions/review/review_v2_results/` | `review_scores.json`, `review_report.html`, Sankey figures, `funnel_per_question.csv`. |
 | `review/review_v2/review_review_v2_{milan,aruba,cairo}_alexkarpekov_oct241.csv` | Alex's ratings, decoys included. |
 | `review/review_v2/review_review_v2_milan_Archith_Iyer.csv` | Archith's Milan ratings, decoys included. No step 4. |
+| `review/review_v2/review_review_v2_aruba_Archith_Iyer.csv` | Archith's Aruba ratings, steps 1–3, decoys included. No step 4. |
+| `review/review_v2/review_review_v2_milan_Ankith_Chandra.csv` | Ankith's Milan ratings, steps 1–3. No step 4. |
 
 Recompute the review tables and rebuild the dashboard with:
 
@@ -683,5 +689,7 @@ python src/analyst/run.py review-score --name review_v2 --ratings \
   results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_milan_alexkarpekov_oct241.csv \
   results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_aruba_alexkarpekov_oct241.csv \
   results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_cairo_alexkarpekov_oct241.csv \
-  results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_milan_Archith_Iyer.csv
+  results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_milan_Archith_Iyer.csv \
+  results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_aruba_Archith_Iyer.csv \
+  results/analyst/runs/analyst_questions/review/review_v2/review_review_v2_milan_Ankith_Chandra.csv
 ```

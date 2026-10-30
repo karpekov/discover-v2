@@ -659,7 +659,8 @@ _DIRECTION_DISPLAY = {
     'sensor2sensor':   'Sensor → Sensor',
     'text2text':       'Text → Text',
     'prototype2sensor': 'Prototype → Sensor',
-    'prototype2text':  'Prototype → Text',
+    'prototype2text':  'Prototype → Text (CLIP + proj)',
+    'prototype2text_noproj': 'Prototype → Text (pure CLIP)',
 }
 
 

@@ -1,5 +1,33 @@
 # Prototype-Based Retrieval Metrics - Implementation Summary
 
+## Current setup (IMWUT `tab:retrieval_quant`)
+
+- Produced by `src/evals/evaluate_embeddings.py --eval_all` per home (`FD_60_p` test split,
+  `--max_samples 20000` so no subsampling, `--filter_noisy_labels --filter_minor_labels`,
+  `--description_style long_desc`), then aggregated by `src/evals/imwut_paper/retrieval_metrics_agg.py`.
+- Queries: one `long_desc[0]` sentence per L1 label from `metadata/casas_metadata.json`.
+  Relevance = window's (single) L1 label equals the query label. Index contains only query labels.
+- Directions / table rows:
+  - `prototype2sensor` → **\ToolName**: query through CLIP + learned text projection vs sensor encoder.
+  - `prototype2text_noproj` → **Text Only: Pure CLIP** (main baseline): frozen CLIP `pooler_output`
+    (L2-normalised) for both the query and the window's first caption; no learned projection.
+  - `prototype2text` → **Text Only: CLIP + Learned Projection**: same caption and query, both through
+    the checkpoint's learned text projection.
+- Random baseline row: exact expectation under a random ranking of each home's index
+  (`expected_random_metrics`: P@k = n/M, hypergeometric RR, closed-form AP), macro over labels.
+- Significance (pre-specified): \ToolName vs Pure CLIP, two-sided exact Wilcoxon signed-rank over
+  L1 labels, per home and pooled. Full stats in `results/evals/imwut_paper/retrieval_results_quant.{json,md}`.
+  The .tex table puts `*`/`**` on the \ToolName cell only (`\rlap`, so column width is unchanged).
+  `**` cells are shifted 3pt left so the wider mark stays inside the column.
+  Bold is the better of Pure CLIP and \ToolName at two decimals. Grey rows (random, learned projection)
+  are not compared and are never bold.
+- `src/evals/imwut_paper/retrieval_wilcoxon_table.py` (run after the aggregator) writes
+  `tab:retrieval_wilcoxon` (`retrieval_wilcoxon.tex`) and `retrieval_v3/wilcoxon_vs_pure_clip.json`
+  from the same comprehensive_results.json files; asserts per-activity values and pooled p match
+  `retrieval_results_quant.json`. scipy exact p when ranks are untied, exact tied-rank enumeration otherwise.
+- .tex layout: Avg. is the first, shaded sub-column of each metric (`\CodeBefore \columncolor`, since
+  NiceTabular ignores `\columncolor` in the column preamble).
+
 ## Overview
 
 Extended `compute_retrieval_metrics.py` to support **prototype-based retrieval** in addition to instance-to-instance retrieval. This allows evaluating how well label descriptions (text prototypes) can retrieve actual sensor and text embeddings.
