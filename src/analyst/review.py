@@ -504,27 +504,55 @@ def _vote(vals: List[str]) -> str:
     return "yes" if y > n else "no" if n > y else "unsure"
 
 
-TIEBREAK_PANEL = 3
+def consensus_votes(ratings: pd.DataFrame) -> Dict[str, str]:
+    """Majority vote per item over the reviewers not in EXCLUDED_REVIEWERS.
 
-
-def consensus_votes(ratings: pd.DataFrame, counted: pd.DataFrame | None = None) -> Dict[str, str]:
-    """Majority vote per item over ``counted`` (default: ``ratings`` without EXCLUDED_REVIEWERS).
-
-    When exactly TIEBREAK_PANEL non-excluded reviewers rated an item and they tie (an unsure split them),
-    an excluded reviewer's yes/no on that item breaks the tie.
+    A tie among them (including an item none of them rated) is broken by an excluded reviewer's
+    yes/no. With three reviewers per item, only an unsure can cause a tie.
     """
-    if counted is None:
-        counted = _consensus_ratings(ratings)
+    counted = _consensus_ratings(ratings)
     counted = counted[counted["rating"].isin(["yes", "no", "unsure"])]
     votes = {i: _vote(v) for i, v in counted.groupby("item_id")["rating"].apply(list).items()}
-    excl = counted["reviewer"].map(_is_excluded)
-    panel = counted[~excl].groupby("item_id").size()
-    has_excluded = set(counted.loc[excl, "item_id"])
     breakers = ratings[ratings["reviewer"].map(_is_excluded) & ratings["rating"].isin(["yes", "no"])]
     for item, rating in zip(breakers["item_id"], breakers["rating"]):
-        if votes.get(item) == "unsure" and panel.get(item, 0) == TIEBREAK_PANEL and item not in has_excluded:
+        if votes.get(item, "unsure") == "unsure":
             votes[item] = rating
     return votes
+
+
+# Raters per item for Fleiss' κ, by step. Findings (step 4) have one external reviewer plus Alex.
+KAPPA_PANEL = {1: 3, 2: 3, 3: 3, 4: 2}
+
+
+def kappa_ratings(ratings: pd.DataFrame, step_of: pd.Series) -> pd.DataFrame:
+    """Ratings for Fleiss' κ: the non-excluded reviewers, plus an excluded reviewer on items
+    that have fewer than the step's KAPPA_PANEL of them."""
+    rated = ratings[ratings["rating"].isin(["yes", "no", "unsure"])]
+    rated = rated.drop_duplicates(["reviewer", "item_id"], keep="last")
+    rated = rated[rated["item_id"].isin(step_of.index)]
+    excl = rated["reviewer"].map(_is_excluded)
+    n_other = rated[~excl].groupby("item_id").size()
+    panel = rated["item_id"].map(step_of).map(KAPPA_PANEL)
+    fill = excl & rated["item_id"].map(n_other).fillna(0).lt(panel)
+    return rated[~excl | fill]
+
+
+def fleiss_by_step(key: pd.DataFrame, ratings: pd.DataFrame) -> Dict[str, dict]:
+    """Fleiss' κ per step over items with exactly the step's KAPPA_PANEL yes/no ratings in kappa_ratings.
+
+    Raters may differ across items (Fleiss' κ needs only a fixed count per item). Step 2 includes decoys.
+    """
+    step_of = key.drop_duplicates("item_id").set_index("item_id")["step"]
+    per_item = kappa_ratings(ratings, step_of).groupby("item_id")["rating"].apply(list)
+    out = {}
+    for s in (1, 2, 3, 4):
+        n = KAPPA_PANEL[s]
+        rows = [v for i, v in per_item.items() if step_of[i] == s
+                and len(v) == n and all(x in ("yes", "no") for x in v)]
+        k = _fleiss(rows)
+        out[f"step{s}"] = {"kappa": None if k is None else round(k, 3), "n": len(rows),
+                           "raters": n if rows else 0}
+    return out
 
 
 def _majority_pass(vals: List[str]):
@@ -614,7 +642,7 @@ def score_review(key_dir: Path, rating_csvs: List[Path]) -> dict:
     counted = _consensus_ratings(ratings)
     voters = sorted(counted["reviewer"].unique())
 
-    consensus = consensus_votes(ratings, counted)
+    consensus = consensus_votes(ratings)
     cons_df = pd.DataFrame({"item_id": list(consensus), "vote": list(consensus.values())})
     res = {"reviewers": reviewers, "consensus_reviewers": voters,
            "excluded_reviewers": [r for r in reviewers if r not in voters], "homes": rated_homes,
@@ -645,21 +673,7 @@ def score_review(key_dir: Path, rating_csvs: List[Path]) -> dict:
                 k = _kappa(a[m].tolist(), b[m].tolist())
                 pair[f"step{s}"] = {"kappa": None if k is None else round(k, 3), "n": int(m.sum())}
             res["kappa"][f"{reviewers[i]}~{reviewers[j]}"] = pair
-    # Fleiss: one coefficient per step over reviewers who rated that step.
-    # An item counts only when every one of those reviewers marked it yes or no.
-    # Step 2 includes far-caption decoys, same as Cohen's κ.
-    res["fleiss"] = {}
-    for s in (1, 2, 3, 4):
-        sub = wide.loc[wide.index.intersection(step_of[step_of.eq(s)].index)]
-        active = [rv for rv in voters if rv in sub.columns and sub[rv].isin(["yes", "no"]).any()]
-        if len(active) < 2 or sub.empty:
-            res["fleiss"][f"step{s}"] = {"kappa": None, "n": 0, "raters": len(active)}
-            continue
-        ok = sub[active].apply(lambda r: r.isin(["yes", "no"]).all(), axis=1)
-        rows = sub.loc[ok, active].astype(str).values.tolist()
-        k = _fleiss(rows)
-        res["fleiss"][f"step{s}"] = {
-            "kappa": None if k is None else round(k, 3), "n": len(rows), "raters": len(active)}
+    res["fleiss"] = fleiss_by_step(key, ratings)
     return res
 
 

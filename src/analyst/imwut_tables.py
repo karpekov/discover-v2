@@ -13,6 +13,7 @@ for all 29, for the appendix.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -25,77 +26,60 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from analyst.config import PROJECT_ROOT, RESULTS_DIR  # noqa: E402
-from analyst.rater import _fleiss  # noqa: E402
-from analyst.review import _funnel, consensus_votes  # noqa: E402
+from analyst.review import _funnel, consensus_votes, fleiss_by_step  # noqa: E402
 
 RUN = RESULTS_DIR / "runs" / "analyst_questions"
 REVIEW = "review_v2"
-ALEX = "alexkarpekov"
-MAX_RATINGS = 3
 OUT = RESULTS_DIR / "imwut_tables"
 HOMES = ["milan", "aruba", "cairo"]
 SCOPES = ["all", *HOMES]
 
 # (kind, key, latex label). kind is "group", "rate", or "kappa".
-# rate key is the step metric. kappa key is the step number (2 includes decoys).
+# group label is (step title, raters' question). rate key is the step metric.
+# kappa key is the step number (controls included).
 ROWS = [
-    ("group", None, r"1.\ Is the question answerable?"),
-    ("rate", "step1", r"Agrees with \ToolName{}"),
-    ("rate", "step1_answerable", r"\hspace{0.4em}\ToolName{} said answerable"),
-    ("rate", "step1_not_answerable", r"\hspace{0.4em}\ToolName{} said not answerable"),
-    ("kappa", 1, r"\hspace{0.4em}Fleiss' $\kappa$"),
-    ("group", None, r"2.\ Is the re-written query relevant"),
-    ("rate", "step2", r"Planner query"),
-    ("rate", "step2_decoy", r"\hspace{0.4em}Negative Examples$^{\downarrow}$"),
-    ("kappa", 2, r"\hspace{0.4em}Fleiss' $\kappa$"),
-    ("group", None, r"3.\ Retrieved data sample contains the behavior"),
-    ("rate", "step3_top", r"Top match"),
-    ("rate", "step3_random", r"Random match"),
-    ("rate", "step3_negative", r"Negative Examples$^{\downarrow}$"),
-    ("kappa", 3, r"\hspace{0.4em}Fleiss' $\kappa$"),
-    ("group", None, r"4.\ Is the finding supported?"),
-    ("rate", "step4", r"Finding"),
-    ("kappa", 4, r"\hspace{0.4em}Fleiss' $\kappa$"),
+    ("group", None, (r"1\,$\cdot$\,Answerable?", r"Can this home's sensors answer the question?")),
+    ("rate", "step1", r"\textbf{Agreed with \ToolName{}}"),
+    ("rate", "step1_answerable", r"\hspace*{0.6em}on accepted questions"),
+    ("rate", "step1_not_answerable", r"\hspace*{0.6em}on declined questions"),
+    ("kappa", 1, r"\hspace*{0.6em}Fleiss' $\kappa$"),
+    ("group", None, (r"2\,$\cdot$\,Queries", r"Is the retrieval query relevant?")),
+    ("rate", "step2", r"\textbf{Relevant queries}"),
+    ("rate", "step2_decoy", r"\hspace*{0.6em}Decoy queries$^{\downarrow}$"),
+    ("kappa", 2, r"\hspace*{0.6em}Fleiss' $\kappa$"),
+    ("group", None, (r"3\,$\cdot$\,Retrieval", r"Does the retrieved window show the behavior?")),
+    ("rate", "step3", r"\textbf{Relevant windows}"),
+    ("rate", "step3_top", r"\hspace*{0.6em}$\hookrightarrow$\,Top-ranked windows"),
+    ("rate", "step3_random", r"\hangindent=1.9em\hspace*{0.6em}$\hookrightarrow$\,Random windows within threshold"),
+    ("rate", "step3_negative", r"\hspace*{0.6em}Low-similarity windows$^{\downarrow}$"),
+    ("kappa", 3, r"\hspace*{0.6em}Fleiss' $\kappa$"),
+    ("group", None, (r"4\,$\cdot$\,Findings", r"Is the finding supported?")),
+    ("rate", "step4", r"\textbf{Supported findings}"),
+    ("kappa", 4, r"\hspace*{0.6em}Fleiss' $\kappa$"),
 ]
 
+# {scope.metric} placeholders are filled from the table's own rates (rounded %), so the text tracks the data.
 NOTE = (
-    r"Each cell is the share of decided items on which the majority vote agrees with \ToolName{}, "
-    r"with yeses over decided items in parentheses. "
-    r"All is the pool of items, not the mean of the homes. "
-    r"A yes in step~1 means the vote matches \ToolName{}'s answerable\,/\,not verdict. "
-    r"A yes in steps~2--4 means the query was judged relevant, "
-    r"the retrieved sample contains the behavior, "
-    r"or the finding is supported. "
-    r"Rows marked $^{\downarrow}$ are controls and should be low. "
-    r"REVIEWERS_CLAUSE. "
-    r"Fleiss' $\kappa$ is how much the raters agree with each other."
+    r"Three independent raters judged the output of each step of \ToolName{} "
+    r"(majority vote; yes\,/\,decided per cell). The results are strong where the pipeline acts on a "
+    r"question: {all.step2}\% of retrieval queries were judged relevant, against {all.step2_decoy}\% of "
+    r"decoy queries mixed among them, and {all.step3_top}\% of top-ranked retrieved windows showed the "
+    r"intended behavior, against {all.step3_negative}\% of low-similarity windows. \ToolName{} is weaker "
+    r"at deciding what a home can answer: raters agreed with {all.step1_answerable}\% of the questions it "
+    r"accepted but only {all.step1_not_answerable}\% of those it declined "
+    r"({cairo.step1_not_answerable}\% in Cairo, which has motion sensors only), and precision drops from "
+    r"top-ranked to randomly drawn matched windows ({all.step3_top}\% vs.\ {all.step3_random}\%). "
+    r"Step~3 rates four top-ranked, two random above-threshold, and two low-similarity windows per "
+    r"concept; rows marked $^{\downarrow}$ are controls and should be low. Fleiss' $\kappa$ is computed "
+    r"over items decided by all three raters, including controls."
 )
 
-_NUM_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
 
-
-def _reviewer_clause(key: pd.DataFrame, ratings: pd.DataFrame) -> str:
-    """'Milan steps 1--3 have four reviewers; ...; step~4 has one in every home', from who rated what."""
-    rated = (ratings.loc[ratings["rating"].isin(["yes", "no"]), ["item_id", "reviewer"]]
-             .merge(key[["item_id", "home", "step"]], on="item_id"))
-    n = rated.groupby(["home", "step"])["reviewer"].nunique()
-    parts = []
-    for home in HOMES:
-        c = [int(n.get((home, s), 0)) for s in (1, 2, 3)]
-        if len(set(c)) == 1:
-            parts.append(f"{home.capitalize()} steps 1--3 have {_NUM_WORDS[c[0]]} "
-                         f"reviewer{'s' if c[0] != 1 else ''}")
-        else:
-            parts.append(f"{home.capitalize()} has " + ", ".join(
-                f"{_NUM_WORDS[k]} in step~{s}" for s, k in zip((1, 2, 3), c)))
-    s4 = {int(n.get((h, 4), 0)) for h in HOMES}
-    if len(s4) == 1:
-        k = s4.pop()
-        parts.append(f"step~4 has {_NUM_WORDS[k]} reviewer{'s' if k != 1 else ''} in every home")
-    else:
-        parts.append("step~4 has " + ", ".join(
-            f"{_NUM_WORDS[int(n.get((h, 4), 0))]} in {h.capitalize()}" for h in HOMES))
-    return "; ".join(parts)
+def _fill_note(note: str, by_scope: dict) -> str:
+    def pct(m: re.Match) -> str:
+        c = by_scope[m.group(1)][m.group(2)]
+        return f"{int(100 * c['yes'] / (c['yes'] + c['no']) + 0.5)}"
+    return re.sub(r"\{(\w+)\.(\w+)\}", pct, note)
 
 
 def _as_bool(v) -> bool:
@@ -109,15 +93,10 @@ def _load() -> tuple[pd.DataFrame, dict, pd.DataFrame]:
                         ignore_index=True)
     ratings["rating"] = ratings["rating"].astype(str).str.lower().str.strip()
     all_ratings = ratings.drop_duplicates(["reviewer", "item_id"], keep="last")
-    # Alex steps aside on any item with more than MAX_RATINGS ratings, so external reviewers replace him.
-    # He still breaks an unsure tie among those three (consensus_votes).
-    rated = all_ratings[all_ratings["rating"].isin(["yes", "no", "unsure"])]
-    crowded = rated.groupby("item_id")["reviewer"].transform("size") > MAX_RATINGS
-    ratings = all_ratings.drop(rated.index[crowded & rated["reviewer"].str.startswith(ALEX)])
     key["analyst_answerable"] = key["analyst_answerable"].map(_as_bool)
     key["stratum"] = key["stratum"].fillna("").astype(str)
-    consensus = consensus_votes(all_ratings, counted=ratings)
-    return key, consensus, ratings
+    consensus = consensus_votes(all_ratings)
+    return key, consensus, all_ratings
 
 
 def _counts(sub: pd.DataFrame, consensus: dict, *, agree: bool) -> dict:
@@ -145,6 +124,7 @@ def _metrics(key: pd.DataFrame, consensus: dict) -> dict:
         "step1_not_answerable": (key[(key.step == 1) & ~key.analyst_answerable], True),
         "step2": (key[(key.step == 2) & s2], False),
         "step2_decoy": (key[(key.step == 2) & (key.stratum == "decoy")], False),
+        "step3": (key[(key.step == 3) & key.stratum.isin(["top", "random"])], False),
         "step3_top": (key[(key.step == 3) & (key.stratum == "top")], False),
         "step3_random": (key[(key.step == 3) & (key.stratum == "random")], False),
         "step3_negative": (key[(key.step == 3) & (key.stratum == "negative")], False),
@@ -153,82 +133,54 @@ def _metrics(key: pd.DataFrame, consensus: dict) -> dict:
     return {name: _counts(sub, consensus, agree=agree) for name, (sub, agree) in groups.items()}
 
 
-def _fleiss_by_step(key: pd.DataFrame, ratings: pd.DataFrame) -> dict:
-    """Fleiss' κ per step. Step 2 includes decoys. Items need a yes/no from every reviewer who rated the step."""
-    reviewers = sorted(ratings["reviewer"].unique())
-    wide = ratings.pivot(index="item_id", columns="reviewer", values="rating")
-    step_of = key.drop_duplicates("item_id").set_index("item_id")["step"]
-    out = {}
-    for s in (1, 2, 3, 4):
-        sub = wide.loc[wide.index.intersection(step_of[step_of.eq(s)].index)]
-        active = [rv for rv in reviewers if rv in sub.columns and sub[rv].isin(["yes", "no"]).any()]
-        if len(active) < 2 or sub.empty:
-            out[s] = None
-            continue
-        ok = sub[active].apply(lambda r: r.isin(["yes", "no"]).all(), axis=1)
-        rows = sub.loc[ok, active].astype(str).values.tolist()
-        k = _fleiss(rows)
-        out[s] = None if not rows or k is None else {"kappa": k, "n": len(rows), "raters": len(active)}
-    return out
-
-
-def _rate_cell(c: dict) -> str:
+def _rate_cell(c: dict, bold: bool = False) -> str:
     n = c["yes"] + c["no"]
     if not n:
         return r"\textemdash"
-    pct = 100.0 * c["yes"] / n
-    # Same size as the Fleiss κ point estimates (the table's \small). The count
-    # stays smaller so the widest cells still fit in a 15% column.
-    return rf"{pct:.1f}\%\hspace{{0.35em}}{{\tiny({c['yes']}/{n})}}"
+    pct = rf"{100.0 * c['yes'] / n:.1f}\%"
+    if bold:
+        pct = rf"\textbf{{{pct}}}"
+    # The count is \tiny and the gap narrow so the widest (bold) cell stays on one line inside 14%.
+    return rf"\mbox{{{pct}\hspace{{0.15em}}{{\tiny({c['yes']}/{n})}}}}"
 
 
 def _kappa_cell(k: dict | None) -> str:
     if not k or not k["n"]:
         return r"\textemdash"
-    # [t] keeps the value on the row's top line. arraystretch is set before the tabular
-    # so the strut is actually tight. \tabularnewline, not \\[dimen]: arydshln (loaded in
-    # the paper) breaks on an optional argument to \\.
-    return (
-        r"{\renewcommand{\arraystretch}{0.6}"
-        r"\begin{tabular}[t]{@{}c@{}}"
-        rf"{k['kappa']:.2f}\tabularnewline"
-        rf"{{\tiny($n{{=}}{k['n']}$)}}"
-        r"\end{tabular}}"
-    )
+    return f"{k['kappa']:.2f}"
 
 
-def build_tabular(by_scope: dict, kappa_by_home: dict) -> list[str]:
+def build_tabular(by_scope: dict, kappa_by_scope: dict) -> list[str]:
     headers = " & ".join([r"\textbf{Pipeline Step}"] + [rf"\textbf{{{s.capitalize()}}}" for s in SCOPES])
-    # Step is 40% of the line; All, Milan, Aruba, and Cairo are 15% each.
+    # Step is 44% of the line; All, Milan, Aruba, and Cairo are 14% each.
     # All is a p column so \columncolor fills the whole column. \tabcolsep 0 keeps the five widths on \linewidth.
     lines = [
         r"\setlength{\tabcolsep}{0pt}",
-        r"\begin{tabular}{@{}w{l}{0.40\linewidth}"
-        r">{\columncolor{black!5}\centering\arraybackslash}p{0.15\linewidth}"
-        r"*{3}{w{c}{0.15\linewidth}}@{}}",
+        r"\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.44\linewidth}"
+        r">{\columncolor{black!5}\centering\arraybackslash}p{0.14\linewidth}"
+        r"*{3}{w{c}{0.14\linewidth}}@{}}",
         r"\toprule",
         headers + r" \\",
         r"\midrule",
     ]
+    first = False
     for kind, key, label in ROWS:
         if kind == "group":
-            # Column 1 only, so the All cell keeps its color. No \vspace here:
-            # inside this p column it drops the heading below the row and opens a tall gap.
-            lines.append(
-                r"\multicolumn{1}{@{}>{\raggedright\arraybackslash}p{0.40\linewidth}}{\textbf{"
-                + label + r"}} & & & & \\"
-            )
+            first = True
+            # Title and the raters' question on one row, in column 1.
+            # A faint \hline (no booktabs padding) separates steps without breaking the All shading.
+            title, question = label
+            if lines[-1] != r"\midrule":
+                lines.append(r"\arrayrulecolor{black!15}\hline\arrayrulecolor{black}")
+            lines.append(r"\textbf{" + title + r"}\enspace{\footnotesize\textit{" + question + r"}} & & & & \\")
             continue
         if kind == "rate":
-            cells = [_rate_cell(by_scope[s][key]) for s in SCOPES]
+            # The first rate of each step is its headline number.
+            cells = [_rate_cell(by_scope[s][key], bold=first) for s in SCOPES]
+            first = False
             end = r" \\"
         else:
-            # κ is per home. All stays blank: the homes do not share one rater panel.
-            # Plain \\ : arydshln breaks on \\[dimen]. The inner arraystretch keeps the second line tight.
-            cells = [
-                r"\textemdash" if s == "all" else _kappa_cell((kappa_by_home.get(s) or {}).get(key))
-                for s in SCOPES
-            ]
+            cells = [_kappa_cell((kappa_by_scope.get(s) or {}).get(f"step{key}")) for s in SCOPES]
             end = r" \\"
         lines.append(" & ".join([label, *cells]) + end)
     lines += [r"\bottomrule", r"\end{tabular}"]
@@ -322,13 +274,15 @@ def write_review_table() -> Path:
     by_scope = {"all": _metrics(key, consensus)}
     for home in HOMES:
         by_scope[home] = _metrics(key[key.home == home], consensus)
-    kappa_by_home = {}
+    kappa_by_scope = {"all": fleiss_by_step(key, ratings)}
     for home in HOMES:
-        ids = set(key.loc[key.home == home, "item_id"])
-        kappa_by_home[home] = _fleiss_by_step(
-            key[key.item_id.isin(ids)], ratings[ratings.item_id.isin(ids)])
-    note = NOTE.replace("REVIEWERS_CLAUSE", _reviewer_clause(key, ratings))
-    tabular = build_tabular(by_scope, kappa_by_home)
+        kappa_by_scope[home] = fleiss_by_step(key[key.home == home], ratings)
+    tabular = build_tabular(by_scope, kappa_by_scope)
+    note = _fill_note(NOTE, by_scope)
+    OUT.mkdir(parents=True, exist_ok=True)
+    kappa_path = OUT / "analyst_review_kappa.json"
+    kappa_path.write_text(json.dumps(kappa_by_scope, indent=1), encoding="utf-8")
+    print(f"JSON {kappa_path}")
     OUT.mkdir(parents=True, exist_ok=True)
     tex_path = OUT / "analyst_review.tex"
     tex_path.write_text(
@@ -419,16 +373,25 @@ def write_funnel_table(key: pd.DataFrame | None = None, consensus: dict | None =
 # Main-text selection, by question number. The appendix table lists every question.
 QUESTION_SELECTION = [4, 15, 9, 11, 21, 20, 26, 27, 28]
 QUESTIONS_NOTE = (
-    r"Nine of the 29 caregiver questions. "
-    r"A check means \ToolName{} treated the question as answerable in that home. "
-    r"The last row counts answered questions over all 29, not only the rows shown. "
-    r"FULL_LIST"
+    r"Nine of the 29 caregiver questions. For each question and home, "
+    r"\ToolName{} either analyzes the question ($\checkmark$) or declines it "
+    r"({\color{black!30}$\times$}) because the home's sensors cannot observe the "
+    r"behavior, and explains why. The same question can be analyzable in one home "
+    r"and not another: only Cairo has sensors on its stairs. The last row counts "
+    r"all 29 questions. The full list is in Table~\ref{tab:analyst_questions_all}; "
+    r"\cref{sec:results_analyst} evaluates both decisions."
 )
 QUESTIONS_ALL_NOTE = (
     r"All 29 caregiver questions. "
     r"A check means \ToolName{} treated the question as answerable in that home. "
-    r"The last row counts how many of the 29 questions \ToolName{} answered in each home."
+    r"The last row counts how many of the 29 questions \ToolName{} answered in each home. "
+    r"$\checkmark$ marks questions \ToolName{} analyzed in that home and "
+    r"{\color{black!30}$\times$} questions it declined because the home's sensors "
+    r"cannot observe the behavior."
 )
+# Short reasons shown after a declined question in the main table.
+QUESTION_REASONS = {"hydration": r"{\scriptsize\color{black!55}(no sensor observes drinking)}"}
+MARK_MACROS = [r"\newcommand{\yes}{$\checkmark$}", r"\newcommand{\no}{{\color{black!30}$\times$}}"]
 
 
 def _tex_escape(text: str) -> str:
@@ -443,34 +406,42 @@ def _load_questions() -> list[dict]:
 
 
 def _analyst_answered() -> dict:
+    """(home, question_id) -> analyzed. Declined = every concept in plan.json has detectable=false."""
+    answered = {}
+    for plan in sorted(RUN.glob("*/*/plan.json")):
+        home, qid = plan.parent.parent.name, plan.parent.name
+        if home in HOMES:
+            concepts = json.loads(plan.read_text()).get("concepts") or []
+            answered[(home, qid)] = any(c.get("detectable") for c in concepts)
     key = pd.concat(
         [pd.read_csv(p) for p in sorted((RUN / "review" / f"{REVIEW}_key").glob("*_key.csv"))],
         ignore_index=True,
     )
     step1 = key[key.step == 1]
-    return {(r.home, r.question_id): _as_bool(r.analyst_answerable) for r in step1.itertuples(index=False)}
+    diff = [(r.home, r.question_id) for r in step1.itertuples(index=False)
+            if answered.get((r.home, r.question_id)) != _as_bool(r.analyst_answerable)]
+    if diff:
+        raise ValueError(f"plan.json and the review key disagree on answerable: {diff[:6]}")
+    return answered
 
 
 def _mark(answered: bool) -> str:
-    return r"$\checkmark$" if answered else ""
+    return r"\yes" if answered else r"\no"
 
 
-def _answered_cell(yes: int, n: int) -> str:
-    pct = 100.0 * yes / n if n else 0.0
-    # \tabularnewline, not \\[dimen]: arydshln redefines \\ and breaks the optional argument.
-    return (
-        rf"\begin{{tabular}}[t]{{@{{}}c@{{}}}}{pct:.1f}\%\tabularnewline"
-        rf"{{\scriptsize({yes} out of {n})}}\end{{tabular}}"
-    )
-
-
-def _answered_counts(questions: list[dict], answered: dict) -> list[str]:
-    cells = []
+def _answered_counts(questions: list[dict], answered: dict) -> dict:
+    """home -> (analyzed, declined) over all questions; the two must add up to the question count."""
+    counts = {}
     for home in HOMES:
         keys = [f"{q['num']:02d}_{q['id']}" for q in questions]
         yes = sum(1 for key in keys if answered[(home, key)])
-        cells.append(_answered_cell(yes, len(keys)))
-    return cells
+        counts[home] = (yes, len(keys) - yes)
+        assert sum(counts[home]) == len(questions) == 29, (home, counts[home])
+    return counts
+
+
+def _count_cell(yes: int, no: int) -> str:
+    return rf"\begin{{tabular}}[t]{{@{{}}c@{{}}}}{yes} \yes\\{no} \no\end{{tabular}}"
 
 
 def build_questions_tabular(
@@ -478,7 +449,9 @@ def build_questions_tabular(
     answered: dict,
     *,
     summary_from: list[dict],
+    summary_label: str,
     ellipsis: bool = False,
+    reasons: dict | None = None,
 ) -> list[str]:
     grouped: list[tuple[str, list[dict]]] = []
     for q in rows:
@@ -489,6 +462,7 @@ def build_questions_tabular(
         ["", r"\textbf{Caregiver's Question}"] + [rf"\textbf{{{h.capitalize()}}}" for h in HOMES]
     )
     lines = [
+        *MARK_MACROS,
         r"\setlength{\tabcolsep}{4pt}",
         r"\renewcommand{\arraystretch}{1.08}",
         # Question column is whatever the page has left, so the table stays within \linewidth.
@@ -503,13 +477,18 @@ def build_questions_tabular(
             key = f"{q['num']:02d}_{q['id']}"
             cat_cell = rf"\multirow{{{span}}}{{*}}{{\rotatebox{{90}}{{{cat}}}}}" if i == 0 else ""
             cells = [_mark(answered[(home, key)]) for home in HOMES]
-            lines.append(" & ".join([cat_cell, _tex_escape(q["question"]), *cells]) + r" \\")
+            text = _tex_escape(q["question"])
+            if reasons and q["id"] in reasons:
+                text += " " + reasons[q["id"]]
+            lines.append(" & ".join([cat_cell, text, *cells]) + r" \\")
         if ellipsis:
             lines.append(r" & \ldots & & & \\")
         if cat != grouped[-1][0]:
             lines.append(r"\midrule")
     lines.append(r"\midrule")
-    lines.append(" & ".join(["", r"\textbf{Answered}", *_answered_counts(summary_from, answered)]) + r" \\")
+    counts = _answered_counts(summary_from, answered)
+    cells = [_count_cell(*counts[home]) for home in HOMES]
+    lines.append(" & ".join(["", rf"\textbf{{{summary_label}}}", *cells]) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     return lines
 
@@ -524,7 +503,9 @@ def _write_question_table(
     standalone_note: str,
     width_cm: float,
     summary_from: list[dict],
+    summary_label: str,
     ellipsis: bool = False,
+    reasons: dict | None = None,
     body_size: str = "",
 ) -> Path:
     missing = [(home, f"{q['num']:02d}_{q['id']}") for q in summary_from for home in HOMES
@@ -532,14 +513,15 @@ def _write_question_table(
     if missing:
         raise KeyError(f"missing step-1 row for {missing[:6]}")
     tabular = build_questions_tabular(
-        rows, answered, summary_from=summary_from, ellipsis=ellipsis,
+        rows, answered, summary_from=summary_from, summary_label=summary_label,
+        ellipsis=ellipsis, reasons=reasons,
     )
     if body_size:
         tabular.insert(0, body_size)
     OUT.mkdir(parents=True, exist_ok=True)
     tex_path = OUT / f"{stem}.tex"
     fragment = "\n".join([
-        r"% requires booktabs, amssymb, array, graphicx, multirow",
+        r"% requires booktabs, amssymb, array, graphicx, multirow, xcolor",
         _tex_fragment(tabular, note, label=label, env="table*"),
     ])
     tex_path.write_text(fragment, encoding="utf-8")
@@ -555,16 +537,19 @@ def _write_question_table(
 def write_questions_table(questions: list[dict], answered: dict) -> Path:
     by_num = {q["num"]: q for q in questions}
     rows = [by_num[n] for n in QUESTION_SELECTION]
-    full_list = r"The full list of questions is Table~\ref{tab:analyst_questions_all}."
+    standalone_note = (QUESTIONS_NOTE.replace(r"Table~\ref{tab:analyst_questions_all}", "the appendix")
+                       .replace(r"\cref{sec:results_analyst}", "the results section"))
     return _write_question_table(
         rows, answered,
         stem="analyst_questions",
         label="tab:analyst_questions",
-        note=QUESTIONS_NOTE.replace("FULL_LIST", full_list),
-        standalone_note=QUESTIONS_NOTE.replace("FULL_LIST", "The full list of questions is in the appendix."),
+        note=QUESTIONS_NOTE,
+        standalone_note=standalone_note,
         width_cm=16.5,
         summary_from=questions,
+        summary_label="All 29 questions",
         ellipsis=True,
+        reasons=QUESTION_REASONS,
     )
 
 
@@ -577,6 +562,7 @@ def write_questions_all_table(questions: list[dict], answered: dict) -> Path:
         standalone_note=QUESTIONS_ALL_NOTE,
         width_cm=16.5,
         summary_from=questions,
+        summary_label="Total",
         body_size=r"\footnotesize",
     )
 
@@ -587,5 +573,9 @@ if __name__ == "__main__":
     write_funnel_table(key, consensus)
     questions = _load_questions()
     answered = _analyst_answered()
-    write_questions_table(questions, answered)
-    write_questions_all_table(questions, answered)
+    main_tex = write_questions_table(questions, answered)
+    all_tex = write_questions_all_table(questions, answered)
+    cell = r"\{@\{\}c@\{\}\}(\d+) \\yes\\\\(\d+) \\no"
+    main_counts = re.findall(cell, main_tex.read_text())
+    all_counts = re.findall(cell, all_tex.read_text())
+    assert len(main_counts) == len(HOMES) and main_counts == all_counts, (main_counts, all_counts)

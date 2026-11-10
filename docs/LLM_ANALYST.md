@@ -335,15 +335,18 @@ the order in the question file. Keys: y/1 yes, n/2 no, u/3 unsure, then the next
 The answer key (`review_v2_key/`) was not in the packet.
 
 Four reviewers. `alexkarpekov_oct241` rated all three homes and every step. `Archith Iyer`
-rated all three homes on steps 1–3. `Edan Eyal` rated Milan and Aruba on steps 1–3.
-`Ankith Chandra` rated all three homes on steps 1–3. None of them rated findings.
-Consensus, per-step rates, and Fleiss' κ exclude Alex (`review.EXCLUDED_REVIEWERS`). His
-yes/no breaks a tie only when exactly three other reviewers split because one said unsure.
-The paper tables (`imwut_tables.py`) instead keep Alex on an item until it has more than
-three ratings, then drop him and use the same tie-break. Cairo therefore counts Ankith and
-Archith on the dashboard (a split is a tie) and Alex, Ankith, and Archith in the paper
-tables. Step 4 is Alex alone, so the dashboard has no step-4 consensus. Fleiss' κ is per
-home in the paper table and pooled in the dashboard, over reviewers who rated that step.
+rated all three homes on steps 1–3. `Edan Eyal` rated all three homes on steps 1–3 (Cairo added
+Oct 31). `Ankith Chandra` rated all three homes on steps 1–4 (findings in separate `*_step4.csv` files).
+Consensus and per-step rates exclude Alex (`review.EXCLUDED_REVIEWERS`). His
+yes/no breaks any tie among the others, including items none of them rated
+(`review.consensus_votes`, shared by the dashboard, `imwut_tables.py`, and the paper figures).
+Steps 1–3 have three external reviewers in every home, so only ties caused by an unsure reach Alex.
+Step 4 has one external reviewer (Ankith): his rating is the vote, Alex's only where Ankith is unsure.
+Fleiss' κ (`review.fleiss_by_step`, shared by the dashboard, paper table, and funnel figure) uses items
+with exactly `KAPPA_PANEL[step]` yes/no ratings: 3 external reviewers for steps 1–3, Ankith + Alex for
+step 4 (Alex fills in wherever an item has fewer external ratings than the panel). Step-4 κ is 0.84
+(97% raw agreement on 230 findings) after Alex re-rated step 4 on Oct 31.
+The paper table shows κ per home and pooled (All).
 
 ### Step 1 — is the question answerable here?
 
