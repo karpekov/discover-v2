@@ -2,19 +2,19 @@
 Cluster → label mapping evaluator with a limited annotation budget.
 
 Protocol (shared by all clustering methods in the DISCOVER revision):
-  1. Clusters are fit on the train split (pool). Every window gets a cluster id and a
-     confidence score (higher = more representative of its cluster).
+  0. Clusters are fit on continuous, unlabelled train windows (FL_20 train).
+  1. Labelled windows always come from pre-segmented data (FL_20_p), so every window has
+     exactly one true label. FL_20_p uses the same day split as FL_20. Pre-segmented train
+     windows (pool) are assigned to clusters with a confidence score.
   2. For each cluster, the top-m pool windows by confidence are "annotated" with their
      CASAS label and the cluster is mapped to the majority label (m = 'all' uses every
-     pool window of the cluster, as in the original paper).
-  3. Test windows (unseen days) are labelled by their cluster's mapped label and scored
-     against their own CASAS label. CIs come from a block bootstrap over test days.
+     pool window of the cluster).
+  3. Pre-segmented test windows (unseen days) get their cluster's mapped label and are
+     scored against their own label. CIs come from a block bootstrap over test days.
 
-Scoring variants (mirroring discover-v1 `compute_clustering_metrics`):
-  - 'all':     every window, including No_Activity / Other.
-  - 'excl_na': windows labelled No_Activity or Other are removed from both pool and test.
-
-Window label = CASAS l2 label of the window's last event (discover-v1 rule).
+Scoring variants:
+  - 'all':        every labelled window (pre-segmented data has no No_Activity).
+  - 'excl_other': windows labelled Other (or No_Activity) removed from both pool and test.
 """
 import json
 from collections import Counter
@@ -28,13 +28,15 @@ from sklearn.metrics import accuracy_score, f1_score
 EXCLUDED_LABELS = ('No_Activity', 'no_activity', 'Other')
 UNMAPPED = '__unmapped__'
 DEFAULT_M_VALUES = (5, 10, 50, 'all')
-VARIANTS = ('all', 'excl_na')
+VARIANTS = ('all', 'excl_other')
+DATA_ROOT = Path('data/processed/casas')
+CACHE_DIR = Path('results/evals/dv1_review/cache')
 
 
 def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Union[str, Path]] = None) -> pd.DataFrame:
     """Load one split of a processed CASAS dataset as a compact per-window DataFrame.
 
-    Columns: sample_id, day, label, label_primary_l2, sensors, rooms, tods (per-event lists).
+    Columns: sample_id, day, label (l2 of the last event), label_primary_l2, sensors, rooms, tods.
     """
     data_dir = Path(data_dir)
     cache_path = None
@@ -66,6 +68,14 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_pickle(cache_path)
     return df
+
+
+def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_20_p'):
+    """Return (fit, pool, test): unlabelled fit windows, labelled pool windows, labelled test windows."""
+    fit = load_windows(DATA_ROOT / city / fit_window, 'train', CACHE_DIR)
+    pool = load_windows(DATA_ROOT / city / label_window, 'train', CACHE_DIR)
+    test = load_windows(DATA_ROOT / city / label_window, 'test', CACHE_DIR)
+    return fit, pool, test
 
 
 def map_clusters(pool_clusters: np.ndarray, pool_conf: np.ndarray, pool_labels: np.ndarray,
@@ -142,7 +152,7 @@ def evaluate_clustering(pool: pd.DataFrame, test: pd.DataFrame,
     rows, mappings = [], {}
     for variant in variants:
         p, t = pool, test
-        if variant == 'excl_na':
+        if variant == 'excl_other':
             p = p[~p['label'].isin(EXCLUDED_LABELS)]
             t = t[~t['label'].isin(EXCLUDED_LABELS)]
         p = p[p['cluster'] != -1]
