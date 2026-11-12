@@ -1,0 +1,5 @@
+# Embeddings, cluster assignments, data caches (regenerable, large)
+artifacts/
+
+# Small CSVs + figures are committed (root .gitignore excludes results/)
+!results/

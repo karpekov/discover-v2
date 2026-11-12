@@ -16,7 +16,7 @@ global context tokens from the first event, raw time deltas, dynamic padding.
 (adds two UNK pseudo-events for tod/dow and pads to 50), to quantify that mismatch.
 
 Usage:
-    python -m src.evals.dv1_review.embedding_diagnostics --cities milan aruba cairo
+    python -m tist_revision.pipeline.embedding_diagnostics --cities milan aruba cairo
 """
 import argparse
 import json
@@ -36,9 +36,10 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
 from .histogram_baselines import FEATURE_COLUMNS, build_features
-from .mapping_eval import DATA_ROOT, EXCLUDED_LABELS, VARIANTS, evaluate_clustering, load_protocol
+from .mapping_eval import (ARTIFACTS_DIR, DATA_ROOT, EXCLUDED_LABELS, RESULTS_DIR, VARIANTS, evaluate_clustering,
+                           load_protocol, save_assignments)
 
-SRC_DIR = Path(__file__).resolve().parents[2]
+SRC_DIR = Path(__file__).resolve().parents[2] / 'src'
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
@@ -46,7 +47,8 @@ from dataio.dataset import SmartHomeDataset  # noqa: E402
 from models.scan_model import SCANClusteringModel  # noqa: E402
 
 MODEL_ROOT = Path('trained_models')
-OUT_ROOT = Path('results/evals/dv1_review/stage1_5_embeddings')
+OUT_ROOT = RESULTS_DIR / 'stage1_5_embeddings'
+EMB_DIR = ARTIFACTS_DIR / 'embeddings'
 M_VALUES = (5, 'all')
 # Vocab field → event key, as in alignment/dataset.py.
 FIELD_TO_EVENT_KEY = {'sensor': 'sensor_id', 'state': 'event_type', 'room_id': 'room'}
@@ -196,9 +198,10 @@ def diagnose(name, X_fit, X_pool, X_test, pool, test, args, rows, city, metric):
 
     km = KMeans(n_clusters=args.num_clusters, n_init=10, random_state=args.seed).fit(X_fit)
     pc, tc = km.predict(X_pool), km.predict(X_test)
-    res = evaluate_clustering(
-        pool.assign(cluster=pc, conf=-np.linalg.norm(X_pool - km.cluster_centers_[pc], axis=1)),
-        test.assign(cluster=tc, conf=0.0), m_values=M_VALUES, n_boot=args.n_boot, seed=args.seed)
+    pconf = -np.linalg.norm(X_pool - km.cluster_centers_[pc], axis=1)
+    save_assignments(f'{city}__{name}__kmeans_k{args.num_clusters}', pc, pconf, tc)
+    res = evaluate_clustering(pool.assign(cluster=pc, conf=pconf), test.assign(cluster=tc, conf=0.0),
+                              m_values=M_VALUES, n_boot=args.n_boot, seed=args.seed)
     rows['clustering'].append(res.assign(city=city, representation=name, method='kmeans'))
 
     for variant in VARIANTS:
@@ -269,11 +272,14 @@ def main():
                      args, rows, city, metric='cosine')
             if enc_name == 'scan_enc':
                 (_, P_pool), (_, P_test) = enc['pool'], enc['test']
+                save_assignments(f'{city}__scan_enc__scan_head', P_pool.argmax(1), P_pool.max(1),
+                                 P_test.argmax(1), P_test.max(1))
                 res = evaluate_clustering(pool[cols].assign(cluster=P_pool.argmax(1), conf=P_pool.max(1)),
                                           test[cols].assign(cluster=P_test.argmax(1), conf=P_test.max(1)),
                                           m_values=M_VALUES, n_boot=args.n_boot, seed=args.seed)
                 rows['clustering'].append(res.assign(city=city, representation='scan_enc', method='scan_head'))
-            np.savez_compressed(out_dir / f'{city}_{enc_name}_embeddings.npz',
+            EMB_DIR.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(EMB_DIR / f'{city}_{enc_name}_embeddings.npz',
                                 **{k: v[0].astype(np.float16) for k, v in enc.items()})
             del model, enc
             save()

@@ -12,8 +12,12 @@ Protocol (shared by all clustering methods in the DISCOVER revision):
   3. Pre-segmented test windows (unseen days) get their cluster's mapped label and are
      scored against their own label. CIs come from a block bootstrap over test days.
 
+Labels: TDOST / DeepCASAS merged classes (see labels.py) of the last event's raw activity;
+on pre-segmented windows this is the window's single activity.
+
 Scoring variants:
-  - 'all':        every labelled window (pre-segmented data has no No_Activity).
+  - 'all':        every labelled window (pre-segmented data has no No_Activity). Comparable to
+                  TDOST / DeepCASAS, which keep Other as a class.
   - 'excl_other': windows labelled Other (or No_Activity) removed from both pool and test.
 """
 import json
@@ -25,23 +29,30 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, f1_score
 
+from .labels import tdost_label
+
 EXCLUDED_LABELS = ('No_Activity', 'no_activity', 'Other')
 UNMAPPED = '__unmapped__'
 DEFAULT_M_VALUES = (5, 10, 50, 'all')
 VARIANTS = ('all', 'excl_other')
 DATA_ROOT = Path('data/processed/casas')
-CACHE_DIR = Path('results/evals/dv1_review/cache')
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+RESULTS_DIR = PROJECT_DIR / 'results'
+ARTIFACTS_DIR = PROJECT_DIR / 'artifacts'
+CACHE_DIR = ARTIFACTS_DIR / 'cache'
 
 
-def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Union[str, Path]] = None) -> pd.DataFrame:
+def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Union[str, Path]] = None,
+                 labelled: bool = True) -> pd.DataFrame:
     """Load one split of a processed CASAS dataset as a compact per-window DataFrame.
 
-    Columns: sample_id, day, label (l2 of the last event), label_primary_l2, sensors, rooms, tods.
+    Columns: sample_id, day, label (TDOST class of the last event; raw l1 if not `labelled`),
+    label_raw, sensors, rooms, tods.
     """
     data_dir = Path(data_dir)
     cache_path = None
     if cache_dir is not None:
-        cache_path = Path(cache_dir) / f"{data_dir.parent.name}_{data_dir.name}_{split}_v2.pkl"
+        cache_path = Path(cache_dir) / f"{data_dir.parent.name}_{data_dir.name}_{split}_v3.pkl"
         if cache_path.exists():
             return pd.read_pickle(cache_path)
 
@@ -51,11 +62,12 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
     rows = []
     for s in samples:
         seq = s['sensor_sequence']
+        raw = seq[-1]['activity_l1']
         rows.append({
             'sample_id': s['sample_id'],
             'day': s['metadata']['start_time'][:10],
-            'label': seq[-1]['activity_l2'],
-            'label_primary_l2': s['metadata']['ground_truth_labels']['primary_l2'],
+            'label': tdost_label(raw) if labelled else raw,
+            'label_raw': raw,
             'sensors': [e['sensor_id'] for e in seq],
             # 2 Aruba test events (malformed sensor id 'c') have no room.
             'rooms': [e.get('room', 'unknown') for e in seq],
@@ -72,10 +84,19 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
 
 def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_20_p'):
     """Return (fit, pool, test): unlabelled fit windows, labelled pool windows, labelled test windows."""
-    fit = load_windows(DATA_ROOT / city / fit_window, 'train', CACHE_DIR)
+    fit = load_windows(DATA_ROOT / city / fit_window, 'train', CACHE_DIR, labelled=False)
     pool = load_windows(DATA_ROOT / city / label_window, 'train', CACHE_DIR)
     test = load_windows(DATA_ROOT / city / label_window, 'test', CACHE_DIR)
     return fit, pool, test
+
+
+def save_assignments(name: str, pool_cluster, pool_conf, test_cluster, test_conf=None):
+    """Store cluster assignments of the labelled pool/test windows for later plotting."""
+    path = ARTIFACTS_DIR / 'assignments' / f'{name}.npz'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(path, pool_cluster=np.asarray(pool_cluster), pool_conf=np.asarray(pool_conf),
+                        test_cluster=np.asarray(test_cluster),
+                        test_conf=np.zeros(len(test_cluster)) if test_conf is None else np.asarray(test_conf))
 
 
 def map_clusters(pool_clusters: np.ndarray, pool_conf: np.ndarray, pool_labels: np.ndarray,

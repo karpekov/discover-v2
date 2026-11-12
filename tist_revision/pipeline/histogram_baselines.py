@@ -4,7 +4,7 @@ histograms with k-means and HDBSCAN, then score with the shared top-m mapping ev
 (clusters fit on continuous FL_20 train windows; mapping and scoring on pre-segmented FL_20_p).
 
 Usage:
-    python -m src.evals.dv1_review.histogram_baselines --cities milan aruba cairo
+    python -m tist_revision.pipeline.histogram_baselines --cities milan aruba cairo
 """
 import argparse
 import time
@@ -15,9 +15,9 @@ import pandas as pd
 from sklearn.cluster import HDBSCAN, KMeans
 from sklearn.neighbors import KNeighborsClassifier
 
-from .mapping_eval import DEFAULT_M_VALUES, evaluate_clustering, load_protocol
+from .mapping_eval import DEFAULT_M_VALUES, RESULTS_DIR, evaluate_clustering, load_protocol, save_assignments
 
-OUT_ROOT = Path('results/evals/dv1_review/stage1_histograms')
+OUT_ROOT = RESULTS_DIR / 'stage1_histograms'
 FEATURE_COLUMNS = {'sensor': ['sensors'], 'room': ['rooms'], 'sensor_tod': ['sensors', 'tods']}
 
 
@@ -104,6 +104,7 @@ def main():
                     m_values=DEFAULT_M_VALUES, n_boot=args.n_boot, seed=args.seed,
                 )
                 param_str = ','.join(f'{k}={v}' for k, v in params.items())
+                save_assignments(f'{city}__hist_{feat}__{method}_{param_str.replace("=", "")}', pc, pconf, tc)
                 res.insert(0, 'params', param_str)
                 res.insert(0, 'method', method)
                 res.insert(0, 'features', f'{feat}_hist')
