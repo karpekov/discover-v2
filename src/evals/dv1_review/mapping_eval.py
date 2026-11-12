@@ -34,12 +34,12 @@ VARIANTS = ('all', 'excl_na')
 def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Union[str, Path]] = None) -> pd.DataFrame:
     """Load one split of a processed CASAS dataset as a compact per-window DataFrame.
 
-    Columns: sample_id, day, label, label_primary_l2, sensors (list), rooms (list).
+    Columns: sample_id, day, label, label_primary_l2, sensors, rooms, tods (per-event lists).
     """
     data_dir = Path(data_dir)
     cache_path = None
     if cache_dir is not None:
-        cache_path = Path(cache_dir) / f"{data_dir.parent.name}_{data_dir.name}_{split}.pkl"
+        cache_path = Path(cache_dir) / f"{data_dir.parent.name}_{data_dir.name}_{split}_v2.pkl"
         if cache_path.exists():
             return pd.read_pickle(cache_path)
 
@@ -57,6 +57,7 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
             'sensors': [e['sensor_id'] for e in seq],
             # 2 Aruba test events (malformed sensor id 'c') have no room.
             'rooms': [e.get('room', 'unknown') for e in seq],
+            'tods': [e.get('tod_bucket', 'unknown') for e in seq],
         })
     del samples
     df = pd.DataFrame(rows)
