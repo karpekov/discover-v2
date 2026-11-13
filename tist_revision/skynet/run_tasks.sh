@@ -8,7 +8,7 @@
 # Any GPU with ≥ 24 GB; refuses <24 GB (exit 99) so --requeue can try another node.
 #SBATCH -o slurm/tist_%x_%A_%a.txt
 #SBATCH -e slurm/tist_%x_%A_%a.err
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:a40:1
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task=12
 #SBATCH --ntasks-per-node 1
@@ -17,13 +17,9 @@
 #SBATCH --requeue
 
 set -eo pipefail
-mem=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | awk 'NR==1{print int($1)}')
-if (( ${mem:-0} < 23000 )); then
-  echo "Need >=24GB GPU, got ${mem} MiB on $(hostname); exiting for requeue"
-  exit 99
-fi
+# Default GRES is a40 (>=24GB). Override at submit time if needed, e.g. --gres=gpu:l40s:1
 export PATH=/coc/flash5/akarpekov3/anaconda3/envs/discover-v2-env/bin:$PATH
 cmd=$(grep . "$1" | sed -n "$((SLURM_ARRAY_TASK_ID + 1))p")
-echo "[$(hostname) ${mem}MiB $(date)] task $SLURM_ARRAY_TASK_ID: $cmd"
+echo "[$(hostname) $(date)] task $SLURM_ARRAY_TASK_ID: $cmd"
 eval "$cmd"
 echo "[$(date)] done"
