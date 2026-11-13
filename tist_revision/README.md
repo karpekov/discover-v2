@@ -94,15 +94,33 @@ Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h
   - TreeCNN is implemented from Cao et al. (2020); no prior code exists.
 - Status: plan drafted (below). Nothing launched until Alex says go.
 
-## Launch plan (draft; open questions in the chat of 2026-11-12)
-| Stage | What | Runs | Skynet jobs | Est. per job (A40) |
+## Launch plan (agreed 2026-11-12; waiting for Alex's go)
+Window labels for training, validation and annotation: last event's activity, with No_Activity kept as a label.
+TDOST variant: rule-based v1-1 (with time between readings).
+
+**To implement before launch** (local):
+1. Seed control in `train.py` (MLM pre-training), plus a task file for the 15 encoder runs.
+2. `encode_embeddings` step: encoder → `artifacts/embeddings/{city}_nocoord_mlm_time_s{seed}_embeddings.npz`.
+3. Seeded stage-B runner: k-means, frozen SCAN and DEC (`frozen_deep.py`) on MLM-time and MLM-time + ToD,
+   plus histogram k-means, K ∈ {20, 50}, saved with suffix `_s{seed}`. Make `label_levels.py` / `report.py`
+   aggregate mean ± std over seeds.
+4. Baselines in `tist_revision/baselines/`, trained on continuous FL_20 train / val and tested on FL_20_p test:
+   - DeepCASAS: port from `~/code/har/TDOST/DeepCASAS`.
+   - TDOST: rule-based v1-1 sentences + `all-distilroberta-v1`, classifier from `~/code/har/TDOST/HAR`.
+   - TreeCNN: new implementation from Cao et al. (2020).
+   Settings: L1 and L2; budgets 100, 250 and all random windows; 5 seeds.
+5. Switch skynet jobs from A40-only to any GPU with ≥ 24 GB (A40, L40S, RTX 6000, A5000).
+
+| Stage | What | Runs | Skynet jobs | Est. per job |
 |---|---|---|---|---|
-| A | MLM encoder `nocoord_mlm_time`, 3 houses × 5 seeds (needs seed control in `train.py`) | 15 | 15 | 20–60 min |
-| B | SCAN + DEC, K ∈ {20, 50}, on each encoder; one job runs all configs of one (house, seed) | 60–120 | 15 | 30–60 min |
-| C | k-means on embeddings + histogram baselines, K ∈ {20, 50}, 5 seeds (CPU) | ~120 | local / CPU | minutes |
-| D | Baselines: TDOST, DeepCASAS, TreeCNN × 3 houses × 5 seeds × {L1, L2} × label budgets {100, 250, all}; one job per (baseline, house, seed) | 270 | 45 | 30–60 min |
-| E | Aggregate: mean ± std over seeds, report tables + PDF | – | local | – |
-Throttle: arrays with `%8–%10` on overcap (QoS cap is 48 GPUs per user; jobs are preemptible and requeued).
+| A | MLM encoder `nocoord_mlm_time`, 3 houses × 5 seeds | 15 | 15 | 20–60 min |
+| B | encode, then k-means / SCAN / DEC × 2 inputs × K ∈ {20, 50}, plus histogram k-means; one job per (house, seed) | ~150 | 15 | 20–40 min |
+| C | TDOST embedding generation (once per house) | 3 | 3 (or local) | ~10 min |
+| D | Baselines: 3 methods × 3 houses × 5 seeds × {L1, L2} × {100, 250, all}; one job per (method, house, seed) | 270 | 45 | 30–60 min |
+| E | Aggregate: mean ± std over seeds; tables + PDF | – | local | – |
+- Order: A, C and D in parallel, then B as each encoder finishes.
+- Throttle: `%10` per array on overcap. The QoS cap is 48 GPUs per user; jobs are preemptible and requeued.
+- Total: about 80 GPU jobs and 55 GPU-hours, roughly 6–9 h wall-clock.
 
 ## Findings so far
 **Current consolidated report (supersedes the bullets below where they differ): `results/report/REPORT.md`**

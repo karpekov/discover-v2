@@ -5,11 +5,12 @@ and `results/probes/results.csv` (linear probes).
 Layout of `results/report/`:
     REPORT.md                 hand-written summary
     report_tables.pdf         all tables below, rendered (with --pdf)
-    tables/clustering_m{m}.*  clustering: K = 20 / 50 / 100 blocks; m = labelled windows per cluster
-    tables/probes.*           linear probes: label budgets 100 / 500 / full
+    tables/clustering_m{m}.*  clustering: K = 20 / 50 blocks; m = labelled windows per cluster
+    tables/probes.*           linear probes: label budgets 100 / 250 / full
     tables/probe_vs_clustering.*  three-house averages at matched label budgets
 
-Setups are fixed a priori (k-means on every representation, SCAN frozen with entropy weight 2, DEC).
+Setups are fixed a priori (k-means on every representation; frozen SCAN with entropy weight 2 and DEC on
+MLM-time and MLM-time + ToD). Labelled data for annotation / probes is continuous (no pre-segmentation).
 Cells: weighted / macro F1. Bold = best in the column within a block; shaded (blue) = within MARGIN of it.
 
 Usage:
@@ -32,14 +33,14 @@ REPS = ['hist_sensor', 'hist_sensor_tod', 'mlm', 'mlm_time', 'mlm+tod', 'mlm_tim
 REP_NAMES = {'hist_sensor': 'Sensor hist.', 'hist_sensor_tod': 'Sensor+ToD hist.', 'mlm': 'MLM',
              'mlm_only': 'MLM', 'mlm_time': 'MLM-time', 'mlm+tod': 'MLM + ToD', 'mlm_time+tod': 'MLM-time + ToD'}
 METHOD_NAMES = {'kmeans': 'k-means', 'scan': 'SCAN', 'dec': 'DEC', 'probe': 'Linear probe'}
-KS = (20, 50, 100)
-BUDGETS = ('100', '500', 'full')
+KS = (20, 50)
+BUDGETS = ('100', '250', 'full')
+DEEP_REPS = ['mlm_time', 'mlm_time+tod']
 
 
 def clustering_setups(K):
     return ([('kmeans', r, f'k{K}') for r in REPS]
-            + [('scan', e, f'frozen_k{K}_ent2') for e in ['mlm_only', 'mlm_time']]
-            + [('dec', e, f'dec_k{K}') for e in ['mlm_only', 'mlm_time']])
+            + [(m, e, f'k{K}') for m in ('scan', 'dec') for e in DEEP_REPS])
 
 
 def city_row(s, wcol='f1_weighted', mcol='f1_macro'):
@@ -82,15 +83,14 @@ def comparison_blocks(r, p, level, variant):
     x = r[(r.level == level) & (r.variant == variant)]
     q = p[(p.level == level) & (p.variant == variant)]
     cols = [('K20, m5', 'clu', 20, '5'), ('100 labels', 'probe', '100', None),
-            ('K100, m5', 'clu', 100, '5'), ('500 labels', 'probe', '500', None),
-            ('K100, m all', 'clu', 100, 'all'), ('all labels', 'probe', 'full', None)]
+            ('K50, m5', 'clu', 50, '5'), ('250 labels', 'probe', '250', None),
+            ('K50, m all', 'clu', 50, 'all'), ('all labels', 'probe', 'full', None)]
     rows = []
-    for method, enc in [('kmeans', r_) for r_ in REPS] + [('scan', 'mlm_only'), ('dec', 'mlm_only')]:
+    for method, enc in [('kmeans', r_) for r_ in REPS] + [(m_, e) for m_ in ('scan', 'dec') for e in DEEP_REPS]:
         row = {}
         for name, kind, a, m in cols:
             if kind == 'clu':
-                run = {'kmeans': f'k{a}', 'scan': f'frozen_k{a}_ent2', 'dec': f'dec_k{a}'}[method]
-                s = x[(x.method == method) & (x.encoder == enc) & (x.run == run) & (x.m == m)]
+                s = x[(x.method == method) & (x.encoder == enc) & (x.run == f'k{a}') & (x.m == m)]
             else:
                 s = q[(q.representation == enc) & (q.budget == a)] if method == 'kmeans' else q.iloc[:0]
             ok = s.city.nunique() == len(CITIES)

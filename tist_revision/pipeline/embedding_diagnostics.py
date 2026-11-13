@@ -40,7 +40,7 @@ M_VALUES = (5, 'all')
 
 def split_paths(city):
     return {'fit': DATA_ROOT / city / 'FL_20' / 'train.json',
-            'pool': DATA_ROOT / city / 'FL_20_p' / 'train.json',
+            'pool': DATA_ROOT / city / 'FL_20' / 'train.json',  # annotation pool = continuous fit windows
             'test': DATA_ROOT / city / 'FL_20_p' / 'test.json'}
 
 

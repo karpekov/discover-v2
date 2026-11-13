@@ -2,18 +2,17 @@
 Cluster → label mapping evaluator with a limited annotation budget.
 
 Protocol (shared by all clustering methods in the DISCOVER revision):
-  0. Clusters are fit on continuous, unlabelled train windows (FL_20 train).
-  1. Labelled windows always come from pre-segmented data (FL_20_p), so every window has
-     exactly one true label. FL_20_p uses the same day split as FL_20. Pre-segmented train
-     windows (pool) are assigned to clusters with a confidence score.
-  2. For each cluster, the top-m pool windows by confidence are "annotated" with their
-     CASAS label and the cluster is mapped to the majority label (m = 'all' uses every
-     pool window of the cluster).
-  3. Pre-segmented test windows (unseen days) get their cluster's mapped label and are
-     scored against their own label. CIs come from a block bootstrap over test days.
+  0. Clusters are fit on continuous train windows (FL_20 train). No pre-segmented data is used for
+     training or annotation.
+  1. The annotation pool is the same continuous windows, with the confidence of their cluster assignment.
+     A window's label is its last event's activity; No_Activity is a label like any other.
+  2. For each cluster, the top-m pool windows by confidence are "annotated" and the cluster is mapped to
+     their majority label (m = 'all' uses every pool window of the cluster).
+  3. Pre-segmented test windows (FL_20_p test: unseen days, one activity per window, no No_Activity) get
+     their cluster's mapped label and are scored against their own label. Predicting No_Activity counts as
+     an error. CIs come from a block bootstrap over test days.
 
-Labels: TDOST / DeepCASAS merged classes (see labels.py) of the last event's raw activity;
-on pre-segmented windows this is the window's single activity.
+Labels: TDOST / DeepCASAS merged classes (see labels.py) of the last event's raw activity.
 
 Scoring variants:
   - 'all':        every labelled window (pre-segmented data has no No_Activity). Comparable to
@@ -58,7 +57,7 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
     data_dir = Path(data_dir)
     cache_path = None
     if cache_dir is not None:
-        cache_path = Path(cache_dir) / f"{data_dir.parent.name}_{data_dir.name}_{split}_v3.pkl"
+        cache_path = Path(cache_dir) / f"{data_dir.parent.name}_{data_dir.name}_{split}{'' if labelled else '_raw'}_v4.pkl"
         if cache_path.exists():
             return pd.read_pickle(cache_path)
 
@@ -88,11 +87,13 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
     return df
 
 
-def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_20_p', level: str = 'l2'):
-    """Return (fit, pool, test): unlabelled fit windows, labelled pool windows, labelled test windows."""
-    fit = load_windows(DATA_ROOT / city / fit_window, 'train', CACHE_DIR, labelled=False)
-    pool = load_windows(DATA_ROOT / city / label_window, 'train', CACHE_DIR)
-    test = load_windows(DATA_ROOT / city / label_window, 'test', CACHE_DIR)
+def load_protocol(city: str, fit_window: str = 'FL_20', test_window: str = 'FL_20_p', level: str = 'l2'):
+    """Return (fit, pool, test). No pre-segmented data is used for training or annotation: the annotation pool
+    is the continuous fit windows themselves (same rows and order as `fit`), labelled by their last event
+    (No_Activity kept as a label an annotator would give). Only the test windows are pre-segmented."""
+    pool = load_windows(DATA_ROOT / city / fit_window, 'train', CACHE_DIR)
+    fit = pool
+    test = load_windows(DATA_ROOT / city / test_window, 'test', CACHE_DIR)
     if level == 'l1':
         pool, test = pool.assign(label=pool['label_raw'].map(l1_label)), test.assign(label=test['label_raw'].map(l1_label))
     elif level != 'l2':
@@ -103,7 +104,7 @@ def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_
 def l1_label(raw: str) -> str:
     """Raw CASAS activity without the resident id (Cairo 'R1 sleep' / 'R2 sleep' -> 'sleep'): which of two
     residents acts is not observable from ambient sensors."""
-    return re.sub(r'^R[12][ _]', '', raw)
+    return 'No_Activity' if raw.lower() == 'no_activity' else re.sub(r'^R[12][ _]', '', raw)
 
 
 def scored_classes(pool_labels, test_labels, min_pool: int = MIN_POOL, min_test: int = MIN_TEST) -> list:

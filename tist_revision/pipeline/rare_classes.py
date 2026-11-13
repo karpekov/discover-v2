@@ -44,7 +44,8 @@ def representations(city, fit, pool, test, names):
                 print(f'  [skip] {path}')
                 continue
             z = np.load(path)
-            X = [normalize(z[k].astype(np.float32)) for k in ('fit', 'pool', 'test')]
+            # The annotation pool is the fit windows themselves (see mapping_eval.load_protocol).
+            X = [normalize(z[k].astype(np.float32)) for k in ('fit', 'fit', 'test')]
             if extra == 'tod':
                 tod = build_features(fit, [fit, pool, test], ['tods'])
                 X = [np.hstack([x, normalize(t)]) for x, t in zip(X, tod)]

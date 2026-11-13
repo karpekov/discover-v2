@@ -1,10 +1,10 @@
 """
 Linear probes on frozen representations, at the same label budgets as the clustering protocol.
 
-Logistic regression (standardised features) trained on n randomly drawn labelled pool windows (FL_20_p train)
-and scored on FL_20_p test, at both label levels and with the same variants as `label_levels.py`
-('all', 'masked'; l2 also 'excl_other'). Budgets: 100 (= K 20 × m 5), 500 (= K 100 × m 5) and 'full'
-(up to 20k pool windows; the probe upper bound). Random draws, not per-class, so the probe gets no label
+Logistic regression (standardised features) trained on n randomly drawn labelled pool windows (continuous
+FL_20 train, last-event labels incl. No_Activity) and scored on FL_20_p test, at both label levels and with the
+same variants as `label_levels.py` ('all', 'masked'; l2 also 'excl_other'). Budgets: 100 (= K 20 × m 5),
+250 (= K 50 × m 5) and 'full' (up to 20k pool windows; the probe upper bound). Random draws, not per-class, so the probe gets no label
 information the clustering protocol does not have. Small budgets average 3 draws; 'full' uses one.
 
 Usage:
@@ -28,7 +28,7 @@ def main():
     ap.add_argument('--cities', nargs='+', default=['milan', 'aruba', 'cairo'])
     ap.add_argument('--representations', nargs='+',
                     default=['hist_sensor', 'hist_sensor_tod', 'mlm', 'mlm_time', 'mlm+tod', 'mlm_time+tod'])
-    ap.add_argument('--budgets', nargs='+', default=['100', '500', 'full'])
+    ap.add_argument('--budgets', nargs='+', default=['100', '250', 'full'])
     ap.add_argument('--max_full', type=int, default=20000)
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
