@@ -43,9 +43,22 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def make_head(d_model, k, dropout):
-    """Same architecture as SCANClusteringModel.clustering_head."""
-    return nn.Sequential(nn.Dropout(dropout), nn.Linear(d_model, d_model // 2), nn.ReLU(),
+class Standardize(nn.Module):
+    """Fixed per-dimension standardisation. Encoder embeddings are L2-normalised (tiny per-dimension scale),
+    which leaves a freshly initialised head stuck at near-uniform outputs that argmax to one cluster."""
+
+    def __init__(self, mean, std):
+        super().__init__()
+        self.register_buffer('mean', mean)
+        self.register_buffer('std', std.clamp_min(1e-6))
+
+    def forward(self, x):
+        return (x - self.mean) / self.std
+
+
+def make_head(d_model, k, dropout, mean, std):
+    """Standardisation + the SCANClusteringModel.clustering_head architecture."""
+    return nn.Sequential(Standardize(mean, std), nn.Dropout(dropout), nn.Linear(d_model, d_model // 2), nn.ReLU(),
                          nn.Dropout(dropout), nn.Linear(d_model // 2, k))
 
 
@@ -111,7 +124,8 @@ def main():
     nbrs = mine_neighbors(E_fit, args.num_neighbors)
     print(f'[{city}] {run}: {len(E_fit):,} fit windows encoded, neighbours mined ({time.time() - t_start:.0f}s)')
 
-    heads = nn.ModuleList([make_head(model.d_model, args.num_clusters, args.dropout)
+    mean, std = E_fit.mean(0), E_fit.std(0)
+    heads = nn.ModuleList([make_head(model.d_model, args.num_clusters, args.dropout, mean, std)
                            for _ in range(args.num_heads)]).to(device)
     encoder = model.sensor_encoder
     for p in encoder.parameters():
@@ -158,7 +172,7 @@ def main():
             wb.log({'epoch': epoch, 'loss': avg[best, 0].item(), 'consistency': avg[best, 1].item(),
                     'entropy': avg[best, 2].item(), 'best_head': best})
 
-    model.clustering_head.load_state_dict(heads[best].state_dict())
+    model.clustering_head = heads[best]
     encoder_updated = freeze_epochs < args.epochs
     enc = {k: encode(model, T[k], device) for k in ('pool', 'test')}
     if encoder_updated:

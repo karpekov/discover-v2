@@ -1,0 +1,4 @@
+city,representation,purity_all,purity_excl_other
+milan,milan_fl20_seq_discover_v1_mlm_time,0.7550119712689546,0.7787315841990959
+aruba,aruba_fl20_seq_discover_v1_mlm_time,0.910035,0.910232220609579
+cairo,cairo_fl20_seq_discover_v1_mlm_time,0.8230726464047441,0.8623383987298706
