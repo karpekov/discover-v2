@@ -79,7 +79,8 @@ F1 = weighted / macro, variant `all` unless noted; m = labelled windows per clus
   time-feature encoder); weighted F1 is similar. Above DEC at K ≥ 50 in all houses.
   Entropy weight 1/2/5 and neighbours 5/20/50 give inconsistent ±0.05 differences (single seed).
 - **Unfreezing the encoder does not help.** Frozen for 10 epochs, then encoder lr 1e-5: equal or worse than
-  frozen, at 5–10× the cost (9–37 min vs 1–6 min on an A40). Use the frozen encoder.
+  frozen, at 5–10× the cost (9–37 min vs 1–6 min on an A40); same at K=50 (Milan 0.80/0.46 vs 0.79/0.45 frozen,
+  Cairo 0.80/0.39 vs 0.79/0.42). Use the frozen encoder.
 - **DEC ≈ k-means.**
 - **Rare classes (SCAN K=100 vs k-means K=20, m=3, MLM encoder).** Recall rises for Milan Leave_Home 0→0.62 and
   Eat 0.30→0.53, Cairo Work 0.17→0.62, Aruba Bed_to_Toilet 0→1.0; some mid-size classes drop (Aruba Eat 0.66→0.23).
