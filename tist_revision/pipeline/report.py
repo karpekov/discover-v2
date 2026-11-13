@@ -47,33 +47,58 @@ def build(r, level, variant, m):
     return pd.DataFrame(rows).set_index('setup')
 
 
+def blocks(t):
+    """Yield (K, rows) per cluster count; rows = [(group, method, repr, values)], groups separate
+    histogram k-means, embedding k-means, SCAN and DEC. Bold = best per column within a K block."""
+    parts = [s.split(' | ') for s in t.index]
+    for K in sorted({p[2] for p in parts}, key=int):
+        sub = t[[p[2] == K for p in parts]]
+        rows = []
+        for setup, row in sub.iterrows():
+            method, rep, _ = setup.split(' | ')
+            group = 'hist' if rep.endswith('hist.') else method
+            rows.append((group, method, rep, row, sub.max()))
+        yield K, rows
+
+
+def fmt(v, best, bold):
+    return bold.format(f'{v:.2f}') if abs(v - best) < 5e-3 else f'{v:.2f}'
+
+
 def to_markdown(t):
-    best = t.max()
-    head = '| Method | Representation | K | ' + ' | '.join(f'{c.capitalize()} {k}' for c, k in t.columns) + ' |'
-    lines = [head, '|' + '---|' * 3 + '---:|' * len(t.columns)]
-    for setup, row in t.iterrows():
-        cells = [f'**{v:.2f}**' if abs(v - best[col]) < 5e-3 else f'{v:.2f}' for col, v in row.items()]
-        lines.append('| ' + setup + ' | ' + ' | '.join(cells) + ' |')
+    lines = []
+    for K, rows in blocks(t):
+        lines += [f'**K = {K}**', '', '| Method | Representation | '
+                  + ' | '.join(f'{c.capitalize()} {k}' for c, k in t.columns) + ' |',
+                  '|---|---|' + '---:|' * len(t.columns)]
+        prev = None
+        for group, method, rep, row, best in rows:
+            if prev is not None and group != prev:
+                lines.append('| | |' + ' |' * len(t.columns))
+            prev = group
+            lines.append(f'| {method} | {rep} | ' + ' | '.join(fmt(v, best[c], '**{}**') for c, v in row.items()) + ' |')
+        lines.append('')
     return '\n'.join(lines)
 
 
 def to_latex(t, caption, key):
-    best = t.max()
     groups = list(dict.fromkeys(c for c, _ in t.columns))
+    ncol = 2 + 2 * len(groups)
     out = [r'\begin{table}[t]', r'\centering\small', rf'\caption{{{caption}}}', rf'\label{{tab:{key}}}',
            r'\setlength{\tabcolsep}{4pt}',
-           r'\begin{tabular}{lll' + 'cc' * (len(groups) - 1) + '|cc}', r'\toprule',
-           r'Method & Repr. & $K$ & ' + ' & '.join(rf'\multicolumn{{2}}{{c}}{{{c.capitalize()}}}' for c in groups)
-           + r' \\', ''.join(rf'\cmidrule(lr){{{4 + 2 * i}-{5 + 2 * i}}}' for i in range(len(groups))),
-           r' & & & ' + ' & '.join(['W-F1 & M-F1'] * len(groups)) + r' \\', r'\midrule']
-    prev = None
-    for setup, row in t.iterrows():
-        method = setup.split(' | ')[0]
-        if prev is not None and method != prev:
-            out.append(r'\midrule')
-        prev = method
-        cells = [rf'\textbf{{{v:.2f}}}' if abs(v - best[col]) < 5e-3 else f'{v:.2f}' for col, v in row.items()]
-        out.append(' & '.join(setup.split(' | ')).replace('_', r'\_') + ' & ' + ' & '.join(cells) + r' \\')
+           r'\begin{tabular}{ll' + 'cc' * (len(groups) - 1) + '|cc}', r'\toprule',
+           r'Method & Repr. & ' + ' & '.join(rf'\multicolumn{{2}}{{c}}{{{c.capitalize()}}}' for c in groups)
+           + r' \\', ''.join(rf'\cmidrule(lr){{{3 + 2 * i}-{4 + 2 * i}}}' for i in range(len(groups))),
+           r' & & ' + ' & '.join(['W-F1 & M-F1'] * len(groups)) + r' \\']
+    for K, rows in blocks(t):
+        out += [r'\midrule', rf'\multicolumn{{{ncol}}}{{l}}{{\textit{{$K = {K}$ clusters}}}} \\', r'\midrule']
+        prev = None
+        for group, method, rep, row, best in rows:
+            if prev is not None and group != prev:
+                out.append(rf'\cmidrule{{1-{ncol}}}')
+            prev = group
+            out.append(f'{method} & {rep} & ' + ' & '.join(fmt(v, best[c], r'\textbf{{{}}}') for c, v in row.items())
+                       + r' \\')
     out += [r'\bottomrule', r'\end{tabular}', r'\end{table}']
     return '\n'.join(out)
 
