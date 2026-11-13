@@ -3,3 +3,7 @@ artifacts/
 
 # Small CSVs + figures are committed (root .gitignore excludes results/)
 !results/
+
+# Per-run SCAN/DEC outputs are written on skynet and fetched with sync.sh pull-results;
+# only the merged tables (summarize.py) are committed.
+results/stage3_scan/runs/
