@@ -33,7 +33,7 @@ from .labels import tdost_label
 
 EXCLUDED_LABELS = ('No_Activity', 'no_activity', 'Other')
 UNMAPPED = '__unmapped__'
-DEFAULT_M_VALUES = (5, 10, 50, 'all')
+DEFAULT_M_VALUES = (1, 3, 5, 10, 50, 'all')
 VARIANTS = ('all', 'excl_other')
 DATA_ROOT = Path('data/processed/casas')
 PROJECT_DIR = Path(__file__).resolve().parents[1]
