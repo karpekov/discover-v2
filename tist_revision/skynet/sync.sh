@@ -19,8 +19,10 @@ case "${1:-}" in
     rsync -av "$REMOTE:$REMOTE_ROOT/trained_models/$city/$dir/best_model.pt" \
               "$REMOTE:$REMOTE_ROOT/trained_models/$city/$dir/config.yaml" "trained_models/$city/$dir/" ;;
   pull-results)
-    rsync -av "$REMOTE:$REMOTE_ROOT/tist_revision/results/" tist_revision/results/
-    rsync -av --include '*/' --include '*.npz' --exclude '*' \
+    # Only folders produced on skynet; -u never overwrites newer local files.
+    rsync -avu "$REMOTE:$REMOTE_ROOT/tist_revision/results/stage3_scan/" tist_revision/results/stage3_scan/
+    rsync -avu "$REMOTE:$REMOTE_ROOT/tist_revision/results/stage1_5_mlm_time/" tist_revision/results/stage1_5_mlm_time/
+    rsync -avu --include '*/' --include '*.npz' --exclude '*' \
       "$REMOTE:$REMOTE_ROOT/tist_revision/artifacts/" tist_revision/artifacts/ ;;
   *)
     echo "usage: $0 push-data | pull-model <city> <model_dir> | pull-results"; exit 1 ;;
