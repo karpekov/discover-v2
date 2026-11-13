@@ -3,34 +3,35 @@
 \centering\small
 \caption{L2 (TDOST classes), all classes --- comparable to TDOST / DeepCASAS; $m=5$ labelled windows per cluster. W/M = weighted/macro F1.}
 \label{tab:l2_all_m5}
-\begin{tabular}{lllcccccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lllcccccc|cc}
 \toprule
-Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} \\
-\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
- & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
+Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} & \multicolumn{2}{c}{Average} \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(lr){10-11}
+ & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
 \midrule
-k-means & Sensor hist. & 20 & 0.70 & 0.38 & 0.88 & 0.50 & 0.73 & 0.29 \\
-k-means & Sensor hist. & 100 & 0.78 & 0.38 & \textbf{0.89} & 0.50 & 0.77 & 0.38 \\
-k-means & Sensor+ToD hist. & 20 & 0.71 & 0.28 & 0.78 & 0.32 & 0.84 & 0.39 \\
-k-means & Sensor+ToD hist. & 100 & 0.79 & 0.43 & 0.87 & 0.47 & \textbf{0.87} & \textbf{0.50} \\
-k-means & MLM & 20 & 0.77 & 0.33 & \textbf{0.89} & 0.51 & 0.74 & 0.29 \\
-k-means & MLM & 100 & 0.80 & 0.46 & \textbf{0.89} & 0.49 & 0.80 & 0.44 \\
-k-means & MLM-time & 20 & 0.73 & 0.32 & 0.89 & 0.50 & 0.77 & 0.32 \\
-k-means & MLM-time & 100 & 0.79 & 0.46 & 0.89 & 0.49 & 0.79 & 0.35 \\
-k-means & MLM + ToD & 20 & 0.72 & 0.29 & 0.81 & 0.32 & 0.86 & 0.44 \\
-k-means & MLM + ToD & 100 & \textbf{0.81} & 0.43 & 0.89 & 0.48 & \textbf{0.88} & 0.48 \\
-k-means & MLM-time + ToD & 20 & 0.74 & 0.32 & 0.76 & 0.31 & 0.86 & 0.41 \\
-k-means & MLM-time + ToD & 100 & 0.80 & 0.43 & 0.88 & 0.51 & \textbf{0.87} & 0.48 \\
+k-means & Sensor hist. & 20 & 0.70 & 0.38 & 0.88 & 0.50 & 0.73 & 0.29 & 0.77 & 0.39 \\
+k-means & Sensor hist. & 100 & 0.78 & 0.38 & \textbf{0.89} & 0.50 & 0.77 & 0.38 & 0.81 & 0.42 \\
+k-means & Sensor+ToD hist. & 20 & 0.71 & 0.28 & 0.78 & 0.32 & 0.84 & 0.39 & 0.78 & 0.33 \\
+k-means & Sensor+ToD hist. & 100 & 0.79 & 0.43 & 0.87 & 0.47 & \textbf{0.87} & \textbf{0.50} & 0.85 & 0.47 \\
+k-means & MLM & 20 & 0.77 & 0.33 & \textbf{0.89} & 0.51 & 0.74 & 0.29 & 0.80 & 0.38 \\
+k-means & MLM & 100 & 0.80 & 0.46 & \textbf{0.89} & 0.49 & 0.80 & 0.44 & 0.83 & 0.46 \\
+k-means & MLM-time & 20 & 0.73 & 0.32 & 0.89 & 0.50 & 0.77 & 0.32 & 0.79 & 0.38 \\
+k-means & MLM-time & 100 & 0.79 & 0.46 & 0.89 & 0.49 & 0.79 & 0.35 & 0.82 & 0.43 \\
+k-means & MLM + ToD & 20 & 0.72 & 0.29 & 0.81 & 0.32 & 0.86 & 0.44 & 0.80 & 0.35 \\
+k-means & MLM + ToD & 100 & \textbf{0.81} & 0.43 & 0.89 & 0.48 & \textbf{0.88} & 0.48 & \textbf{0.86} & 0.46 \\
+k-means & MLM-time + ToD & 20 & 0.74 & 0.32 & 0.76 & 0.31 & 0.86 & 0.41 & 0.79 & 0.35 \\
+k-means & MLM-time + ToD & 100 & 0.80 & 0.43 & 0.88 & 0.51 & \textbf{0.87} & 0.48 & 0.85 & 0.48 \\
 \midrule
-SCAN & MLM & 20 & 0.76 & 0.33 & 0.85 & 0.36 & 0.77 & 0.33 \\
-SCAN & MLM & 100 & 0.80 & \textbf{0.47} & 0.88 & \textbf{0.58} & 0.81 & 0.41 \\
-SCAN & MLM-time & 20 & 0.75 & 0.39 & 0.88 & 0.49 & 0.77 & 0.34 \\
-SCAN & MLM-time & 100 & 0.79 & 0.41 & 0.85 & 0.55 & 0.81 & 0.46 \\
+SCAN & MLM & 20 & 0.76 & 0.33 & 0.85 & 0.36 & 0.77 & 0.33 & 0.79 & 0.34 \\
+SCAN & MLM & 100 & 0.80 & \textbf{0.47} & 0.88 & \textbf{0.58} & 0.81 & 0.41 & 0.83 & \textbf{0.48} \\
+SCAN & MLM-time & 20 & 0.75 & 0.39 & 0.88 & 0.49 & 0.77 & 0.34 & 0.80 & 0.41 \\
+SCAN & MLM-time & 100 & 0.79 & 0.41 & 0.85 & 0.55 & 0.81 & 0.46 & 0.82 & 0.47 \\
 \midrule
-DEC & MLM & 20 & 0.78 & 0.38 & 0.89 & 0.47 & 0.77 & 0.32 \\
-DEC & MLM & 100 & 0.78 & 0.40 & 0.88 & 0.46 & 0.79 & 0.35 \\
-DEC & MLM-time & 20 & 0.78 & 0.40 & \textbf{0.89} & 0.47 & 0.78 & 0.35 \\
-DEC & MLM-time & 100 & 0.79 & 0.41 & \textbf{0.89} & 0.51 & 0.79 & 0.35 \\
+DEC & MLM & 20 & 0.78 & 0.38 & 0.89 & 0.47 & 0.77 & 0.32 & 0.81 & 0.39 \\
+DEC & MLM & 100 & 0.78 & 0.40 & 0.88 & 0.46 & 0.79 & 0.35 & 0.82 & 0.41 \\
+DEC & MLM-time & 20 & 0.78 & 0.40 & \textbf{0.89} & 0.47 & 0.78 & 0.35 & 0.82 & 0.41 \\
+DEC & MLM-time & 100 & 0.79 & 0.41 & \textbf{0.89} & 0.51 & 0.79 & 0.35 & 0.82 & 0.42 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -39,34 +40,35 @@ DEC & MLM-time & 100 & 0.79 & 0.41 & \textbf{0.89} & 0.51 & 0.79 & 0.35 \\
 \centering\small
 \caption{L2, rare classes masked from the average; $m=5$ labelled windows per cluster. W/M = weighted/macro F1.}
 \label{tab:l2_masked_m5}
-\begin{tabular}{lllcccccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lllcccccc|cc}
 \toprule
-Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} \\
-\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
- & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
+Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} & \multicolumn{2}{c}{Average} \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(lr){10-11}
+ & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
 \midrule
-k-means & Sensor hist. & 20 & 0.71 & 0.45 & 0.88 & 0.79 & 0.73 & 0.33 \\
-k-means & Sensor hist. & 100 & 0.78 & 0.48 & \textbf{0.89} & 0.80 & 0.77 & 0.38 \\
-k-means & Sensor+ToD hist. & 20 & 0.71 & 0.35 & 0.78 & 0.50 & 0.84 & 0.46 \\
-k-means & Sensor+ToD hist. & 100 & 0.79 & 0.52 & 0.88 & 0.76 & \textbf{0.88} & 0.52 \\
-k-means & MLM & 20 & 0.77 & 0.42 & \textbf{0.90} & \textbf{0.81} & 0.75 & 0.34 \\
-k-means & MLM & 100 & 0.80 & 0.57 & \textbf{0.89} & 0.79 & 0.80 & 0.43 \\
-k-means & MLM-time & 20 & 0.73 & 0.39 & 0.89 & 0.80 & 0.77 & 0.37 \\
-k-means & MLM-time & 100 & 0.80 & 0.57 & 0.89 & 0.79 & 0.79 & 0.41 \\
-k-means & MLM + ToD & 20 & 0.73 & 0.36 & 0.81 & 0.52 & 0.86 & 0.52 \\
-k-means & MLM + ToD & 100 & \textbf{0.82} & 0.53 & 0.89 & 0.77 & \textbf{0.88} & 0.55 \\
-k-means & MLM-time + ToD & 20 & 0.74 & 0.40 & 0.76 & 0.49 & 0.86 & 0.48 \\
-k-means & MLM-time + ToD & 100 & 0.81 & 0.53 & 0.88 & 0.78 & \textbf{0.88} & \textbf{0.56} \\
+k-means & Sensor hist. & 20 & 0.71 & 0.45 & 0.88 & 0.79 & 0.73 & 0.33 & 0.77 & 0.53 \\
+k-means & Sensor hist. & 100 & 0.78 & 0.48 & \textbf{0.89} & 0.80 & 0.77 & 0.38 & 0.81 & 0.56 \\
+k-means & Sensor+ToD hist. & 20 & 0.71 & 0.35 & 0.78 & 0.50 & 0.84 & 0.46 & 0.78 & 0.44 \\
+k-means & Sensor+ToD hist. & 100 & 0.79 & 0.52 & 0.88 & 0.76 & \textbf{0.88} & 0.52 & 0.85 & 0.60 \\
+k-means & MLM & 20 & 0.77 & 0.42 & \textbf{0.90} & \textbf{0.81} & 0.75 & 0.34 & 0.80 & 0.52 \\
+k-means & MLM & 100 & 0.80 & 0.57 & \textbf{0.89} & 0.79 & 0.80 & 0.43 & 0.83 & 0.60 \\
+k-means & MLM-time & 20 & 0.73 & 0.39 & 0.89 & 0.80 & 0.77 & 0.37 & 0.80 & 0.52 \\
+k-means & MLM-time & 100 & 0.80 & 0.57 & 0.89 & 0.79 & 0.79 & 0.41 & 0.82 & 0.59 \\
+k-means & MLM + ToD & 20 & 0.73 & 0.36 & 0.81 & 0.52 & 0.86 & 0.52 & 0.80 & 0.46 \\
+k-means & MLM + ToD & 100 & \textbf{0.82} & 0.53 & 0.89 & 0.77 & \textbf{0.88} & 0.55 & \textbf{0.86} & \textbf{0.62} \\
+k-means & MLM-time + ToD & 20 & 0.74 & 0.40 & 0.76 & 0.49 & 0.86 & 0.48 & 0.79 & 0.46 \\
+k-means & MLM-time + ToD & 100 & 0.81 & 0.53 & 0.88 & 0.78 & \textbf{0.88} & \textbf{0.56} & 0.86 & \textbf{0.62} \\
 \midrule
-SCAN & MLM & 20 & 0.77 & 0.41 & 0.85 & 0.58 & 0.77 & 0.39 \\
-SCAN & MLM & 100 & 0.81 & \textbf{0.59} & 0.88 & 0.70 & 0.82 & 0.48 \\
-SCAN & MLM-time & 20 & 0.76 & 0.49 & 0.88 & 0.78 & 0.77 & 0.40 \\
-SCAN & MLM-time & 100 & 0.79 & 0.51 & 0.85 & 0.71 & 0.81 & 0.46 \\
+SCAN & MLM & 20 & 0.77 & 0.41 & 0.85 & 0.58 & 0.77 & 0.39 & 0.80 & 0.46 \\
+SCAN & MLM & 100 & 0.81 & \textbf{0.59} & 0.88 & 0.70 & 0.82 & 0.48 & 0.83 & 0.59 \\
+SCAN & MLM-time & 20 & 0.76 & 0.49 & 0.88 & 0.78 & 0.77 & 0.40 & 0.80 & 0.56 \\
+SCAN & MLM-time & 100 & 0.79 & 0.51 & 0.85 & 0.71 & 0.81 & 0.46 & 0.82 & 0.56 \\
 \midrule
-DEC & MLM & 20 & 0.79 & 0.47 & 0.89 & 0.75 & 0.77 & 0.37 \\
-DEC & MLM & 100 & 0.78 & 0.50 & 0.88 & 0.74 & 0.80 & 0.41 \\
-DEC & MLM-time & 20 & 0.79 & 0.50 & \textbf{0.89} & 0.75 & 0.78 & 0.41 \\
-DEC & MLM-time & 100 & 0.79 & 0.51 & \textbf{0.89} & 0.76 & 0.80 & 0.41 \\
+DEC & MLM & 20 & 0.79 & 0.47 & 0.89 & 0.75 & 0.77 & 0.37 & 0.81 & 0.53 \\
+DEC & MLM & 100 & 0.78 & 0.50 & 0.88 & 0.74 & 0.80 & 0.41 & 0.82 & 0.55 \\
+DEC & MLM-time & 20 & 0.79 & 0.50 & \textbf{0.89} & 0.75 & 0.78 & 0.41 & 0.82 & 0.55 \\
+DEC & MLM-time & 100 & 0.79 & 0.51 & \textbf{0.89} & 0.76 & 0.80 & 0.41 & 0.83 & 0.56 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -75,34 +77,35 @@ DEC & MLM-time & 100 & 0.79 & 0.51 & \textbf{0.89} & 0.76 & 0.80 & 0.41 \\
 \centering\small
 \caption{L1 (raw CASAS activities), rare classes masked from the average; $m=5$ labelled windows per cluster. W/M = weighted/macro F1.}
 \label{tab:l1_masked_m5}
-\begin{tabular}{lllcccccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lllcccccc|cc}
 \toprule
-Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} \\
-\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
- & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
+Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} & \multicolumn{2}{c}{Average} \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(lr){10-11}
+ & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
 \midrule
-k-means & Sensor hist. & 20 & 0.70 & 0.46 & 0.88 & 0.65 & 0.21 & 0.21 \\
-k-means & Sensor hist. & 100 & 0.78 & 0.52 & 0.89 & \textbf{0.66} & 0.30 & 0.29 \\
-k-means & Sensor+ToD hist. & 20 & 0.70 & 0.37 & 0.77 & 0.34 & 0.70 & 0.38 \\
-k-means & Sensor+ToD hist. & 100 & \textbf{0.80} & 0.57 & 0.87 & 0.63 & 0.75 & 0.53 \\
-k-means & MLM & 20 & 0.77 & 0.50 & \textbf{0.89} & \textbf{0.66} & 0.28 & 0.26 \\
-k-means & MLM & 100 & 0.79 & 0.57 & 0.89 & 0.65 & 0.36 & 0.33 \\
-k-means & MLM-time & 20 & 0.72 & 0.41 & 0.88 & 0.66 & 0.27 & 0.27 \\
-k-means & MLM-time & 100 & 0.79 & \textbf{0.60} & 0.88 & 0.65 & 0.30 & 0.29 \\
-k-means & MLM + ToD & 20 & 0.71 & 0.32 & 0.80 & 0.35 & 0.73 & 0.46 \\
-k-means & MLM + ToD & 100 & \textbf{0.80} & 0.55 & 0.88 & 0.63 & \textbf{0.77} & \textbf{0.57} \\
-k-means & MLM-time + ToD & 20 & 0.75 & 0.40 & 0.76 & 0.39 & 0.75 & 0.45 \\
-k-means & MLM-time + ToD & 100 & 0.80 & 0.54 & 0.87 & 0.62 & 0.74 & 0.55 \\
+k-means & Sensor hist. & 20 & 0.70 & 0.46 & 0.88 & 0.65 & 0.21 & 0.21 & 0.60 & 0.44 \\
+k-means & Sensor hist. & 100 & 0.78 & 0.52 & 0.89 & \textbf{0.66} & 0.30 & 0.29 & 0.65 & 0.49 \\
+k-means & Sensor+ToD hist. & 20 & 0.70 & 0.37 & 0.77 & 0.34 & 0.70 & 0.38 & 0.72 & 0.36 \\
+k-means & Sensor+ToD hist. & 100 & \textbf{0.80} & 0.57 & 0.87 & 0.63 & 0.75 & 0.53 & 0.81 & 0.57 \\
+k-means & MLM & 20 & 0.77 & 0.50 & \textbf{0.89} & \textbf{0.66} & 0.28 & 0.26 & 0.65 & 0.47 \\
+k-means & MLM & 100 & 0.79 & 0.57 & 0.89 & 0.65 & 0.36 & 0.33 & 0.68 & 0.52 \\
+k-means & MLM-time & 20 & 0.72 & 0.41 & 0.88 & 0.66 & 0.27 & 0.27 & 0.62 & 0.44 \\
+k-means & MLM-time & 100 & 0.79 & \textbf{0.60} & 0.88 & 0.65 & 0.30 & 0.29 & 0.66 & 0.51 \\
+k-means & MLM + ToD & 20 & 0.71 & 0.32 & 0.80 & 0.35 & 0.73 & 0.46 & 0.75 & 0.38 \\
+k-means & MLM + ToD & 100 & \textbf{0.80} & 0.55 & 0.88 & 0.63 & \textbf{0.77} & \textbf{0.57} & \textbf{0.82} & \textbf{0.59} \\
+k-means & MLM-time + ToD & 20 & 0.75 & 0.40 & 0.76 & 0.39 & 0.75 & 0.45 & 0.75 & 0.42 \\
+k-means & MLM-time + ToD & 100 & 0.80 & 0.54 & 0.87 & 0.62 & 0.74 & 0.55 & 0.81 & 0.57 \\
 \midrule
-SCAN & MLM & 20 & 0.76 & 0.40 & 0.84 & 0.48 & 0.34 & 0.28 \\
-SCAN & MLM & 100 & \textbf{0.80} & 0.58 & 0.87 & 0.58 & 0.32 & 0.32 \\
-SCAN & MLM-time & 20 & 0.75 & 0.49 & 0.88 & 0.62 & 0.27 & 0.23 \\
-SCAN & MLM-time & 100 & 0.79 & 0.53 & 0.86 & 0.56 & 0.32 & 0.33 \\
+SCAN & MLM & 20 & 0.76 & 0.40 & 0.84 & 0.48 & 0.34 & 0.28 & 0.64 & 0.39 \\
+SCAN & MLM & 100 & \textbf{0.80} & 0.58 & 0.87 & 0.58 & 0.32 & 0.32 & 0.67 & 0.49 \\
+SCAN & MLM-time & 20 & 0.75 & 0.49 & 0.88 & 0.62 & 0.27 & 0.23 & 0.63 & 0.45 \\
+SCAN & MLM-time & 100 & 0.79 & 0.53 & 0.86 & 0.56 & 0.32 & 0.33 & 0.66 & 0.47 \\
 \midrule
-DEC & MLM & 20 & 0.77 & 0.46 & 0.88 & 0.61 & 0.19 & 0.22 \\
-DEC & MLM & 100 & 0.76 & 0.51 & 0.88 & 0.61 & 0.29 & 0.27 \\
-DEC & MLM-time & 20 & 0.78 & 0.52 & \textbf{0.89} & 0.62 & 0.27 & 0.26 \\
-DEC & MLM-time & 100 & 0.78 & 0.53 & 0.89 & 0.63 & 0.30 & 0.29 \\
+DEC & MLM & 20 & 0.77 & 0.46 & 0.88 & 0.61 & 0.19 & 0.22 & 0.61 & 0.43 \\
+DEC & MLM & 100 & 0.76 & 0.51 & 0.88 & 0.61 & 0.29 & 0.27 & 0.65 & 0.47 \\
+DEC & MLM-time & 20 & 0.78 & 0.52 & \textbf{0.89} & 0.62 & 0.27 & 0.26 & 0.65 & 0.47 \\
+DEC & MLM-time & 100 & 0.78 & 0.53 & 0.89 & 0.63 & 0.30 & 0.29 & 0.66 & 0.48 \\
 \bottomrule
 \end{tabular}
 \end{table}

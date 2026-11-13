@@ -41,6 +41,8 @@ def build(r, level, variant, m):
         for c in CITIES:
             row[(c, 'W')] = s.f1_weighted.get(c)
             row[(c, 'M')] = s.f1_macro.get(c)
+        row[('average', 'W')] = s.f1_weighted.reindex(CITIES).mean()
+        row[('average', 'M')] = s.f1_macro.reindex(CITIES).mean()
         rows.append(row)
     return pd.DataFrame(rows).set_index('setup')
 
@@ -57,11 +59,13 @@ def to_markdown(t):
 
 def to_latex(t, caption, key):
     best = t.max()
+    groups = list(dict.fromkeys(c for c, _ in t.columns))
     out = [r'\begin{table}[t]', r'\centering\small', rf'\caption{{{caption}}}', rf'\label{{tab:{key}}}',
-           r'\begin{tabular}{lll' + 'cc' * len(CITIES) + '}', r'\toprule',
-           r'Method & Repr. & $K$ & ' + ' & '.join(rf'\multicolumn{{2}}{{c}}{{{c.capitalize()}}}' for c in CITIES)
-           + r' \\', ''.join(rf'\cmidrule(lr){{{4 + 2 * i}-{5 + 2 * i}}}' for i in range(len(CITIES))),
-           r' & & & ' + ' & '.join(['W-F1 & M-F1'] * len(CITIES)) + r' \\', r'\midrule']
+           r'\setlength{\tabcolsep}{4pt}',
+           r'\begin{tabular}{lll' + 'cc' * (len(groups) - 1) + '|cc}', r'\toprule',
+           r'Method & Repr. & $K$ & ' + ' & '.join(rf'\multicolumn{{2}}{{c}}{{{c.capitalize()}}}' for c in groups)
+           + r' \\', ''.join(rf'\cmidrule(lr){{{4 + 2 * i}-{5 + 2 * i}}}' for i in range(len(groups))),
+           r' & & & ' + ' & '.join(['W-F1 & M-F1'] * len(groups)) + r' \\', r'\midrule']
     prev = None
     for setup, row in t.iterrows():
         method = setup.split(' | ')[0]
