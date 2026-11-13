@@ -52,13 +52,11 @@ cairo,l2,Leave_Home,46,17,False
 cairo,l1,Dinner,3082,1109,True
 cairo,l1,Lunch,1478,853,True
 cairo,l1,Breakfast,2613,533,True
-cairo,l1,R2 wake,1391,341,True
-cairo,l1,R2 sleep,668,277,True
-cairo,l1,R1 work in office,311,169,True
+cairo,l1,wake,1659,455,True
+cairo,l1,sleep,991,384,True
+cairo,l1,work in office,311,169,True
 cairo,l1,Night wandering,315,141,True
-cairo,l1,R1 wake,268,114,True
-cairo,l1,R1 sleep,323,107,True
 cairo,l1,Laundry,88,37,True
-cairo,l1,R2 take medicine,118,31,True
+cairo,l1,take medicine,118,31,True
 cairo,l1,Bed to toilet,91,28,True
 cairo,l1,Leave home,46,17,False

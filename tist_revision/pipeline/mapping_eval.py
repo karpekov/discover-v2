@@ -21,9 +21,11 @@ Scoring variants:
   - 'excl_other': windows labelled Other (or No_Activity) removed from both pool and test.
   - 'masked':     every window stays in pool and test (rare-class windows can still be mispredicted),
                   but F1 is averaged only over classes with >= MIN_POOL pool and >= MIN_TEST test windows.
-Label level: 'l2' (TDOST classes, default) or 'l1' (raw CASAS activity) via `load_protocol(level=...)`.
+Label level: 'l2' (TDOST classes, default) or 'l1' (raw CASAS activity with the resident id removed, which
+only affects Cairo) via `load_protocol(level=...)`.
 """
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Sequence, Union
@@ -92,10 +94,16 @@ def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_
     pool = load_windows(DATA_ROOT / city / label_window, 'train', CACHE_DIR)
     test = load_windows(DATA_ROOT / city / label_window, 'test', CACHE_DIR)
     if level == 'l1':
-        pool, test = pool.assign(label=pool['label_raw']), test.assign(label=test['label_raw'])
+        pool, test = pool.assign(label=pool['label_raw'].map(l1_label)), test.assign(label=test['label_raw'].map(l1_label))
     elif level != 'l2':
         raise ValueError(level)
     return fit, pool, test
+
+
+def l1_label(raw: str) -> str:
+    """Raw CASAS activity without the resident id (Cairo 'R1 sleep' / 'R2 sleep' -> 'sleep'): which of two
+    residents acts is not observable from ambient sensors."""
+    return re.sub(r'^R[12][ _]', '', raw)
 
 
 def scored_classes(pool_labels, test_labels, min_pool: int = MIN_POOL, min_test: int = MIN_TEST) -> list:
