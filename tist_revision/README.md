@@ -99,7 +99,13 @@ Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h
   no-coordinate encoders exist, local re-scores cover histogram baselines only.
 - **Encoder choice gate (R2-2.9(b)):** our transformer vs pretrained `bert-base-uncased` (event words added as new
   tokens), both no-coordinate + time of day, single seed, 3 houses, scored with k-means / SCAN / DEC at K = 20, 50.
-  Run first; the winner gets the 5-seed runs. Our transformer wins if results are comparable (smaller model).
+  Our transformer is the default (simpler, smaller). Its 5 seeds run in parallel with the BERT run (Alex,
+  2026-11-13); switch to BERT only if it wins by ≥ 0.05 macro F1 on average and is not worse in any house.
+  The response letter must say we moved from v1's BERT to a smaller transformer.
+- **Label budgets count activity labels only** (Alex, 2026-11-13). Clustering: the annotator skips No_Activity
+  windows, so m labels = m activity labels. Baselines and probes: draw random windows until 100 / 250 activity
+  labels are collected, keeping the No_Activity windows drawn along the way as training data. `probes.py`
+  still draws a fixed number of windows: update before the final runs.
 - Status: plan drafted (below). Nothing launched until Alex says go.
 
 ## Launch plan (agreed 2026-11-12; waiting for Alex's go)
@@ -123,13 +129,13 @@ TDOST variant: rule-based v1-1 (with time between readings).
 
 | Stage | What | Runs | Skynet jobs | Est. per job |
 |---|---|---|---|---|
-| A0 | Encoder gate: our transformer vs BERT, 3 houses × 1 seed, then stage B on each | 6 (+ B) | 6 | 20–90 min |
-| A | MLM encoder (gate winner), 3 houses × 5 seeds (seed 1 reused from A0) | 15 | 12 | 20–60 min |
+| A0 | BERT encoder, 3 houses × 1 seed, then stage B (compared with seed 1 of A) | 3 (+ B) | 3 | 30–90 min |
+| A | Our transformer, 3 houses × 5 seeds (redone with BERT only if BERT wins clearly) | 15 | 15 | 20–60 min |
 | B | encode, then k-means / SCAN / DEC × 2 inputs × K ∈ {20, 50}, plus histogram k-means; one job per (house, seed) | ~150 | 15 | 20–40 min |
 | C | TDOST embedding generation (once per house) | 3 | 3 (or local) | ~10 min |
 | D | Baselines: 3 methods × 3 houses × 5 seeds × {L1, L2} × {100, 250, all}; one job per (method, house, seed) | 270 | 45 | 30–60 min |
 | E | Aggregate: mean ± std over seeds; tables + PDF | – | local | – |
-- Order: A0 with C and D in parallel; Alex picks the encoder from A0; then A, then B as each encoder finishes.
+- Order: A0, A, C and D in parallel; B chained (slurm dependency) after each encoder.
 - Throttle: `%10` per array on overcap. The QoS cap is 48 GPUs per user; jobs are preemptible and requeued.
 - Total: about 80 GPU jobs and 55 GPU-hours, roughly 6–9 h wall-clock.
 
