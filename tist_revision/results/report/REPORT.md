@@ -1,7 +1,7 @@
 # DISCOVER revision: clustering comparison report (2026-11-12, single seed 42)
 
 Regenerate tables: `python -m tist_revision.pipeline.label_levels && python -m tist_revision.pipeline.report --m 5`
-(LaTeX versions: `tables_m5.tex`, `tables_m1.tex`; raw numbers incl. 95% day-block CIs: `../label_levels/results.csv`).
+(LaTeX: `tables_m5.tex`, `tables_m1.tex`; rendered PDFs: `tables_m5_pdf.pdf`, `tables_m1_pdf.pdf` via `--pdf`; raw numbers incl. 95% day-block CIs: `../label_levels/results.csv`).
 
 ## Protocol
 - Clusters fit on continuous FL_20 train windows (no labels). Labelled pool = pre-segmented FL_20_p train;

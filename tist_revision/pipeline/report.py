@@ -8,6 +8,7 @@ Usage:
     python -m tist_revision.pipeline.report --m 5
 """
 import argparse
+import subprocess
 
 import pandas as pd
 
@@ -76,6 +77,7 @@ def to_latex(t, caption, key):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--m', default='5', help='labelled windows per cluster')
+    ap.add_argument('--pdf', action='store_true', help='also compile a standalone PDF (needs latexmk)')
     args = ap.parse_args()
     r = pd.read_csv(RESULTS_DIR / 'label_levels' / 'results.csv')
     r['m'] = r['m'].astype(str)
@@ -85,10 +87,21 @@ def main():
     for level, variant, title in EVALS:
         t = build(r, level, variant, args.m)
         md.append(f'### {title} (m = {args.m})\n\n' + to_markdown(t))
-        tex.append(to_latex(t, f'{title}; $m={args.m}$ labelled windows per cluster. W/M = weighted/macro F1.',
+        tex.append(to_latex(t, f'{title.replace(" - ", " --- ")}; $m={args.m}$ labelled windows per cluster. '
+                               'W/M = weighted/macro F1.',
                             f'{level}_{variant}_m{args.m}'))
     (out / f'tables_m{args.m}.md').write_text('\n\n'.join(md) + '\n')
     (out / f'tables_m{args.m}.tex').write_text('% requires \\usepackage{booktabs}\n' + '\n\n'.join(tex) + '\n')
+    if args.pdf:
+        doc = out / f'tables_m{args.m}_pdf.tex'
+        doc.write_text('\n'.join([
+            r'\documentclass[10pt]{article}', r'\usepackage[margin=2cm]{geometry}', r'\usepackage{booktabs}',
+            r'\usepackage{float}', r'\floatplacement{table}{H}', r'\pagestyle{empty}', r'\begin{document}',
+            rf'\input{{tables_m{args.m}.tex}}', r'\end{document}', '']))
+        subprocess.run(['latexmk', '-pdf', '-interaction=nonstopmode', '-quiet', doc.name], cwd=out, check=True,
+                       stdout=subprocess.DEVNULL)
+        subprocess.run(['latexmk', '-c', doc.name], cwd=out, check=True, stdout=subprocess.DEVNULL)
+        print(f'Saved {doc.with_suffix(".pdf")}')
     print('\n\n'.join(md))
 
 
