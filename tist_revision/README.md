@@ -69,6 +69,28 @@ pack several cheap frozen runs per task line; single seed until the setup is cho
 on skynet (training progress goes to the `.err` file).
 Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h.
 
+## Decisions for the final runs (Alex, 2026-11-12)
+- **Narrative:** the learned embeddings are for later multi-house training. Say plainly that at the single-house
+  level they bring little over hand-crafted sensor + time-of-day histograms.
+- **Encoder:** retrain the MLM encoder without x-y coordinates. Per-event inputs: sensor, state, room. Always
+  include time-of-day encoding, i.e. config `*_fl20_seq_nocoord_mlm_time.yaml`; no run without time.
+- **Clustering:** k-means, SCAN (frozen encoder) and DEC, at K = 20 (as in the current paper) and K = 50.
+- **Labels:** L1 (per-house activities, resident id removed) is primary; L2 (TDOST classes) only for comparability.
+  Rare classes are masked from the headline macro F1 (≥ 50 pool and ≥ 20 test windows).
+- **Seeds:** 5 per configuration.
+- **Baselines:** TDOST, DeepCASAS and TreeCNN, run on the same data and splits, compared with our best method.
+- Status: plan drafted (below). Nothing launched until Alex says go.
+
+## Launch plan (draft; open questions in the chat of 2026-11-12)
+| Stage | What | Runs | Skynet jobs | Est. per job (A40) |
+|---|---|---|---|---|
+| A | MLM encoder `nocoord_mlm_time`, 3 houses × 5 seeds (needs seed control in `train.py`) | 15 | 15 | 20–60 min |
+| B | SCAN + DEC, K ∈ {20, 50}, on each encoder; one job runs all configs of one (house, seed) | 60–120 | 15 | 30–60 min |
+| C | k-means on embeddings + histogram baselines, K ∈ {20, 50}, 5 seeds (CPU) | ~120 | local / CPU | minutes |
+| D | Baselines: TDOST, DeepCASAS, TreeCNN × 3 houses × 5 seeds × {L1, L2} × label budgets {100, 250, all}; one job per (baseline, house, seed) | 270 | 45 | 30–60 min |
+| E | Aggregate: mean ± std over seeds, report tables + PDF | – | local | – |
+Throttle: arrays with `%8–%10` on overcap (QoS cap is 48 GPUs per user; jobs are preemptible and requeued).
+
 ## Findings so far
 **Current consolidated report (supersedes the bullets below where they differ): `results/report/REPORT.md`**
 (L1 with resident id removed + L2 labels, rare-class masking, k-means / SCAN / DEC / embedding + time-of-day,
