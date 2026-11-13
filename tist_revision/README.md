@@ -65,7 +65,13 @@ pack several cheap frozen runs per task line; single seed until the setup is cho
 on skynet (training progress goes to the `.err` file).
 Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h.
 
-## Findings so far (single seed 42, 2026-11-12; details in `results/summary_*.csv`, `results/rare_classes/`)
+## Findings so far
+**Current consolidated report (supersedes the bullets below where they differ): `results/report/REPORT.md`**
+(L1 + L2 labels, rare-class masking, k-means / SCAN / DEC / embedding + time-of-day; `pipeline/label_levels.py`,
+`pipeline/report.py`). Key update: k-means on MLM embedding + time-of-day histogram (K=100) is the most
+consistent setup; SCAN's Aruba macro gain came from one rare class.
+
+Earlier notes (single seed 42, 2026-11-12; details in `results/summary_*.csv`, `results/rare_classes/`):
 F1 = weighted / macro, variant `all` unless noted; m = labelled windows per cluster.
 - **Representations (Stage 1.5).** Frozen MLM encoder ≈ sensor histograms. The time-feature encoder
   (`*_mlm_time`) has the best kNN purity and linear probes (full-label probe macro: Cairo 0.65 vs 0.52 MLM,

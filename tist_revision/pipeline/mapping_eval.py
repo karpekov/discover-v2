@@ -19,6 +19,9 @@ Scoring variants:
   - 'all':        every labelled window (pre-segmented data has no No_Activity). Comparable to
                   TDOST / DeepCASAS, which keep Other as a class.
   - 'excl_other': windows labelled Other (or No_Activity) removed from both pool and test.
+  - 'masked':     every window stays in pool and test (rare-class windows can still be mispredicted),
+                  but F1 is averaged only over classes with >= MIN_POOL pool and >= MIN_TEST test windows.
+Label level: 'l2' (TDOST classes, default) or 'l1' (raw CASAS activity) via `load_protocol(level=...)`.
 """
 import json
 from collections import Counter
@@ -35,6 +38,7 @@ EXCLUDED_LABELS = ('No_Activity', 'no_activity', 'Other')
 UNMAPPED = '__unmapped__'
 DEFAULT_M_VALUES = (1, 3, 5, 10, 50, 'all')
 VARIANTS = ('all', 'excl_other')
+MIN_POOL, MIN_TEST = 50, 20
 DATA_ROOT = Path('data/processed/casas')
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 RESULTS_DIR = PROJECT_DIR / 'results'
@@ -82,12 +86,22 @@ def load_windows(data_dir: Union[str, Path], split: str, cache_dir: Optional[Uni
     return df
 
 
-def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_20_p'):
+def load_protocol(city: str, fit_window: str = 'FL_20', label_window: str = 'FL_20_p', level: str = 'l2'):
     """Return (fit, pool, test): unlabelled fit windows, labelled pool windows, labelled test windows."""
     fit = load_windows(DATA_ROOT / city / fit_window, 'train', CACHE_DIR, labelled=False)
     pool = load_windows(DATA_ROOT / city / label_window, 'train', CACHE_DIR)
     test = load_windows(DATA_ROOT / city / label_window, 'test', CACHE_DIR)
+    if level == 'l1':
+        pool, test = pool.assign(label=pool['label_raw']), test.assign(label=test['label_raw'])
+    elif level != 'l2':
+        raise ValueError(level)
     return fit, pool, test
+
+
+def scored_classes(pool_labels, test_labels, min_pool: int = MIN_POOL, min_test: int = MIN_TEST) -> list:
+    """Classes kept in the 'masked' variant."""
+    pc, tc = Counter(pool_labels), Counter(test_labels)
+    return sorted(l for l in tc if pc[l] >= min_pool and tc[l] >= min_test)
 
 
 def save_assignments(name: str, pool_cluster, pool_conf, test_cluster, test_conf=None):
@@ -113,38 +127,42 @@ def map_clusters(pool_clusters: np.ndarray, pool_conf: np.ndarray, pool_labels: 
     return mapping
 
 
-def _scores(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+def _scores(y_true: np.ndarray, y_pred: np.ndarray, classes: Optional[Sequence[str]] = None) -> Dict[str, float]:
+    """F1 averaged over `classes` (default: every true class); accuracy over all windows."""
+    classes = np.unique(y_true) if classes is None else list(classes)
     return {
-        'f1_weighted': f1_score(y_true, y_pred, average='weighted', zero_division=0),
-        'f1_macro': f1_score(y_true, y_pred, labels=np.unique(y_true), average='macro', zero_division=0),
+        'f1_weighted': f1_score(y_true, y_pred, labels=classes, average='weighted', zero_division=0),
+        'f1_macro': f1_score(y_true, y_pred, labels=classes, average='macro', zero_division=0),
         'accuracy': accuracy_score(y_true, y_pred),
     }
 
 
-def _scores_from_confusion(cm: np.ndarray, n_true_classes: int) -> Dict[str, float]:
-    """Same metrics as `_scores`, from a confusion matrix whose first `n_true_classes`
-    rows/cols are the true-label classes (remaining cols are predicted-only labels)."""
-    tp = np.diag(cm)[:n_true_classes].astype(float)
-    support = cm[:n_true_classes].sum(1).astype(float)
-    pred_count = cm[:, :n_true_classes].sum(0).astype(float)
+def _scores_from_confusion(cm: np.ndarray, keep: np.ndarray) -> Dict[str, float]:
+    """Same metrics as `_scores`, from a full confusion matrix; F1 averaged over class indices `keep`."""
+    tp = np.diag(cm).astype(float)
+    support = cm.sum(1).astype(float)
+    pred_count = cm.sum(0).astype(float)
     with np.errstate(divide='ignore', invalid='ignore'):
         f1 = np.where(support + pred_count > 0, 2 * tp / (support + pred_count), 0.0)
-    total = support.sum()
-    present = support > 0
+    f1, s = f1[keep], support[keep]
+    present = s > 0
+    total = cm.sum()
     return {
-        'f1_weighted': float((f1 * support).sum() / total) if total else 0.0,
+        'f1_weighted': float((f1 * s).sum() / s.sum()) if s.sum() else 0.0,
         'f1_macro': float(f1[present].mean()) if present.any() else 0.0,
         'accuracy': float(tp.sum() / total) if total else 0.0,
     }
 
 
 def day_block_bootstrap(y_true: np.ndarray, y_pred: np.ndarray, days: np.ndarray,
-                        n_boot: int = 1000, seed: int = 0) -> Dict[str, tuple]:
+                        n_boot: int = 1000, seed: int = 0,
+                        classes: Optional[Sequence[str]] = None) -> Dict[str, tuple]:
     """95% CIs from resampling whole test days with replacement."""
     rng = np.random.default_rng(seed)
     true_labels = list(np.unique(y_true))
     labels = true_labels + sorted(set(np.unique(y_pred)) - set(true_labels))
     code = {l: i for i, l in enumerate(labels)}
+    keep = np.array([code[l] for l in (true_labels if classes is None else classes)])
     t = np.array([code[l] for l in y_true])
     p = np.array([code[l] for l in y_pred])
     uniq, day_codes = np.unique(days, return_inverse=True)
@@ -154,7 +172,7 @@ def day_block_bootstrap(y_true: np.ndarray, y_pred: np.ndarray, days: np.ndarray
     boot = {k: [] for k in ('f1_weighted', 'f1_macro', 'accuracy')}
     for _ in range(n_boot):
         cm = day_cm[rng.integers(0, len(uniq), size=len(uniq))].sum(0)
-        for k, v in _scores_from_confusion(cm, len(true_labels)).items():
+        for k, v in _scores_from_confusion(cm, keep).items():
             boot[k].append(v)
     return {k: (float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))) for k, v in boot.items()}
 
@@ -173,21 +191,25 @@ def evaluate_clustering(pool: pd.DataFrame, test: pd.DataFrame,
     rows, mappings = [], {}
     for variant in variants:
         p, t = pool, test
+        classes = None
         if variant == 'excl_other':
             p = p[~p['label'].isin(EXCLUDED_LABELS)]
             t = t[~t['label'].isin(EXCLUDED_LABELS)]
+        elif variant == 'masked':
+            classes = scored_classes(p['label'], t['label'])
         p = p[p['cluster'] != -1]
         y_true = t['label'].to_numpy()
         days = t['day'].to_numpy()
         for m in m_values:
             mapping = map_clusters(p['cluster'].to_numpy(), p['conf'].to_numpy(), p['label'].to_numpy(), m)
             y_pred = np.array([mapping.get(c, UNMAPPED) for c in t['cluster'].to_numpy()])
-            ci = day_block_bootstrap(y_true, y_pred, days, n_boot=n_boot, seed=seed)
+            ci = day_block_bootstrap(y_true, y_pred, days, n_boot=n_boot, seed=seed, classes=classes)
             row = {'variant': variant, 'm': str(m), 'n_test': len(t), 'n_test_days': len(np.unique(days)),
+                   'n_classes_scored': len(np.unique(y_true)) if classes is None else len(classes),
                    'n_clusters': int(p['cluster'].nunique()),
                    'n_unmapped_test': int((y_pred == UNMAPPED).sum()),
                    'n_labels_mapped': len(set(mapping.values()))}
-            for k, v in _scores(y_true, y_pred).items():
+            for k, v in _scores(y_true, y_pred, classes).items():
                 row[k] = v
                 row[f'{k}_lo'], row[f'{k}_hi'] = ci[k]
             rows.append(row)

@@ -32,16 +32,25 @@ OUT = RESULTS_DIR / 'rare_classes'
 
 
 def representations(city, fit, pool, test, names):
+    """`hist_*` histograms, or L2-normalised embeddings; `{emb}+tod` appends the window's
+    L2-normalised time-of-day histogram (equal weight to the unit-norm embedding)."""
     for name in names:
         if name.startswith('hist_'):
             yield name, build_features(fit, [fit, pool, test], FEATURE_COLUMNS[name[len('hist_'):]])
         else:
-            path = ARTIFACTS_DIR / 'embeddings' / f'{city}_{name}_embeddings.npz'
+            emb, _, extra = name.partition('+')
+            path = ARTIFACTS_DIR / 'embeddings' / f'{city}_{emb}_embeddings.npz'
             if not path.exists():
                 print(f'  [skip] {path}')
                 continue
             z = np.load(path)
-            yield name, [normalize(z[k].astype(np.float32)) for k in ('fit', 'pool', 'test')]
+            X = [normalize(z[k].astype(np.float32)) for k in ('fit', 'pool', 'test')]
+            if extra == 'tod':
+                tod = build_features(fit, [fit, pool, test], ['tods'])
+                X = [np.hstack([x, normalize(t)]) for x, t in zip(X, tod)]
+            elif extra:
+                raise ValueError(name)
+            yield name, X
 
 
 def score(y_true, y_pred):

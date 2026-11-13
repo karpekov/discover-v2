@@ -1,0 +1,64 @@
+city,level,label,n_pool,n_test,scored_in_masked
+milan,l2,Cook,8571,2395,True
+milan,l2,Relax,4192,1476,True
+milan,l2,Bathing,1488,383,True
+milan,l2,Other,1758,255,True
+milan,l2,Sleep,1058,214,True
+milan,l2,Work,1098,134,True
+milan,l2,Eat,326,83,True
+milan,l2,Leave_Home,207,40,True
+milan,l2,Take_Medicine,31,13,False
+milan,l2,Bed_to_Toilet,66,12,False
+milan,l1,Kitchen_Activity,8571,2395,True
+milan,l1,Read,2926,973,True
+milan,l1,Watch_TV,1266,503,True
+milan,l1,Master_Bedroom_Activity,1695,247,True
+milan,l1,Sleep,1058,214,True
+milan,l1,Master_Bathroom,887,208,True
+milan,l1,Guest_Bathroom,601,175,True
+milan,l1,Chores,428,103,True
+milan,l1,Dining_Rm_Activity,326,83,True
+milan,l1,Leave_Home,207,40,True
+milan,l1,Desk_Activity,670,31,True
+milan,l1,Bed_to_Toilet,66,12,False
+milan,l1,Meditate,63,8,False
+milan,l1,Eve_Meds,12,8,False
+milan,l1,Morning_Meds,19,5,False
+aruba,l2,Relax,23525,6442,True
+aruba,l2,Cook,19567,5245,True
+aruba,l2,Work,2223,875,True
+aruba,l2,Sleep,1683,357,True
+aruba,l2,Eat,1098,352,True
+aruba,l2,Bed_to_Toilet,68,19,False
+aruba,l2,Leave_Home,14,4,False
+aruba,l2,Enter_Home,22,4,False
+aruba,l1,Relax,23525,6442,True
+aruba,l1,Meal_Preparation,19567,5245,True
+aruba,l1,Housekeeping,515,395,True
+aruba,l1,Sleeping,1683,357,True
+aruba,l1,Eating,1098,352,True
+aruba,l1,Work,977,333,True
+aruba,l1,Wash_Dishes,731,147,True
+aruba,l1,Bed_to_Toilet,68,19,False
+aruba,l1,Leave_Home,14,4,False
+aruba,l1,Enter_Home,22,4,False
+cairo,l2,Eat,7173,2495,True
+cairo,l2,Other,1974,596,True
+cairo,l2,Sleep,991,384,True
+cairo,l2,Work,399,206,True
+cairo,l2,Take_Medicine,118,31,True
+cairo,l2,Bed_to_Toilet,91,28,True
+cairo,l2,Leave_Home,46,17,False
+cairo,l1,Dinner,3082,1109,True
+cairo,l1,Lunch,1478,853,True
+cairo,l1,Breakfast,2613,533,True
+cairo,l1,R2 wake,1391,341,True
+cairo,l1,R2 sleep,668,277,True
+cairo,l1,R1 work in office,311,169,True
+cairo,l1,Night wandering,315,141,True
+cairo,l1,R1 wake,268,114,True
+cairo,l1,R1 sleep,323,107,True
+cairo,l1,Laundry,88,37,True
+cairo,l1,R2 take medicine,118,31,True
+cairo,l1,Bed to toilet,91,28,True
+cairo,l1,Leave home,46,17,False
