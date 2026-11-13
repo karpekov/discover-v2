@@ -64,7 +64,7 @@ bash tist_revision/skynet/launch_final.sh                      # arrays: encoder
 tist_revision/skynet/sync.sh pull-results && python -m tist_revision.pipeline.final_scores   # local, after jobs finish
 ```
 Task files under `skynet/tasks/`: each encoder line is train → encode → frozen_deep (B chained in-job).
-Throttle `%10`; default GRES `gpu:a40:1` (≥24 GB; override with `GRES=gpu:l40s:1`). Slurm logs: `slurm/tist_*`.
+Throttle `%10`; `gpu:1` + exclude 2080 Ti/Titan X (lands on a40/l40s/rtx_6000/a5000). Slurm logs: `slurm/tist_*`.
 
 ## Decisions for the final runs (Alex, 2026-11-12)
 - **Narrative:** the learned embeddings are for later multi-house training. Say plainly that at the single-house
@@ -115,7 +115,7 @@ TDOST variant: rule-based v1-1 (with time between readings).
 2. `encode_embeddings` → `artifacts/embeddings/{city}_{tf|bert}_s{seed}_embeddings.npz`.
 3. Seeded `frozen_deep.py` (k-means / SCAN / DEC); hist baselines are k-means only. Aggregate with `final_scores.py`.
 4. Baselines in `tist_revision/baselines/` (DeepCASAS, TDOST, TreeCNN); L1/L2 × {100, 250, all} × 5 seeds.
-5. Skynet jobs: default `gpu:a40:1` (≥24 GB; `launch_final.sh` accepts `GRES=...` override).
+5. Skynet jobs: `gpu:1` with 2080 Ti/Titan X host exclude + runtime ≥24GB check (`launch_final.sh`).
 
 | Stage | What | Runs | Skynet jobs | Est. per job |
 |---|---|---|---|---|
