@@ -38,11 +38,11 @@ def kmeans_assignments(city, fit, pool, test, reps, Ks, seed, max_fit=30000):
             yield {'method': 'kmeans', 'encoder': rep, 'run': f'k{K}', 'K': K}, np.load(ARTIFACTS_DIR / 'assignments' / f'{name}.npz')
 
 
-def saved_assignments(city, n_pool, suffix=''):
+def saved_assignments(city, n_pool, reps, suffix=''):
     """Frozen SCAN / DEC assignments from `frozen_deep.py` (`{city}__{rep}__{scan|dec}_k{K}{suffix}`)."""
     for path in sorted((ARTIFACTS_DIR / 'assignments').glob(f'{city}__*__*_k*{suffix}.npz')):
         mt = FROZEN.match(path.stem[:len(path.stem) - len(suffix)] if suffix else path.stem)
-        if not mt:
+        if not mt or mt['rep'] not in reps:
             continue
         z = np.load(path)
         if len(z['pool_cluster']) != n_pool:
@@ -72,7 +72,7 @@ def main():
             classes += [{'city': city, 'level': level, 'label': l, 'n_pool': int(pc.get(l, 0)), 'n_test': int(n),
                          'scored_in_masked': l in kept} for l, n in tc.items()]
         sources = list(kmeans_assignments(city, fit, pool2, test2, args.representations, args.K, args.seed))
-        sources += list(saved_assignments(city, len(pool2)))
+        sources += list(saved_assignments(city, len(pool2), args.representations))
         for meta, z in sources:
             for level, pool, test in (('l2', pool2, test2), ('l1', pool1, test1)):
                 variants = ('all', 'masked', 'excl_other') if level == 'l2' else ('all', 'masked')
