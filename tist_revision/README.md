@@ -19,6 +19,10 @@ models no longer exist; everything here is a re-implementation on discover-v2 co
   - `summarize.py`: merges all clustering results into `results/summary_{variant}.csv`.
   - `visualize.py`: confusion matrices, cluster composition, t-SNE.
 - `configs/alignment/`: new encoder training configs (e.g. `*_mlm_time.yaml`: MLM with tod/dow tokens and time deltas).
+  **Decision (2026-11-12): all future encoder (re)runs use per-event inputs sensor, state, room only — no x-y
+  coordinates.** Use `*_fl20_seq_nocoord_mlm.yaml` (no time features) and `*_fl20_seq_nocoord_mlm_time.yaml`
+  (+ tod/dow tokens, time deltas). Not trained yet; existing results use the coordinate encoders
+  (`*_discover_v1_mlm_only`, `*_discover_v1_mlm_time`). Note: `use_time_of_day` in configs is a no-op.
 - `skynet/`: `train_config.sh` (sbatch wrapper for `train.py`), `run_tasks.sh` (SLURM array: one shell command
   per line of `skynet/tasks/*.txt`, throttled with `%N`), `sync.sh` (push FL_20_p data, pull models / results).
 - `results/`: committed CSVs (`stage1_histograms/`, `stage1_5_*/`, `rare_classes/`, `summary_*.csv`) and `figures/`
