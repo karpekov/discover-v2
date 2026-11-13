@@ -92,6 +92,9 @@ Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h
     `TDOST/generate_embeddings_v1*.py`, sentence encoder `all-distilroberta-v1`). Embeddings are regenerated
     for our windows; none exist yet.
   - TreeCNN is implemented from Cao et al. (2020); no prior code exists.
+- **No_Activity is never predicted on test** (as in the paper, whose test set has no No_Activity). It stays a
+  training / annotation label. Clustering: the annotator skips No_Activity windows when labelling a cluster
+  (`map_clusters`). Probes and baselines: argmax over non-No_Activity classes (`mapping_eval.predict_activity`).
 - **No coordinates anywhere.** Existing (coordinate) encoders are not used for any reported number. Until the
   no-coordinate encoders exist, local re-scores cover histogram baselines only.
 - **Encoder choice gate (R2-2.9(b)):** our transformer vs pretrained `bert-base-uncased` (event words added as new

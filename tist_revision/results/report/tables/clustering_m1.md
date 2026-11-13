@@ -4,15 +4,15 @@
 
 | Method | Representation | Milan W | Milan M | Aruba W | Aruba M | Cairo W | Cairo M | Average W | Average M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means | Sensor hist. | **0.53** | **0.37** | **0.78** | **0.47** | 0.11 | 0.07 | **0.47** | **0.30** |
-| k-means | Sensor+ToD hist. | 0.43 | 0.27 | 0.45 | 0.15 | **0.43** | **0.25** | 0.44 | 0.22 |
+| k-means | Sensor hist. | **0.65** | **0.42** | **0.87** | **0.64** | 0.27 | 0.30 | 0.60 | **0.46** |
+| k-means | Sensor+ToD hist. | 0.61 | 0.35 | 0.73 | 0.35 | **0.75** | **0.45** | **0.70** | 0.39 |
 
 **$K = 50$ clusters (50 labels)**
 
 | Method | Representation | Milan W | Milan M | Aruba W | Aruba M | Cairo W | Cairo M | Average W | Average M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means | Sensor hist. | **0.65** | **0.37** | **0.69** | **0.34** | 0.13 | 0.08 | **0.49** | 0.26 |
-| k-means | Sensor+ToD hist. | 0.55 | *0.36* | 0.45 | 0.30 | **0.34** | **0.23** | 0.45 | **0.30** |
+| k-means | Sensor hist. | **0.74** | **0.45** | **0.87** | **0.59** | 0.28 | 0.27 | 0.63 | 0.44 |
+| k-means | Sensor+ToD hist. | 0.66 | 0.40 | 0.81 | 0.56 | **0.66** | **0.48** | **0.71** | **0.48** |
 
 
 ### L1, all classes (m = 1)
@@ -21,15 +21,15 @@
 
 | Method | Representation | Milan W | Milan M | Aruba W | Aruba M | Cairo W | Cairo M | Average W | Average M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means | Sensor hist. | **0.53** | **0.27** | **0.78** | **0.33** | 0.11 | 0.06 | **0.47** | **0.22** |
-| k-means | Sensor+ToD hist. | 0.42 | 0.20 | 0.45 | 0.10 | **0.42** | **0.22** | 0.43 | 0.17 |
+| k-means | Sensor hist. | **0.65** | **0.31** | **0.87** | **0.49** | 0.27 | 0.27 | 0.60 | **0.36** |
+| k-means | Sensor+ToD hist. | 0.60 | 0.26 | 0.73 | 0.24 | **0.75** | **0.41** | **0.70** | 0.30 |
 
 **$K = 50$ clusters (50 labels)**
 
 | Method | Representation | Milan W | Milan M | Aruba W | Aruba M | Cairo W | Cairo M | Average W | Average M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means | Sensor hist. | **0.65** | **0.33** | **0.68** | **0.24** | 0.13 | 0.07 | **0.49** | *0.21* |
-| k-means | Sensor+ToD hist. | 0.55 | 0.27 | 0.45 | *0.21* | **0.34** | **0.21** | 0.45 | **0.23** |
+| k-means | Sensor hist. | **0.74** | **0.38** | **0.86** | **0.46** | 0.28 | 0.24 | 0.63 | *0.36* |
+| k-means | Sensor+ToD hist. | 0.66 | 0.30 | 0.81 | 0.40 | **0.66** | **0.44** | **0.71** | **0.38** |
 
 
 ### L2 (TDOST merged classes), all classes --- comparable to TDOST / DeepCASAS (m = 1)
@@ -38,13 +38,13 @@
 
 | Method | Representation | Milan W | Milan M | Aruba W | Aruba M | Cairo W | Cairo M | Average W | Average M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means | Sensor hist. | **0.54** | **0.27** | **0.78** | **0.41** | 0.36 | 0.12 | **0.56** | **0.27** |
-| k-means | Sensor+ToD hist. | 0.44 | 0.21 | 0.45 | 0.13 | **0.48** | **0.22** | 0.46 | 0.19 |
+| k-means | Sensor hist. | **0.66** | **0.34** | **0.88** | **0.54** | 0.74 | 0.32 | **0.76** | **0.40** |
+| k-means | Sensor+ToD hist. | 0.61 | 0.26 | 0.73 | 0.29 | **0.82** | **0.41** | 0.72 | 0.32 |
 
 **$K = 50$ clusters (50 labels)**
 
 | Method | Representation | Milan W | Milan M | Aruba W | Aruba M | Cairo W | Cairo M | Average W | Average M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means | Sensor hist. | **0.65** | **0.29** | **0.68** | **0.30** | 0.35 | 0.11 | **0.56** | **0.23** |
-| k-means | Sensor+ToD hist. | 0.55 | 0.26 | 0.46 | 0.26 | **0.38** | **0.17** | 0.46 | **0.23** |
+| k-means | Sensor hist. | **0.74** | **0.37** | **0.87** | **0.53** | 0.68 | 0.27 | **0.76** | **0.39** |
+| k-means | Sensor+ToD hist. | 0.66 | 0.30 | 0.81 | 0.41 | **0.74** | **0.40** | *0.74* | *0.37* |
 

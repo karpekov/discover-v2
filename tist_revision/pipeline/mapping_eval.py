@@ -7,10 +7,13 @@ Protocol (shared by all clustering methods in the DISCOVER revision):
   1. The annotation pool is the same continuous windows, with the confidence of their cluster assignment.
      A window's label is its last event's activity; No_Activity is a label like any other.
   2. For each cluster, the top-m pool windows by confidence are "annotated" and the cluster is mapped to
-     their majority label (m = 'all' uses every pool window of the cluster).
+     their majority label (m = 'all' uses every pool window of the cluster). No_Activity windows are skipped
+     (the annotator moves to the next window), so No_Activity is never predicted unless a cluster holds
+     nothing else. Supervised methods likewise never predict No_Activity on test (as in the paper, whose
+     test set has no No_Activity).
   3. Pre-segmented test windows (FL_20_p test: unseen days, one activity per window, no No_Activity) get
-     their cluster's mapped label and are scored against their own label. Predicting No_Activity counts as
-     an error. CIs come from a block bootstrap over test days.
+     their cluster's mapped label and are scored against their own label. CIs come from a block bootstrap
+     over test days.
 
 Labels: TDOST / DeepCASAS merged classes (see labels.py) of the last event's raw activity.
 
@@ -35,6 +38,7 @@ from sklearn.metrics import accuracy_score, f1_score
 
 from .labels import tdost_label
 
+NO_ACTIVITY = 'No_Activity'
 EXCLUDED_LABELS = ('No_Activity', 'no_activity', 'Other')
 UNMAPPED = '__unmapped__'
 DEFAULT_M_VALUES = (1, 3, 5, 10, 50, 'all')
@@ -123,17 +127,32 @@ def save_assignments(name: str, pool_cluster, pool_conf, test_cluster, test_conf
 
 
 def map_clusters(pool_clusters: np.ndarray, pool_conf: np.ndarray, pool_labels: np.ndarray,
-                 m: Union[int, str]) -> Dict[int, str]:
-    """Map each cluster to the majority label of its top-m most confident pool windows."""
+                 m: Union[int, str], skip: Sequence[str] = (NO_ACTIVITY,)) -> Dict[int, str]:
+    """Map each cluster to the majority label of its top-m most confident pool windows.
+
+    Windows labelled in `skip` are passed over (the annotator moves on to the next window), so a cluster is
+    only mapped to No_Activity if it contains nothing else."""
     mapping = {}
     for c in np.unique(pool_clusters):
         idx = np.flatnonzero(pool_clusters == c)
+        real = idx[~np.isin(pool_labels[idx], skip)]
+        if len(real):
+            idx = real
         if m != 'all':
             idx = idx[np.argsort(-pool_conf[idx], kind='stable')[:int(m)]]
         counts = Counter(pool_labels[idx])
         # Ties broken by label name for determinism.
         mapping[c] = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
     return mapping
+
+
+def predict_activity(proba: np.ndarray, classes: Sequence[str], skip: Sequence[str] = (NO_ACTIVITY,)) -> np.ndarray:
+    """Argmax over class probabilities, never predicting a class in `skip` (unless it is the only class)."""
+    classes = np.asarray(classes)
+    allowed = ~np.isin(classes, skip)
+    if not allowed.any():
+        return classes[proba.argmax(1)]
+    return classes[allowed][proba[:, allowed].argmax(1)]
 
 
 def _scores(y_true: np.ndarray, y_pred: np.ndarray, classes: Optional[Sequence[str]] = None) -> Dict[str, float]:

@@ -2,9 +2,11 @@
 
 > **Superseded protocol.** Everything below used the pre-segmented FL_20_p annotation pool and coordinate encoders.
 > The tables/PDF now hold only the histogram baselines under the continuous-pool protocol (no coordinates).
-> Continuous pool, L1 masked macro F1, m=5 (Milan / Aruba / Cairo): Sensor+ToD hist. K=20 0.31 / 0.23 / 0.20,
-> K=50 0.32 / 0.37 / 0.27 (pre-segmented pool: 0.37 / 0.34 / 0.50 and 0.50 / 0.61 / 0.62). Cause: No_Activity
-> dominates cluster labels (Cairo: 16/20 clusters, 67% of test windows predicted No_Activity, always an error).
+> Continuous pool with No_Activity always predicted (L1 masked macro F1, m=5, Milan / Aruba / Cairo): Sensor+ToD
+> hist. K=20 0.31 / 0.23 / 0.20, K=50 0.32 / 0.37 / 0.27; Cairo had 16/20 clusters mapped to No_Activity.
+> Fix (Alex, as in the paper): No_Activity is never predicted on test. Annotators skip No_Activity windows;
+> classifiers take the best non-No_Activity class. Then: K=20 0.35 / 0.37 / 0.52, K=50 0.42 / 0.57 / 0.62
+> (pre-segmented pool: 0.37 / 0.34 / 0.50 and 0.50 / 0.61 / 0.62).
 
 **All tables:** `report_tables.pdf` (13 pages) or `tables/*.md|tex`. Regenerate:
 `python -m tist_revision.pipeline.label_levels && python -m tist_revision.pipeline.probes && python -m tist_revision.pipeline.report --pdf`
