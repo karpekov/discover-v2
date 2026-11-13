@@ -65,8 +65,33 @@ pack several cheap frozen runs per task line; single seed until the setup is cho
 on skynet (training progress goes to the `.err` file).
 Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h.
 
+## Findings so far (single seed 42, 2026-11-12; details in `results/summary_*.csv`, `results/rare_classes/`)
+F1 = weighted / macro, variant `all` unless noted; m = labelled windows per cluster.
+- **Representations (Stage 1.5).** Frozen MLM encoder ≈ sensor histograms. The time-feature encoder
+  (`*_mlm_time`) has the best kNN purity and linear probes (full-label probe macro: Cairo 0.65 vs 0.52 MLM,
+  0.59 hist+tod; Aruba 0.82 vs 0.79), but k-means on it is not better than on MLM.
+- **Number of clusters dominates.** Going from K=20 to K=50/100 raises macro F1 by about 0.05–0.15 for every method;
+  rare classes start to get their own clusters. At equal labelling budget, 100 clusters × 1–3 labels beats
+  20 × 5. m=3 ≈ m=5.
+- **SCAN (frozen encoder, standardised embeddings, 5 heads).** Best settings K=100 (or 50), entropy weight 2–5:
+  m=5: Milan 0.80/0.47, Aruba 0.88/0.58, Cairo 0.81/0.41–0.46. Versus k-means on the same encoder and K,
+  macro F1 is higher on Aruba (+0.06–0.09), equal on Milan, mixed on Cairo (−0.03 on MLM, +0.13 on the
+  time-feature encoder); weighted F1 is similar. Above DEC at K ≥ 50 in all houses.
+  Entropy weight 1/2/5 and neighbours 5/20/50 give inconsistent ±0.05 differences (single seed).
+- **Unfreezing the encoder does not help.** Frozen for 10 epochs, then encoder lr 1e-5: equal or worse than
+  frozen, at 5–10× the cost (9–37 min vs 1–6 min on an A40). Use the frozen encoder.
+- **DEC ≈ k-means.**
+- **Rare classes (SCAN K=100 vs k-means K=20, m=3, MLM encoder).** Recall rises for Milan Leave_Home 0→0.62 and
+  Eat 0.30→0.53, Cairo Work 0.17→0.62, Aruba Bed_to_Toilet 0→1.0; some mid-size classes drop (Aruba Eat 0.66→0.23).
+- **Thresholds** (cluster agreement / distance to centroid) trade coverage for precision (Aruba 0.97/0.91 at
+  62% coverage) but do not recover rare classes; 1-NN propagation from the annotated windows ≈ cluster vote.
+- **Cairo**: k-means on sensor+time-of-day histograms (K=100, m=5: 0.87/0.50) is still the best weighted F1.
+- Never recovered by any method: Take_Medicine (all houses), Aruba Enter_Home / Leave_Home (4 test windows each).
+- Bug fixed on the way: unstandardised (L2-normalised) embeddings let SCAN heads stall at near-uniform outputs
+  and argmax-collapse to one cluster; all earlier SCAN runs were discarded and re-run.
+
 ## Stages
-S1 histogram baselines (done) → S1.5 embedding diagnostics (done; gate) → time-feature MLM (configs ready)
-→ S2 BERT vs custom transformer → S3 SCAN vs DEC vs k-means → S4 winner × 5 seeds × 3 cities.
-Still to build: seed control in `train.py` / `train_scan.py`, alignment input path in `train_scan.py`,
-BERT backbone, DEC, SLURM array + aggregation.
+S1 histogram baselines (done) → S1.5 embedding diagnostics (done) → time-feature MLM (trained on skynet)
+→ S3 SCAN vs DEC vs k-means on frozen encoders (single-seed grid done: `skynet/tasks/grid_v2.txt`)
+→ S2 BERT vs custom transformer (BERT backbone not built yet) → S4 chosen setup × 5 seeds × 3 cities.
+Still to build: BERT backbone, seed control in `train.py` (MLM pre-training; `scan.py` / `dec.py` are seeded).

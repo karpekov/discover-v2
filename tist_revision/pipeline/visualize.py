@@ -41,8 +41,14 @@ def label_colors(labels):
     return {l: by_lower.get(l.lower(), fallback(i % 20)) for i, l in enumerate(labels)}
 
 
+def short(method):
+    """Display name: drop the '{city}_fl20_seq_discover_v1_' encoder prefix."""
+    return method.replace('{city}_fl20_seq_discover_v1_', '')
+
+
 def load_assignments(city, method):
-    path = ARTIFACTS_DIR / 'assignments' / f'{city}__{method}.npz'
+    """`method` may contain a {city} placeholder (e.g. '{city}_fl20_seq_discover_v1_mlm_only__frozen_k50_ent2__scan_head')."""
+    path = ARTIFACTS_DIR / 'assignments' / f'{city}__{method.format(city=city)}.npz'
     return dict(np.load(path)) if path.exists() else None
 
 
@@ -88,7 +94,7 @@ def plot_confusions(city, pool, test, methods, m_values, variant, out_dir):
             ax.set_yticks(range(len(labels)), [f'{l} ({n})' for l, n in zip(labels, cm.sum(1))], fontsize=7)
             w = f1_score(y_true, y_pred, average='weighted', zero_division=0)
             mac = f1_score(y_true, y_pred, labels=np.unique(y_true), average='macro', zero_division=0)
-            ax.set_title(f'{method}\nm={m}  weighted F1={w:.2f}  macro F1={mac:.2f}', fontsize=8)
+            ax.set_title(f'{short(method)}\nm={m}  weighted F1={w:.2f}  macro F1={mac:.2f}', fontsize=8)
             if c == 0:
                 ax.set_ylabel('true label (n test windows)', fontsize=7)
             ax.set_xlabel('predicted (cluster majority label)', fontsize=7)
@@ -117,7 +123,7 @@ def plot_cluster_composition(city, pool, test, methods, out_dir):
         ax.set_xticks(range(len(labels)), labels, rotation=60, ha='right', fontsize=7)
         ax.set_yticks(range(len(ct)), [f'c{k} n={ct.loc[k].sum()} → {map5.get(k, "-")} / {map_all.get(k, "-")}'
                                        for k in ct.index], fontsize=6)
-        ax.set_title(f'{method}\nrow: cluster, size → label at m=5 / m=all', fontsize=8)
+        ax.set_title(f'{short(method)}\nrow: cluster, size → label at m=5 / m=all', fontsize=8)
     fig.suptitle(f'{city}: label composition of each cluster (pre-segmented train pool)')
     fig.tight_layout()
     fig.savefig(out_dir / f'clusters_{city}.png', dpi=130)
