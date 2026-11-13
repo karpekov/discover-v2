@@ -179,7 +179,8 @@ def main():
     res = evaluate_clustering(pool[cols].assign(cluster=P_pool.argmax(1), conf=P_pool.max(1)),
                               test[cols].assign(cluster=P_test.argmax(1), conf=P_test.max(1)),
                               m_values=DEFAULT_M_VALUES, n_boot=args.n_boot, seed=args.seed)
-    meta = {'city': city, 'encoder': encoder_dir.name, 'run': args.run_name, 'num_clusters': args.num_clusters,
+    meta = {'city': city, 'encoder': encoder_dir.name, 'run': args.run_name, 'method': 'scan',
+            'num_clusters': args.num_clusters, 'num_neighbors': args.num_neighbors,
             'freeze_epochs': freeze_epochs, 'epochs': args.epochs, 'encoder_lr': args.encoder_lr if encoder_updated else 0,
             'entropy_weight': args.entropy_weight, 'seed': args.seed, 'active_clusters': int((sizes > 0).sum()),
             'largest_cluster_share': float(sizes.max() / sizes.sum()), 'minutes': (time.time() - t_start) / 60}

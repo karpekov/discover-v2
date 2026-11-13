@@ -26,7 +26,8 @@ def collect() -> pd.DataFrame:
     for path in sorted((RESULTS_DIR / 'stage3_scan' / 'runs').glob('*/scan_head.csv')):
         df = pd.read_csv(path)
         df['m'] = df['m'].astype(str)
-        df['method'] = 'SCAN ' + df['encoder'].str.replace(r'^\w+?_fl20_seq_discover_v1_', '', regex=True) + ' · ' + df['run']
+        kind = df['method'].str.upper() if 'method' in df else 'SCAN'
+        df['method'] = kind + ' ' + df['encoder'].str.replace(r'^\w+?_fl20_seq_discover_v1_', '', regex=True) + ' · ' + df['run']
         rows.append(df[['city', 'method', 'variant', 'm', 'f1_weighted', 'f1_macro']])
     return pd.concat(rows).drop_duplicates(['city', 'method', 'variant', 'm'], keep='last')
 
