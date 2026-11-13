@@ -1,0 +1,108 @@
+% requires \usepackage{booktabs}
+\begin{table}[t]
+\centering\small
+\caption{L2 (TDOST classes), all classes --- comparable to TDOST / DeepCASAS; $m=all$ labelled windows per cluster. W/M = weighted/macro F1.}
+\label{tab:l2_all_mall}
+\begin{tabular}{lllcccccc}
+\toprule
+Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+ & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
+\midrule
+k-means & Sensor hist. & 20 & 0.79 & 0.45 & 0.88 & 0.53 & 0.76 & 0.33 \\
+k-means & Sensor hist. & 100 & 0.81 & 0.49 & \textbf{0.89} & 0.59 & 0.79 & 0.36 \\
+k-means & Sensor+ToD hist. & 20 & 0.72 & 0.31 & 0.80 & 0.31 & 0.84 & 0.40 \\
+k-means & Sensor+ToD hist. & 100 & 0.82 & 0.50 & 0.88 & 0.52 & 0.87 & \textbf{0.49} \\
+k-means & MLM & 20 & 0.80 & 0.45 & \textbf{0.89} & 0.55 & 0.76 & 0.35 \\
+k-means & MLM & 100 & 0.82 & 0.50 & \textbf{0.89} & 0.59 & 0.81 & 0.43 \\
+k-means & MLM-time & 20 & 0.81 & 0.47 & 0.89 & 0.50 & 0.78 & 0.33 \\
+k-means & MLM-time & 100 & 0.81 & 0.50 & 0.89 & 0.57 & 0.81 & 0.45 \\
+k-means & MLM + ToD & 20 & 0.72 & 0.31 & 0.80 & 0.31 & 0.86 & 0.43 \\
+k-means & MLM + ToD & 100 & \textbf{0.82} & 0.50 & \textbf{0.89} & 0.50 & \textbf{0.89} & 0.47 \\
+k-means & MLM-time + ToD & 20 & 0.72 & 0.31 & 0.78 & 0.28 & 0.86 & 0.41 \\
+k-means & MLM-time + ToD & 100 & \textbf{0.82} & \textbf{0.51} & 0.88 & 0.54 & 0.88 & 0.47 \\
+\midrule
+SCAN & MLM & 20 & 0.77 & 0.34 & 0.85 & 0.42 & 0.79 & 0.35 \\
+SCAN & MLM & 100 & 0.80 & 0.45 & \textbf{0.89} & 0.60 & 0.82 & 0.40 \\
+SCAN & MLM-time & 20 & 0.75 & 0.30 & 0.88 & 0.55 & 0.77 & 0.32 \\
+SCAN & MLM-time & 100 & 0.81 & 0.47 & \textbf{0.89} & \textbf{0.60} & 0.82 & 0.45 \\
+\midrule
+DEC & MLM & 20 & 0.78 & 0.35 & 0.88 & 0.46 & 0.77 & 0.33 \\
+DEC & MLM & 100 & 0.80 & 0.45 & 0.87 & 0.54 & 0.79 & 0.36 \\
+DEC & MLM-time & 20 & 0.77 & 0.34 & \textbf{0.89} & 0.47 & 0.75 & 0.29 \\
+DEC & MLM-time & 100 & 0.80 & 0.43 & \textbf{0.89} & 0.55 & 0.80 & 0.38 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{L2, rare classes masked from the average; $m=all$ labelled windows per cluster. W/M = weighted/macro F1.}
+\label{tab:l2_masked_mall}
+\begin{tabular}{lllcccccc}
+\toprule
+Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+ & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
+\midrule
+k-means & Sensor hist. & 20 & 0.80 & 0.56 & 0.88 & 0.78 & 0.76 & 0.38 \\
+k-means & Sensor hist. & 100 & 0.82 & 0.61 & \textbf{0.89} & 0.80 & 0.79 & 0.41 \\
+k-means & Sensor+ToD hist. & 20 & 0.72 & 0.38 & 0.81 & 0.50 & 0.84 & 0.47 \\
+k-means & Sensor+ToD hist. & 100 & 0.82 & 0.61 & 0.88 & 0.77 & 0.88 & 0.52 \\
+k-means & MLM & 20 & 0.80 & 0.57 & \textbf{0.89} & \textbf{0.81} & 0.77 & 0.40 \\
+k-means & MLM & 100 & 0.82 & \textbf{0.62} & \textbf{0.90} & 0.80 & 0.81 & 0.44 \\
+k-means & MLM-time & 20 & 0.81 & 0.59 & 0.89 & 0.80 & 0.78 & 0.39 \\
+k-means & MLM-time & 100 & 0.81 & \textbf{0.62} & 0.89 & 0.80 & 0.81 & 0.44 \\
+k-means & MLM + ToD & 20 & 0.73 & 0.38 & 0.80 & 0.49 & 0.86 & 0.51 \\
+k-means & MLM + ToD & 100 & \textbf{0.83} & \textbf{0.62} & \textbf{0.90} & 0.80 & \textbf{0.90} & \textbf{0.55} \\
+k-means & MLM-time + ToD & 20 & 0.73 & 0.39 & 0.78 & 0.45 & 0.86 & 0.48 \\
+k-means & MLM-time + ToD & 100 & \textbf{0.83} & \textbf{0.62} & 0.88 & 0.79 & 0.89 & 0.53 \\
+\midrule
+SCAN & MLM & 20 & 0.78 & 0.42 & 0.85 & 0.58 & 0.79 & 0.41 \\
+SCAN & MLM & 100 & 0.81 & 0.57 & \textbf{0.90} & 0.79 & 0.82 & 0.46 \\
+SCAN & MLM-time & 20 & 0.76 & 0.37 & 0.88 & 0.78 & 0.78 & 0.38 \\
+SCAN & MLM-time & 100 & 0.81 & 0.58 & \textbf{0.89} & 0.79 & 0.82 & 0.44 \\
+\midrule
+DEC & MLM & 20 & 0.79 & 0.43 & 0.89 & 0.74 & 0.78 & 0.38 \\
+DEC & MLM & 100 & 0.80 & 0.56 & 0.87 & 0.74 & 0.80 & 0.42 \\
+DEC & MLM-time & 20 & 0.78 & 0.43 & \textbf{0.89} & 0.75 & 0.76 & 0.34 \\
+DEC & MLM-time & 100 & 0.80 & 0.54 & \textbf{0.89} & 0.76 & 0.81 & 0.44 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\caption{L1 (raw CASAS activities), rare classes masked from the average; $m=all$ labelled windows per cluster. W/M = weighted/macro F1.}
+\label{tab:l1_masked_mall}
+\begin{tabular}{lllcccccc}
+\toprule
+Method & Repr. & $K$ & \multicolumn{2}{c}{Milan} & \multicolumn{2}{c}{Aruba} & \multicolumn{2}{c}{Cairo} \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+ & & & W-F1 & M-F1 & W-F1 & M-F1 & W-F1 & M-F1 \\
+\midrule
+k-means & Sensor hist. & 20 & 0.79 & 0.58 & 0.87 & 0.60 & 0.29 & 0.26 \\
+k-means & Sensor hist. & 100 & 0.81 & 0.62 & \textbf{0.89} & 0.65 & 0.32 & 0.30 \\
+k-means & Sensor+ToD hist. & 20 & 0.70 & 0.38 & 0.80 & 0.38 & 0.72 & 0.44 \\
+k-means & Sensor+ToD hist. & 100 & 0.81 & 0.63 & 0.87 & 0.63 & 0.76 & \textbf{0.57} \\
+k-means & MLM & 20 & 0.80 & 0.59 & \textbf{0.89} & 0.65 & 0.30 & 0.26 \\
+k-means & MLM & 100 & 0.81 & \textbf{0.63} & \textbf{0.89} & 0.65 & 0.33 & 0.32 \\
+k-means & MLM-time & 20 & 0.80 & 0.59 & 0.88 & 0.65 & 0.30 & 0.27 \\
+k-means & MLM-time & 100 & 0.81 & 0.62 & 0.88 & 0.64 & 0.34 & 0.33 \\
+k-means & MLM + ToD & 20 & 0.73 & 0.37 & 0.80 & 0.37 & 0.72 & 0.45 \\
+k-means & MLM + ToD & 100 & 0.82 & 0.63 & \textbf{0.89} & \textbf{0.66} & \textbf{0.78} & \textbf{0.58} \\
+k-means & MLM-time + ToD & 20 & 0.72 & 0.37 & 0.78 & 0.32 & 0.74 & 0.45 \\
+k-means & MLM-time + ToD & 100 & \textbf{0.82} & \textbf{0.63} & 0.88 & 0.64 & 0.77 & 0.56 \\
+\midrule
+SCAN & MLM & 20 & 0.77 & 0.47 & 0.84 & 0.46 & 0.32 & 0.26 \\
+SCAN & MLM & 100 & 0.80 & 0.59 & \textbf{0.89} & 0.64 & 0.34 & 0.33 \\
+SCAN & MLM-time & 20 & 0.75 & 0.44 & 0.87 & 0.60 & 0.34 & 0.28 \\
+SCAN & MLM-time & 100 & 0.81 & 0.60 & \textbf{0.89} & 0.64 & 0.35 & 0.34 \\
+\midrule
+DEC & MLM & 20 & 0.78 & 0.51 & 0.87 & 0.58 & 0.29 & 0.25 \\
+DEC & MLM & 100 & 0.80 & 0.58 & 0.87 & 0.59 & 0.30 & 0.28 \\
+DEC & MLM-time & 20 & 0.77 & 0.47 & \textbf{0.89} & 0.61 & 0.26 & 0.22 \\
+DEC & MLM-time & 100 & 0.79 & 0.56 & \textbf{0.89} & 0.63 & 0.32 & 0.30 \\
+\bottomrule
+\end{tabular}
+\end{table}

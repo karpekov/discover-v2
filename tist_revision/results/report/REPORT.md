@@ -29,6 +29,21 @@ Regenerate tables: `python -m tist_revision.pipeline.label_levels && python -m t
 | DEC, MLM-time, K=100 | 0.80/0.53 | 0.82/0.55 | 0.83/0.56 | 0.83/0.58 | 0.64/0.46 | 0.65/0.47 | 0.66/0.48 | 0.67/0.50 |
 | k-means, MLM, K=20 (≈ paper setup) | 0.79/0.51 | 0.81/0.54 | 0.80/0.52 | 0.82/0.59 | 0.61/0.41 | 0.63/0.46 | 0.65/0.47 | 0.66/0.50 |
 
+**Paper protocol (m = all: majority vote over every labelled pool window in the cluster)** — full tables in
+`tables_mall.md` / `tables_mall_pdf.pdf`. Three-house averages, m=5 → m=all:
+
+| Setup | L2 all | L2 masked | L1 masked |
+|---|---|---|---|
+| k-means, MLM + ToD, K=100 | 0.86/0.46 → 0.87/0.49 | 0.86/0.62 → 0.87/0.66 | 0.82/0.59 → 0.83/0.62 |
+| k-means, Sensor+ToD hist., K=100 | 0.85/0.47 → 0.86/0.51 | 0.85/0.60 → 0.86/0.63 | 0.81/0.57 → 0.82/0.61 |
+| k-means, MLM, K=100 | 0.83/0.46 → 0.84/0.51 | 0.83/0.60 → 0.84/0.62 | 0.68/0.52 → 0.68/0.53 |
+| SCAN, MLM, K=100 | 0.83/0.48 → 0.84/0.48 | 0.83/0.59 → 0.84/0.61 | 0.67/0.49 → 0.68/0.52 |
+| DEC, MLM-time, K=100 | 0.82/0.42 → 0.83/0.45 | 0.83/0.56 → 0.83/0.58 | 0.66/0.48 → 0.67/0.50 |
+| k-means, MLM, K=20 | 0.80/0.38 → 0.82/0.45 | 0.80/0.52 → 0.82/0.59 | 0.65/0.47 → 0.66/0.50 |
+
+Labelling every window gains only +0.01 W / +0.02–0.07 M over 5 labels per cluster (m=all uses ~19k–48k labels
+per house vs 500 at K=100, m=5); the ranking of methods is unchanged.
+
 ## Full tables (m = 5)
 
 ### L2 (TDOST classes), all classes — comparable to TDOST / DeepCASAS
