@@ -77,8 +77,21 @@ Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h
 - **Clustering:** k-means, SCAN (frozen encoder) and DEC, at K = 20 (as in the current paper) and K = 50.
 - **Labels:** L1 (per-house activities, resident id removed) is primary; L2 (TDOST classes) only for comparability.
   Rare classes are masked from the headline macro F1 (≥ 50 pool and ≥ 20 test windows).
-- **Seeds:** 5 per configuration.
+- **Seeds:** 5 per configuration. The encoder is retrained per seed (15 MLM runs), with clustering seeded the same.
+- **Clustering inputs:** MLM-time embedding and MLM-time + ToD histogram, for k-means, SCAN and DEC. The
+  Sensor hist. and Sensor+ToD hist. k-means baselines stay in the tables.
+- **CRITICAL: no pre-segmented data in training or validation, for any method.** Only the test set is pre-segmented
+  (FL_20_p test, so test labels are unambiguous).
+  - Baselines train and validate on continuous FL_20 train / val windows.
+  - Our cluster labelling (the annotator's pool) and the linear probes must also move from FL_20_p train to
+    continuous FL_20 train. All current ablation numbers use the pre-segmented pool and must be re-scored.
 - **Baselines:** TDOST, DeepCASAS and TreeCNN, run on the same data and splits, compared with our best method.
+  - Label budgets: all labels, 100 and 250 random windows (matching 20 or 50 clusters × 5 labels).
+  - Label levels: L1 and L2.
+  - TDOST uses rule-based descriptions from the official repo (`~/code/har/TDOST`, `cbalab/TDOST`, script
+    `TDOST/generate_embeddings_v1*.py`, sentence encoder `all-distilroberta-v1`). Embeddings are regenerated
+    for our windows; none exist yet.
+  - TreeCNN is implemented from Cao et al. (2020); no prior code exists.
 - Status: plan drafted (below). Nothing launched until Alex says go.
 
 ## Launch plan (draft; open questions in the chat of 2026-11-12)
