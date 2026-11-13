@@ -56,18 +56,15 @@ python -m tist_revision.pipeline.embedding_diagnostics --cities milan aruba cair
 python -m tist_revision.pipeline.visualize
 ```
 
-Skynet (`akarpekov3@sky2.cc.gatech.edu`, repo `/coc/flash5/akarpekov3/discover-v2`, 1×A40, partitions `overcap` / `rail-lab`):
+Skynet (`akarpekov3@sky2.cc.gatech.edu`, repo `/coc/flash5/akarpekov3/discover-v2`, GPU ≥24 GB, partitions `overcap` / `rail-lab`):
 ```
-tist_revision/skynet/sync.sh push-data                         # local: FL_20_p is not on skynet yet
-ssh sky2 'cd /coc/flash5/akarpekov3/discover-v2 && git pull'    # skynet copy has a local edit to bash_scripts/skynet_run_config.sh
-sbatch tist_revision/skynet/train_config.sh tist_revision/configs/alignment/milan_fl20_seq_discover_v1_mlm_time.yaml
-sbatch -p overcap --array=0-8%3 tist_revision/skynet/run_tasks.sh tist_revision/skynet/tasks/scan_mlm_only.txt
-tist_revision/skynet/sync.sh pull-results && python -m tist_revision.pipeline.summarize   # local
+tist_revision/skynet/sync.sh push-tdost                        # local: TDOST .npz needed by baselines
+ssh sky2 'cd /coc/flash5/akarpekov3/discover-v2 && git pull'
+bash tist_revision/skynet/launch_final.sh                      # arrays: encoder_bert, encoder_tf, tdost_text, baselines (%10)
+tist_revision/skynet/sync.sh pull-results && python -m tist_revision.pipeline.final_scores   # local, after jobs finish
 ```
-Rules: check `squeue -p rail-lab` first (use `overcap` if labmates are queued); throttle arrays (`%2`–`%3`);
-pack several cheap frozen runs per task line; single seed until the setup is chosen. Slurm logs: `slurm/tist_*`
-on skynet (training progress goes to the `.err` file).
-Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h.
+Task files under `skynet/tasks/`: each encoder line is train → encode → frozen_deep (B chained in-job).
+Throttle `%10`; small-GPU hosts (2080 Ti / Titan X) excluded. Slurm logs: `slurm/tist_*` (progress in `.err`).
 
 ## Decisions for the final runs (Alex, 2026-11-12)
 - **Narrative:** the learned embeddings are for later multi-house training. Say plainly that at the single-house
@@ -105,39 +102,31 @@ Server MLM runs take 0.1–0.4 A40-hours per city; SCAN (100 epochs) 0.7–3.3 h
 - **Label budgets count activity labels only** (Alex, 2026-11-13). Clustering: the annotator skips No_Activity
   windows, so m labels = m activity labels. Baselines and probes: draw random windows until 100 / 250 activity
   labels are collected, keeping the No_Activity windows drawn along the way as training data. `probes.py`
-  still draws a fixed number of windows: update before the final runs.
-- Status: plan drafted (below). Nothing launched until Alex says go.
+  draw activity-label budgets via `baselines.data.budget_indices`.
+- Status: implementation ready; launch via `skynet/launch_final.sh`.
 
-## Launch plan (agreed 2026-11-12; waiting for Alex's go)
+## Launch plan (agreed 2026-11-12)
 Window labels for training, validation and annotation: last event's activity, with No_Activity kept as a label.
 TDOST variant: rule-based v1-1 (with time between readings).
 
-**To implement before launch** (local):
-0. BERT backbone: port v1 `MLMTrainer` (pretrained `bert-base-uncased`, new event tokens), no coordinates,
-   time of day, same encode interface as our transformer.
-1. Seed control in `train.py` (MLM pre-training), plus a task file for the 15 encoder runs.
-2. `encode_embeddings` step: encoder → `artifacts/embeddings/{city}_nocoord_mlm_time_s{seed}_embeddings.npz`.
-3. Seeded stage-B runner: k-means, frozen SCAN and DEC (`frozen_deep.py`) on MLM-time and MLM-time + ToD,
-   plus histogram k-means, K ∈ {20, 50}, saved with suffix `_s{seed}`. Make `label_levels.py` / `report.py`
-   aggregate mean ± std over seeds.
-4. Baselines in `tist_revision/baselines/`, trained on continuous FL_20 train / val and tested on FL_20_p test:
-   - DeepCASAS: port from `~/code/har/TDOST/DeepCASAS`.
-   - TDOST: rule-based v1-1 sentences + `all-distilroberta-v1`, classifier from `~/code/har/TDOST/HAR`.
-   - TreeCNN: new implementation from Cao et al. (2020).
-   Settings: L1 and L2; budgets 100, 250 and all random windows; 5 seeds.
-5. Switch skynet jobs from A40-only to any GPU with ≥ 24 GB (A40, L40S, RTX 6000, A5000).
+**Pre-launch checklist** (done):
+0. BERT backbone (`pipeline/bert_mlm.py`): pretrained `bert-base-uncased`, new event tokens, no coordinates + ToD.
+1. `train.py --seed` / `--output-dir`; task file `skynet/tasks/encoder_tf.txt` (15 runs).
+2. `encode_embeddings` → `artifacts/embeddings/{city}_{tf|bert}_s{seed}_embeddings.npz`.
+3. Seeded `frozen_deep.py` (k-means / SCAN / DEC); hist baselines are k-means only. Aggregate with `final_scores.py`.
+4. Baselines in `tist_revision/baselines/` (DeepCASAS, TDOST, TreeCNN); L1/L2 × {100, 250, all} × 5 seeds.
+5. Skynet jobs: any GPU ≥ 24 GB (`run_tasks.sh` + small-GPU host exclude in `launch_final.sh`).
 
 | Stage | What | Runs | Skynet jobs | Est. per job |
 |---|---|---|---|---|
 | A0 | BERT encoder, 3 houses × 1 seed, then stage B (compared with seed 1 of A) | 3 (+ B) | 3 | 30–90 min |
-| A | Our transformer, 3 houses × 5 seeds (redone with BERT only if BERT wins clearly) | 15 | 15 | 20–60 min |
-| B | encode, then k-means / SCAN / DEC × 2 inputs × K ∈ {20, 50}, plus histogram k-means; one job per (house, seed) | ~150 | 15 | 20–40 min |
-| C | TDOST embedding generation (once per house) | 3 | 3 (or local) | ~10 min |
-| D | Baselines: 3 methods × 3 houses × 5 seeds × {L1, L2} × {100, 250, all}; one job per (method, house, seed) | 270 | 45 | 30–60 min |
+| A+B | Our transformer, 3 houses × 5 seeds; encode + clustering chained in-job | 15 | 15 | 40–100 min |
+| C | TDOST embedding generation (or `sync.sh push-tdost`) | 1 | 1 | ~10–30 min |
+| D | Baselines: 3 methods × 3 houses × 5 seeds × {L1, L2} × {100, 250, all} | 270 | 45 | 30–60 min |
 | E | Aggregate: mean ± std over seeds; tables + PDF | – | local | – |
-- Order: A0, A, C and D in parallel; B chained (slurm dependency) after each encoder.
+- Order: A0, A+B, C and D in parallel (push local TDOST `.npz` before D if C is still running).
 - Throttle: `%10` per array on overcap. The QoS cap is 48 GPUs per user; jobs are preemptible and requeued.
-- Total: about 80 GPU jobs and 55 GPU-hours, roughly 6–9 h wall-clock.
+- Total: about 64 GPU jobs and ~55 GPU-hours, roughly 6–9 h wall-clock.
 
 ## Findings so far
 **Current consolidated report (supersedes the bullets below where they differ): `results/report/REPORT.md`**

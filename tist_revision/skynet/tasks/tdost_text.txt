@@ -1,0 +1,1 @@
+python -m tist_revision.baselines.tdost_text --cities milan aruba cairo

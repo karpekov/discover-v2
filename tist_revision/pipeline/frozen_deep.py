@@ -1,12 +1,14 @@
 """
 SCAN and DEC on frozen, cached representations (embeddings, optionally + time-of-day histogram).
 
-Both methods keep the encoder frozen (the decision for the revision), so they only need the cached features:
+All methods keep the encoder frozen (the decision for the revision), so they only need the cached features:
+  - k-means: fit on (up to) 30k fit windows, n_init 3; confidence = minus the distance to the centroid.
   - SCAN: `num_heads` heads (Standardize -> MLP) trained with the SCAN loss on mined cosine neighbours;
     the head with the lowest final loss is kept.
   - DEC: identity-initialised linear adapter + k-means-initialised centroids, Student-t soft assignment,
     KL to the sharpened target distribution (refreshed every `update_interval` steps).
-Assignments of the pool (= fit windows) and test windows are saved as `{city}__{rep}__{scan|dec}_k{K}[_s{seed}]`
+Assignments of the pool (= fit windows) and test windows are saved as `{city}__{rep}__{method}_k{K}[suffix]`
+(final runs put the seed in the representation name instead, e.g. `tf_s3+tod`, `hist_sensor_tod_s3`)
 and scored by `label_levels.py`. Runs on GPU, MPS or CPU.
 
 Usage:
@@ -50,6 +52,27 @@ def run_scan(X, K, device, num_heads=5, num_neighbors=20, entropy_weight=2.0, ep
     return lambda Z: torch.cat([head(Z[s:s + 8192]).softmax(1) for s in range(0, len(Z), 8192)]).detach()
 
 
+def run_kmeans(X, K, seed, max_fit=30000):
+    """k-means as in `label_levels.kmeans_assignments`; confidence = closeness to the centroid."""
+    Xn = X.cpu().numpy()
+    sub = np.random.default_rng(seed).choice(len(Xn), size=min(max_fit, len(Xn)), replace=False)
+    km = KMeans(n_clusters=K, n_init=3, random_state=seed).fit(Xn[sub])
+    C = torch.as_tensor(km.cluster_centers_, dtype=X.dtype, device=X.device)
+
+    def predict(Z):
+        d = torch.cat([torch.cdist(Z[s:s + 8192], C) for s in range(0, len(Z), 8192)])
+        dmin, c = d.min(1)
+        return c.cpu().numpy(), -dmin.cpu().numpy()
+    return predict
+
+
+def _argmax(predict_proba):
+    def predict(Z):
+        P = predict_proba(Z).cpu().numpy()
+        return P.argmax(1), P.max(1)
+    return predict
+
+
 def run_dec(X, K, device, seed, epochs=30, lr=1e-3, batch_size=256, update_interval=200):
     km = KMeans(n_clusters=K, n_init=10, random_state=seed).fit(X.cpu().numpy())
     head = DECHead(X.shape[1], km.cluster_centers_).to(device)
@@ -73,7 +96,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--cities', nargs='+', default=['milan', 'aruba', 'cairo'])
     ap.add_argument('--representations', nargs='+', default=['mlm_time', 'mlm_time+tod'])
-    ap.add_argument('--methods', nargs='+', default=['scan', 'dec'])
+    ap.add_argument('--methods', nargs='+', default=['scan', 'dec'], choices=['kmeans', 'scan', 'dec'])
     ap.add_argument('--K', type=int, nargs='+', default=[20, 50])
     ap.add_argument('--seed', type=int, default=42)
     ap.add_argument('--suffix', default='', help='appended to assignment names, e.g. _s1 for seed runs')
@@ -88,11 +111,15 @@ def main():
                 for method in args.methods:
                     t0 = time.time()
                     set_seed(args.seed)
-                    predict = run_scan(Xf, K, device) if method == 'scan' else run_dec(Xf, K, device, args.seed)
-                    P_pool, P_test = predict(Xf).cpu().numpy(), predict(Xt).cpu().numpy()
-                    save_assignments(f'{city}__{rep}__{method}_k{K}{args.suffix}', P_pool.argmax(1), P_pool.max(1),
-                                     P_test.argmax(1), P_test.max(1))
-                    sizes = np.bincount(P_pool.argmax(1), minlength=K)
+                    if method == 'kmeans':
+                        predict = run_kmeans(Xf, K, args.seed)
+                    elif method == 'scan':
+                        predict = _argmax(run_scan(Xf, K, device))
+                    else:
+                        predict = _argmax(run_dec(Xf, K, device, args.seed))
+                    (c_pool, conf_pool), (c_test, conf_test) = predict(Xf), predict(Xt)
+                    save_assignments(f'{city}__{rep}__{method}_k{K}{args.suffix}', c_pool, conf_pool, c_test, conf_test)
+                    sizes = np.bincount(c_pool, minlength=K)
                     print(f'[{city}] {rep} {method} K={K}: {(sizes > 0).sum()}/{K} clusters used, '
                           f'largest {sizes.max() / sizes.sum():.1%} ({time.time() - t0:.0f}s)', flush=True)
 

@@ -6,7 +6,8 @@ FL_20 train, last-event labels incl. No_Activity) and scored on FL_20_p test, at
 same variants as `label_levels.py` ('all', 'masked'; l2 also 'excl_other'). Budgets: 100 (= K 20 × m 5),
 250 (= K 50 × m 5) and 'full' (up to 20k pool windows; the probe upper bound). Random draws, not per-class, so the probe gets no label
 information the clustering protocol does not have. Small budgets average 3 draws; 'full' uses one.
-No_Activity is a training class but is never predicted on test (`predict_activity`).
+No_Activity is a training class but is never predicted on test (`predict_activity`). Budgets count activity labels:
+windows are drawn until 100 / 250 activity windows are collected (`baselines.data.budget_indices`).
 
 Usage:
     python -m tist_revision.pipeline.probes
@@ -19,6 +20,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 from .mapping_eval import EXCLUDED_LABELS, RESULTS_DIR, _scores, load_protocol, predict_activity, scored_classes
+from ..baselines.data import budget_indices
 from .rare_classes import representations
 
 OUT = RESULTS_DIR / 'probes'
@@ -47,7 +49,10 @@ def main():
                     n = min(args.max_full, len(y_pool)) if budget == 'full' else int(budget)
                     scores = {v: [] for v in variants}
                     for seed in ([0] if budget == 'full' else [0, 1, 2]):
-                        idx = np.random.default_rng(seed).choice(len(y_pool), size=n, replace=False)
+                        if budget == 'full':
+                            idx = np.random.default_rng(seed).choice(len(y_pool), size=n, replace=False)
+                        else:
+                            idx = np.concatenate(budget_indices(y_pool, budget, seed))
                         scaler = StandardScaler().fit(X_pool[idx])
                         clf = LogisticRegression(max_iter=2000).fit(scaler.transform(X_pool[idx]), y_pool[idx])
                         pred = predict_activity(clf.predict_proba(scaler.transform(X_test)), clf.classes_)

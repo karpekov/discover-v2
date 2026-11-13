@@ -237,7 +237,22 @@ Examples:
         help='Override output directory from config'
     )
 
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='Seed python / numpy / torch RNGs (model init, data shuffling, masking)'
+    )
+
     args = parser.parse_args()
+    if args.seed is not None:
+        import random
+        import numpy as np
+        import torch
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
 
     # Setup logging
     logger = setup_logging()

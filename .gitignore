@@ -23,6 +23,7 @@ htmlcov/
 # VSCode
 .vscode/*.log
 .vscode/*.cache
+.vscode/settings.json
 
 # Build
 build/
@@ -67,3 +68,6 @@ node_modules/
 slurm/
 
 TODO.txt
+
+# tex
+discover-v1/
