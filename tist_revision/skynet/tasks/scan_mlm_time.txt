@@ -1,0 +1,10 @@
+python -m tist_revision.pipeline.embedding_diagnostics --cities milan aruba cairo --extra_encoders trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time --only_extra --no_histograms --output_dir tist_revision/results/stage1_5_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city milan --run_name frozen_k20 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city aruba --run_name frozen_k20 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city cairo --run_name frozen_k20 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city milan --run_name unfreeze10_k20 --freeze_epochs 10 --encoder_lr 1e-5 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city aruba --run_name unfreeze10_k20 --freeze_epochs 10 --encoder_lr 1e-5 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city cairo --run_name unfreeze10_k20 --freeze_epochs 10 --encoder_lr 1e-5 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city milan --run_name frozen_k50 --num_clusters 50 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city aruba --run_name frozen_k50 --num_clusters 50 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time
+python -m tist_revision.pipeline.scan --wandb --city cairo --run_name frozen_k50 --num_clusters 50 --encoder_dir trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time

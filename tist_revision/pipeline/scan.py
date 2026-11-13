@@ -24,7 +24,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -81,7 +80,7 @@ def main():
     ap.add_argument('--epochs', type=int, default=50)
     ap.add_argument('--freeze_epochs', type=int, default=None, help='Epochs with frozen encoder (default: all)')
     ap.add_argument('--encoder_lr', type=float, default=1e-5)
-    ap.add_argument('--lr', type=float, default=1e-4)
+    ap.add_argument('--lr', type=float, default=1e-3, help='Head learning rate (1e-3 beat 1e-4 on Cairo, frozen)')
     ap.add_argument('--batch_size', type=int, default=256)
     ap.add_argument('--dropout', type=float, default=0.1)
     ap.add_argument('--seed', type=int, default=42)
@@ -186,21 +185,18 @@ def main():
             'largest_cluster_share': float(sizes.max() / sizes.sum()), 'minutes': (time.time() - t_start) / 60}
     res = res.assign(**meta)
 
-    OUT_ROOT.mkdir(parents=True, exist_ok=True)
-    path = OUT_ROOT / 'scan_head.csv'
-    if path.exists():
-        old = pd.read_csv(path)
-        old = old[~((old.city == city) & (old.encoder == encoder_dir.name) & (old.run == args.run_name))]
-        res = pd.concat([old, res])
-    res.to_csv(path, index=False)
+    # One file per run so concurrent SLURM tasks never write the same CSV (summarize.py merges them).
+    run_dir = OUT_ROOT / 'runs' / f'{city}__{run}'
+    run_dir.mkdir(parents=True, exist_ok=True)
+    res.to_csv(run_dir / 'scan_head.csv', index=False)
 
     if encoder_updated:
         rows = {'knn': [], 'clustering': [], 'probe': []}
         diagnose(f'{run}__encoder', enc['fit'][0], enc['pool'][0], enc['test'][0], pool[cols], test[cols], rows,
                  city, metric='cosine', n_boot=args.n_boot, seed=args.seed)
-        save_rows(rows, OUT_ROOT, append=True)
+        save_rows(rows, run_dir)
 
-    r = res[(res.city == city) & (res.run == args.run_name) & (res.encoder == encoder_dir.name)]
+    r = res
     for variant in ('all', 'excl_other'):
         s = r[r.variant == variant].set_index('m')
         print(f'  {variant:10s} ' + '  '.join(f'm={m}: {s.loc[m, "f1_weighted"]:.3f}/{s.loc[m, "f1_macro"]:.3f}'

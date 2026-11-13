@@ -1,0 +1,9 @@
+python -m tist_revision.pipeline.scan --wandb --city milan --run_name frozen_k20
+python -m tist_revision.pipeline.scan --wandb --city aruba --run_name frozen_k20
+python -m tist_revision.pipeline.scan --wandb --city cairo --run_name frozen_k20
+python -m tist_revision.pipeline.scan --wandb --city milan --run_name unfreeze10_k20 --freeze_epochs 10 --encoder_lr 1e-5
+python -m tist_revision.pipeline.scan --wandb --city aruba --run_name unfreeze10_k20 --freeze_epochs 10 --encoder_lr 1e-5
+python -m tist_revision.pipeline.scan --wandb --city cairo --run_name unfreeze10_k20 --freeze_epochs 10 --encoder_lr 1e-5
+python -m tist_revision.pipeline.scan --wandb --city milan --run_name frozen_k50 --num_clusters 50
+python -m tist_revision.pipeline.scan --wandb --city aruba --run_name frozen_k50 --num_clusters 50
+python -m tist_revision.pipeline.scan --wandb --city cairo --run_name frozen_k50 --num_clusters 50
