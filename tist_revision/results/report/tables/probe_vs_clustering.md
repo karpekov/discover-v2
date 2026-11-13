@@ -2,55 +2,61 @@
 
 **three-house average; clustering columns = k-means / SCAN / DEC, probe columns = same representation**
 
-| Method | Representation | K20, m5 W | K20, m5 M | 100 labels W | 100 labels M | K100, m5 W | K100, m5 M | 500 labels W | 500 labels M | K100, m all W | K100, m all M | all labels W | all labels M |
+| Method | Representation | K20, m5 W | K20, m5 M | 100 labels W | 100 labels M | K50, m5 W | K50, m5 M | 250 labels W | 250 labels M | K50, m all W | K50, m all M | all labels W | all labels M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means / probe | Sensor hist. | 0.61 | *0.45* | 0.65 | 0.44 | 0.67 | 0.51 | 0.68 | 0.52 | 0.68 | 0.54 | 0.70 | 0.56 |
-| k-means / probe | Sensor+ToD hist. | *0.75* | 0.41 | **0.80** | **0.54** | *0.83* | *0.60* | **0.83** | **0.63** | *0.83* | *0.64* | **0.86** | *0.68* |
+| k-means / probe | Sensor hist. | 0.38 | *0.24* | 0.50 | *0.26* | 0.49 | *0.29* | 0.52 | 0.33 | *0.53* | **0.35** | 0.54 | 0.38 |
+| k-means / probe | Sensor+ToD hist. | **0.54** | **0.24** | **0.55** | **0.29** | **0.54** | **0.32** | **0.60** | **0.40** | **0.56** | 0.31 | **0.64** | **0.47** |
 | | | | | | | | | | | | | | |
-| k-means / probe | MLM | 0.65 | **0.48** | 0.65 | 0.45 | 0.69 | 0.53 | 0.68 | 0.52 | 0.69 | 0.55 | 0.72 | 0.59 |
-| k-means / probe | MLM-time | 0.63 | *0.45* | 0.70 | 0.48 | 0.67 | 0.53 | 0.79 | 0.60 | 0.69 | 0.54 | *0.86* | *0.68* |
-| k-means / probe | MLM + ToD | *0.77* | 0.40 | 0.77 | 0.51 | **0.84** | **0.61** | **0.83** | *0.62* | **0.85** | **0.65** | **0.86** | **0.69** |
-| k-means / probe | MLM-time + ToD | **0.77** | 0.44 | 0.76 | *0.52* | **0.83** | *0.60* | **0.83** | **0.63** | *0.84* | *0.64* | **0.86** | *0.68* |
+| k-means / probe | MLM | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 | | | | | | | | | | | | | | |
-| SCAN | MLM | 0.66 | 0.41 | – | – | 0.68 | 0.52 | – | – | 0.69 | 0.54 | – | – |
+| SCAN | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| SCAN | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 | | | | | | | | | | | | | | |
-| DEC | MLM | 0.63 | *0.45* | – | – | 0.66 | 0.48 | – | – | 0.67 | 0.50 | – | – |
+| DEC | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| DEC | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 
 
 ### L1, all classes
 
 **three-house average; clustering columns = k-means / SCAN / DEC, probe columns = same representation**
 
-| Method | Representation | K20, m5 W | K20, m5 M | 100 labels W | 100 labels M | K100, m5 W | K100, m5 M | 500 labels W | 500 labels M | K100, m all W | K100, m all M | all labels W | all labels M |
+| Method | Representation | K20, m5 W | K20, m5 M | 100 labels W | 100 labels M | K50, m5 W | K50, m5 M | 250 labels W | 250 labels M | K50, m all W | K50, m all M | all labels W | all labels M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means / probe | Sensor hist. | 0.61 | **0.36** | 0.65 | 0.34 | 0.67 | 0.42 | 0.67 | 0.43 | 0.68 | 0.47 | 0.70 | 0.54 |
-| k-means / probe | Sensor+ToD hist. | *0.75* | 0.32 | **0.79** | **0.42** | *0.82* | **0.49** | **0.83** | *0.52* | *0.83* | **0.52** | **0.86** | 0.63 |
+| k-means / probe | Sensor hist. | 0.38 | *0.17* | 0.50 | *0.20* | 0.49 | 0.21 | 0.51 | 0.25 | *0.53* | **0.27** | 0.54 | 0.29 |
+| k-means / probe | Sensor+ToD hist. | **0.53** | **0.19** | **0.55** | **0.23** | **0.54** | **0.25** | **0.60** | **0.32** | **0.56** | 0.23 | **0.64** | **0.36** |
 | | | | | | | | | | | | | | |
-| k-means / probe | MLM | 0.65 | **0.36** | 0.65 | 0.34 | 0.69 | 0.44 | 0.68 | 0.43 | 0.69 | 0.47 | 0.72 | 0.58 |
-| k-means / probe | MLM-time | 0.63 | *0.34* | 0.70 | 0.37 | 0.67 | 0.40 | 0.79 | 0.50 | 0.69 | 0.46 | *0.86* | **0.66** |
-| k-means / probe | MLM + ToD | *0.76* | 0.32 | 0.76 | *0.40* | **0.83** | *0.48* | **0.83** | *0.52* | **0.84** | *0.51* | **0.86** | **0.66** |
-| k-means / probe | MLM-time + ToD | **0.77** | *0.35* | 0.76 | *0.40* | **0.83** | *0.48* | **0.83** | **0.53** | *0.84* | *0.51* | **0.86** | **0.67** |
+| k-means / probe | MLM | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 | | | | | | | | | | | | | | |
-| SCAN | MLM | 0.65 | 0.31 | – | – | 0.68 | 0.45 | – | – | 0.69 | 0.45 | – | – |
+| SCAN | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| SCAN | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 | | | | | | | | | | | | | | |
-| DEC | MLM | 0.62 | *0.34* | – | – | 0.66 | 0.38 | – | – | 0.67 | 0.41 | – | – |
+| DEC | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| DEC | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 
 
 ### L2 (TDOST merged classes), all classes --- comparable to TDOST / DeepCASAS
 
 **three-house average; clustering columns = k-means / SCAN / DEC, probe columns = same representation**
 
-| Method | Representation | K20, m5 W | K20, m5 M | 100 labels W | 100 labels M | K100, m5 W | K100, m5 M | 500 labels W | 500 labels M | K100, m all W | K100, m all M | all labels W | all labels M |
+| Method | Representation | K20, m5 W | K20, m5 M | 100 labels W | 100 labels M | K50, m5 W | K50, m5 M | 250 labels W | 250 labels M | K50, m all W | K50, m all M | all labels W | all labels M |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| k-means / probe | Sensor hist. | 0.77 | **0.39** | 0.78 | 0.38 | 0.81 | 0.42 | 0.83 | 0.47 | 0.83 | *0.48* | 0.85 | 0.57 |
-| k-means / probe | Sensor+ToD hist. | 0.78 | 0.33 | **0.82** | **0.43** | *0.85* | *0.47* | **0.86** | **0.52** | *0.86* | **0.51** | **0.88** | 0.65 |
+| k-means / probe | Sensor hist. | 0.40 | **0.20** | *0.56* | *0.24* | 0.51 | 0.23 | 0.56 | 0.27 | *0.54* | **0.27** | 0.57 | 0.30 |
+| k-means / probe | Sensor+ToD hist. | **0.55** | **0.20** | **0.58** | **0.25** | **0.57** | **0.28** | **0.62** | **0.32** | **0.56** | *0.26* | **0.66** | **0.37** |
 | | | | | | | | | | | | | | |
-| k-means / probe | MLM | *0.80* | *0.38* | 0.79 | 0.39 | *0.83* | *0.46* | 0.82 | 0.47 | 0.84 | **0.51** | *0.86* | 0.62 |
-| k-means / probe | MLM-time | *0.79* | *0.38* | *0.81* | *0.41* | 0.82 | 0.43 | *0.84* | *0.49* | 0.84 | **0.51** | *0.88* | **0.68** |
-| k-means / probe | MLM + ToD | *0.80* | 0.35 | *0.81* | *0.41* | **0.86** | *0.46* | *0.85* | *0.51* | **0.87** | *0.49* | **0.89** | *0.68* |
-| k-means / probe | MLM-time + ToD | *0.79* | 0.35 | **0.82** | *0.42* | *0.85* | *0.48* | *0.85* | *0.51* | *0.86* | **0.50** | **0.88** | **0.68** |
+| k-means / probe | MLM | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
+| k-means / probe | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 | | | | | | | | | | | | | | |
-| SCAN | MLM | *0.79* | 0.34 | – | – | *0.83* | **0.48** | – | – | 0.84 | *0.48* | – | – |
+| SCAN | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| SCAN | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 | | | | | | | | | | | | | | |
-| DEC | MLM | **0.81** | **0.39** | – | – | 0.82 | 0.41 | – | – | 0.82 | 0.45 | – | – |
+| DEC | MLM-time | – | – | – | – | – | – | – | – | – | – | – | – |
+| DEC | MLM-time + ToD | – | – | – | – | – | – | – | – | – | – | – | – |
 

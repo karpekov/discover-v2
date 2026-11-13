@@ -1,5 +1,11 @@
 # DISCOVER revision: clustering ablations (2026-11-12, single seed 42)
 
+> **Superseded protocol.** Everything below used the pre-segmented FL_20_p annotation pool and coordinate encoders.
+> The tables/PDF now hold only the histogram baselines under the continuous-pool protocol (no coordinates).
+> Continuous pool, L1 masked macro F1, m=5 (Milan / Aruba / Cairo): Sensor+ToD hist. K=20 0.31 / 0.23 / 0.20,
+> K=50 0.32 / 0.37 / 0.27 (pre-segmented pool: 0.37 / 0.34 / 0.50 and 0.50 / 0.61 / 0.62). Cause: No_Activity
+> dominates cluster labels (Cairo: 16/20 clusters, 67% of test windows predicted No_Activity, always an error).
+
 **All tables:** `report_tables.pdf` (13 pages) or `tables/*.md|tex`. Regenerate:
 `python -m tist_revision.pipeline.label_levels && python -m tist_revision.pipeline.probes && python -m tist_revision.pipeline.report --pdf`
 
