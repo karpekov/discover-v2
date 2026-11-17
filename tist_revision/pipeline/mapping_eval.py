@@ -47,7 +47,10 @@ MIN_POOL, MIN_TEST = 50, 20
 DATA_ROOT = Path('data/processed/casas')
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 RESULTS_DIR = PROJECT_DIR / 'results'
+FINAL_DIR = RESULTS_DIR / 'final'  # current paper-grade results only (report_final, confusion)
+TEMP_DIR = RESULTS_DIR / 'temp'  # explorations and superseded results
 ARTIFACTS_DIR = PROJECT_DIR / 'artifacts'
+BASELINES_DIR = ARTIFACTS_DIR / 'baselines'  # raw baseline predictions ({protocol}/{method}/*.npz)
 CACHE_DIR = ARTIFACTS_DIR / 'cache'
 
 

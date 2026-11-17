@@ -15,9 +15,9 @@ import pandas as pd
 from sklearn.cluster import HDBSCAN, KMeans
 from sklearn.neighbors import KNeighborsClassifier
 
-from .mapping_eval import DEFAULT_M_VALUES, RESULTS_DIR, evaluate_clustering, load_protocol, save_assignments
+from .mapping_eval import DEFAULT_M_VALUES, TEMP_DIR, evaluate_clustering, load_protocol, save_assignments
 
-OUT_ROOT = RESULTS_DIR / 'stage1_histograms'
+OUT_ROOT = TEMP_DIR / 'stage1_histograms'
 FEATURE_COLUMNS = {'sensor': ['sensors'], 'room': ['rooms'], 'sensor_tod': ['sensors', 'tods']}
 
 

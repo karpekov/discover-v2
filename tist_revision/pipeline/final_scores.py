@@ -7,7 +7,7 @@ Inputs:
   - assignments `{city}__{rep}_s{seed}[+tod]__{method}_k{K}` from `frozen_deep.py` (rep: tf, bert, hist_sensor,
     hist_sensor_tod),
   - embeddings `{city}_{enc}_s{seed}_embeddings.npz` (probes),
-  - baseline predictions `results/baselines/final/{method}/{city}_{level}_{budget}_s{seed}.npz`.
+  - baseline predictions `artifacts/baselines/final/{method}/{city}_{level}_{budget}_s{seed}.npz`.
 Label budgets count activity labels only (`baselines/data.budget_indices`): clustering at m = 5 uses K x 5 activity
 labels, probes and baselines draw random windows until 100 / 250 activity labels are collected.
 
@@ -23,11 +23,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 from ..baselines.data import budget_indices
-from .mapping_eval import (ARTIFACTS_DIR, EXCLUDED_LABELS, RESULTS_DIR, _scores, evaluate_clustering, load_protocol,
+from .mapping_eval import (ARTIFACTS_DIR, EXCLUDED_LABELS, BASELINES_DIR, TEMP_DIR, _scores, evaluate_clustering, load_protocol,
                            predict_activity, scored_classes)
 from .rare_classes import representations
 
-OUT = RESULTS_DIR / 'final'
+OUT = TEMP_DIR / 'final_scores'
 ASSIGN = re.compile(r'^(?P<city>[a-z]+)__(?P<enc>[a-z_]+?)_s(?P<seed>\d+)(?P<tod>\+tod)?__(?P<method>kmeans|scan|dec)_k(?P<K>\d+)$')
 EMB = re.compile(r'^(?P<city>[a-z]+)_(?P<enc>tf|bert)_s(?P<seed>\d+)_embeddings$')
 
@@ -103,7 +103,7 @@ def probe_rows(city, fit, protocols, budgets, max_full=20000):
 
 def baseline_rows(city, protocols):
     rows = []
-    for path in sorted((RESULTS_DIR / 'baselines' / 'final').glob(f'*/{city}_*_s*.npz')):
+    for path in sorted((BASELINES_DIR / 'final').glob(f'*/{city}_*_s*.npz')):
         level, budget, seed = re.match(rf'^{city}_(l[12])_(\w+)_s(\d+)$', path.stem).groups()
         z = np.load(path, allow_pickle=True)
         pool, test = protocols[level]

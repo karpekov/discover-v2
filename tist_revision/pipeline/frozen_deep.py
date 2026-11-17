@@ -25,14 +25,19 @@ from sklearn.cluster import KMeans
 from .dec import DECHead, soft_assign, target_distribution
 from .encoding import get_device
 from .mapping_eval import ARTIFACTS_DIR, load_protocol, save_assignments
+from .histogram_baselines import build_features
 from .rare_classes import representations
 from .scan import make_head, mine_neighbors, scan_loss, set_seed
 
 
 def run_scan(X, K, device, num_heads=5, num_neighbors=20, entropy_weight=2.0, epochs=50, lr=1e-3,
-             batch_size=256, dropout=0.1):
-    nbrs = mine_neighbors(X, num_neighbors)
-    heads = nn.ModuleList([make_head(X.shape[1], K, dropout, X.mean(0), X.std(0)) for _ in range(num_heads)]).to(device)
+             batch_size=256, dropout=0.1, col_weight=None, mine_weight=None):
+    """`col_weight` (per dimension) scales features after the head's standardisation and, unless `mine_weight`
+    is given, for neighbour mining."""
+    w = torch.ones(X.shape[1], device=X.device) if col_weight is None else col_weight
+    nbrs = mine_neighbors(X * (w if mine_weight is None else mine_weight), num_neighbors)
+    heads = nn.ModuleList([make_head(X.shape[1], K, dropout, X.mean(0), X.std(0).clamp_min(1e-6) / w)
+                           for _ in range(num_heads)]).to(device)
     opt = torch.optim.Adam(heads.parameters(), lr=lr, weight_decay=1e-4)
     N = len(X)
     for _ in range(epochs):
@@ -50,6 +55,15 @@ def run_scan(X, K, device, num_heads=5, num_neighbors=20, entropy_weight=2.0, ep
             nb_count += 1
     head = heads[int((sums / nb_count).argmin())].eval()
     return lambda Z: torch.cat([head(Z[s:s + 8192]).softmax(1) for s in range(0, len(Z), 8192)]).detach()
+
+
+def tod_block_weights(X, n_tod):
+    """Label-free ToD weights giving both blocks equal total variance: after the head's per-dimension
+    standardisation (sqrt(D_rest / n_tod)) and in the raw features used for neighbour mining."""
+    rest, tod = X[:, :-n_tod], X[:, -n_tod:]
+    head = (rest.shape[1] / n_tod) ** 0.5
+    mine = (rest.var(0).sum() / tod.var(0).sum()).sqrt().item()
+    return head, mine
 
 
 def run_kmeans(X, K, seed, max_fit=30000):
@@ -100,10 +114,14 @@ def main():
     ap.add_argument('--K', type=int, nargs='+', default=[20, 50])
     ap.add_argument('--seed', type=int, default=42)
     ap.add_argument('--suffix', default='', help='appended to assignment names, e.g. _s1 for seed runs')
+    ap.add_argument('--tod_weight', default='1',
+                    help='SCAN only: weight of the time-of-day histogram block (last columns of `+tod` / `hist_*_tod`); '
+                         'a number, or `balanced` (see `tod_block_weights`)')
     args = ap.parse_args()
     device = get_device()
     for city in args.cities:
         fit, pool, test = load_protocol(city)
+        n_tod = build_features(fit, [fit.iloc[:1]], ['tods'])[0].shape[1]
         for rep, (X_fit, _, X_test) in representations(city, fit, pool, test, args.representations):
             Xf = torch.as_tensor(np.asarray(X_fit, dtype=np.float32), device=device)
             Xt = torch.as_tensor(np.asarray(X_test, dtype=np.float32), device=device)
@@ -114,7 +132,14 @@ def main():
                     if method == 'kmeans':
                         predict = run_kmeans(Xf, K, args.seed)
                     elif method == 'scan':
-                        predict = _argmax(run_scan(Xf, K, device))
+                        w, w_mine = torch.ones(Xf.shape[1], device=device), None
+                        if args.tod_weight != '1' and ('+tod' in rep or rep.startswith('hist_') and '_tod' in rep):
+                            if args.tod_weight == 'balanced':
+                                w_mine = w.clone()
+                                w[-n_tod:], w_mine[-n_tod:] = tod_block_weights(Xf, n_tod)
+                            else:
+                                w[-n_tod:] = float(args.tod_weight)
+                        predict = _argmax(run_scan(Xf, K, device, col_weight=w, mine_weight=w_mine))
                     else:
                         predict = _argmax(run_dec(Xf, K, device, args.seed))
                     (c_pool, conf_pool), (c_test, conf_test) = predict(Xf), predict(Xt)

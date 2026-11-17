@@ -29,11 +29,11 @@ from sklearn.preprocessing import StandardScaler
 
 from .encoding import encode, encoder_fields, get_device, load_model, load_vocab, tensorize
 from .histogram_baselines import FEATURE_COLUMNS, build_features
-from .mapping_eval import (ARTIFACTS_DIR, DATA_ROOT, EXCLUDED_LABELS, RESULTS_DIR, VARIANTS, evaluate_clustering,
+from .mapping_eval import (ARTIFACTS_DIR, DATA_ROOT, EXCLUDED_LABELS, TEMP_DIR, VARIANTS, evaluate_clustering,
                            load_protocol, save_assignments)
 
 MODEL_ROOT = Path('trained_models')
-OUT_ROOT = RESULTS_DIR / 'stage1_5_embeddings'
+OUT_ROOT = TEMP_DIR / 'stage1_5_embeddings'
 EMB_DIR = ARTIFACTS_DIR / 'embeddings'
 M_VALUES = (5, 'all')
 

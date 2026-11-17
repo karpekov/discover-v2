@@ -1,0 +1,24 @@
+{
+  "city": "aruba",
+  "encoder": "aruba_fl20_seq_discover_v1_mlm_only",
+  "run": "dec_k20",
+  "method": "dec",
+  "num_clusters": 20,
+  "epochs": 30,
+  "seed": 42,
+  "active_clusters": 20,
+  "largest_cluster_share": 0.09328189244507236,
+  "minutes": 2.132069472471873,
+  "args": {
+    "city": "aruba",
+    "encoder_dir": "trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_only",
+    "num_clusters": 20,
+    "run_name": null,
+    "epochs": 30,
+    "batch_size": 256,
+    "lr": 0.001,
+    "update_interval": 200,
+    "seed": 42,
+    "n_boot": 500
+  }
+}

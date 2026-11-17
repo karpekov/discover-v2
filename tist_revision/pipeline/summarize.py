@@ -1,7 +1,7 @@
 """
-One readable table per variant: every SCAN run (results/stage3_scan/runs/*) next to the k-means
-baselines on histograms and frozen encoders (results/stage1_5_*), weighted / macro F1 at m=5 and m=all.
-Writes results/summary_{variant}.csv and prints markdown.
+One readable table per variant: every SCAN run (results/temp/stage3_scan/runs/*) next to the k-means
+baselines on histograms and frozen encoders (results/temp/stage1_5_*), weighted / macro F1 at m=5 and m=all.
+Writes results/temp/summary_{variant}.csv and prints markdown.
 
 Usage:
     python -m tist_revision.pipeline.summarize
@@ -11,19 +11,19 @@ from pathlib import Path
 
 import pandas as pd
 
-from .mapping_eval import RESULTS_DIR
+from .mapping_eval import TEMP_DIR
 
 
 def collect() -> pd.DataFrame:
     rows = []
-    for d in sorted(RESULTS_DIR.glob('stage1_5_*')):
+    for d in sorted(TEMP_DIR.glob('stage1_5_*')):
         path = d / 'clustering.csv'
         if path.exists():
             df = pd.read_csv(path)
             df['m'] = df['m'].astype(str)
             df['method'] = df['representation'] + ' · ' + df['method']
             rows.append(df[['city', 'method', 'variant', 'm', 'f1_weighted', 'f1_macro']])
-    for path in sorted((RESULTS_DIR / 'stage3_scan' / 'runs').glob('*/scan_head.csv')):
+    for path in sorted((TEMP_DIR / 'stage3_scan' / 'runs').glob('*/scan_head.csv')):
         df = pd.read_csv(path)
         df['m'] = df['m'].astype(str)
         kind = df['method'].str.upper() if 'method' in df else 'SCAN'
@@ -44,7 +44,7 @@ def main():
         t = d.pivot_table(index='method', columns=['city', 'm'], values='cell', aggfunc='first')
         t = t.reindex(columns=[(c, m) for c in ('milan', 'aruba', 'cairo') for m in args.m_values if (c, m) in t.columns])
         t.columns = [f'{c} m={m}' for c, m in t.columns]
-        t.to_csv(RESULTS_DIR / f'summary_{variant}.csv')
+        t.to_csv(TEMP_DIR / f'summary_{variant}.csv')
         print(f'\n### variant={variant} (weighted / macro F1)\n')
         print(t.fillna('').to_markdown())
 

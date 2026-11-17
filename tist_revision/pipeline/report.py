@@ -1,8 +1,8 @@
 """
-Report tables (markdown + LaTeX + one combined PDF) from `results/label_levels/results.csv` (clustering)
-and `results/probes/results.csv` (linear probes).
+Report tables (markdown + LaTeX + one combined PDF) from `results/temp/label_levels/results.csv` (clustering)
+and `results/temp/probes/results.csv` (linear probes).
 
-Layout of `results/report/`:
+Superseded (pre-segmented pool). Layout of `results/temp/report_v0/`:
     REPORT.md                 hand-written summary
     report_tables.pdf         all tables below, rendered (with --pdf)
     tables/clustering_m{m}.*  clustering: K = 20 / 50 blocks; m = labelled windows per cluster
@@ -22,7 +22,7 @@ import subprocess
 
 import pandas as pd
 
-from .mapping_eval import RESULTS_DIR
+from .mapping_eval import TEMP_DIR
 
 MARGIN = 0.03
 CITIES = ['milan', 'aruba', 'cairo']
@@ -170,13 +170,13 @@ def main():
     ap.add_argument('--m', nargs='+', default=['5', '1', 'all'], help='labelled windows per cluster')
     ap.add_argument('--pdf', action='store_true', help='also compile report_tables.pdf (needs latexmk)')
     args = ap.parse_args()
-    r = pd.read_csv(RESULTS_DIR / 'label_levels' / 'results.csv')
+    r = pd.read_csv(TEMP_DIR / 'label_levels' / 'results.csv')
     r['m'] = r['m'].astype(str)
-    probes_path = RESULTS_DIR / 'probes' / 'results.csv'
+    probes_path = TEMP_DIR / 'probes' / 'results.csv'
     p = pd.read_csv(probes_path) if probes_path.exists() else None
     if p is not None:
         p['budget'] = p['budget'].astype(str)
-    out = RESULTS_DIR / 'report'
+    out = TEMP_DIR / 'report_v0'
     tables = out / 'tables'
     tables.mkdir(parents=True, exist_ok=True)
 

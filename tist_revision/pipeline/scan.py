@@ -29,9 +29,9 @@ import torch.nn as nn
 
 from .embedding_diagnostics import diagnose, save_rows, split_paths
 from .encoding import batch_inputs, encode, encoder_fields, get_device, load_model, load_vocab, tensorize
-from .mapping_eval import DATA_ROOT, DEFAULT_M_VALUES, RESULTS_DIR, evaluate_clustering, load_protocol, save_assignments
+from .mapping_eval import DATA_ROOT, DEFAULT_M_VALUES, TEMP_DIR, evaluate_clustering, load_protocol, save_assignments
 
-OUT_ROOT = RESULTS_DIR / 'stage3_scan'
+OUT_ROOT = TEMP_DIR / 'stage3_scan'
 MODEL_OUT = Path('trained_models')
 
 

@@ -1,0 +1,24 @@
+{
+  "city": "milan",
+  "encoder": "milan_fl20_seq_discover_v1_mlm_time",
+  "run": "dec_k50",
+  "method": "dec",
+  "num_clusters": 50,
+  "epochs": 30,
+  "seed": 42,
+  "active_clusters": 50,
+  "largest_cluster_share": 0.06039111700364601,
+  "minutes": 0.6489824493726094,
+  "args": {
+    "city": "milan",
+    "encoder_dir": "trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time",
+    "num_clusters": 50,
+    "run_name": null,
+    "epochs": 30,
+    "batch_size": 256,
+    "lr": 0.001,
+    "update_interval": 200,
+    "seed": 42,
+    "n_boot": 500
+  }
+}

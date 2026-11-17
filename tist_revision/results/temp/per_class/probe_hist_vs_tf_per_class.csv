@@ -1,0 +1,73 @@
+city,label,budget,hist,tf,tf_minus_hist
+aruba,Bed_to_Toilet,250,0.179,0.0,-0.179
+aruba,Bed_to_Toilet,all,0.919,0.203,-0.717
+aruba,Eating,250,0.593,0.635,0.042
+aruba,Eating,all,0.687,0.688,0.001
+aruba,Enter_Home,250,0.048,0.039,-0.008
+aruba,Enter_Home,all,0.533,0.095,-0.438
+aruba,Housekeeping,250,0.059,0.147,0.087
+aruba,Housekeeping,all,0.203,0.289,0.087
+aruba,Leave_Home,250,0.0,0.0,0.0
+aruba,Leave_Home,all,0.3,0.306,0.006
+aruba,Meal_Preparation,250,0.898,0.886,-0.012
+aruba,Meal_Preparation,all,0.921,0.921,-0.0
+aruba,Relax,250,0.929,0.931,0.002
+aruba,Relax,all,0.942,0.942,0.0
+aruba,Sleeping,250,0.938,0.915,-0.023
+aruba,Sleeping,all,0.977,0.966,-0.011
+aruba,Wash_Dishes,250,0.018,0.039,0.021
+aruba,Wash_Dishes,all,0.004,0.022,0.017
+aruba,Work,250,0.723,0.748,0.026
+aruba,Work,all,0.831,0.845,0.014
+cairo,Bed to toilet,250,0.217,0.139,-0.078
+cairo,Bed to toilet,all,0.045,0.281,0.237
+cairo,Breakfast,250,0.727,0.695,-0.032
+cairo,Breakfast,all,0.752,0.775,0.023
+cairo,Dinner,250,0.947,0.906,-0.041
+cairo,Dinner,all,0.96,0.964,0.004
+cairo,Laundry,250,0.829,0.841,0.012
+cairo,Laundry,all,0.951,0.918,-0.033
+cairo,Leave home,250,0.204,0.164,-0.04
+cairo,Leave home,all,0.523,0.394,-0.129
+cairo,Lunch,250,0.83,0.788,-0.042
+cairo,Lunch,all,0.818,0.864,0.045
+cairo,Night wandering,250,0.63,0.54,-0.09
+cairo,Night wandering,all,0.76,0.643,-0.117
+cairo,sleep,250,0.821,0.711,-0.11
+cairo,sleep,all,0.841,0.831,-0.01
+cairo,take medicine,250,0.0,0.021,0.021
+cairo,take medicine,all,0.0,0.111,0.111
+cairo,wake,250,0.86,0.752,-0.108
+cairo,wake,all,0.884,0.87,-0.014
+cairo,work in office,250,0.349,0.403,0.054
+cairo,work in office,all,0.516,0.554,0.038
+milan,Bed_to_Toilet,250,0.165,0.289,0.124
+milan,Bed_to_Toilet,all,0.317,0.336,0.019
+milan,Chores,250,0.041,0.024,-0.017
+milan,Chores,all,0.019,0.038,0.019
+milan,Desk_Activity,250,0.691,0.669,-0.022
+milan,Desk_Activity,all,0.685,0.576,-0.109
+milan,Dining_Rm_Activity,250,0.22,0.3,0.08
+milan,Dining_Rm_Activity,all,0.418,0.306,-0.112
+milan,Eve_Meds,250,0.0,0.0,0.0
+milan,Eve_Meds,all,0.148,0.0,-0.148
+milan,Guest_Bathroom,250,0.553,0.569,0.016
+milan,Guest_Bathroom,all,0.717,0.639,-0.078
+milan,Kitchen_Activity,250,0.888,0.884,-0.004
+milan,Kitchen_Activity,all,0.912,0.903,-0.009
+milan,Leave_Home,250,0.44,0.399,-0.042
+milan,Leave_Home,all,0.793,0.523,-0.271
+milan,Master_Bathroom,250,0.588,0.586,-0.003
+milan,Master_Bathroom,all,0.665,0.647,-0.018
+milan,Master_Bedroom_Activity,250,0.436,0.406,-0.031
+milan,Master_Bedroom_Activity,all,0.466,0.464,-0.002
+milan,Meditate,250,0.503,0.552,0.049
+milan,Meditate,all,0.205,0.339,0.134
+milan,Morning_Meds,250,0.0,0.0,0.0
+milan,Morning_Meds,all,0.0,0.0,0.0
+milan,Read,250,0.874,0.863,-0.012
+milan,Read,all,0.901,0.895,-0.006
+milan,Sleep,250,0.708,0.664,-0.044
+milan,Sleep,all,0.772,0.76,-0.013
+milan,Watch_TV,250,0.784,0.792,0.008
+milan,Watch_TV,all,0.878,0.849,-0.029

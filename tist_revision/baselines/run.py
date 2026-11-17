@@ -9,7 +9,7 @@ Hyperparameters: DeepCASAS 75 epochs, lr 1e-3, batch 64; TDOST 50 epochs, lr 1e-
 v1-1 + all-distilroberta-v1 ConvLSTM setting for Milan, Aruba and Cairo); TreeCNN 25 epochs, lr 2e-4, L2 4e-4,
 batch 128 (Cao et al. 2020), no scheduler.
 
-Outputs `results/baselines/{protocol}/{method}/{city}_{level}_{budget}_s{seed}.npz` (test labels, predictions, days,
+Outputs `artifacts/baselines/{protocol}/{method}/{city}_{level}_{budget}_s{seed}.npz` (test labels, predictions, days,
 classes, validation curve). Scored by `baselines/score.py`.
 
 Usage:
@@ -27,11 +27,11 @@ import torch.nn as nn
 from sklearn.metrics import f1_score
 
 from ..pipeline.encoding import get_device
-from ..pipeline.mapping_eval import ARTIFACTS_DIR, NO_ACTIVITY, RESULTS_DIR, predict_activity
+from ..pipeline.mapping_eval import ARTIFACTS_DIR, BASELINES_DIR, NO_ACTIVITY, predict_activity
 from .data import budget_indices, labels, load
 from .models import DeepCASAS, TDOSTConvLSTM, TreeCNN
 
-OUT = RESULTS_DIR / 'baselines'
+OUT = BASELINES_DIR
 LENGTH = 20
 MIN_STEPS = 500
 HPARAMS = {'deepcasas': dict(epochs=75, lr=1e-3, wd=0.0, batch=64, step_lr=True),

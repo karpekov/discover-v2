@@ -1,0 +1,24 @@
+{
+  "city": "cairo",
+  "encoder": "cairo_fl20_seq_discover_v1_mlm_time",
+  "run": "dec_k100",
+  "method": "dec",
+  "num_clusters": 100,
+  "epochs": 30,
+  "seed": 42,
+  "active_clusters": 99,
+  "largest_cluster_share": 0.022617796461727097,
+  "minutes": 1.432724618911743,
+  "args": {
+    "city": "cairo",
+    "encoder_dir": "trained_models/{city}/{city}_fl20_seq_discover_v1_mlm_time",
+    "num_clusters": 100,
+    "run_name": null,
+    "epochs": 30,
+    "batch_size": 256,
+    "lr": 0.001,
+    "update_interval": 200,
+    "seed": 42,
+    "n_boot": 500
+  }
+}

@@ -1,0 +1,3401 @@
+K,w,seed,city,m,label,f1
+20,bal,1,milan,5,Bed_to_Toilet,0.0
+20,bal,1,milan,5,Chores,0.0
+20,bal,1,milan,5,Desk_Activity,0.7246376811594203
+20,bal,1,milan,5,Dining_Rm_Activity,0.25149700598802394
+20,bal,1,milan,5,Eve_Meds,0.0
+20,bal,1,milan,5,Guest_Bathroom,0.7078384798099763
+20,bal,1,milan,5,Kitchen_Activity,0.8621394503747445
+20,bal,1,milan,5,Leave_Home,0.4935064935064935
+20,bal,1,milan,5,Master_Bathroom,0.5380952380952381
+20,bal,1,milan,5,Master_Bedroom_Activity,0.3273809523809524
+20,bal,1,milan,5,Meditate,0.0
+20,bal,1,milan,5,Morning_Meds,0.0
+20,bal,1,milan,5,Read,0.8331688055281342
+20,bal,1,milan,5,Sleep,0.558282208588957
+20,bal,1,milan,5,Watch_TV,0.7724268177525968
+20,bal,1,milan,all,Bed_to_Toilet,0.0
+20,bal,1,milan,all,Chores,0.0
+20,bal,1,milan,all,Desk_Activity,0.7246376811594203
+20,bal,1,milan,all,Dining_Rm_Activity,0.0
+20,bal,1,milan,all,Eve_Meds,0.0
+20,bal,1,milan,all,Guest_Bathroom,0.7078384798099763
+20,bal,1,milan,all,Kitchen_Activity,0.8883415435139573
+20,bal,1,milan,all,Leave_Home,0.0
+20,bal,1,milan,all,Master_Bathroom,0.5380952380952381
+20,bal,1,milan,all,Master_Bedroom_Activity,0.3273809523809524
+20,bal,1,milan,all,Meditate,0.0
+20,bal,1,milan,all,Morning_Meds,0.0
+20,bal,1,milan,all,Read,0.8213107024988213
+20,bal,1,milan,all,Sleep,0.44150110375275936
+20,bal,1,milan,all,Watch_TV,0.7724268177525968
+20,bal,2,milan,5,Bed_to_Toilet,0.0
+20,bal,2,milan,5,Chores,0.14285714285714285
+20,bal,2,milan,5,Desk_Activity,0.0
+20,bal,2,milan,5,Dining_Rm_Activity,0.5031446540880503
+20,bal,2,milan,5,Eve_Meds,0.0
+20,bal,2,milan,5,Guest_Bathroom,0.42297650130548303
+20,bal,2,milan,5,Kitchen_Activity,0.8771547021601571
+20,bal,2,milan,5,Leave_Home,0.38
+20,bal,2,milan,5,Master_Bathroom,0.0
+20,bal,2,milan,5,Master_Bedroom_Activity,0.0
+20,bal,2,milan,5,Meditate,0.0
+20,bal,2,milan,5,Morning_Meds,0.0
+20,bal,2,milan,5,Read,0.9056032306915699
+20,bal,2,milan,5,Sleep,0.41020408163265304
+20,bal,2,milan,5,Watch_TV,0.8076514346439958
+20,bal,2,milan,all,Bed_to_Toilet,0.0
+20,bal,2,milan,all,Chores,0.0
+20,bal,2,milan,all,Desk_Activity,0.5652173913043478
+20,bal,2,milan,all,Dining_Rm_Activity,0.5031446540880503
+20,bal,2,milan,all,Eve_Meds,0.0
+20,bal,2,milan,all,Guest_Bathroom,0.0
+20,bal,2,milan,all,Kitchen_Activity,0.8538327862521722
+20,bal,2,milan,all,Leave_Home,0.0
+20,bal,2,milan,all,Master_Bathroom,0.5415778251599147
+20,bal,2,milan,all,Master_Bedroom_Activity,0.38235294117647056
+20,bal,2,milan,all,Meditate,0.0
+20,bal,2,milan,all,Morning_Meds,0.0
+20,bal,2,milan,all,Read,0.9056032306915699
+20,bal,2,milan,all,Sleep,0.3302325581395349
+20,bal,2,milan,all,Watch_TV,0.8076514346439958
+20,bal,3,milan,5,Bed_to_Toilet,0.0
+20,bal,3,milan,5,Chores,0.0
+20,bal,3,milan,5,Desk_Activity,0.0
+20,bal,3,milan,5,Dining_Rm_Activity,0.4419889502762431
+20,bal,3,milan,5,Eve_Meds,0.0
+20,bal,3,milan,5,Guest_Bathroom,0.7020785219399538
+20,bal,3,milan,5,Kitchen_Activity,0.8727923094120277
+20,bal,3,milan,5,Leave_Home,0.3825136612021858
+20,bal,3,milan,5,Master_Bathroom,0.31529411764705884
+20,bal,3,milan,5,Master_Bedroom_Activity,0.46942148760330576
+20,bal,3,milan,5,Meditate,0.0
+20,bal,3,milan,5,Morning_Meds,0.0
+20,bal,3,milan,5,Read,0.8955532574974147
+20,bal,3,milan,5,Sleep,0.5756676557863502
+20,bal,3,milan,5,Watch_TV,0.8085561497326204
+20,bal,3,milan,all,Bed_to_Toilet,0.0
+20,bal,3,milan,all,Chores,0.0
+20,bal,3,milan,all,Desk_Activity,0.6756756756756757
+20,bal,3,milan,all,Dining_Rm_Activity,0.0
+20,bal,3,milan,all,Eve_Meds,0.0
+20,bal,3,milan,all,Guest_Bathroom,0.7020785219399538
+20,bal,3,milan,all,Kitchen_Activity,0.8830596716059271
+20,bal,3,milan,all,Leave_Home,0.0
+20,bal,3,milan,all,Master_Bathroom,0.0
+20,bal,3,milan,all,Master_Bedroom_Activity,0.4715447154471545
+20,bal,3,milan,all,Meditate,0.0
+20,bal,3,milan,all,Morning_Meds,0.0
+20,bal,3,milan,all,Read,0.8955532574974147
+20,bal,3,milan,all,Sleep,0.48735632183908045
+20,bal,3,milan,all,Watch_TV,0.8085561497326204
+20,bal,4,milan,5,Bed_to_Toilet,0.0
+20,bal,4,milan,5,Chores,0.0
+20,bal,4,milan,5,Desk_Activity,0.0
+20,bal,4,milan,5,Dining_Rm_Activity,0.3660130718954248
+20,bal,4,milan,5,Eve_Meds,0.0
+20,bal,4,milan,5,Guest_Bathroom,0.7053364269141531
+20,bal,4,milan,5,Kitchen_Activity,0.8375860672336979
+20,bal,4,milan,5,Leave_Home,0.0
+20,bal,4,milan,5,Master_Bathroom,0.026936026936026935
+20,bal,4,milan,5,Master_Bedroom_Activity,0.3496143958868895
+20,bal,4,milan,5,Meditate,0.0
+20,bal,4,milan,5,Morning_Meds,0.0
+20,bal,4,milan,5,Read,0.6828358208955224
+20,bal,4,milan,5,Sleep,0.4024896265560166
+20,bal,4,milan,5,Watch_TV,0.7663734115347018
+20,bal,4,milan,all,Bed_to_Toilet,0.0
+20,bal,4,milan,all,Chores,0.0
+20,bal,4,milan,all,Desk_Activity,0.29
+20,bal,4,milan,all,Dining_Rm_Activity,0.3660130718954248
+20,bal,4,milan,all,Eve_Meds,0.0
+20,bal,4,milan,all,Guest_Bathroom,0.7053364269141531
+20,bal,4,milan,all,Kitchen_Activity,0.8894901144640999
+20,bal,4,milan,all,Leave_Home,0.0
+20,bal,4,milan,all,Master_Bathroom,0.6339468302658486
+20,bal,4,milan,all,Master_Bedroom_Activity,0.4393305439330544
+20,bal,4,milan,all,Meditate,0.0
+20,bal,4,milan,all,Morning_Meds,0.0
+20,bal,4,milan,all,Read,0.8692111959287532
+20,bal,4,milan,all,Sleep,0.36363636363636365
+20,bal,4,milan,all,Watch_TV,0.8113413304252999
+20,bal,5,milan,5,Bed_to_Toilet,0.0
+20,bal,5,milan,5,Chores,0.0
+20,bal,5,milan,5,Desk_Activity,0.7352941176470589
+20,bal,5,milan,5,Dining_Rm_Activity,0.0
+20,bal,5,milan,5,Eve_Meds,0.0
+20,bal,5,milan,5,Guest_Bathroom,0.4857142857142857
+20,bal,5,milan,5,Kitchen_Activity,0.8514891880864953
+20,bal,5,milan,5,Leave_Home,0.4107142857142857
+20,bal,5,milan,5,Master_Bathroom,0.5324384787472036
+20,bal,5,milan,5,Master_Bedroom_Activity,0.0
+20,bal,5,milan,5,Meditate,0.0
+20,bal,5,milan,5,Morning_Meds,0.0
+20,bal,5,milan,5,Read,0.8262411347517731
+20,bal,5,milan,5,Sleep,0.5097493036211699
+20,bal,5,milan,5,Watch_TV,0.7956284153005464
+20,bal,5,milan,all,Bed_to_Toilet,0.0
+20,bal,5,milan,all,Chores,0.0
+20,bal,5,milan,all,Desk_Activity,0.7352941176470589
+20,bal,5,milan,all,Dining_Rm_Activity,0.3741935483870968
+20,bal,5,milan,all,Eve_Meds,0.0
+20,bal,5,milan,all,Guest_Bathroom,0.0
+20,bal,5,milan,all,Kitchen_Activity,0.8503305950711281
+20,bal,5,milan,all,Leave_Home,0.0
+20,bal,5,milan,all,Master_Bathroom,0.5324384787472036
+20,bal,5,milan,all,Master_Bedroom_Activity,0.2978723404255319
+20,bal,5,milan,all,Meditate,0.0
+20,bal,5,milan,all,Morning_Meds,0.0
+20,bal,5,milan,all,Read,0.7856819211599456
+20,bal,5,milan,all,Sleep,0.46153846153846156
+20,bal,5,milan,all,Watch_TV,0.7841239109390126
+50,bal,1,milan,5,Bed_to_Toilet,0.0
+50,bal,1,milan,5,Chores,0.2047244094488189
+50,bal,1,milan,5,Desk_Activity,0.047619047619047616
+50,bal,1,milan,5,Dining_Rm_Activity,0.410958904109589
+50,bal,1,milan,5,Eve_Meds,0.0
+50,bal,1,milan,5,Guest_Bathroom,0.6361655773420479
+50,bal,1,milan,5,Kitchen_Activity,0.891783988232822
+50,bal,1,milan,5,Leave_Home,0.5428571428571428
+50,bal,1,milan,5,Master_Bathroom,0.26262626262626265
+50,bal,1,milan,5,Master_Bedroom_Activity,0.5026548672566372
+50,bal,1,milan,5,Meditate,0.0
+50,bal,1,milan,5,Morning_Meds,0.0
+50,bal,1,milan,5,Read,0.8918099089989889
+50,bal,1,milan,5,Sleep,0.7272727272727273
+50,bal,1,milan,5,Watch_TV,0.7940865892291447
+50,bal,1,milan,all,Bed_to_Toilet,0.0
+50,bal,1,milan,all,Chores,0.0
+50,bal,1,milan,all,Desk_Activity,0.704225352112676
+50,bal,1,milan,all,Dining_Rm_Activity,0.410958904109589
+50,bal,1,milan,all,Eve_Meds,0.0
+50,bal,1,milan,all,Guest_Bathroom,0.6567901234567901
+50,bal,1,milan,all,Kitchen_Activity,0.9040082219938335
+50,bal,1,milan,all,Leave_Home,0.0
+50,bal,1,milan,all,Master_Bathroom,0.4975124378109453
+50,bal,1,milan,all,Master_Bedroom_Activity,0.5192307692307693
+50,bal,1,milan,all,Meditate,0.0
+50,bal,1,milan,all,Morning_Meds,0.0
+50,bal,1,milan,all,Read,0.90625
+50,bal,1,milan,all,Sleep,0.7272727272727273
+50,bal,1,milan,all,Watch_TV,0.8016276703967447
+50,bal,2,milan,5,Bed_to_Toilet,0.0
+50,bal,2,milan,5,Chores,0.2591549295774648
+50,bal,2,milan,5,Desk_Activity,0.2808988764044944
+50,bal,2,milan,5,Dining_Rm_Activity,0.2681564245810056
+50,bal,2,milan,5,Eve_Meds,0.0
+50,bal,2,milan,5,Guest_Bathroom,0.7219512195121951
+50,bal,2,milan,5,Kitchen_Activity,0.8834110592938041
+50,bal,2,milan,5,Leave_Home,0.43209876543209874
+50,bal,2,milan,5,Master_Bathroom,0.4474708171206226
+50,bal,2,milan,5,Master_Bedroom_Activity,0.19696969696969696
+50,bal,2,milan,5,Meditate,0.0
+50,bal,2,milan,5,Morning_Meds,0.0
+50,bal,2,milan,5,Read,0.8803287108371854
+50,bal,2,milan,5,Sleep,0.5061728395061729
+50,bal,2,milan,5,Watch_TV,0.7461629279811098
+50,bal,2,milan,all,Bed_to_Toilet,0.0
+50,bal,2,milan,all,Chores,0.0
+50,bal,2,milan,all,Desk_Activity,0.5434782608695652
+50,bal,2,milan,all,Dining_Rm_Activity,0.12280701754385964
+50,bal,2,milan,all,Eve_Meds,0.0
+50,bal,2,milan,all,Guest_Bathroom,0.7219512195121951
+50,bal,2,milan,all,Kitchen_Activity,0.8963291649858814
+50,bal,2,milan,all,Leave_Home,0.0
+50,bal,2,milan,all,Master_Bathroom,0.4720812182741117
+50,bal,2,milan,all,Master_Bedroom_Activity,0.4497816593886463
+50,bal,2,milan,all,Meditate,0.0
+50,bal,2,milan,all,Morning_Meds,0.0
+50,bal,2,milan,all,Read,0.8767936665017318
+50,bal,2,milan,all,Sleep,0.4473684210526316
+50,bal,2,milan,all,Watch_TV,0.7798066595059077
+50,bal,3,milan,5,Bed_to_Toilet,0.0
+50,bal,3,milan,5,Chores,0.0
+50,bal,3,milan,5,Desk_Activity,0.65
+50,bal,3,milan,5,Dining_Rm_Activity,0.44642857142857145
+50,bal,3,milan,5,Eve_Meds,0.0
+50,bal,3,milan,5,Guest_Bathroom,0.6594360086767896
+50,bal,3,milan,5,Kitchen_Activity,0.8879111669809344
+50,bal,3,milan,5,Leave_Home,0.4791666666666667
+50,bal,3,milan,5,Master_Bathroom,0.5278450363196125
+50,bal,3,milan,5,Master_Bedroom_Activity,0.4725050916496945
+50,bal,3,milan,5,Meditate,0.32
+50,bal,3,milan,5,Morning_Meds,0.0
+50,bal,3,milan,5,Read,0.8521647307286166
+50,bal,3,milan,5,Sleep,0.5870646766169154
+50,bal,3,milan,5,Watch_TV,0.8270509977827051
+50,bal,3,milan,all,Bed_to_Toilet,0.0
+50,bal,3,milan,all,Chores,0.0
+50,bal,3,milan,all,Desk_Activity,0.65
+50,bal,3,milan,all,Dining_Rm_Activity,0.44642857142857145
+50,bal,3,milan,all,Eve_Meds,0.0
+50,bal,3,milan,all,Guest_Bathroom,0.5885714285714285
+50,bal,3,milan,all,Kitchen_Activity,0.8807157057654076
+50,bal,3,milan,all,Leave_Home,0.0
+50,bal,3,milan,all,Master_Bathroom,0.4574468085106383
+50,bal,3,milan,all,Master_Bedroom_Activity,0.45714285714285713
+50,bal,3,milan,all,Meditate,0.0
+50,bal,3,milan,all,Morning_Meds,0.0
+50,bal,3,milan,all,Read,0.8979187314172448
+50,bal,3,milan,all,Sleep,0.4630541871921182
+50,bal,3,milan,all,Watch_TV,0.8270509977827051
+50,bal,4,milan,5,Bed_to_Toilet,0.0
+50,bal,4,milan,5,Chores,0.0
+50,bal,4,milan,5,Desk_Activity,0.5098039215686274
+50,bal,4,milan,5,Dining_Rm_Activity,0.43103448275862066
+50,bal,4,milan,5,Eve_Meds,0.0
+50,bal,4,milan,5,Guest_Bathroom,0.49902534113060426
+50,bal,4,milan,5,Kitchen_Activity,0.8863037752414399
+50,bal,4,milan,5,Leave_Home,0.3657142857142857
+50,bal,4,milan,5,Master_Bathroom,0.5918367346938775
+50,bal,4,milan,5,Master_Bedroom_Activity,0.25692695214105793
+50,bal,4,milan,5,Meditate,0.0
+50,bal,4,milan,5,Morning_Meds,0.0
+50,bal,4,milan,5,Read,0.8947368421052632
+50,bal,4,milan,5,Sleep,0.4794007490636704
+50,bal,4,milan,5,Watch_TV,0.6578366445916115
+50,bal,4,milan,all,Bed_to_Toilet,0.0
+50,bal,4,milan,all,Chores,0.0
+50,bal,4,milan,all,Desk_Activity,0.5098039215686274
+50,bal,4,milan,all,Dining_Rm_Activity,0.48120300751879697
+50,bal,4,milan,all,Eve_Meds,0.0
+50,bal,4,milan,all,Guest_Bathroom,0.27309236947791166
+50,bal,4,milan,all,Kitchen_Activity,0.881213815132761
+50,bal,4,milan,all,Leave_Home,0.0
+50,bal,4,milan,all,Master_Bathroom,0.5918367346938775
+50,bal,4,milan,all,Master_Bedroom_Activity,0.3779527559055118
+50,bal,4,milan,all,Meditate,0.0
+50,bal,4,milan,all,Morning_Meds,0.0
+50,bal,4,milan,all,Read,0.8947368421052632
+50,bal,4,milan,all,Sleep,0.4215456674473068
+50,bal,4,milan,all,Watch_TV,0.7572254335260116
+50,bal,5,milan,5,Bed_to_Toilet,0.0
+50,bal,5,milan,5,Chores,0.0
+50,bal,5,milan,5,Desk_Activity,0.26229508196721313
+50,bal,5,milan,5,Dining_Rm_Activity,0.2708333333333333
+50,bal,5,milan,5,Eve_Meds,0.0
+50,bal,5,milan,5,Guest_Bathroom,0.6965174129353234
+50,bal,5,milan,5,Kitchen_Activity,0.8945469976660301
+50,bal,5,milan,5,Leave_Home,0.5271317829457365
+50,bal,5,milan,5,Master_Bathroom,0.5411764705882353
+50,bal,5,milan,5,Master_Bedroom_Activity,0.4578313253012048
+50,bal,5,milan,5,Meditate,0.0
+50,bal,5,milan,5,Morning_Meds,0.0
+50,bal,5,milan,5,Read,0.8985507246376812
+50,bal,5,milan,5,Sleep,0.6270491803278688
+50,bal,5,milan,5,Watch_TV,0.7470651013874067
+50,bal,5,milan,all,Bed_to_Toilet,0.0
+50,bal,5,milan,all,Chores,0.0
+50,bal,5,milan,all,Desk_Activity,0.49504950495049505
+50,bal,5,milan,all,Dining_Rm_Activity,0.42857142857142855
+50,bal,5,milan,all,Eve_Meds,0.0
+50,bal,5,milan,all,Guest_Bathroom,0.6965174129353234
+50,bal,5,milan,all,Kitchen_Activity,0.9110204081632653
+50,bal,5,milan,all,Leave_Home,0.0
+50,bal,5,milan,all,Master_Bathroom,0.6014319809069213
+50,bal,5,milan,all,Master_Bedroom_Activity,0.43826086956521737
+50,bal,5,milan,all,Meditate,0.0
+50,bal,5,milan,all,Morning_Meds,0.0
+50,bal,5,milan,all,Read,0.9038662486938349
+50,bal,5,milan,all,Sleep,0.6666666666666666
+50,bal,5,milan,all,Watch_TV,0.7933194154488518
+100,bal,1,milan,5,Bed_to_Toilet,0.0
+100,bal,1,milan,5,Chores,0.22382671480144403
+100,bal,1,milan,5,Desk_Activity,0.3968253968253968
+100,bal,1,milan,5,Dining_Rm_Activity,0.48333333333333334
+100,bal,1,milan,5,Eve_Meds,0.0
+100,bal,1,milan,5,Guest_Bathroom,0.6276150627615062
+100,bal,1,milan,5,Kitchen_Activity,0.8898790579248886
+100,bal,1,milan,5,Leave_Home,0.44274809160305345
+100,bal,1,milan,5,Master_Bathroom,0.527027027027027
+100,bal,1,milan,5,Master_Bedroom_Activity,0.41247002398081534
+100,bal,1,milan,5,Meditate,0.0
+100,bal,1,milan,5,Morning_Meds,0.0
+100,bal,1,milan,5,Read,0.8770277341705913
+100,bal,1,milan,5,Sleep,0.6987341772151898
+100,bal,1,milan,5,Watch_TV,0.8476683937823835
+100,bal,1,milan,all,Bed_to_Toilet,0.0
+100,bal,1,milan,all,Chores,0.0
+100,bal,1,milan,all,Desk_Activity,0.7142857142857143
+100,bal,1,milan,all,Dining_Rm_Activity,0.48333333333333334
+100,bal,1,milan,all,Eve_Meds,0.0
+100,bal,1,milan,all,Guest_Bathroom,0.5919003115264797
+100,bal,1,milan,all,Kitchen_Activity,0.9028455284552845
+100,bal,1,milan,all,Leave_Home,0.5263157894736842
+100,bal,1,milan,all,Master_Bathroom,0.6766917293233082
+100,bal,1,milan,all,Master_Bedroom_Activity,0.5572139303482587
+100,bal,1,milan,all,Meditate,0.0
+100,bal,1,milan,all,Morning_Meds,0.0
+100,bal,1,milan,all,Read,0.8943661971830986
+100,bal,1,milan,all,Sleep,0.6983372921615202
+100,bal,1,milan,all,Watch_TV,0.8758974358974358
+100,bal,2,milan,5,Bed_to_Toilet,0.038461538461538464
+100,bal,2,milan,5,Chores,0.1925133689839572
+100,bal,2,milan,5,Desk_Activity,0.4489795918367347
+100,bal,2,milan,5,Dining_Rm_Activity,0.36666666666666664
+100,bal,2,milan,5,Eve_Meds,0.0
+100,bal,2,milan,5,Guest_Bathroom,0.5119453924914675
+100,bal,2,milan,5,Kitchen_Activity,0.8851136122318963
+100,bal,2,milan,5,Leave_Home,0.5263157894736842
+100,bal,2,milan,5,Master_Bathroom,0.5351473922902494
+100,bal,2,milan,5,Master_Bedroom_Activity,0.36123348017621143
+100,bal,2,milan,5,Meditate,0.0
+100,bal,2,milan,5,Morning_Meds,0.0
+100,bal,2,milan,5,Read,0.8747323340471093
+100,bal,2,milan,5,Sleep,0.5525525525525525
+100,bal,2,milan,5,Watch_TV,0.8121720881427072
+100,bal,2,milan,all,Bed_to_Toilet,0.0
+100,bal,2,milan,all,Chores,0.0
+100,bal,2,milan,all,Desk_Activity,0.5346534653465347
+100,bal,2,milan,all,Dining_Rm_Activity,0.5365853658536586
+100,bal,2,milan,all,Eve_Meds,0.0
+100,bal,2,milan,all,Guest_Bathroom,0.5251396648044693
+100,bal,2,milan,all,Kitchen_Activity,0.8980761358984855
+100,bal,2,milan,all,Leave_Home,0.6153846153846154
+100,bal,2,milan,all,Master_Bathroom,0.6401673640167364
+100,bal,2,milan,all,Master_Bedroom_Activity,0.4909456740442656
+100,bal,2,milan,all,Meditate,0.0
+100,bal,2,milan,all,Morning_Meds,0.0
+100,bal,2,milan,all,Read,0.8852621167161226
+100,bal,2,milan,all,Sleep,0.7011764705882353
+100,bal,2,milan,all,Watch_TV,0.8356909684439608
+100,bal,3,milan,5,Bed_to_Toilet,0.0
+100,bal,3,milan,5,Chores,0.0
+100,bal,3,milan,5,Desk_Activity,0.45161290322580644
+100,bal,3,milan,5,Dining_Rm_Activity,0.41379310344827586
+100,bal,3,milan,5,Eve_Meds,0.0
+100,bal,3,milan,5,Guest_Bathroom,0.5685279187817259
+100,bal,3,milan,5,Kitchen_Activity,0.8927973199329984
+100,bal,3,milan,5,Leave_Home,0.38095238095238093
+100,bal,3,milan,5,Master_Bathroom,0.5096525096525096
+100,bal,3,milan,5,Master_Bedroom_Activity,0.38902743142144636
+100,bal,3,milan,5,Meditate,0.0
+100,bal,3,milan,5,Morning_Meds,0.0
+100,bal,3,milan,5,Read,0.8729399255715046
+100,bal,3,milan,5,Sleep,0.6444906444906445
+100,bal,3,milan,5,Watch_TV,0.7891566265060241
+100,bal,3,milan,all,Bed_to_Toilet,0.0
+100,bal,3,milan,all,Chores,0.0
+100,bal,3,milan,all,Desk_Activity,0.627906976744186
+100,bal,3,milan,all,Dining_Rm_Activity,0.41379310344827586
+100,bal,3,milan,all,Eve_Meds,0.0
+100,bal,3,milan,all,Guest_Bathroom,0.6296296296296297
+100,bal,3,milan,all,Kitchen_Activity,0.911620294599018
+100,bal,3,milan,all,Leave_Home,0.4262295081967213
+100,bal,3,milan,all,Master_Bathroom,0.6265560165975104
+100,bal,3,milan,all,Master_Bedroom_Activity,0.45962732919254656
+100,bal,3,milan,all,Meditate,0.0
+100,bal,3,milan,all,Morning_Meds,0.0
+100,bal,3,milan,all,Read,0.8991295442908346
+100,bal,3,milan,all,Sleep,0.735632183908046
+100,bal,3,milan,all,Watch_TV,0.8154506437768241
+100,bal,4,milan,5,Bed_to_Toilet,0.0
+100,bal,4,milan,5,Chores,0.1744186046511628
+100,bal,4,milan,5,Desk_Activity,0.43859649122807015
+100,bal,4,milan,5,Dining_Rm_Activity,0.46956521739130436
+100,bal,4,milan,5,Eve_Meds,0.0
+100,bal,4,milan,5,Guest_Bathroom,0.678391959798995
+100,bal,4,milan,5,Kitchen_Activity,0.8972574703233729
+100,bal,4,milan,5,Leave_Home,0.5625
+100,bal,4,milan,5,Master_Bathroom,0.48936170212765956
+100,bal,4,milan,5,Master_Bedroom_Activity,0.36818181818181817
+100,bal,4,milan,5,Meditate,0.0
+100,bal,4,milan,5,Morning_Meds,0.0
+100,bal,4,milan,5,Read,0.853522554485555
+100,bal,4,milan,5,Sleep,0.6446280991735537
+100,bal,4,milan,5,Watch_TV,0.787434554973822
+100,bal,4,milan,all,Bed_to_Toilet,0.0
+100,bal,4,milan,all,Chores,0.0
+100,bal,4,milan,all,Desk_Activity,0.5225225225225225
+100,bal,4,milan,all,Dining_Rm_Activity,0.46956521739130436
+100,bal,4,milan,all,Eve_Meds,0.0
+100,bal,4,milan,all,Guest_Bathroom,0.608955223880597
+100,bal,4,milan,all,Kitchen_Activity,0.8958630527817404
+100,bal,4,milan,all,Leave_Home,0.5625
+100,bal,4,milan,all,Master_Bathroom,0.5936739659367397
+100,bal,4,milan,all,Master_Bedroom_Activity,0.5377532228360957
+100,bal,4,milan,all,Meditate,0.0
+100,bal,4,milan,all,Morning_Meds,0.0
+100,bal,4,milan,all,Read,0.8765251342118107
+100,bal,4,milan,all,Sleep,0.7072599531615925
+100,bal,4,milan,all,Watch_TV,0.8245614035087719
+100,bal,5,milan,5,Bed_to_Toilet,0.0
+100,bal,5,milan,5,Chores,0.14507772020725387
+100,bal,5,milan,5,Desk_Activity,0.5862068965517241
+100,bal,5,milan,5,Dining_Rm_Activity,0.32335329341317365
+100,bal,5,milan,5,Eve_Meds,0.0
+100,bal,5,milan,5,Guest_Bathroom,0.6951871657754011
+100,bal,5,milan,5,Kitchen_Activity,0.8971653217463273
+100,bal,5,milan,5,Leave_Home,0.5625
+100,bal,5,milan,5,Master_Bathroom,0.4685714285714286
+100,bal,5,milan,5,Master_Bedroom_Activity,0.3816793893129771
+100,bal,5,milan,5,Meditate,0.0
+100,bal,5,milan,5,Morning_Meds,0.0
+100,bal,5,milan,5,Read,0.8831725616291533
+100,bal,5,milan,5,Sleep,0.6830188679245283
+100,bal,5,milan,5,Watch_TV,0.8074656188605108
+100,bal,5,milan,all,Bed_to_Toilet,0.0
+100,bal,5,milan,all,Chores,0.0
+100,bal,5,milan,all,Desk_Activity,0.7352941176470589
+100,bal,5,milan,all,Dining_Rm_Activity,0.47368421052631576
+100,bal,5,milan,all,Eve_Meds,0.0
+100,bal,5,milan,all,Guest_Bathroom,0.5942492012779552
+100,bal,5,milan,all,Kitchen_Activity,0.9081103505496785
+100,bal,5,milan,all,Leave_Home,0.5625
+100,bal,5,milan,all,Master_Bathroom,0.6016260162601627
+100,bal,5,milan,all,Master_Bedroom_Activity,0.45691382765531063
+100,bal,5,milan,all,Meditate,0.0
+100,bal,5,milan,all,Morning_Meds,0.0
+100,bal,5,milan,all,Read,0.8956565152271593
+100,bal,5,milan,all,Sleep,0.757847533632287
+100,bal,5,milan,all,Watch_TV,0.8494726749760306
+20,kmeans,1,milan,5,Bed_to_Toilet,0.0
+20,kmeans,1,milan,5,Chores,0.0
+20,kmeans,1,milan,5,Desk_Activity,0.5714285714285714
+20,kmeans,1,milan,5,Dining_Rm_Activity,0.0
+20,kmeans,1,milan,5,Eve_Meds,0.0
+20,kmeans,1,milan,5,Guest_Bathroom,0.0
+20,kmeans,1,milan,5,Kitchen_Activity,0.8354243542435424
+20,kmeans,1,milan,5,Leave_Home,0.0
+20,kmeans,1,milan,5,Master_Bathroom,0.3765432098765432
+20,kmeans,1,milan,5,Master_Bedroom_Activity,0.4533898305084746
+20,kmeans,1,milan,5,Meditate,0.0
+20,kmeans,1,milan,5,Morning_Meds,0.0
+20,kmeans,1,milan,5,Read,0.8983501862692922
+20,kmeans,1,milan,5,Sleep,0.4641350210970464
+20,kmeans,1,milan,5,Watch_TV,0.8264984227129337
+20,kmeans,1,milan,all,Bed_to_Toilet,0.0
+20,kmeans,1,milan,all,Chores,0.0
+20,kmeans,1,milan,all,Desk_Activity,0.5714285714285714
+20,kmeans,1,milan,all,Dining_Rm_Activity,0.0
+20,kmeans,1,milan,all,Eve_Meds,0.0
+20,kmeans,1,milan,all,Guest_Bathroom,0.0
+20,kmeans,1,milan,all,Kitchen_Activity,0.8354243542435424
+20,kmeans,1,milan,all,Leave_Home,0.0
+20,kmeans,1,milan,all,Master_Bathroom,0.3765432098765432
+20,kmeans,1,milan,all,Master_Bedroom_Activity,0.4533898305084746
+20,kmeans,1,milan,all,Meditate,0.0
+20,kmeans,1,milan,all,Morning_Meds,0.0
+20,kmeans,1,milan,all,Read,0.8983501862692922
+20,kmeans,1,milan,all,Sleep,0.4641350210970464
+20,kmeans,1,milan,all,Watch_TV,0.8264984227129337
+20,kmeans,2,milan,5,Bed_to_Toilet,0.0
+20,kmeans,2,milan,5,Chores,0.0
+20,kmeans,2,milan,5,Desk_Activity,0.5172413793103449
+20,kmeans,2,milan,5,Dining_Rm_Activity,0.0
+20,kmeans,2,milan,5,Eve_Meds,0.0
+20,kmeans,2,milan,5,Guest_Bathroom,0.0
+20,kmeans,2,milan,5,Kitchen_Activity,0.8007130124777183
+20,kmeans,2,milan,5,Leave_Home,0.11046511627906977
+20,kmeans,2,milan,5,Master_Bathroom,0.4697674418604651
+20,kmeans,2,milan,5,Master_Bedroom_Activity,0.25477707006369427
+20,kmeans,2,milan,5,Meditate,0.0
+20,kmeans,2,milan,5,Morning_Meds,0.0
+20,kmeans,2,milan,5,Read,0.8975039830058418
+20,kmeans,2,milan,5,Sleep,0.4641350210970464
+20,kmeans,2,milan,5,Watch_TV,0.0
+20,kmeans,2,milan,all,Bed_to_Toilet,0.0
+20,kmeans,2,milan,all,Chores,0.0
+20,kmeans,2,milan,all,Desk_Activity,0.5172413793103449
+20,kmeans,2,milan,all,Dining_Rm_Activity,0.0
+20,kmeans,2,milan,all,Eve_Meds,0.0
+20,kmeans,2,milan,all,Guest_Bathroom,0.0
+20,kmeans,2,milan,all,Kitchen_Activity,0.8310077519379845
+20,kmeans,2,milan,all,Leave_Home,0.0
+20,kmeans,2,milan,all,Master_Bathroom,0.4697674418604651
+20,kmeans,2,milan,all,Master_Bedroom_Activity,0.34948604992657856
+20,kmeans,2,milan,all,Meditate,0.0
+20,kmeans,2,milan,all,Morning_Meds,0.0
+20,kmeans,2,milan,all,Read,0.8975039830058418
+20,kmeans,2,milan,all,Sleep,0.4641350210970464
+20,kmeans,2,milan,all,Watch_TV,0.6382022471910113
+20,kmeans,3,milan,5,Bed_to_Toilet,0.0
+20,kmeans,3,milan,5,Chores,0.0
+20,kmeans,3,milan,5,Desk_Activity,0.5555555555555556
+20,kmeans,3,milan,5,Dining_Rm_Activity,0.0
+20,kmeans,3,milan,5,Eve_Meds,0.0
+20,kmeans,3,milan,5,Guest_Bathroom,0.021505376344086023
+20,kmeans,3,milan,5,Kitchen_Activity,0.8613487169285856
+20,kmeans,3,milan,5,Leave_Home,0.0
+20,kmeans,3,milan,5,Master_Bathroom,0.0
+20,kmeans,3,milan,5,Master_Bedroom_Activity,0.5365853658536586
+20,kmeans,3,milan,5,Meditate,0.0
+20,kmeans,3,milan,5,Morning_Meds,0.0
+20,kmeans,3,milan,5,Read,0.8969181721572795
+20,kmeans,3,milan,5,Sleep,0.4641350210970464
+20,kmeans,3,milan,5,Watch_TV,0.704412989175687
+20,kmeans,3,milan,all,Bed_to_Toilet,0.0
+20,kmeans,3,milan,all,Chores,0.0
+20,kmeans,3,milan,all,Desk_Activity,0.5555555555555556
+20,kmeans,3,milan,all,Dining_Rm_Activity,0.0
+20,kmeans,3,milan,all,Eve_Meds,0.0
+20,kmeans,3,milan,all,Guest_Bathroom,0.0
+20,kmeans,3,milan,all,Kitchen_Activity,0.8362627197039778
+20,kmeans,3,milan,all,Leave_Home,0.0
+20,kmeans,3,milan,all,Master_Bathroom,0.0
+20,kmeans,3,milan,all,Master_Bedroom_Activity,0.5365853658536586
+20,kmeans,3,milan,all,Meditate,0.0
+20,kmeans,3,milan,all,Morning_Meds,0.0
+20,kmeans,3,milan,all,Read,0.8969181721572795
+20,kmeans,3,milan,all,Sleep,0.4641350210970464
+20,kmeans,3,milan,all,Watch_TV,0.7529411764705882
+20,kmeans,4,milan,5,Bed_to_Toilet,0.0
+20,kmeans,4,milan,5,Chores,0.2617801047120419
+20,kmeans,4,milan,5,Desk_Activity,0.17525773195876287
+20,kmeans,4,milan,5,Dining_Rm_Activity,0.0
+20,kmeans,4,milan,5,Eve_Meds,0.0
+20,kmeans,4,milan,5,Guest_Bathroom,0.0
+20,kmeans,4,milan,5,Kitchen_Activity,0.8352358388972647
+20,kmeans,4,milan,5,Leave_Home,0.0
+20,kmeans,4,milan,5,Master_Bathroom,0.0
+20,kmeans,4,milan,5,Master_Bedroom_Activity,0.4597156398104265
+20,kmeans,4,milan,5,Meditate,0.0
+20,kmeans,4,milan,5,Morning_Meds,0.0
+20,kmeans,4,milan,5,Read,0.7878513145965549
+20,kmeans,4,milan,5,Sleep,0.5752608047690015
+20,kmeans,4,milan,5,Watch_TV,0.6299212598425197
+20,kmeans,4,milan,all,Bed_to_Toilet,0.0
+20,kmeans,4,milan,all,Chores,0.0
+20,kmeans,4,milan,all,Desk_Activity,0.17525773195876287
+20,kmeans,4,milan,all,Dining_Rm_Activity,0.0
+20,kmeans,4,milan,all,Eve_Meds,0.0
+20,kmeans,4,milan,all,Guest_Bathroom,0.0
+20,kmeans,4,milan,all,Kitchen_Activity,0.8668467773060594
+20,kmeans,4,milan,all,Leave_Home,0.0
+20,kmeans,4,milan,all,Master_Bathroom,0.0
+20,kmeans,4,milan,all,Master_Bedroom_Activity,0.3991031390134529
+20,kmeans,4,milan,all,Meditate,0.0
+20,kmeans,4,milan,all,Morning_Meds,0.0
+20,kmeans,4,milan,all,Read,0.8948497854077253
+20,kmeans,4,milan,all,Sleep,0.4641350210970464
+20,kmeans,4,milan,all,Watch_TV,0.6299212598425197
+20,kmeans,5,milan,5,Bed_to_Toilet,0.0
+20,kmeans,5,milan,5,Chores,0.0
+20,kmeans,5,milan,5,Desk_Activity,0.6578947368421053
+20,kmeans,5,milan,5,Dining_Rm_Activity,0.013468013468013467
+20,kmeans,5,milan,5,Eve_Meds,0.0
+20,kmeans,5,milan,5,Guest_Bathroom,0.0
+20,kmeans,5,milan,5,Kitchen_Activity,0.8317549869030828
+20,kmeans,5,milan,5,Leave_Home,0.0
+20,kmeans,5,milan,5,Master_Bathroom,0.4766355140186916
+20,kmeans,5,milan,5,Master_Bedroom_Activity,0.26198083067092653
+20,kmeans,5,milan,5,Meditate,0.0
+20,kmeans,5,milan,5,Morning_Meds,0.0
+20,kmeans,5,milan,5,Read,0.8945960406634564
+20,kmeans,5,milan,5,Sleep,0.4641350210970464
+20,kmeans,5,milan,5,Watch_TV,0.6989507667473769
+20,kmeans,5,milan,all,Bed_to_Toilet,0.0
+20,kmeans,5,milan,all,Chores,0.0
+20,kmeans,5,milan,all,Desk_Activity,0.6578947368421053
+20,kmeans,5,milan,all,Dining_Rm_Activity,0.0
+20,kmeans,5,milan,all,Eve_Meds,0.0
+20,kmeans,5,milan,all,Guest_Bathroom,0.0
+20,kmeans,5,milan,all,Kitchen_Activity,0.8580258837164381
+20,kmeans,5,milan,all,Leave_Home,0.0
+20,kmeans,5,milan,all,Master_Bathroom,0.4766355140186916
+20,kmeans,5,milan,all,Master_Bedroom_Activity,0.26198083067092653
+20,kmeans,5,milan,all,Meditate,0.0
+20,kmeans,5,milan,all,Morning_Meds,0.0
+20,kmeans,5,milan,all,Read,0.8945960406634564
+20,kmeans,5,milan,all,Sleep,0.4641350210970464
+20,kmeans,5,milan,all,Watch_TV,0.6989507667473769
+50,kmeans,1,milan,5,Bed_to_Toilet,0.022222222222222223
+50,kmeans,1,milan,5,Chores,0.0
+50,kmeans,1,milan,5,Desk_Activity,0.6172839506172839
+50,kmeans,1,milan,5,Dining_Rm_Activity,0.4892086330935252
+50,kmeans,1,milan,5,Eve_Meds,0.0
+50,kmeans,1,milan,5,Guest_Bathroom,0.5852090032154341
+50,kmeans,1,milan,5,Kitchen_Activity,0.8606635071090047
+50,kmeans,1,milan,5,Leave_Home,0.0
+50,kmeans,1,milan,5,Master_Bathroom,0.47465437788018433
+50,kmeans,1,milan,5,Master_Bedroom_Activity,0.36043956043956044
+50,kmeans,1,milan,5,Meditate,0.0
+50,kmeans,1,milan,5,Morning_Meds,0.0
+50,kmeans,1,milan,5,Read,0.8742449203734212
+50,kmeans,1,milan,5,Sleep,0.5705128205128205
+50,kmeans,1,milan,5,Watch_TV,0.7756563245823389
+50,kmeans,1,milan,all,Bed_to_Toilet,0.0
+50,kmeans,1,milan,all,Chores,0.0
+50,kmeans,1,milan,all,Desk_Activity,0.6172839506172839
+50,kmeans,1,milan,all,Dining_Rm_Activity,0.4892086330935252
+50,kmeans,1,milan,all,Eve_Meds,0.0
+50,kmeans,1,milan,all,Guest_Bathroom,0.5852090032154341
+50,kmeans,1,milan,all,Kitchen_Activity,0.8976061154697244
+50,kmeans,1,milan,all,Leave_Home,0.17391304347826086
+50,kmeans,1,milan,all,Master_Bathroom,0.5296296296296297
+50,kmeans,1,milan,all,Master_Bedroom_Activity,0.3700787401574803
+50,kmeans,1,milan,all,Meditate,0.0
+50,kmeans,1,milan,all,Morning_Meds,0.0
+50,kmeans,1,milan,all,Read,0.9001040582726326
+50,kmeans,1,milan,all,Sleep,0.7634660421545667
+50,kmeans,1,milan,all,Watch_TV,0.8008611410118407
+50,kmeans,2,milan,5,Bed_to_Toilet,0.0
+50,kmeans,2,milan,5,Chores,0.0
+50,kmeans,2,milan,5,Desk_Activity,0.6984126984126984
+50,kmeans,2,milan,5,Dining_Rm_Activity,0.49586776859504134
+50,kmeans,2,milan,5,Eve_Meds,0.0
+50,kmeans,2,milan,5,Guest_Bathroom,0.4566929133858268
+50,kmeans,2,milan,5,Kitchen_Activity,0.8565611697205257
+50,kmeans,2,milan,5,Leave_Home,0.0
+50,kmeans,2,milan,5,Master_Bathroom,0.6611909650924025
+50,kmeans,2,milan,5,Master_Bedroom_Activity,0.39429928741092635
+50,kmeans,2,milan,5,Meditate,0.0
+50,kmeans,2,milan,5,Morning_Meds,0.0
+50,kmeans,2,milan,5,Read,0.8760064412238325
+50,kmeans,2,milan,5,Sleep,0.569620253164557
+50,kmeans,2,milan,5,Watch_TV,0.7967289719626168
+50,kmeans,2,milan,all,Bed_to_Toilet,0.0
+50,kmeans,2,milan,all,Chores,0.0
+50,kmeans,2,milan,all,Desk_Activity,0.704225352112676
+50,kmeans,2,milan,all,Dining_Rm_Activity,0.49586776859504134
+50,kmeans,2,milan,all,Eve_Meds,0.0
+50,kmeans,2,milan,all,Guest_Bathroom,0.5852090032154341
+50,kmeans,2,milan,all,Kitchen_Activity,0.8899920571882446
+50,kmeans,2,milan,all,Leave_Home,0.0
+50,kmeans,2,milan,all,Master_Bathroom,0.6611909650924025
+50,kmeans,2,milan,all,Master_Bedroom_Activity,0.41995841995842
+50,kmeans,2,milan,all,Meditate,0.0
+50,kmeans,2,milan,all,Morning_Meds,0.0
+50,kmeans,2,milan,all,Read,0.8842666666666666
+50,kmeans,2,milan,all,Sleep,0.569620253164557
+50,kmeans,2,milan,all,Watch_TV,0.8061041292639138
+50,kmeans,3,milan,5,Bed_to_Toilet,0.19672131147540983
+50,kmeans,3,milan,5,Chores,0.0
+50,kmeans,3,milan,5,Desk_Activity,0.6666666666666666
+50,kmeans,3,milan,5,Dining_Rm_Activity,0.4918032786885246
+50,kmeans,3,milan,5,Eve_Meds,0.0
+50,kmeans,3,milan,5,Guest_Bathroom,0.28448275862068967
+50,kmeans,3,milan,5,Kitchen_Activity,0.8953694581280788
+50,kmeans,3,milan,5,Leave_Home,0.0
+50,kmeans,3,milan,5,Master_Bathroom,0.36683417085427134
+50,kmeans,3,milan,5,Master_Bedroom_Activity,0.5241935483870968
+50,kmeans,3,milan,5,Meditate,0.0
+50,kmeans,3,milan,5,Morning_Meds,0.0
+50,kmeans,3,milan,5,Read,0.8711721224920802
+50,kmeans,3,milan,5,Sleep,0.7494145199063232
+50,kmeans,3,milan,5,Watch_TV,0.7725072604065828
+50,kmeans,3,milan,all,Bed_to_Toilet,0.0
+50,kmeans,3,milan,all,Chores,0.0
+50,kmeans,3,milan,all,Desk_Activity,0.6666666666666666
+50,kmeans,3,milan,all,Dining_Rm_Activity,0.4918032786885246
+50,kmeans,3,milan,all,Eve_Meds,0.0
+50,kmeans,3,milan,all,Guest_Bathroom,0.567741935483871
+50,kmeans,3,milan,all,Kitchen_Activity,0.9030549898167006
+50,kmeans,3,milan,all,Leave_Home,0.0
+50,kmeans,3,milan,all,Master_Bathroom,0.6031746031746031
+50,kmeans,3,milan,all,Master_Bedroom_Activity,0.5293072824156305
+50,kmeans,3,milan,all,Meditate,0.0
+50,kmeans,3,milan,all,Morning_Meds,0.0
+50,kmeans,3,milan,all,Read,0.9022633744855967
+50,kmeans,3,milan,all,Sleep,0.6935483870967742
+50,kmeans,3,milan,all,Watch_TV,0.7725072604065828
+50,kmeans,4,milan,5,Bed_to_Toilet,0.0
+50,kmeans,4,milan,5,Chores,0.0
+50,kmeans,4,milan,5,Desk_Activity,0.5869565217391305
+50,kmeans,4,milan,5,Dining_Rm_Activity,0.375
+50,kmeans,4,milan,5,Eve_Meds,0.0
+50,kmeans,4,milan,5,Guest_Bathroom,0.36419753086419754
+50,kmeans,4,milan,5,Kitchen_Activity,0.898138883329998
+50,kmeans,4,milan,5,Leave_Home,0.0
+50,kmeans,4,milan,5,Master_Bathroom,0.536036036036036
+50,kmeans,4,milan,5,Master_Bedroom_Activity,0.40189125295508277
+50,kmeans,4,milan,5,Meditate,0.0
+50,kmeans,4,milan,5,Morning_Meds,0.0
+50,kmeans,4,milan,5,Read,0.8839719373988127
+50,kmeans,4,milan,5,Sleep,0.6666666666666666
+50,kmeans,4,milan,5,Watch_TV,0.8205607476635514
+50,kmeans,4,milan,all,Bed_to_Toilet,0.0
+50,kmeans,4,milan,all,Chores,0.0
+50,kmeans,4,milan,all,Desk_Activity,0.5869565217391305
+50,kmeans,4,milan,all,Dining_Rm_Activity,0.46875
+50,kmeans,4,milan,all,Eve_Meds,0.0
+50,kmeans,4,milan,all,Guest_Bathroom,0.6019417475728155
+50,kmeans,4,milan,all,Kitchen_Activity,0.9071661237785016
+50,kmeans,4,milan,all,Leave_Home,0.0
+50,kmeans,4,milan,all,Master_Bathroom,0.6467065868263473
+50,kmeans,4,milan,all,Master_Bedroom_Activity,0.4121212121212121
+50,kmeans,4,milan,all,Meditate,0.0
+50,kmeans,4,milan,all,Morning_Meds,0.0
+50,kmeans,4,milan,all,Read,0.8928384736016728
+50,kmeans,4,milan,all,Sleep,0.7294685990338164
+50,kmeans,4,milan,all,Watch_TV,0.8205607476635514
+50,kmeans,5,milan,5,Bed_to_Toilet,0.2
+50,kmeans,5,milan,5,Chores,0.0
+50,kmeans,5,milan,5,Desk_Activity,0.6376811594202898
+50,kmeans,5,milan,5,Dining_Rm_Activity,0.5070422535211268
+50,kmeans,5,milan,5,Eve_Meds,0.0
+50,kmeans,5,milan,5,Guest_Bathroom,0.44176706827309237
+50,kmeans,5,milan,5,Kitchen_Activity,0.9002199560087982
+50,kmeans,5,milan,5,Leave_Home,0.0
+50,kmeans,5,milan,5,Master_Bathroom,0.5487528344671202
+50,kmeans,5,milan,5,Master_Bedroom_Activity,0.3952380952380952
+50,kmeans,5,milan,5,Meditate,0.0
+50,kmeans,5,milan,5,Morning_Meds,0.0
+50,kmeans,5,milan,5,Read,0.8943843379701185
+50,kmeans,5,milan,5,Sleep,0.6896551724137931
+50,kmeans,5,milan,5,Watch_TV,0.7902912621359224
+50,kmeans,5,milan,all,Bed_to_Toilet,0.0
+50,kmeans,5,milan,all,Chores,0.0
+50,kmeans,5,milan,all,Desk_Activity,0.625
+50,kmeans,5,milan,all,Dining_Rm_Activity,0.5070422535211268
+50,kmeans,5,milan,all,Eve_Meds,0.0
+50,kmeans,5,milan,all,Guest_Bathroom,0.5816993464052288
+50,kmeans,5,milan,all,Kitchen_Activity,0.9132589838909542
+50,kmeans,5,milan,all,Leave_Home,0.0
+50,kmeans,5,milan,all,Master_Bathroom,0.6625766871165644
+50,kmeans,5,milan,all,Master_Bedroom_Activity,0.4048582995951417
+50,kmeans,5,milan,all,Meditate,0.0
+50,kmeans,5,milan,all,Morning_Meds,0.0
+50,kmeans,5,milan,all,Read,0.9064824654622742
+50,kmeans,5,milan,all,Sleep,0.7464788732394366
+50,kmeans,5,milan,all,Watch_TV,0.7947598253275109
+20,none,1,milan,5,Bed_to_Toilet,0.0
+20,none,1,milan,5,Chores,0.09329446064139942
+20,none,1,milan,5,Desk_Activity,0.026143790849673203
+20,none,1,milan,5,Dining_Rm_Activity,0.3956043956043956
+20,none,1,milan,5,Eve_Meds,0.0
+20,none,1,milan,5,Guest_Bathroom,0.7018348623853211
+20,none,1,milan,5,Kitchen_Activity,0.8819414079580236
+20,none,1,milan,5,Leave_Home,0.5369127516778524
+20,none,1,milan,5,Master_Bathroom,0.01729106628242075
+20,none,1,milan,5,Master_Bedroom_Activity,0.3504043126684636
+20,none,1,milan,5,Meditate,0.0
+20,none,1,milan,5,Morning_Meds,0.0
+20,none,1,milan,5,Read,0.9040214477211796
+20,none,1,milan,5,Sleep,0.0
+20,none,1,milan,5,Watch_TV,0.8724279835390947
+20,none,1,milan,all,Bed_to_Toilet,0.0
+20,none,1,milan,all,Chores,0.0
+20,none,1,milan,all,Desk_Activity,0.5977011494252874
+20,none,1,milan,all,Dining_Rm_Activity,0.0
+20,none,1,milan,all,Eve_Meds,0.0
+20,none,1,milan,all,Guest_Bathroom,0.7018348623853211
+20,none,1,milan,all,Kitchen_Activity,0.9012345679012346
+20,none,1,milan,all,Leave_Home,0.0
+20,none,1,milan,all,Master_Bathroom,0.6607142857142857
+20,none,1,milan,all,Master_Bedroom_Activity,0.3549382716049383
+20,none,1,milan,all,Meditate,0.0
+20,none,1,milan,all,Morning_Meds,0.0
+20,none,1,milan,all,Read,0.8571428571428571
+20,none,1,milan,all,Sleep,0.0
+20,none,1,milan,all,Watch_TV,0.8724279835390947
+20,none,2,milan,5,Bed_to_Toilet,0.0
+20,none,2,milan,5,Chores,0.0
+20,none,2,milan,5,Desk_Activity,0.0
+20,none,2,milan,5,Dining_Rm_Activity,0.3954802259887006
+20,none,2,milan,5,Eve_Meds,0.0
+20,none,2,milan,5,Guest_Bathroom,0.700218818380744
+20,none,2,milan,5,Kitchen_Activity,0.8946602950342821
+20,none,2,milan,5,Leave_Home,0.48717948717948717
+20,none,2,milan,5,Master_Bathroom,0.6306695464362851
+20,none,2,milan,5,Master_Bedroom_Activity,0.3328050713153724
+20,none,2,milan,5,Meditate,0.0
+20,none,2,milan,5,Morning_Meds,0.0
+20,none,2,milan,5,Read,0.9040511727078892
+20,none,2,milan,5,Sleep,0.13813813813813813
+20,none,2,milan,5,Watch_TV,0.8644610458911419
+20,none,2,milan,all,Bed_to_Toilet,0.0
+20,none,2,milan,all,Chores,0.0
+20,none,2,milan,all,Desk_Activity,0.6436781609195402
+20,none,2,milan,all,Dining_Rm_Activity,0.3954802259887006
+20,none,2,milan,all,Eve_Meds,0.0
+20,none,2,milan,all,Guest_Bathroom,0.700218818380744
+20,none,2,milan,all,Kitchen_Activity,0.9070387851426226
+20,none,2,milan,all,Leave_Home,0.0
+20,none,2,milan,all,Master_Bathroom,0.6306695464362851
+20,none,2,milan,all,Master_Bedroom_Activity,0.3328050713153724
+20,none,2,milan,all,Meditate,0.0
+20,none,2,milan,all,Morning_Meds,0.0
+20,none,2,milan,all,Read,0.9040511727078892
+20,none,2,milan,all,Sleep,0.13813813813813813
+20,none,2,milan,all,Watch_TV,0.8644610458911419
+20,none,3,milan,5,Bed_to_Toilet,0.0
+20,none,3,milan,5,Chores,0.0
+20,none,3,milan,5,Desk_Activity,0.2916666666666667
+20,none,3,milan,5,Dining_Rm_Activity,0.0
+20,none,3,milan,5,Eve_Meds,0.0
+20,none,3,milan,5,Guest_Bathroom,0.7391304347826086
+20,none,3,milan,5,Kitchen_Activity,0.9078891257995736
+20,none,3,milan,5,Leave_Home,0.496551724137931
+20,none,3,milan,5,Master_Bathroom,0.5236051502145923
+20,none,3,milan,5,Master_Bedroom_Activity,0.417910447761194
+20,none,3,milan,5,Meditate,0.0
+20,none,3,milan,5,Morning_Meds,0.0
+20,none,3,milan,5,Read,0.8936170212765957
+20,none,3,milan,5,Sleep,0.6804979253112033
+20,none,3,milan,5,Watch_TV,0.848800834202294
+20,none,3,milan,all,Bed_to_Toilet,0.0
+20,none,3,milan,all,Chores,0.0
+20,none,3,milan,all,Desk_Activity,0.6046511627906976
+20,none,3,milan,all,Dining_Rm_Activity,0.0
+20,none,3,milan,all,Eve_Meds,0.0
+20,none,3,milan,all,Guest_Bathroom,0.7391304347826086
+20,none,3,milan,all,Kitchen_Activity,0.9092805005213764
+20,none,3,milan,all,Leave_Home,0.0
+20,none,3,milan,all,Master_Bathroom,0.5236051502145923
+20,none,3,milan,all,Master_Bedroom_Activity,0.417910447761194
+20,none,3,milan,all,Meditate,0.0
+20,none,3,milan,all,Morning_Meds,0.0
+20,none,3,milan,all,Read,0.875
+20,none,3,milan,all,Sleep,0.6804979253112033
+20,none,3,milan,all,Watch_TV,0.848800834202294
+20,none,4,milan,5,Bed_to_Toilet,0.0
+20,none,4,milan,5,Chores,0.1671309192200557
+20,none,4,milan,5,Desk_Activity,0.05263157894736842
+20,none,4,milan,5,Dining_Rm_Activity,0.41379310344827586
+20,none,4,milan,5,Eve_Meds,0.0
+20,none,4,milan,5,Guest_Bathroom,0.7313769751693002
+20,none,4,milan,5,Kitchen_Activity,0.8424393561550669
+20,none,4,milan,5,Leave_Home,0.5066666666666667
+20,none,4,milan,5,Master_Bathroom,0.0
+20,none,4,milan,5,Master_Bedroom_Activity,0.36683417085427134
+20,none,4,milan,5,Meditate,0.0
+20,none,4,milan,5,Morning_Meds,0.0
+20,none,4,milan,5,Read,0.8342143200384431
+20,none,4,milan,5,Sleep,0.6916666666666667
+20,none,4,milan,5,Watch_TV,0.8626198083067093
+20,none,4,milan,all,Bed_to_Toilet,0.0
+20,none,4,milan,all,Chores,0.0
+20,none,4,milan,all,Desk_Activity,0.6578947368421053
+20,none,4,milan,all,Dining_Rm_Activity,0.0
+20,none,4,milan,all,Eve_Meds,0.0
+20,none,4,milan,all,Guest_Bathroom,0.7313769751693002
+20,none,4,milan,all,Kitchen_Activity,0.9024439507170269
+20,none,4,milan,all,Leave_Home,0.0
+20,none,4,milan,all,Master_Bathroom,0.5301724137931034
+20,none,4,milan,all,Master_Bedroom_Activity,0.36683417085427134
+20,none,4,milan,all,Meditate,0.0
+20,none,4,milan,all,Morning_Meds,0.0
+20,none,4,milan,all,Read,0.876
+20,none,4,milan,all,Sleep,0.6916666666666667
+20,none,4,milan,all,Watch_TV,0.8626198083067093
+20,none,5,milan,5,Bed_to_Toilet,0.0
+20,none,5,milan,5,Chores,0.20108695652173914
+20,none,5,milan,5,Desk_Activity,0.7575757575757576
+20,none,5,milan,5,Dining_Rm_Activity,0.41148325358851673
+20,none,5,milan,5,Eve_Meds,0.0
+20,none,5,milan,5,Guest_Bathroom,0.690744920993228
+20,none,5,milan,5,Kitchen_Activity,0.9047515730093296
+20,none,5,milan,5,Leave_Home,0.5131578947368421
+20,none,5,milan,5,Master_Bathroom,0.23030303030303031
+20,none,5,milan,5,Master_Bedroom_Activity,0.3974358974358974
+20,none,5,milan,5,Meditate,0.0
+20,none,5,milan,5,Morning_Meds,0.0
+20,none,5,milan,5,Read,0.8743768693918246
+20,none,5,milan,5,Sleep,0.0
+20,none,5,milan,5,Watch_TV,0.8658922914466737
+20,none,5,milan,all,Bed_to_Toilet,0.0
+20,none,5,milan,all,Chores,0.0
+20,none,5,milan,all,Desk_Activity,0.7575757575757576
+20,none,5,milan,all,Dining_Rm_Activity,0.0
+20,none,5,milan,all,Eve_Meds,0.0
+20,none,5,milan,all,Guest_Bathroom,0.690744920993228
+20,none,5,milan,all,Kitchen_Activity,0.9057148751805241
+20,none,5,milan,all,Leave_Home,0.0
+20,none,5,milan,all,Master_Bathroom,0.0
+20,none,5,milan,all,Master_Bedroom_Activity,0.49113233287858116
+20,none,5,milan,all,Meditate,0.0
+20,none,5,milan,all,Morning_Meds,0.0
+20,none,5,milan,all,Read,0.8743768693918246
+20,none,5,milan,all,Sleep,0.626746506986028
+20,none,5,milan,all,Watch_TV,0.8658922914466737
+50,none,1,milan,5,Bed_to_Toilet,0.0
+50,none,1,milan,5,Chores,0.0989010989010989
+50,none,1,milan,5,Desk_Activity,0.18421052631578946
+50,none,1,milan,5,Dining_Rm_Activity,0.4424778761061947
+50,none,1,milan,5,Eve_Meds,0.0
+50,none,1,milan,5,Guest_Bathroom,0.7186761229314421
+50,none,1,milan,5,Kitchen_Activity,0.8806913996627319
+50,none,1,milan,5,Leave_Home,0.5323741007194245
+50,none,1,milan,5,Master_Bathroom,0.4107744107744108
+50,none,1,milan,5,Master_Bedroom_Activity,0.4478114478114478
+50,none,1,milan,5,Meditate,0.0
+50,none,1,milan,5,Morning_Meds,0.0
+50,none,1,milan,5,Read,0.8767395626242545
+50,none,1,milan,5,Sleep,0.5790754257907542
+50,none,1,milan,5,Watch_TV,0.734065934065934
+50,none,1,milan,all,Bed_to_Toilet,0.0
+50,none,1,milan,all,Chores,0.0
+50,none,1,milan,all,Desk_Activity,0.7142857142857143
+50,none,1,milan,all,Dining_Rm_Activity,0.4424778761061947
+50,none,1,milan,all,Eve_Meds,0.0
+50,none,1,milan,all,Guest_Bathroom,0.6114649681528662
+50,none,1,milan,all,Kitchen_Activity,0.8962168723447299
+50,none,1,milan,all,Leave_Home,0.5757575757575758
+50,none,1,milan,all,Master_Bathroom,0.6556016597510373
+50,none,1,milan,all,Master_Bedroom_Activity,0.4915572232645403
+50,none,1,milan,all,Meditate,0.0
+50,none,1,milan,all,Morning_Meds,0.0
+50,none,1,milan,all,Read,0.9022784810126582
+50,none,1,milan,all,Sleep,0.6766169154228856
+50,none,1,milan,all,Watch_TV,0.8545081967213115
+50,none,2,milan,5,Bed_to_Toilet,0.0
+50,none,2,milan,5,Chores,0.10810810810810811
+50,none,2,milan,5,Desk_Activity,0.3875968992248062
+50,none,2,milan,5,Dining_Rm_Activity,0.47368421052631576
+50,none,2,milan,5,Eve_Meds,0.0
+50,none,2,milan,5,Guest_Bathroom,0.739240506329114
+50,none,2,milan,5,Kitchen_Activity,0.9013115459041067
+50,none,2,milan,5,Leave_Home,0.3977272727272727
+50,none,2,milan,5,Master_Bathroom,0.4009546539379475
+50,none,2,milan,5,Master_Bedroom_Activity,0.31865828092243187
+50,none,2,milan,5,Meditate,0.5517241379310345
+50,none,2,milan,5,Morning_Meds,0.0
+50,none,2,milan,5,Read,0.9017525225703664
+50,none,2,milan,5,Sleep,0.5970695970695971
+50,none,2,milan,5,Watch_TV,0.836864406779661
+50,none,2,milan,all,Bed_to_Toilet,0.0
+50,none,2,milan,all,Chores,0.0
+50,none,2,milan,all,Desk_Activity,0.684931506849315
+50,none,2,milan,all,Dining_Rm_Activity,0.47368421052631576
+50,none,2,milan,all,Eve_Meds,0.0
+50,none,2,milan,all,Guest_Bathroom,0.739240506329114
+50,none,2,milan,all,Kitchen_Activity,0.9072416598860863
+50,none,2,milan,all,Leave_Home,0.0
+50,none,2,milan,all,Master_Bathroom,0.6558139534883721
+50,none,2,milan,all,Master_Bedroom_Activity,0.43529411764705883
+50,none,2,milan,all,Meditate,0.0
+50,none,2,milan,all,Morning_Meds,0.0
+50,none,2,milan,all,Read,0.8833922261484098
+50,none,2,milan,all,Sleep,0.7299270072992701
+50,none,2,milan,all,Watch_TV,0.8565737051792829
+50,none,3,milan,5,Bed_to_Toilet,0.0
+50,none,3,milan,5,Chores,0.0
+50,none,3,milan,5,Desk_Activity,0.11842105263157894
+50,none,3,milan,5,Dining_Rm_Activity,0.34782608695652173
+50,none,3,milan,5,Eve_Meds,0.0
+50,none,3,milan,5,Guest_Bathroom,0.6089743589743589
+50,none,3,milan,5,Kitchen_Activity,0.8744263662911973
+50,none,3,milan,5,Leave_Home,0.3619047619047619
+50,none,3,milan,5,Master_Bathroom,0.6810344827586207
+50,none,3,milan,5,Master_Bedroom_Activity,0.2755417956656347
+50,none,3,milan,5,Meditate,0.20689655172413793
+50,none,3,milan,5,Morning_Meds,0.0
+50,none,3,milan,5,Read,0.8905499199145755
+50,none,3,milan,5,Sleep,0.24258760107816713
+50,none,3,milan,5,Watch_TV,0.8161993769470405
+50,none,3,milan,all,Bed_to_Toilet,0.0
+50,none,3,milan,all,Chores,0.0
+50,none,3,milan,all,Desk_Activity,0.6666666666666666
+50,none,3,milan,all,Dining_Rm_Activity,0.411214953271028
+50,none,3,milan,all,Eve_Meds,0.0
+50,none,3,milan,all,Guest_Bathroom,0.656934306569343
+50,none,3,milan,all,Kitchen_Activity,0.9023011707710941
+50,none,3,milan,all,Leave_Home,0.0
+50,none,3,milan,all,Master_Bathroom,0.6319845857418112
+50,none,3,milan,all,Master_Bedroom_Activity,0.3225806451612903
+50,none,3,milan,all,Meditate,0.0
+50,none,3,milan,all,Morning_Meds,0.0
+50,none,3,milan,all,Read,0.8786653185035389
+50,none,3,milan,all,Sleep,0.36893203883495146
+50,none,3,milan,all,Watch_TV,0.8471794871794872
+50,none,4,milan,5,Bed_to_Toilet,0.0
+50,none,4,milan,5,Chores,0.0
+50,none,4,milan,5,Desk_Activity,0.3875968992248062
+50,none,4,milan,5,Dining_Rm_Activity,0.42028985507246375
+50,none,4,milan,5,Eve_Meds,0.0
+50,none,4,milan,5,Guest_Bathroom,0.5939849624060151
+50,none,4,milan,5,Kitchen_Activity,0.883515559293524
+50,none,4,milan,5,Leave_Home,0.34
+50,none,4,milan,5,Master_Bathroom,0.6347305389221557
+50,none,4,milan,5,Master_Bedroom_Activity,0.452991452991453
+50,none,4,milan,5,Meditate,0.0
+50,none,4,milan,5,Morning_Meds,0.0
+50,none,4,milan,5,Read,0.8882950293960449
+50,none,4,milan,5,Sleep,0.6358974358974359
+50,none,4,milan,5,Watch_TV,0.828693790149893
+50,none,4,milan,all,Bed_to_Toilet,0.0
+50,none,4,milan,all,Chores,0.0
+50,none,4,milan,all,Desk_Activity,0.704225352112676
+50,none,4,milan,all,Dining_Rm_Activity,0.49572649572649574
+50,none,4,milan,all,Eve_Meds,0.0
+50,none,4,milan,all,Guest_Bathroom,0.5746478873239437
+50,none,4,milan,all,Kitchen_Activity,0.8937110709262608
+50,none,4,milan,all,Leave_Home,0.0
+50,none,4,milan,all,Master_Bathroom,0.6347305389221557
+50,none,4,milan,all,Master_Bedroom_Activity,0.4505928853754941
+50,none,4,milan,all,Meditate,0.0
+50,none,4,milan,all,Morning_Meds,0.0
+50,none,4,milan,all,Read,0.8901044256588762
+50,none,4,milan,all,Sleep,0.6704545454545454
+50,none,4,milan,all,Watch_TV,0.8686440677966102
+50,none,5,milan,5,Bed_to_Toilet,0.0
+50,none,5,milan,5,Chores,0.11290322580645161
+50,none,5,milan,5,Desk_Activity,0.325
+50,none,5,milan,5,Dining_Rm_Activity,0.47863247863247865
+50,none,5,milan,5,Eve_Meds,0.0
+50,none,5,milan,5,Guest_Bathroom,0.7307692307692307
+50,none,5,milan,5,Kitchen_Activity,0.897724943635991
+50,none,5,milan,5,Leave_Home,0.59375
+50,none,5,milan,5,Master_Bathroom,0.513595166163142
+50,none,5,milan,5,Master_Bedroom_Activity,0.38425925925925924
+50,none,5,milan,5,Meditate,0.0
+50,none,5,milan,5,Morning_Meds,0.0
+50,none,5,milan,5,Read,0.8342189160467588
+50,none,5,milan,5,Sleep,0.6744730679156908
+50,none,5,milan,5,Watch_TV,0.7878787878787878
+50,none,5,milan,all,Bed_to_Toilet,0.0
+50,none,5,milan,all,Chores,0.0
+50,none,5,milan,all,Desk_Activity,0.6410256410256411
+50,none,5,milan,all,Dining_Rm_Activity,0.47863247863247865
+50,none,5,milan,all,Eve_Meds,0.0
+50,none,5,milan,all,Guest_Bathroom,0.7307692307692307
+50,none,5,milan,all,Kitchen_Activity,0.9110647181628393
+50,none,5,milan,all,Leave_Home,0.4838709677419355
+50,none,5,milan,all,Master_Bathroom,0.6259541984732825
+50,none,5,milan,all,Master_Bedroom_Activity,0.46332046332046334
+50,none,5,milan,all,Meditate,0.0
+50,none,5,milan,all,Morning_Meds,0.0
+50,none,5,milan,all,Read,0.8939393939393939
+50,none,5,milan,all,Sleep,0.6744730679156908
+50,none,5,milan,all,Watch_TV,0.8138801261829653
+20,bal,1,aruba,5,Bed_to_Toilet,0.0
+20,bal,1,aruba,5,Eating,0.22521008403361345
+20,bal,1,aruba,5,Enter_Home,0.0
+20,bal,1,aruba,5,Housekeeping,0.20876826722338204
+20,bal,1,aruba,5,Leave_Home,0.0
+20,bal,1,aruba,5,Meal_Preparation,0.8321362064378824
+20,bal,1,aruba,5,Relax,0.8237229579666036
+20,bal,1,aruba,5,Sleeping,0.7379077615298087
+20,bal,1,aruba,5,Wash_Dishes,0.0
+20,bal,1,aruba,5,Work,0.6497560975609756
+20,bal,1,aruba,all,Bed_to_Toilet,0.0
+20,bal,1,aruba,all,Eating,0.22521008403361345
+20,bal,1,aruba,all,Enter_Home,0.0
+20,bal,1,aruba,all,Housekeeping,0.20876826722338204
+20,bal,1,aruba,all,Leave_Home,0.0
+20,bal,1,aruba,all,Meal_Preparation,0.8994787788533135
+20,bal,1,aruba,all,Relax,0.9106382978723404
+20,bal,1,aruba,all,Sleeping,0.7379077615298087
+20,bal,1,aruba,all,Wash_Dishes,0.0
+20,bal,1,aruba,all,Work,0.6497560975609756
+20,bal,2,aruba,5,Bed_to_Toilet,0.0
+20,bal,2,aruba,5,Eating,0.0
+20,bal,2,aruba,5,Enter_Home,0.0
+20,bal,2,aruba,5,Housekeeping,0.36427320490367776
+20,bal,2,aruba,5,Leave_Home,0.0
+20,bal,2,aruba,5,Meal_Preparation,0.8560464633893383
+20,bal,2,aruba,5,Relax,0.8897199002786332
+20,bal,2,aruba,5,Sleeping,0.5681632653061225
+20,bal,2,aruba,5,Wash_Dishes,0.0
+20,bal,2,aruba,5,Work,0.670020120724346
+20,bal,2,aruba,all,Bed_to_Toilet,0.0
+20,bal,2,aruba,all,Eating,0.0
+20,bal,2,aruba,all,Enter_Home,0.0
+20,bal,2,aruba,all,Housekeeping,0.0
+20,bal,2,aruba,all,Leave_Home,0.0
+20,bal,2,aruba,all,Meal_Preparation,0.8836288193134666
+20,bal,2,aruba,all,Relax,0.9077096652877021
+20,bal,2,aruba,all,Sleeping,0.8900255754475703
+20,bal,2,aruba,all,Wash_Dishes,0.0
+20,bal,2,aruba,all,Work,0.670020120724346
+20,bal,3,aruba,5,Bed_to_Toilet,0.0
+20,bal,3,aruba,5,Eating,0.3875715453802126
+20,bal,3,aruba,5,Enter_Home,0.0
+20,bal,3,aruba,5,Housekeeping,0.125
+20,bal,3,aruba,5,Leave_Home,0.0
+20,bal,3,aruba,5,Meal_Preparation,0.8618317610062893
+20,bal,3,aruba,5,Relax,0.9137903861308116
+20,bal,3,aruba,5,Sleeping,0.7565011820330969
+20,bal,3,aruba,5,Wash_Dishes,0.0
+20,bal,3,aruba,5,Work,0.6613704071499503
+20,bal,3,aruba,all,Bed_to_Toilet,0.0
+20,bal,3,aruba,all,Eating,0.2504288164665523
+20,bal,3,aruba,all,Enter_Home,0.0
+20,bal,3,aruba,all,Housekeeping,0.0
+20,bal,3,aruba,all,Leave_Home,0.0
+20,bal,3,aruba,all,Meal_Preparation,0.8794960744933358
+20,bal,3,aruba,all,Relax,0.9150732950924155
+20,bal,3,aruba,all,Sleeping,0.7475832438238453
+20,bal,3,aruba,all,Wash_Dishes,0.0
+20,bal,3,aruba,all,Work,0.6613704071499503
+20,bal,4,aruba,5,Bed_to_Toilet,0.0
+20,bal,4,aruba,5,Eating,0.0
+20,bal,4,aruba,5,Enter_Home,0.0
+20,bal,4,aruba,5,Housekeeping,0.28902765388046386
+20,bal,4,aruba,5,Leave_Home,0.0
+20,bal,4,aruba,5,Meal_Preparation,0.8327885773266815
+20,bal,4,aruba,5,Relax,0.8225959465286762
+20,bal,4,aruba,5,Sleeping,0.6414602346805737
+20,bal,4,aruba,5,Wash_Dishes,0.0
+20,bal,4,aruba,5,Work,0.6888657648283039
+20,bal,4,aruba,all,Bed_to_Toilet,0.0
+20,bal,4,aruba,all,Eating,0.0
+20,bal,4,aruba,all,Enter_Home,0.0
+20,bal,4,aruba,all,Housekeeping,0.0
+20,bal,4,aruba,all,Leave_Home,0.0
+20,bal,4,aruba,all,Meal_Preparation,0.8864422202001819
+20,bal,4,aruba,all,Relax,0.9030241462842854
+20,bal,4,aruba,all,Sleeping,0.7529665587918015
+20,bal,4,aruba,all,Wash_Dishes,0.0
+20,bal,4,aruba,all,Work,0.6888657648283039
+20,bal,5,aruba,5,Bed_to_Toilet,0.0
+20,bal,5,aruba,5,Eating,0.20280811232449297
+20,bal,5,aruba,5,Enter_Home,0.0
+20,bal,5,aruba,5,Housekeeping,0.21574344023323616
+20,bal,5,aruba,5,Leave_Home,0.0
+20,bal,5,aruba,5,Meal_Preparation,0.8954310839227682
+20,bal,5,aruba,5,Relax,0.9153590476926644
+20,bal,5,aruba,5,Sleeping,0.9065155807365439
+20,bal,5,aruba,5,Wash_Dishes,0.0
+20,bal,5,aruba,5,Work,0.6727272727272727
+20,bal,5,aruba,all,Bed_to_Toilet,0.0
+20,bal,5,aruba,all,Eating,0.0
+20,bal,5,aruba,all,Enter_Home,0.0
+20,bal,5,aruba,all,Housekeeping,0.0
+20,bal,5,aruba,all,Leave_Home,0.0
+20,bal,5,aruba,all,Meal_Preparation,0.8964419475655431
+20,bal,5,aruba,all,Relax,0.9112354453349463
+20,bal,5,aruba,all,Sleeping,0.8934531450577664
+20,bal,5,aruba,all,Wash_Dishes,0.0
+20,bal,5,aruba,all,Work,0.6727272727272727
+50,bal,1,aruba,5,Bed_to_Toilet,0.0
+50,bal,1,aruba,5,Eating,0.6
+50,bal,1,aruba,5,Enter_Home,0.05970149253731343
+50,bal,1,aruba,5,Housekeeping,0.3352165725047081
+50,bal,1,aruba,5,Leave_Home,0.11320754716981132
+50,bal,1,aruba,5,Meal_Preparation,0.8337960392374607
+50,bal,1,aruba,5,Relax,0.8959632425336397
+50,bal,1,aruba,5,Sleeping,0.6834462729912875
+50,bal,1,aruba,5,Wash_Dishes,0.05723905723905724
+50,bal,1,aruba,5,Work,0.8026143790849674
+50,bal,1,aruba,all,Bed_to_Toilet,0.0
+50,bal,1,aruba,all,Eating,0.6
+50,bal,1,aruba,all,Enter_Home,0.0
+50,bal,1,aruba,all,Housekeeping,0.10526315789473684
+50,bal,1,aruba,all,Leave_Home,0.0
+50,bal,1,aruba,all,Meal_Preparation,0.9102232442272684
+50,bal,1,aruba,all,Relax,0.9036315986521902
+50,bal,1,aruba,all,Sleeping,0.7747747747747747
+50,bal,1,aruba,all,Wash_Dishes,0.0
+50,bal,1,aruba,all,Work,0.8026143790849674
+50,bal,2,aruba,5,Bed_to_Toilet,0.0
+50,bal,2,aruba,5,Eating,0.6636085626911316
+50,bal,2,aruba,5,Enter_Home,0.0
+50,bal,2,aruba,5,Housekeeping,0.23790322580645162
+50,bal,2,aruba,5,Leave_Home,0.0
+50,bal,2,aruba,5,Meal_Preparation,0.8903106165971256
+50,bal,2,aruba,5,Relax,0.9115058409345496
+50,bal,2,aruba,5,Sleeping,0.6862745098039216
+50,bal,2,aruba,5,Wash_Dishes,0.0
+50,bal,2,aruba,5,Work,0.6873065015479877
+50,bal,2,aruba,all,Bed_to_Toilet,0.0
+50,bal,2,aruba,all,Eating,0.6636085626911316
+50,bal,2,aruba,all,Enter_Home,0.0
+50,bal,2,aruba,all,Housekeeping,0.15350877192982457
+50,bal,2,aruba,all,Leave_Home,0.0
+50,bal,2,aruba,all,Meal_Preparation,0.9009394474932565
+50,bal,2,aruba,all,Relax,0.9249451582575995
+50,bal,2,aruba,all,Sleeping,0.7845804988662132
+50,bal,2,aruba,all,Wash_Dishes,0.0
+50,bal,2,aruba,all,Work,0.6491803278688525
+50,bal,3,aruba,5,Bed_to_Toilet,0.12121212121212122
+50,bal,3,aruba,5,Eating,0.5919610231425091
+50,bal,3,aruba,5,Enter_Home,0.0
+50,bal,3,aruba,5,Housekeeping,0.24489795918367346
+50,bal,3,aruba,5,Leave_Home,0.0
+50,bal,3,aruba,5,Meal_Preparation,0.8768968133535661
+50,bal,3,aruba,5,Relax,0.9196962352560996
+50,bal,3,aruba,5,Sleeping,0.6471277842907386
+50,bal,3,aruba,5,Wash_Dishes,0.0
+50,bal,3,aruba,5,Work,0.6175024582104228
+50,bal,3,aruba,all,Bed_to_Toilet,0.0
+50,bal,3,aruba,all,Eating,0.6463768115942029
+50,bal,3,aruba,all,Enter_Home,0.0
+50,bal,3,aruba,all,Housekeeping,0.17463617463617465
+50,bal,3,aruba,all,Leave_Home,0.0
+50,bal,3,aruba,all,Meal_Preparation,0.8993494068120934
+50,bal,3,aruba,all,Relax,0.9201799191888389
+50,bal,3,aruba,all,Sleeping,0.9362880886426593
+50,bal,3,aruba,all,Wash_Dishes,0.0
+50,bal,3,aruba,all,Work,0.61875
+50,bal,4,aruba,5,Bed_to_Toilet,0.0
+50,bal,4,aruba,5,Eating,0.6344827586206897
+50,bal,4,aruba,5,Enter_Home,0.012121212121212121
+50,bal,4,aruba,5,Housekeeping,0.38351822503961963
+50,bal,4,aruba,5,Leave_Home,0.034482758620689655
+50,bal,4,aruba,5,Meal_Preparation,0.9026341463414634
+50,bal,4,aruba,5,Relax,0.9176565656565656
+50,bal,4,aruba,5,Sleeping,0.5488663017982799
+50,bal,4,aruba,5,Wash_Dishes,0.0
+50,bal,4,aruba,5,Work,0.55627425614489
+50,bal,4,aruba,all,Bed_to_Toilet,0.0
+50,bal,4,aruba,all,Eating,0.6344827586206897
+50,bal,4,aruba,all,Enter_Home,0.0
+50,bal,4,aruba,all,Housekeeping,0.08
+50,bal,4,aruba,all,Leave_Home,0.0
+50,bal,4,aruba,all,Meal_Preparation,0.9091252241200339
+50,bal,4,aruba,all,Relax,0.9127706306871666
+50,bal,4,aruba,all,Sleeping,0.7680355160932297
+50,bal,4,aruba,all,Wash_Dishes,0.0
+50,bal,4,aruba,all,Work,0.6573426573426573
+50,bal,5,aruba,5,Bed_to_Toilet,0.0
+50,bal,5,aruba,5,Eating,0.6025824964131994
+50,bal,5,aruba,5,Enter_Home,0.0
+50,bal,5,aruba,5,Housekeeping,0.343042071197411
+50,bal,5,aruba,5,Leave_Home,0.0
+50,bal,5,aruba,5,Meal_Preparation,0.8716417910447761
+50,bal,5,aruba,5,Relax,0.8837467311197401
+50,bal,5,aruba,5,Sleeping,0.7807606263982103
+50,bal,5,aruba,5,Wash_Dishes,0.0
+50,bal,5,aruba,5,Work,0.7414187643020596
+50,bal,5,aruba,all,Bed_to_Toilet,0.0
+50,bal,5,aruba,all,Eating,0.4187866927592955
+50,bal,5,aruba,all,Enter_Home,0.0
+50,bal,5,aruba,all,Housekeeping,0.09009009009009009
+50,bal,5,aruba,all,Leave_Home,0.0
+50,bal,5,aruba,all,Meal_Preparation,0.903810235338065
+50,bal,5,aruba,all,Relax,0.9058481322718922
+50,bal,5,aruba,all,Sleeping,0.7747747747747747
+50,bal,5,aruba,all,Wash_Dishes,0.0
+50,bal,5,aruba,all,Work,0.6567534076827757
+100,bal,1,aruba,5,Bed_to_Toilet,0.375
+100,bal,1,aruba,5,Eating,0.6573033707865169
+100,bal,1,aruba,5,Enter_Home,0.0
+100,bal,1,aruba,5,Housekeeping,0.3782051282051282
+100,bal,1,aruba,5,Leave_Home,0.25806451612903225
+100,bal,1,aruba,5,Meal_Preparation,0.9031898074955826
+100,bal,1,aruba,5,Relax,0.9184425572824868
+100,bal,1,aruba,5,Sleeping,0.753688989784336
+100,bal,1,aruba,5,Wash_Dishes,0.0
+100,bal,1,aruba,5,Work,0.7118279569892473
+100,bal,1,aruba,all,Bed_to_Toilet,0.0
+100,bal,1,aruba,all,Eating,0.6594761171032357
+100,bal,1,aruba,all,Enter_Home,0.0
+100,bal,1,aruba,all,Housekeeping,0.29296875
+100,bal,1,aruba,all,Leave_Home,0.0
+100,bal,1,aruba,all,Meal_Preparation,0.9057586752256024
+100,bal,1,aruba,all,Relax,0.9299323431059958
+100,bal,1,aruba,all,Sleeping,0.9543568464730291
+100,bal,1,aruba,all,Wash_Dishes,0.0
+100,bal,1,aruba,all,Work,0.7118279569892473
+100,bal,2,aruba,5,Bed_to_Toilet,0.0
+100,bal,2,aruba,5,Eating,0.6840659340659341
+100,bal,2,aruba,5,Enter_Home,0.14634146341463414
+100,bal,2,aruba,5,Housekeeping,0.3202725724020443
+100,bal,2,aruba,5,Leave_Home,0.0
+100,bal,2,aruba,5,Meal_Preparation,0.9066162570888469
+100,bal,2,aruba,5,Relax,0.9317521401083798
+100,bal,2,aruba,5,Sleeping,0.8107476635514018
+100,bal,2,aruba,5,Wash_Dishes,0.1564245810055866
+100,bal,2,aruba,5,Work,0.766398158803222
+100,bal,2,aruba,all,Bed_to_Toilet,0.0
+100,bal,2,aruba,all,Eating,0.6814814814814815
+100,bal,2,aruba,all,Enter_Home,0.0
+100,bal,2,aruba,all,Housekeeping,0.29174664107485604
+100,bal,2,aruba,all,Leave_Home,0.0
+100,bal,2,aruba,all,Meal_Preparation,0.9086615660715972
+100,bal,2,aruba,all,Relax,0.9377586999846697
+100,bal,2,aruba,all,Sleeping,0.9447513812154696
+100,bal,2,aruba,all,Wash_Dishes,0.0
+100,bal,2,aruba,all,Work,0.766398158803222
+100,bal,3,aruba,5,Bed_to_Toilet,0.0
+100,bal,3,aruba,5,Eating,0.6292134831460674
+100,bal,3,aruba,5,Enter_Home,0.0
+100,bal,3,aruba,5,Housekeeping,0.34234234234234234
+100,bal,3,aruba,5,Leave_Home,0.16666666666666666
+100,bal,3,aruba,5,Meal_Preparation,0.9060889482725711
+100,bal,3,aruba,5,Relax,0.9303949716768837
+100,bal,3,aruba,5,Sleeping,0.8550548112058465
+100,bal,3,aruba,5,Wash_Dishes,0.0
+100,bal,3,aruba,5,Work,0.6221719457013575
+100,bal,3,aruba,all,Bed_to_Toilet,0.0
+100,bal,3,aruba,all,Eating,0.6144756277695717
+100,bal,3,aruba,all,Enter_Home,0.0
+100,bal,3,aruba,all,Housekeeping,0.2895238095238095
+100,bal,3,aruba,all,Leave_Home,0.16666666666666666
+100,bal,3,aruba,all,Meal_Preparation,0.9102296450939458
+100,bal,3,aruba,all,Relax,0.931702028805947
+100,bal,3,aruba,all,Sleeping,0.8785982478097623
+100,bal,3,aruba,all,Wash_Dishes,0.0
+100,bal,3,aruba,all,Work,0.7017913593256059
+100,bal,4,aruba,5,Bed_to_Toilet,0.4
+100,bal,4,aruba,5,Eating,0.6898550724637681
+100,bal,4,aruba,5,Enter_Home,0.058823529411764705
+100,bal,4,aruba,5,Housekeeping,0.26153846153846155
+100,bal,4,aruba,5,Leave_Home,0.0
+100,bal,4,aruba,5,Meal_Preparation,0.8849799489609916
+100,bal,4,aruba,5,Relax,0.9173455667167603
+100,bal,4,aruba,5,Sleeping,0.9024707412223667
+100,bal,4,aruba,5,Wash_Dishes,0.0
+100,bal,4,aruba,5,Work,0.7229551451187335
+100,bal,4,aruba,all,Bed_to_Toilet,0.0
+100,bal,4,aruba,all,Eating,0.6898550724637681
+100,bal,4,aruba,all,Enter_Home,0.0
+100,bal,4,aruba,all,Housekeeping,0.24796747967479674
+100,bal,4,aruba,all,Leave_Home,0.0
+100,bal,4,aruba,all,Meal_Preparation,0.9029081111214345
+100,bal,4,aruba,all,Relax,0.9283985320527837
+100,bal,4,aruba,all,Sleeping,0.880201765447667
+100,bal,4,aruba,all,Wash_Dishes,0.0
+100,bal,4,aruba,all,Work,0.7069555302166477
+100,bal,5,aruba,5,Bed_to_Toilet,0.0
+100,bal,5,aruba,5,Eating,0.6276276276276276
+100,bal,5,aruba,5,Enter_Home,0.0
+100,bal,5,aruba,5,Housekeeping,0.30623818525519847
+100,bal,5,aruba,5,Leave_Home,0.2608695652173913
+100,bal,5,aruba,5,Meal_Preparation,0.8840619060548466
+100,bal,5,aruba,5,Relax,0.9141064822261541
+100,bal,5,aruba,5,Sleeping,0.7988980716253443
+100,bal,5,aruba,5,Wash_Dishes,0.14689265536723164
+100,bal,5,aruba,5,Work,0.5058064516129033
+100,bal,5,aruba,all,Bed_to_Toilet,0.0
+100,bal,5,aruba,all,Eating,0.6415094339622641
+100,bal,5,aruba,all,Enter_Home,0.0
+100,bal,5,aruba,all,Housekeeping,0.2070393374741201
+100,bal,5,aruba,all,Leave_Home,0.0
+100,bal,5,aruba,all,Meal_Preparation,0.8956259702310291
+100,bal,5,aruba,all,Relax,0.9295576878071612
+100,bal,5,aruba,all,Sleeping,0.8408262454434994
+100,bal,5,aruba,all,Wash_Dishes,0.0
+100,bal,5,aruba,all,Work,0.6500655307994757
+20,kmeans,1,aruba,5,Bed_to_Toilet,0.0
+20,kmeans,1,aruba,5,Eating,0.0
+20,kmeans,1,aruba,5,Enter_Home,0.0
+20,kmeans,1,aruba,5,Housekeeping,0.26618705035971224
+20,kmeans,1,aruba,5,Leave_Home,0.0
+20,kmeans,1,aruba,5,Meal_Preparation,0.8787560812744444
+20,kmeans,1,aruba,5,Relax,0.8532620797149856
+20,kmeans,1,aruba,5,Sleeping,0.47577092511013214
+20,kmeans,1,aruba,5,Wash_Dishes,0.0
+20,kmeans,1,aruba,5,Work,0.2690992018244014
+20,kmeans,1,aruba,all,Bed_to_Toilet,0.0
+20,kmeans,1,aruba,all,Eating,0.0
+20,kmeans,1,aruba,all,Enter_Home,0.0
+20,kmeans,1,aruba,all,Housekeeping,0.0
+20,kmeans,1,aruba,all,Leave_Home,0.0
+20,kmeans,1,aruba,all,Meal_Preparation,0.889426800929512
+20,kmeans,1,aruba,all,Relax,0.8725119497752729
+20,kmeans,1,aruba,all,Sleeping,0.5416248746238717
+20,kmeans,1,aruba,all,Wash_Dishes,0.0
+20,kmeans,1,aruba,all,Work,0.0
+20,kmeans,2,aruba,5,Bed_to_Toilet,0.06997084548104957
+20,kmeans,2,aruba,5,Eating,0.0
+20,kmeans,2,aruba,5,Enter_Home,0.0
+20,kmeans,2,aruba,5,Housekeeping,0.2619899785254116
+20,kmeans,2,aruba,5,Leave_Home,0.0
+20,kmeans,2,aruba,5,Meal_Preparation,0.8774869109947644
+20,kmeans,2,aruba,5,Relax,0.8819179574998054
+20,kmeans,2,aruba,5,Sleeping,0.0
+20,kmeans,2,aruba,5,Wash_Dishes,0.0
+20,kmeans,2,aruba,5,Work,0.378125
+20,kmeans,2,aruba,all,Bed_to_Toilet,0.0
+20,kmeans,2,aruba,all,Eating,0.0
+20,kmeans,2,aruba,all,Enter_Home,0.0
+20,kmeans,2,aruba,all,Housekeeping,0.0
+20,kmeans,2,aruba,all,Leave_Home,0.0
+20,kmeans,2,aruba,all,Meal_Preparation,0.8711433756805808
+20,kmeans,2,aruba,all,Relax,0.8841357418184567
+20,kmeans,2,aruba,all,Sleeping,0.4744897959183674
+20,kmeans,2,aruba,all,Wash_Dishes,0.0
+20,kmeans,2,aruba,all,Work,0.378125
+20,kmeans,3,aruba,5,Bed_to_Toilet,0.0
+20,kmeans,3,aruba,5,Eating,0.1793103448275862
+20,kmeans,3,aruba,5,Enter_Home,0.0
+20,kmeans,3,aruba,5,Housekeeping,0.2164705882352941
+20,kmeans,3,aruba,5,Leave_Home,0.0
+20,kmeans,3,aruba,5,Meal_Preparation,0.8844778927563499
+20,kmeans,3,aruba,5,Relax,0.8908706876320113
+20,kmeans,3,aruba,5,Sleeping,0.47577092511013214
+20,kmeans,3,aruba,5,Wash_Dishes,0.0
+20,kmeans,3,aruba,5,Work,0.39473684210526316
+20,kmeans,3,aruba,all,Bed_to_Toilet,0.0
+20,kmeans,3,aruba,all,Eating,0.0
+20,kmeans,3,aruba,all,Enter_Home,0.0
+20,kmeans,3,aruba,all,Housekeeping,0.0
+20,kmeans,3,aruba,all,Leave_Home,0.0
+20,kmeans,3,aruba,all,Meal_Preparation,0.8767491926803014
+20,kmeans,3,aruba,all,Relax,0.8947728829034467
+20,kmeans,3,aruba,all,Sleeping,0.4793814432989691
+20,kmeans,3,aruba,all,Wash_Dishes,0.0
+20,kmeans,3,aruba,all,Work,0.39473684210526316
+20,kmeans,4,aruba,5,Bed_to_Toilet,0.0
+20,kmeans,4,aruba,5,Eating,0.31185031185031187
+20,kmeans,4,aruba,5,Enter_Home,0.0
+20,kmeans,4,aruba,5,Housekeeping,0.17543859649122806
+20,kmeans,4,aruba,5,Leave_Home,0.0
+20,kmeans,4,aruba,5,Meal_Preparation,0.8763420955201777
+20,kmeans,4,aruba,5,Relax,0.878707461754605
+20,kmeans,4,aruba,5,Sleeping,0.47577092511013214
+20,kmeans,4,aruba,5,Wash_Dishes,0.0
+20,kmeans,4,aruba,5,Work,0.0
+20,kmeans,4,aruba,all,Bed_to_Toilet,0.0
+20,kmeans,4,aruba,all,Eating,0.31185031185031187
+20,kmeans,4,aruba,all,Enter_Home,0.0
+20,kmeans,4,aruba,all,Housekeeping,0.0
+20,kmeans,4,aruba,all,Leave_Home,0.0
+20,kmeans,4,aruba,all,Meal_Preparation,0.8896421845574388
+20,kmeans,4,aruba,all,Relax,0.8929435040668279
+20,kmeans,4,aruba,all,Sleeping,0.5665961945031712
+20,kmeans,4,aruba,all,Wash_Dishes,0.0
+20,kmeans,4,aruba,all,Work,0.0
+20,kmeans,5,aruba,5,Bed_to_Toilet,0.0
+20,kmeans,5,aruba,5,Eating,0.0
+20,kmeans,5,aruba,5,Enter_Home,0.0
+20,kmeans,5,aruba,5,Housekeeping,0.32526621490803487
+20,kmeans,5,aruba,5,Leave_Home,0.0
+20,kmeans,5,aruba,5,Meal_Preparation,0.8683741439159396
+20,kmeans,5,aruba,5,Relax,0.9048169556840077
+20,kmeans,5,aruba,5,Sleeping,0.6203346203346203
+20,kmeans,5,aruba,5,Wash_Dishes,0.0
+20,kmeans,5,aruba,5,Work,0.38338658146964855
+20,kmeans,5,aruba,all,Bed_to_Toilet,0.0
+20,kmeans,5,aruba,all,Eating,0.0
+20,kmeans,5,aruba,all,Enter_Home,0.0
+20,kmeans,5,aruba,all,Housekeeping,0.0
+20,kmeans,5,aruba,all,Leave_Home,0.0
+20,kmeans,5,aruba,all,Meal_Preparation,0.8660092282638198
+20,kmeans,5,aruba,all,Relax,0.9048169556840077
+20,kmeans,5,aruba,all,Sleeping,0.6366307541625857
+20,kmeans,5,aruba,all,Wash_Dishes,0.0
+20,kmeans,5,aruba,all,Work,0.38338658146964855
+50,kmeans,1,aruba,5,Bed_to_Toilet,0.020202020202020204
+50,kmeans,1,aruba,5,Eating,0.4252252252252252
+50,kmeans,1,aruba,5,Enter_Home,0.0
+50,kmeans,1,aruba,5,Housekeeping,0.3595890410958904
+50,kmeans,1,aruba,5,Leave_Home,0.04878048780487805
+50,kmeans,1,aruba,5,Meal_Preparation,0.885373350207919
+50,kmeans,1,aruba,5,Relax,0.9281872825055362
+50,kmeans,1,aruba,5,Sleeping,0.834920634920635
+50,kmeans,1,aruba,5,Wash_Dishes,0.0
+50,kmeans,1,aruba,5,Work,0.6120481927710844
+50,kmeans,1,aruba,all,Bed_to_Toilet,0.0
+50,kmeans,1,aruba,all,Eating,0.4252252252252252
+50,kmeans,1,aruba,all,Enter_Home,0.0
+50,kmeans,1,aruba,all,Housekeeping,0.12389380530973451
+50,kmeans,1,aruba,all,Leave_Home,0.0
+50,kmeans,1,aruba,all,Meal_Preparation,0.8877977814148027
+50,kmeans,1,aruba,all,Relax,0.9266645728643216
+50,kmeans,1,aruba,all,Sleeping,0.8202115158636898
+50,kmeans,1,aruba,all,Wash_Dishes,0.0
+50,kmeans,1,aruba,all,Work,0.6120481927710844
+50,kmeans,2,aruba,5,Bed_to_Toilet,0.02
+50,kmeans,2,aruba,5,Eating,0.6301824212271974
+50,kmeans,2,aruba,5,Enter_Home,0.0
+50,kmeans,2,aruba,5,Housekeeping,0.24258760107816713
+50,kmeans,2,aruba,5,Leave_Home,0.0
+50,kmeans,2,aruba,5,Meal_Preparation,0.8861886652444114
+50,kmeans,2,aruba,5,Relax,0.9108068384002476
+50,kmeans,2,aruba,5,Sleeping,0.7875816993464052
+50,kmeans,2,aruba,5,Wash_Dishes,0.0
+50,kmeans,2,aruba,5,Work,0.431496062992126
+50,kmeans,2,aruba,all,Bed_to_Toilet,0.0
+50,kmeans,2,aruba,all,Eating,0.6694444444444444
+50,kmeans,2,aruba,all,Enter_Home,0.0
+50,kmeans,2,aruba,all,Housekeeping,0.1316348195329087
+50,kmeans,2,aruba,all,Leave_Home,0.0
+50,kmeans,2,aruba,all,Meal_Preparation,0.8981713543117051
+50,kmeans,2,aruba,all,Relax,0.9282214791196827
+50,kmeans,2,aruba,all,Sleeping,0.9397260273972603
+50,kmeans,2,aruba,all,Wash_Dishes,0.0
+50,kmeans,2,aruba,all,Work,0.5845799769850403
+50,kmeans,3,aruba,5,Bed_to_Toilet,0.07272727272727272
+50,kmeans,3,aruba,5,Eating,0.6351791530944625
+50,kmeans,3,aruba,5,Enter_Home,0.0
+50,kmeans,3,aruba,5,Housekeeping,0.2550335570469799
+50,kmeans,3,aruba,5,Leave_Home,0.0
+50,kmeans,3,aruba,5,Meal_Preparation,0.8198943486494568
+50,kmeans,3,aruba,5,Relax,0.9203649296428019
+50,kmeans,3,aruba,5,Sleeping,0.8060200668896321
+50,kmeans,3,aruba,5,Wash_Dishes,0.06031363088057901
+50,kmeans,3,aruba,5,Work,0.6202686202686203
+50,kmeans,3,aruba,all,Bed_to_Toilet,0.0
+50,kmeans,3,aruba,all,Eating,0.6684636118598383
+50,kmeans,3,aruba,all,Enter_Home,0.0
+50,kmeans,3,aruba,all,Housekeeping,0.16595744680851063
+50,kmeans,3,aruba,all,Leave_Home,0.0
+50,kmeans,3,aruba,all,Meal_Preparation,0.9033280507131537
+50,kmeans,3,aruba,all,Relax,0.9324743868363862
+50,kmeans,3,aruba,all,Sleeping,0.8897435897435897
+50,kmeans,3,aruba,all,Wash_Dishes,0.0
+50,kmeans,3,aruba,all,Work,0.6202686202686203
+50,kmeans,4,aruba,5,Bed_to_Toilet,0.07766990291262135
+50,kmeans,4,aruba,5,Eating,0.6740947075208914
+50,kmeans,4,aruba,5,Enter_Home,0.0
+50,kmeans,4,aruba,5,Housekeeping,0.31316725978647686
+50,kmeans,4,aruba,5,Leave_Home,0.0
+50,kmeans,4,aruba,5,Meal_Preparation,0.8913963328631875
+50,kmeans,4,aruba,5,Relax,0.9223645624324741
+50,kmeans,4,aruba,5,Sleeping,0.7819063004846527
+50,kmeans,4,aruba,5,Wash_Dishes,0.0
+50,kmeans,4,aruba,5,Work,0.6254635352286774
+50,kmeans,4,aruba,all,Bed_to_Toilet,0.0
+50,kmeans,4,aruba,all,Eating,0.6740947075208914
+50,kmeans,4,aruba,all,Enter_Home,0.0
+50,kmeans,4,aruba,all,Housekeeping,0.004889975550122249
+50,kmeans,4,aruba,all,Leave_Home,0.0
+50,kmeans,4,aruba,all,Meal_Preparation,0.8938280675973549
+50,kmeans,4,aruba,all,Relax,0.9279912527335208
+50,kmeans,4,aruba,all,Sleeping,0.8639798488664987
+50,kmeans,4,aruba,all,Wash_Dishes,0.0
+50,kmeans,4,aruba,all,Work,0.6254635352286774
+50,kmeans,5,aruba,5,Bed_to_Toilet,0.11428571428571428
+50,kmeans,5,aruba,5,Eating,0.6910688140556369
+50,kmeans,5,aruba,5,Enter_Home,0.0
+50,kmeans,5,aruba,5,Housekeeping,0.1336206896551724
+50,kmeans,5,aruba,5,Leave_Home,0.0
+50,kmeans,5,aruba,5,Meal_Preparation,0.881079027355623
+50,kmeans,5,aruba,5,Relax,0.9033507073715562
+50,kmeans,5,aruba,5,Sleeping,0.8013355592654424
+50,kmeans,5,aruba,5,Wash_Dishes,0.0
+50,kmeans,5,aruba,5,Work,0.43354430379746833
+50,kmeans,5,aruba,all,Bed_to_Toilet,0.0
+50,kmeans,5,aruba,all,Eating,0.6910688140556369
+50,kmeans,5,aruba,all,Enter_Home,0.0
+50,kmeans,5,aruba,all,Housekeeping,0.1336206896551724
+50,kmeans,5,aruba,all,Leave_Home,0.0
+50,kmeans,5,aruba,all,Meal_Preparation,0.8915439473927943
+50,kmeans,5,aruba,all,Relax,0.9225526641883519
+50,kmeans,5,aruba,all,Sleeping,0.9343065693430657
+50,kmeans,5,aruba,all,Wash_Dishes,0.0
+50,kmeans,5,aruba,all,Work,0.5766174801362088
+20,none,1,aruba,5,Bed_to_Toilet,0.0
+20,none,1,aruba,5,Eating,0.6416184971098265
+20,none,1,aruba,5,Enter_Home,0.0
+20,none,1,aruba,5,Housekeeping,0.31181102362204727
+20,none,1,aruba,5,Leave_Home,0.023952095808383235
+20,none,1,aruba,5,Meal_Preparation,0.6743370589524436
+20,none,1,aruba,5,Relax,0.8409385113268608
+20,none,1,aruba,5,Sleeping,0.6809756097560976
+20,none,1,aruba,5,Wash_Dishes,0.07378640776699029
+20,none,1,aruba,5,Work,0.6510263929618768
+20,none,1,aruba,all,Bed_to_Toilet,0.0
+20,none,1,aruba,all,Eating,0.6416184971098265
+20,none,1,aruba,all,Enter_Home,0.0
+20,none,1,aruba,all,Housekeeping,0.0
+20,none,1,aruba,all,Leave_Home,0.0
+20,none,1,aruba,all,Meal_Preparation,0.8996419061610504
+20,none,1,aruba,all,Relax,0.9003849114703618
+20,none,1,aruba,all,Sleeping,0.009280742459396751
+20,none,1,aruba,all,Wash_Dishes,0.0
+20,none,1,aruba,all,Work,0.6510263929618768
+20,none,2,aruba,5,Bed_to_Toilet,0.0
+20,none,2,aruba,5,Eating,0.6419753086419753
+20,none,2,aruba,5,Enter_Home,0.0
+20,none,2,aruba,5,Housekeeping,0.18181818181818182
+20,none,2,aruba,5,Leave_Home,0.0
+20,none,2,aruba,5,Meal_Preparation,0.7199112590127565
+20,none,2,aruba,5,Relax,0.9199719473233071
+20,none,2,aruba,5,Sleeping,0.9376693766937669
+20,none,2,aruba,5,Wash_Dishes,0.08043478260869565
+20,none,2,aruba,5,Work,0.688728024819028
+20,none,2,aruba,all,Bed_to_Toilet,0.0
+20,none,2,aruba,all,Eating,0.6419753086419753
+20,none,2,aruba,all,Enter_Home,0.0
+20,none,2,aruba,all,Housekeeping,0.0
+20,none,2,aruba,all,Leave_Home,0.0
+20,none,2,aruba,all,Meal_Preparation,0.9117058767501667
+20,none,2,aruba,all,Relax,0.9309423884013736
+20,none,2,aruba,all,Sleeping,0.8613861386138614
+20,none,2,aruba,all,Wash_Dishes,0.0
+20,none,2,aruba,all,Work,0.688728024819028
+20,none,3,aruba,5,Bed_to_Toilet,0.0
+20,none,3,aruba,5,Eating,0.6291309669522643
+20,none,3,aruba,5,Enter_Home,0.0
+20,none,3,aruba,5,Housekeeping,0.2075134168157424
+20,none,3,aruba,5,Leave_Home,0.03524229074889868
+20,none,3,aruba,5,Meal_Preparation,0.7282688863133495
+20,none,3,aruba,5,Relax,0.9175458529459504
+20,none,3,aruba,5,Sleeping,0.9746478873239437
+20,none,3,aruba,5,Wash_Dishes,0.07373868046571798
+20,none,3,aruba,5,Work,0.732519422863485
+20,none,3,aruba,all,Bed_to_Toilet,0.0
+20,none,3,aruba,all,Eating,0.6784741144414169
+20,none,3,aruba,all,Enter_Home,0.0
+20,none,3,aruba,all,Housekeeping,0.1111111111111111
+20,none,3,aruba,all,Leave_Home,0.0
+20,none,3,aruba,all,Meal_Preparation,0.8967336912018925
+20,none,3,aruba,all,Relax,0.9310508796956728
+20,none,3,aruba,all,Sleeping,0.9746478873239437
+20,none,3,aruba,all,Wash_Dishes,0.0
+20,none,3,aruba,all,Work,0.732519422863485
+20,none,4,aruba,5,Bed_to_Toilet,0.0
+20,none,4,aruba,5,Eating,0.4427906976744186
+20,none,4,aruba,5,Enter_Home,0.025889967637540454
+20,none,4,aruba,5,Housekeeping,0.2972536348949919
+20,none,4,aruba,5,Leave_Home,0.0
+20,none,4,aruba,5,Meal_Preparation,0.7400022917382835
+20,none,4,aruba,5,Relax,0.89600381345833
+20,none,4,aruba,5,Sleeping,0.9775280898876404
+20,none,4,aruba,5,Wash_Dishes,0.07161458333333333
+20,none,4,aruba,5,Work,0.6587301587301587
+20,none,4,aruba,all,Bed_to_Toilet,0.0
+20,none,4,aruba,all,Eating,0.6733812949640288
+20,none,4,aruba,all,Enter_Home,0.0
+20,none,4,aruba,all,Housekeeping,0.11304347826086956
+20,none,4,aruba,all,Leave_Home,0.0
+20,none,4,aruba,all,Meal_Preparation,0.9068664643399089
+20,none,4,aruba,all,Relax,0.9285549488579559
+20,none,4,aruba,all,Sleeping,0.9775280898876404
+20,none,4,aruba,all,Wash_Dishes,0.0
+20,none,4,aruba,all,Work,0.6587301587301587
+20,none,5,aruba,5,Bed_to_Toilet,0.4810126582278481
+20,none,5,aruba,5,Eating,0.480823199251637
+20,none,5,aruba,5,Enter_Home,0.0
+20,none,5,aruba,5,Housekeeping,0.09019607843137255
+20,none,5,aruba,5,Leave_Home,0.0
+20,none,5,aruba,5,Meal_Preparation,0.6232358870967742
+20,none,5,aruba,5,Relax,0.8541080912214933
+20,none,5,aruba,5,Sleeping,0.5159883720930233
+20,none,5,aruba,5,Wash_Dishes,0.07076755579749591
+20,none,5,aruba,5,Work,0.6796315250767656
+20,none,5,aruba,all,Bed_to_Toilet,0.0
+20,none,5,aruba,all,Eating,0.6647058823529411
+20,none,5,aruba,all,Enter_Home,0.0
+20,none,5,aruba,all,Housekeeping,0.0
+20,none,5,aruba,all,Leave_Home,0.0
+20,none,5,aruba,all,Meal_Preparation,0.8954601459577292
+20,none,5,aruba,all,Relax,0.9200276561419682
+20,none,5,aruba,all,Sleeping,0.8703241895261845
+20,none,5,aruba,all,Wash_Dishes,0.0
+20,none,5,aruba,all,Work,0.6796315250767656
+50,none,1,aruba,5,Bed_to_Toilet,0.0
+50,none,1,aruba,5,Eating,0.7051070840197694
+50,none,1,aruba,5,Enter_Home,0.11764705882352941
+50,none,1,aruba,5,Housekeeping,0.28040540540540543
+50,none,1,aruba,5,Leave_Home,0.0
+50,none,1,aruba,5,Meal_Preparation,0.9111604664075513
+50,none,1,aruba,5,Relax,0.9352506554381504
+50,none,1,aruba,5,Sleeping,0.7265135699373695
+50,none,1,aruba,5,Wash_Dishes,0.0
+50,none,1,aruba,5,Work,0.7772277227722773
+50,none,1,aruba,all,Bed_to_Toilet,0.0
+50,none,1,aruba,all,Eating,0.7051070840197694
+50,none,1,aruba,all,Enter_Home,0.0
+50,none,1,aruba,all,Housekeeping,0.11286681715575621
+50,none,1,aruba,all,Leave_Home,0.0
+50,none,1,aruba,all,Meal_Preparation,0.9104751421757475
+50,none,1,aruba,all,Relax,0.9351626813014504
+50,none,1,aruba,all,Sleeping,0.9006451612903226
+50,none,1,aruba,all,Wash_Dishes,0.0
+50,none,1,aruba,all,Work,0.6978723404255319
+50,none,2,aruba,5,Bed_to_Toilet,0.0
+50,none,2,aruba,5,Eating,0.7168576104746317
+50,none,2,aruba,5,Enter_Home,0.13333333333333333
+50,none,2,aruba,5,Housekeeping,0.33554817275747506
+50,none,2,aruba,5,Leave_Home,0.0
+50,none,2,aruba,5,Meal_Preparation,0.9182495344506517
+50,none,2,aruba,5,Relax,0.9352821635141473
+50,none,2,aruba,5,Sleeping,0.9549795361527967
+50,none,2,aruba,5,Wash_Dishes,0.0
+50,none,2,aruba,5,Work,0.7471783295711061
+50,none,2,aruba,all,Bed_to_Toilet,0.0
+50,none,2,aruba,all,Eating,0.7168576104746317
+50,none,2,aruba,all,Enter_Home,0.0
+50,none,2,aruba,all,Housekeeping,0.1995841995841996
+50,none,2,aruba,all,Leave_Home,0.0
+50,none,2,aruba,all,Meal_Preparation,0.9147489052455046
+50,none,2,aruba,all,Relax,0.932181158861199
+50,none,2,aruba,all,Sleeping,0.936
+50,none,2,aruba,all,Wash_Dishes,0.0
+50,none,2,aruba,all,Work,0.7471783295711061
+50,none,3,aruba,5,Bed_to_Toilet,0.0
+50,none,3,aruba,5,Eating,0.7052980132450332
+50,none,3,aruba,5,Enter_Home,0.0
+50,none,3,aruba,5,Housekeeping,0.22440944881889763
+50,none,3,aruba,5,Leave_Home,0.06153846153846154
+50,none,3,aruba,5,Meal_Preparation,0.850105136677681
+50,none,3,aruba,5,Relax,0.9360863740247458
+50,none,3,aruba,5,Sleeping,0.7304890738813735
+50,none,3,aruba,5,Wash_Dishes,0.08133971291866028
+50,none,3,aruba,5,Work,0.7150595882990249
+50,none,3,aruba,all,Bed_to_Toilet,0.0
+50,none,3,aruba,all,Eating,0.7052980132450332
+50,none,3,aruba,all,Enter_Home,0.0
+50,none,3,aruba,all,Housekeeping,0.18404907975460122
+50,none,3,aruba,all,Leave_Home,0.0
+50,none,3,aruba,all,Meal_Preparation,0.9170695425808851
+50,none,3,aruba,all,Relax,0.9328566987876904
+50,none,3,aruba,all,Sleeping,0.8976982097186701
+50,none,3,aruba,all,Wash_Dishes,0.0
+50,none,3,aruba,all,Work,0.7150595882990249
+50,none,4,aruba,5,Bed_to_Toilet,0.0
+50,none,4,aruba,5,Eating,0.6132596685082873
+50,none,4,aruba,5,Enter_Home,0.0
+50,none,4,aruba,5,Housekeeping,0.2836624775583483
+50,none,4,aruba,5,Leave_Home,0.0967741935483871
+50,none,4,aruba,5,Meal_Preparation,0.9071890452643591
+50,none,4,aruba,5,Relax,0.9102339646665606
+50,none,4,aruba,5,Sleeping,0.6003401360544217
+50,none,4,aruba,5,Wash_Dishes,0.0
+50,none,4,aruba,5,Work,0.7733333333333333
+50,none,4,aruba,all,Bed_to_Toilet,0.0
+50,none,4,aruba,all,Eating,0.6455906821963394
+50,none,4,aruba,all,Enter_Home,0.0
+50,none,4,aruba,all,Housekeeping,0.23387096774193547
+50,none,4,aruba,all,Leave_Home,0.0
+50,none,4,aruba,all,Meal_Preparation,0.9077078177985519
+50,none,4,aruba,all,Relax,0.9350506557763292
+50,none,4,aruba,all,Sleeping,0.9174311926605505
+50,none,4,aruba,all,Wash_Dishes,0.0
+50,none,4,aruba,all,Work,0.7233115468409586
+50,none,5,aruba,5,Bed_to_Toilet,0.7307692307692307
+50,none,5,aruba,5,Eating,0.6014814814814815
+50,none,5,aruba,5,Enter_Home,0.1095890410958904
+50,none,5,aruba,5,Housekeeping,0.24587155963302754
+50,none,5,aruba,5,Leave_Home,0.0
+50,none,5,aruba,5,Meal_Preparation,0.9091417388873357
+50,none,5,aruba,5,Relax,0.915775709560803
+50,none,5,aruba,5,Sleeping,0.7147540983606557
+50,none,5,aruba,5,Wash_Dishes,0.0
+50,none,5,aruba,5,Work,0.09271523178807947
+50,none,5,aruba,all,Bed_to_Toilet,0.0
+50,none,5,aruba,all,Eating,0.673469387755102
+50,none,5,aruba,all,Enter_Home,0.0
+50,none,5,aruba,all,Housekeeping,0.12556053811659193
+50,none,5,aruba,all,Leave_Home,0.0
+50,none,5,aruba,all,Meal_Preparation,0.9089374472474914
+50,none,5,aruba,all,Relax,0.9258178467209338
+50,none,5,aruba,all,Sleeping,0.8952134540750324
+50,none,5,aruba,all,Wash_Dishes,0.0
+50,none,5,aruba,all,Work,0.7096774193548387
+20,1,1,cairo,5,Bed to toilet,0.0
+20,1,1,cairo,5,Breakfast,0.20905923344947736
+20,1,1,cairo,5,Dinner,0.5106701609883939
+20,1,1,cairo,5,Laundry,0.6379310344827587
+20,1,1,cairo,5,Leave home,0.0
+20,1,1,cairo,5,Lunch,0.2979564930784443
+20,1,1,cairo,5,Night wandering,0.42063492063492064
+20,1,1,cairo,5,sleep,0.5494505494505495
+20,1,1,cairo,5,take medicine,0.0
+20,1,1,cairo,5,wake,0.40381558028616854
+20,1,1,cairo,5,work in office,0.5421994884910486
+20,1,1,cairo,all,Bed to toilet,0.0
+20,1,1,cairo,all,Breakfast,0.35958395245170877
+20,1,1,cairo,all,Dinner,0.554696132596685
+20,1,1,cairo,all,Laundry,0.6379310344827587
+20,1,1,cairo,all,Leave home,0.0
+20,1,1,cairo,all,Lunch,0.13157894736842105
+20,1,1,cairo,all,Night wandering,0.42063492063492064
+20,1,1,cairo,all,sleep,0.4222222222222222
+20,1,1,cairo,all,take medicine,0.0
+20,1,1,cairo,all,wake,0.626
+20,1,1,cairo,all,work in office,0.5421994884910486
+20,1,2,cairo,5,Bed to toilet,0.0
+20,1,2,cairo,5,Breakfast,0.38535211267605635
+20,1,2,cairo,5,Dinner,0.4662349676225717
+20,1,2,cairo,5,Laundry,0.6166666666666667
+20,1,2,cairo,5,Leave home,0.0
+20,1,2,cairo,5,Lunch,0.1738382099827883
+20,1,2,cairo,5,Night wandering,0.0
+20,1,2,cairo,5,sleep,0.4902597402597403
+20,1,2,cairo,5,take medicine,0.0
+20,1,2,cairo,5,wake,0.6227967097532315
+20,1,2,cairo,5,work in office,0.3469721767594108
+20,1,2,cairo,all,Bed to toilet,0.0
+20,1,2,cairo,all,Breakfast,0.43527416619559073
+20,1,2,cairo,all,Dinner,0.48168892718655754
+20,1,2,cairo,all,Laundry,0.6166666666666667
+20,1,2,cairo,all,Leave home,0.0
+20,1,2,cairo,all,Lunch,0.12552301255230125
+20,1,2,cairo,all,Night wandering,0.46153846153846156
+20,1,2,cairo,all,sleep,0.5691056910569106
+20,1,2,cairo,all,take medicine,0.0
+20,1,2,cairo,all,wake,0.6227967097532315
+20,1,2,cairo,all,work in office,0.5543071161048689
+20,1,3,cairo,5,Bed to toilet,0.0
+20,1,3,cairo,5,Breakfast,0.34227330779054915
+20,1,3,cairo,5,Dinner,0.5096557514693535
+20,1,3,cairo,5,Laundry,0.5736434108527132
+20,1,3,cairo,5,Leave home,0.0
+20,1,3,cairo,5,Lunch,0.15470643056849953
+20,1,3,cairo,5,Night wandering,0.1520912547528517
+20,1,3,cairo,5,sleep,0.6794717887154862
+20,1,3,cairo,5,take medicine,0.0
+20,1,3,cairo,5,wake,0.8075117370892019
+20,1,3,cairo,5,work in office,0.5882352941176471
+20,1,3,cairo,all,Bed to toilet,0.0
+20,1,3,cairo,all,Breakfast,0.41448382126348227
+20,1,3,cairo,all,Dinner,0.5828877005347594
+20,1,3,cairo,all,Laundry,0.5736434108527132
+20,1,3,cairo,all,Leave home,0.0
+20,1,3,cairo,all,Lunch,0.0
+20,1,3,cairo,all,Night wandering,0.0
+20,1,3,cairo,all,sleep,0.6718232044198895
+20,1,3,cairo,all,take medicine,0.0
+20,1,3,cairo,all,wake,0.8075117370892019
+20,1,3,cairo,all,work in office,0.4552238805970149
+20,1,4,cairo,5,Bed to toilet,0.0
+20,1,4,cairo,5,Breakfast,0.2836979534227241
+20,1,4,cairo,5,Dinner,0.5119429590017825
+20,1,4,cairo,5,Laundry,0.6115702479338843
+20,1,4,cairo,5,Leave home,0.0
+20,1,4,cairo,5,Lunch,0.0
+20,1,4,cairo,5,Night wandering,0.5421412300683371
+20,1,4,cairo,5,sleep,0.32108317214700194
+20,1,4,cairo,5,take medicine,0.0
+20,1,4,cairo,5,wake,0.7263681592039801
+20,1,4,cairo,5,work in office,0.398576512455516
+20,1,4,cairo,all,Bed to toilet,0.0
+20,1,4,cairo,all,Breakfast,0.3247058823529412
+20,1,4,cairo,all,Dinner,0.5442823210044113
+20,1,4,cairo,all,Laundry,0.6115702479338843
+20,1,4,cairo,all,Leave home,0.0
+20,1,4,cairo,all,Lunch,0.0
+20,1,4,cairo,all,Night wandering,0.0
+20,1,4,cairo,all,sleep,0.5251533742331288
+20,1,4,cairo,all,take medicine,0.0
+20,1,4,cairo,all,wake,0.7263681592039801
+20,1,4,cairo,all,work in office,0.398576512455516
+20,1,5,cairo,5,Bed to toilet,0.11267605633802817
+20,1,5,cairo,5,Breakfast,0.26199261992619927
+20,1,5,cairo,5,Dinner,0.5131136516476127
+20,1,5,cairo,5,Laundry,0.592
+20,1,5,cairo,5,Leave home,0.0
+20,1,5,cairo,5,Lunch,0.1520912547528517
+20,1,5,cairo,5,Night wandering,0.0
+20,1,5,cairo,5,sleep,0.5051094890510949
+20,1,5,cairo,5,take medicine,0.0
+20,1,5,cairo,5,wake,0.7660098522167488
+20,1,5,cairo,5,work in office,0.5473684210526316
+20,1,5,cairo,all,Bed to toilet,0.0
+20,1,5,cairo,all,Breakfast,0.33994334277620397
+20,1,5,cairo,all,Dinner,0.5207055214723927
+20,1,5,cairo,all,Laundry,0.592
+20,1,5,cairo,all,Leave home,0.0
+20,1,5,cairo,all,Lunch,0.13863404689092762
+20,1,5,cairo,all,Night wandering,0.312
+20,1,5,cairo,all,sleep,0.6781609195402298
+20,1,5,cairo,all,take medicine,0.0
+20,1,5,cairo,all,wake,0.7660098522167488
+20,1,5,cairo,all,work in office,0.5473684210526316
+20,2,1,cairo,5,Bed to toilet,0.0
+20,2,1,cairo,5,Breakfast,0.5294811320754716
+20,2,1,cairo,5,Dinner,0.5496774193548387
+20,2,1,cairo,5,Laundry,0.532258064516129
+20,2,1,cairo,5,Leave home,0.0
+20,2,1,cairo,5,Lunch,0.0997920997920998
+20,2,1,cairo,5,Night wandering,0.5519125683060109
+20,2,1,cairo,5,sleep,0.4622754491017964
+20,2,1,cairo,5,take medicine,0.0
+20,2,1,cairo,5,wake,0.29152542372881357
+20,2,1,cairo,5,work in office,0.4505928853754941
+20,2,1,cairo,all,Bed to toilet,0.0
+20,2,1,cairo,all,Breakfast,0.833976833976834
+20,2,1,cairo,all,Dinner,0.6897711978465679
+20,2,1,cairo,all,Laundry,0.532258064516129
+20,2,1,cairo,all,Leave home,0.0
+20,2,1,cairo,all,Lunch,0.14564102564102563
+20,2,1,cairo,all,Night wandering,0.5519125683060109
+20,2,1,cairo,all,sleep,0.4836759371221282
+20,2,1,cairo,all,take medicine,0.0
+20,2,1,cairo,all,wake,0.574793875147232
+20,2,1,cairo,all,work in office,0.42214532871972316
+20,2,2,cairo,5,Bed to toilet,0.0
+20,2,2,cairo,5,Breakfast,0.6132989025177534
+20,2,2,cairo,5,Dinner,0.7808105872622002
+20,2,2,cairo,5,Laundry,0.6548672566371682
+20,2,2,cairo,5,Leave home,0.0
+20,2,2,cairo,5,Lunch,0.6201550387596899
+20,2,2,cairo,5,Night wandering,0.027649769585253458
+20,2,2,cairo,5,sleep,0.43157894736842106
+20,2,2,cairo,5,take medicine,0.0
+20,2,2,cairo,5,wake,0.5930018416206262
+20,2,2,cairo,5,work in office,0.13333333333333333
+20,2,2,cairo,all,Bed to toilet,0.0
+20,2,2,cairo,all,Breakfast,0.7371744277821626
+20,2,2,cairo,all,Dinner,0.794074074074074
+20,2,2,cairo,all,Laundry,0.6548672566371682
+20,2,2,cairo,all,Leave home,0.0
+20,2,2,cairo,all,Lunch,0.6201550387596899
+20,2,2,cairo,all,Night wandering,0.0
+20,2,2,cairo,all,sleep,0.5653333333333334
+20,2,2,cairo,all,take medicine,0.0
+20,2,2,cairo,all,wake,0.5885947046843177
+20,2,2,cairo,all,work in office,0.13333333333333333
+20,2,3,cairo,5,Bed to toilet,0.0
+20,2,3,cairo,5,Breakfast,0.46324269889224573
+20,2,3,cairo,5,Dinner,0.6149691358024691
+20,2,3,cairo,5,Laundry,0.6065573770491803
+20,2,3,cairo,5,Leave home,0.0
+20,2,3,cairo,5,Lunch,0.35471698113207545
+20,2,3,cairo,5,Night wandering,0.368
+20,2,3,cairo,5,sleep,0.6708385481852316
+20,2,3,cairo,5,take medicine,0.0
+20,2,3,cairo,5,wake,0.8070588235294117
+20,2,3,cairo,5,work in office,0.32231404958677684
+20,2,3,cairo,all,Bed to toilet,0.0
+20,2,3,cairo,all,Breakfast,0.49420289855072463
+20,2,3,cairo,all,Dinner,0.6279838413514506
+20,2,3,cairo,all,Laundry,0.6065573770491803
+20,2,3,cairo,all,Leave home,0.0
+20,2,3,cairo,all,Lunch,0.1273100616016427
+20,2,3,cairo,all,Night wandering,0.0
+20,2,3,cairo,all,sleep,0.672782874617737
+20,2,3,cairo,all,take medicine,0.0
+20,2,3,cairo,all,wake,0.8070588235294117
+20,2,3,cairo,all,work in office,0.449438202247191
+20,2,4,cairo,5,Bed to toilet,0.16470588235294117
+20,2,4,cairo,5,Breakfast,0.32312312312312313
+20,2,4,cairo,5,Dinner,0.5303564433999216
+20,2,4,cairo,5,Laundry,0.5174825174825175
+20,2,4,cairo,5,Leave home,0.0
+20,2,4,cairo,5,Lunch,0.08588957055214724
+20,2,4,cairo,5,Night wandering,0.0
+20,2,4,cairo,5,sleep,0.3252336448598131
+20,2,4,cairo,5,take medicine,0.0
+20,2,4,cairo,5,wake,0.7197452229299363
+20,2,4,cairo,5,work in office,0.0
+20,2,4,cairo,all,Bed to toilet,0.0
+20,2,4,cairo,all,Breakfast,0.2769472856018883
+20,2,4,cairo,all,Dinner,0.5157232704402516
+20,2,4,cairo,all,Laundry,0.0
+20,2,4,cairo,all,Leave home,0.0
+20,2,4,cairo,all,Lunch,0.17873941674506114
+20,2,4,cairo,all,Night wandering,0.0
+20,2,4,cairo,all,sleep,0.5218417945690673
+20,2,4,cairo,all,take medicine,0.0
+20,2,4,cairo,all,wake,0.7197452229299363
+20,2,4,cairo,all,work in office,0.31272727272727274
+20,2,5,cairo,5,Bed to toilet,0.0
+20,2,5,cairo,5,Breakfast,0.42970521541950113
+20,2,5,cairo,5,Dinner,0.7402723735408561
+20,2,5,cairo,5,Laundry,0.6218487394957983
+20,2,5,cairo,5,Leave home,0.0
+20,2,5,cairo,5,Lunch,0.3401574803149606
+20,2,5,cairo,5,Night wandering,0.3225806451612903
+20,2,5,cairo,5,sleep,0.48868778280542985
+20,2,5,cairo,5,take medicine,0.0
+20,2,5,cairo,5,wake,0.6558558558558558
+20,2,5,cairo,5,work in office,0.0
+20,2,5,cairo,all,Bed to toilet,0.0
+20,2,5,cairo,all,Breakfast,0.4982314300151592
+20,2,5,cairo,all,Dinner,0.765661252900232
+20,2,5,cairo,all,Laundry,0.6218487394957983
+20,2,5,cairo,all,Leave home,0.0
+20,2,5,cairo,all,Lunch,0.13807531380753138
+20,2,5,cairo,all,Night wandering,0.3225806451612903
+20,2,5,cairo,all,sleep,0.48868778280542985
+20,2,5,cairo,all,take medicine,0.0
+20,2,5,cairo,all,wake,0.6622641509433962
+20,2,5,cairo,all,work in office,0.35658914728682173
+20,4,1,cairo,5,Bed to toilet,0.0
+20,4,1,cairo,5,Breakfast,0.2865090403337969
+20,4,1,cairo,5,Dinner,0.6228287841191067
+20,4,1,cairo,5,Laundry,0.5211267605633803
+20,4,1,cairo,5,Leave home,0.0
+20,4,1,cairo,5,Lunch,0.2425339366515837
+20,4,1,cairo,5,Night wandering,0.7184466019417476
+20,4,1,cairo,5,sleep,0.5995850622406639
+20,4,1,cairo,5,take medicine,0.0
+20,4,1,cairo,5,wake,0.48364153627311524
+20,4,1,cairo,5,work in office,0.4117647058823529
+20,4,1,cairo,all,Bed to toilet,0.0
+20,4,1,cairo,all,Breakfast,0.3878787878787879
+20,4,1,cairo,all,Dinner,0.5928762926081961
+20,4,1,cairo,all,Laundry,0.5211267605633803
+20,4,1,cairo,all,Leave home,0.0
+20,4,1,cairo,all,Lunch,0.12184873949579832
+20,4,1,cairo,all,Night wandering,0.7184466019417476
+20,4,1,cairo,all,sleep,0.25416666666666665
+20,4,1,cairo,all,take medicine,0.0
+20,4,1,cairo,all,wake,0.6486941870261163
+20,4,1,cairo,all,work in office,0.4117647058823529
+20,4,2,cairo,5,Bed to toilet,0.11133200795228629
+20,4,2,cairo,5,Breakfast,0.717663421418637
+20,4,2,cairo,5,Dinner,0.7228022903334456
+20,4,2,cairo,5,Laundry,0.6379310344827587
+20,4,2,cairo,5,Leave home,0.0
+20,4,2,cairo,5,Lunch,0.0
+20,4,2,cairo,5,Night wandering,0.0
+20,4,2,cairo,5,sleep,0.34690265486725663
+20,4,2,cairo,5,take medicine,0.0
+20,4,2,cairo,5,wake,0.29292929292929293
+20,4,2,cairo,5,work in office,0.11149825783972125
+20,4,2,cairo,all,Bed to toilet,0.0
+20,4,2,cairo,all,Breakfast,0.7538349159970782
+20,4,2,cairo,all,Dinner,0.7398402222994095
+20,4,2,cairo,all,Laundry,0.6379310344827587
+20,4,2,cairo,all,Leave home,0.0
+20,4,2,cairo,all,Lunch,0.0
+20,4,2,cairo,all,Night wandering,0.2077922077922078
+20,4,2,cairo,all,sleep,0.3263888888888889
+20,4,2,cairo,all,take medicine,0.0
+20,4,2,cairo,all,wake,0.5975903614457831
+20,4,2,cairo,all,work in office,0.0
+20,4,3,cairo,5,Bed to toilet,0.16519174041297935
+20,4,3,cairo,5,Breakfast,0.501432664756447
+20,4,3,cairo,5,Dinner,0.76248821866164
+20,4,3,cairo,5,Laundry,0.5806451612903226
+20,4,3,cairo,5,Leave home,0.0
+20,4,3,cairo,5,Lunch,0.43180428134556575
+20,4,3,cairo,5,Night wandering,0.0
+20,4,3,cairo,5,sleep,0.0
+20,4,3,cairo,5,take medicine,0.0
+20,4,3,cairo,5,wake,0.7527527527527528
+20,4,3,cairo,5,work in office,0.37423312883435583
+20,4,3,cairo,all,Bed to toilet,0.0
+20,4,3,cairo,all,Breakfast,0.48254931714719274
+20,4,3,cairo,all,Dinner,0.8009497427779976
+20,4,3,cairo,all,Laundry,0.5806451612903226
+20,4,3,cairo,all,Leave home,0.0
+20,4,3,cairo,all,Lunch,0.29173989455184535
+20,4,3,cairo,all,Night wandering,0.0
+20,4,3,cairo,all,sleep,0.648444863336475
+20,4,3,cairo,all,take medicine,0.0
+20,4,3,cairo,all,wake,0.8162291169451074
+20,4,3,cairo,all,work in office,0.43986254295532645
+20,4,4,cairo,5,Bed to toilet,0.0
+20,4,4,cairo,5,Breakfast,0.3059163059163059
+20,4,4,cairo,5,Dinner,0.6661392405063291
+20,4,4,cairo,5,Laundry,0.6166666666666667
+20,4,4,cairo,5,Leave home,0.0
+20,4,4,cairo,5,Lunch,0.4392350400987045
+20,4,4,cairo,5,Night wandering,0.3076923076923077
+20,4,4,cairo,5,sleep,0.5724444444444444
+20,4,4,cairo,5,take medicine,0.0
+20,4,4,cairo,5,wake,0.3013698630136986
+20,4,4,cairo,5,work in office,0.2440944881889764
+20,4,4,cairo,all,Bed to toilet,0.0
+20,4,4,cairo,all,Breakfast,0.44314185228604924
+20,4,4,cairo,all,Dinner,0.6719229084537889
+20,4,4,cairo,all,Laundry,0.6166666666666667
+20,4,4,cairo,all,Leave home,0.0
+20,4,4,cairo,all,Lunch,0.0
+20,4,4,cairo,all,Night wandering,0.3076923076923077
+20,4,4,cairo,all,sleep,0.616822429906542
+20,4,4,cairo,all,take medicine,0.0
+20,4,4,cairo,all,wake,0.5736434108527132
+20,4,4,cairo,all,work in office,0.23711340206185566
+20,4,5,cairo,5,Bed to toilet,0.0
+20,4,5,cairo,5,Breakfast,0.3806600153491942
+20,4,5,cairo,5,Dinner,0.9111870196413322
+20,4,5,cairo,5,Laundry,0.6065573770491803
+20,4,5,cairo,5,Leave home,0.0
+20,4,5,cairo,5,Lunch,0.4939106901217862
+20,4,5,cairo,5,Night wandering,0.0
+20,4,5,cairo,5,sleep,0.5463917525773195
+20,4,5,cairo,5,take medicine,0.0
+20,4,5,cairo,5,wake,0.6101694915254238
+20,4,5,cairo,5,work in office,0.46886446886446886
+20,4,5,cairo,all,Bed to toilet,0.0
+20,4,5,cairo,all,Breakfast,0.5804988662131519
+20,4,5,cairo,all,Dinner,0.9225320938468349
+20,4,5,cairo,all,Laundry,0.6065573770491803
+20,4,5,cairo,all,Leave home,0.0
+20,4,5,cairo,all,Lunch,0.4490909090909091
+20,4,5,cairo,all,Night wandering,0.2987551867219917
+20,4,5,cairo,all,sleep,0.5887573964497042
+20,4,5,cairo,all,take medicine,0.0
+20,4,5,cairo,all,wake,0.6101694915254238
+20,4,5,cairo,all,work in office,0.46886446886446886
+20,8,1,cairo,5,Bed to toilet,0.05415860735009671
+20,8,1,cairo,5,Breakfast,0.7449856733524355
+20,8,1,cairo,5,Dinner,0.8702222222222222
+20,8,1,cairo,5,Laundry,0.0
+20,8,1,cairo,5,Leave home,0.0
+20,8,1,cairo,5,Lunch,0.6570446735395189
+20,8,1,cairo,5,Night wandering,0.0
+20,8,1,cairo,5,sleep,0.6776649746192893
+20,8,1,cairo,5,take medicine,0.0
+20,8,1,cairo,5,wake,0.11992945326278659
+20,8,1,cairo,5,work in office,0.22140221402214022
+20,8,1,cairo,all,Bed to toilet,0.0
+20,8,1,cairo,all,Breakfast,0.7152682255845942
+20,8,1,cairo,all,Dinner,0.9051217464315701
+20,8,1,cairo,all,Laundry,0.6415094339622641
+20,8,1,cairo,all,Leave home,0.0
+20,8,1,cairo,all,Lunch,0.6799083269671505
+20,8,1,cairo,all,Night wandering,0.0
+20,8,1,cairo,all,sleep,0.7622222222222222
+20,8,1,cairo,all,take medicine,0.0
+20,8,1,cairo,all,wake,0.7055084745762712
+20,8,1,cairo,all,work in office,0.27722772277227725
+20,8,2,cairo,5,Bed to toilet,0.16470588235294117
+20,8,2,cairo,5,Breakfast,0.6996415770609319
+20,8,2,cairo,5,Dinner,0.9271523178807947
+20,8,2,cairo,5,Laundry,0.6324786324786325
+20,8,2,cairo,5,Leave home,0.0
+20,8,2,cairo,5,Lunch,0.8534201954397395
+20,8,2,cairo,5,Night wandering,0.0
+20,8,2,cairo,5,sleep,0.6210670314637483
+20,8,2,cairo,5,take medicine,0.0
+20,8,2,cairo,5,wake,0.8784838350055741
+20,8,2,cairo,5,work in office,0.2755102040816326
+20,8,2,cairo,all,Bed to toilet,0.0
+20,8,2,cairo,all,Breakfast,0.7131086142322097
+20,8,2,cairo,all,Dinner,0.9260226283724978
+20,8,2,cairo,all,Laundry,0.6324786324786325
+20,8,2,cairo,all,Leave home,0.0
+20,8,2,cairo,all,Lunch,0.7880935506732814
+20,8,2,cairo,all,Night wandering,0.0
+20,8,2,cairo,all,sleep,0.6922339405560882
+20,8,2,cairo,all,take medicine,0.0
+20,8,2,cairo,all,wake,0.8784838350055741
+20,8,2,cairo,all,work in office,0.2755102040816326
+20,8,3,cairo,5,Bed to toilet,0.16470588235294117
+20,8,3,cairo,5,Breakfast,0.6536769327467001
+20,8,3,cairo,5,Dinner,0.8502463054187193
+20,8,3,cairo,5,Laundry,0.14847161572052403
+20,8,3,cairo,5,Leave home,0.0
+20,8,3,cairo,5,Lunch,0.7864693446088795
+20,8,3,cairo,5,Night wandering,0.0
+20,8,3,cairo,5,sleep,0.5073170731707317
+20,8,3,cairo,5,take medicine,0.0
+20,8,3,cairo,5,wake,0.0
+20,8,3,cairo,5,work in office,0.16981132075471697
+20,8,3,cairo,all,Bed to toilet,0.0
+20,8,3,cairo,all,Breakfast,0.6377858002406739
+20,8,3,cairo,all,Dinner,0.9629629629629629
+20,8,3,cairo,all,Laundry,0.24561403508771928
+20,8,3,cairo,all,Leave home,0.0
+20,8,3,cairo,all,Lunch,0.7864693446088795
+20,8,3,cairo,all,Night wandering,0.0
+20,8,3,cairo,all,sleep,0.5851619644723093
+20,8,3,cairo,all,take medicine,0.0
+20,8,3,cairo,all,wake,0.430635838150289
+20,8,3,cairo,all,work in office,0.16981132075471697
+20,8,4,cairo,5,Bed to toilet,0.17177914110429449
+20,8,4,cairo,5,Breakfast,0.7757885763000852
+20,8,4,cairo,5,Dinner,0.9229340761374187
+20,8,4,cairo,5,Laundry,0.6548672566371682
+20,8,4,cairo,5,Leave home,0.0
+20,8,4,cairo,5,Lunch,0.8475452196382429
+20,8,4,cairo,5,Night wandering,0.0
+20,8,4,cairo,5,sleep,0.8126520681265207
+20,8,4,cairo,5,take medicine,0.0
+20,8,4,cairo,5,wake,0.7510917030567685
+20,8,4,cairo,5,work in office,0.3440366972477064
+20,8,4,cairo,all,Bed to toilet,0.0
+20,8,4,cairo,all,Breakfast,0.7132564841498559
+20,8,4,cairo,all,Dinner,0.9298321136461473
+20,8,4,cairo,all,Laundry,0.6548672566371682
+20,8,4,cairo,all,Leave home,0.0
+20,8,4,cairo,all,Lunch,0.7872340425531915
+20,8,4,cairo,all,Night wandering,0.8260869565217391
+20,8,4,cairo,all,sleep,0.8126520681265207
+20,8,4,cairo,all,take medicine,0.0
+20,8,4,cairo,all,wake,0.8804469273743016
+20,8,4,cairo,all,work in office,0.27488151658767773
+20,8,5,cairo,5,Bed to toilet,0.112
+20,8,5,cairo,5,Breakfast,0.68688293370945
+20,8,5,cairo,5,Dinner,0.9103053435114504
+20,8,5,cairo,5,Laundry,0.5666666666666667
+20,8,5,cairo,5,Leave home,0.0
+20,8,5,cairo,5,Lunch,0.7563587684069611
+20,8,5,cairo,5,Night wandering,0.0
+20,8,5,cairo,5,sleep,0.4741235392320534
+20,8,5,cairo,5,take medicine,0.0
+20,8,5,cairo,5,wake,0.5813333333333334
+20,8,5,cairo,5,work in office,0.22988505747126436
+20,8,5,cairo,all,Bed to toilet,0.0
+20,8,5,cairo,all,Breakfast,0.675341574495771
+20,8,5,cairo,all,Dinner,0.926678445229682
+20,8,5,cairo,all,Laundry,0.5666666666666667
+20,8,5,cairo,all,Leave home,0.0
+20,8,5,cairo,all,Lunch,0.7025454545454546
+20,8,5,cairo,all,Night wandering,0.0
+20,8,5,cairo,all,sleep,0.6386554621848739
+20,8,5,cairo,all,take medicine,0.0
+20,8,5,cairo,all,wake,0.5813333333333334
+20,8,5,cairo,all,work in office,0.12222222222222222
+20,bal,1,cairo,5,Bed to toilet,0.16666666666666666
+20,bal,1,cairo,5,Breakfast,0.7068493150684931
+20,bal,1,cairo,5,Dinner,0.9603485838779956
+20,bal,1,cairo,5,Laundry,0.39766081871345027
+20,bal,1,cairo,5,Leave home,0.0
+20,bal,1,cairo,5,Lunch,0.7855113636363636
+20,bal,1,cairo,5,Night wandering,0.0
+20,bal,1,cairo,5,sleep,0.0
+20,bal,1,cairo,5,take medicine,0.0
+20,bal,1,cairo,5,wake,0.7028901734104046
+20,bal,1,cairo,5,work in office,0.3891625615763547
+20,bal,1,cairo,all,Bed to toilet,0.0
+20,bal,1,cairo,all,Breakfast,0.6919555264879006
+20,bal,1,cairo,all,Dinner,0.9603485838779956
+20,bal,1,cairo,all,Laundry,0.27450980392156865
+20,bal,1,cairo,all,Leave home,0.0
+20,bal,1,cairo,all,Lunch,0.7855113636363636
+20,bal,1,cairo,all,Night wandering,0.0
+20,bal,1,cairo,all,sleep,0.581447963800905
+20,bal,1,cairo,all,take medicine,0.0
+20,bal,1,cairo,all,wake,0.7028901734104046
+20,bal,1,cairo,all,work in office,0.16822429906542055
+20,bal,2,cairo,5,Bed to toilet,0.16666666666666666
+20,bal,2,cairo,5,Breakfast,0.516075845012366
+20,bal,2,cairo,5,Dinner,0.7323556370302475
+20,bal,2,cairo,5,Laundry,0.16790123456790124
+20,bal,2,cairo,5,Leave home,0.0
+20,bal,2,cairo,5,Lunch,0.7902439024390244
+20,bal,2,cairo,5,Night wandering,0.0
+20,bal,2,cairo,5,sleep,0.5977011494252874
+20,bal,2,cairo,5,take medicine,0.0
+20,bal,2,cairo,5,wake,0.8295042321644498
+20,bal,2,cairo,5,work in office,0.2943722943722944
+20,bal,2,cairo,all,Bed to toilet,0.0
+20,bal,2,cairo,all,Breakfast,0.6879150066401063
+20,bal,2,cairo,all,Dinner,0.8968140751307656
+20,bal,2,cairo,all,Laundry,0.5964912280701754
+20,bal,2,cairo,all,Leave home,0.0
+20,bal,2,cairo,all,Lunch,0.7902439024390244
+20,bal,2,cairo,all,Night wandering,0.0
+20,bal,2,cairo,all,sleep,0.6752988047808764
+20,bal,2,cairo,all,take medicine,0.0
+20,bal,2,cairo,all,wake,0.8030973451327433
+20,bal,2,cairo,all,work in office,0.2943722943722944
+20,bal,3,cairo,5,Bed to toilet,0.16666666666666666
+20,bal,3,cairo,5,Breakfast,0.673871582962492
+20,bal,3,cairo,5,Dinner,0.959094865100087
+20,bal,3,cairo,5,Laundry,0.47619047619047616
+20,bal,3,cairo,5,Leave home,0.0
+20,bal,3,cairo,5,Lunch,0.7859600825877495
+20,bal,3,cairo,5,Night wandering,0.0
+20,bal,3,cairo,5,sleep,0.6359300476947536
+20,bal,3,cairo,5,take medicine,0.0
+20,bal,3,cairo,5,wake,0.654014598540146
+20,bal,3,cairo,5,work in office,0.4943820224719101
+20,bal,3,cairo,all,Bed to toilet,0.0
+20,bal,3,cairo,all,Breakfast,0.673871582962492
+20,bal,3,cairo,all,Dinner,0.9632286995515695
+20,bal,3,cairo,all,Laundry,0.0
+20,bal,3,cairo,all,Leave home,0.0
+20,bal,3,cairo,all,Lunch,0.7859600825877495
+20,bal,3,cairo,all,Night wandering,0.0
+20,bal,3,cairo,all,sleep,0.6925373134328359
+20,bal,3,cairo,all,take medicine,0.0
+20,bal,3,cairo,all,wake,0.6584699453551912
+20,bal,3,cairo,all,work in office,0.4943820224719101
+20,bal,4,cairo,5,Bed to toilet,0.09556313993174062
+20,bal,4,cairo,5,Breakfast,0.1407766990291262
+20,bal,4,cairo,5,Dinner,0.9239766081871345
+20,bal,4,cairo,5,Laundry,0.6296296296296297
+20,bal,4,cairo,5,Leave home,0.0
+20,bal,4,cairo,5,Lunch,0.7580025608194623
+20,bal,4,cairo,5,Night wandering,0.0
+20,bal,4,cairo,5,sleep,0.586414445399828
+20,bal,4,cairo,5,take medicine,0.10975609756097561
+20,bal,4,cairo,5,wake,0.0
+20,bal,4,cairo,5,work in office,0.15254237288135594
+20,bal,4,cairo,all,Bed to toilet,0.0
+20,bal,4,cairo,all,Breakfast,0.6683870967741935
+20,bal,4,cairo,all,Dinner,0.9121479613282892
+20,bal,4,cairo,all,Laundry,0.6296296296296297
+20,bal,4,cairo,all,Leave home,0.0
+20,bal,4,cairo,all,Lunch,0.7852062588904695
+20,bal,4,cairo,all,Night wandering,0.0
+20,bal,4,cairo,all,sleep,0.6185897435897436
+20,bal,4,cairo,all,take medicine,0.0
+20,bal,4,cairo,all,wake,0.6781279847182426
+20,bal,4,cairo,all,work in office,0.14207650273224043
+20,bal,5,cairo,5,Bed to toilet,0.11715481171548117
+20,bal,5,cairo,5,Breakfast,0.6844993141289437
+20,bal,5,cairo,5,Dinner,0.9335810496980956
+20,bal,5,cairo,5,Laundry,0.6379310344827587
+20,bal,5,cairo,5,Leave home,0.0
+20,bal,5,cairo,5,Lunch,0.8209255533199196
+20,bal,5,cairo,5,Night wandering,0.0
+20,bal,5,cairo,5,sleep,0.546
+20,bal,5,cairo,5,take medicine,0.0
+20,bal,5,cairo,5,wake,0.1893491124260355
+20,bal,5,cairo,5,work in office,0.32132963988919666
+20,bal,5,cairo,all,Bed to toilet,0.0
+20,bal,5,cairo,all,Breakfast,0.6766040181464679
+20,bal,5,cairo,all,Dinner,0.945264986967854
+20,bal,5,cairo,all,Laundry,0.6379310344827587
+20,bal,5,cairo,all,Leave home,0.0
+20,bal,5,cairo,all,Lunch,0.7852062588904695
+20,bal,5,cairo,all,Night wandering,0.6477272727272727
+20,bal,5,cairo,all,sleep,0.46688741721854304
+20,bal,5,cairo,all,take medicine,0.0
+20,bal,5,cairo,all,wake,0.5559246954595792
+20,bal,5,cairo,all,work in office,0.27358490566037735
+50,1,1,cairo,5,Bed to toilet,0.1794871794871795
+50,1,1,cairo,5,Breakfast,0.6645418326693228
+50,1,1,cairo,5,Dinner,0.7706146926536732
+50,1,1,cairo,5,Laundry,0.9473684210526315
+50,1,1,cairo,5,Leave home,0.0
+50,1,1,cairo,5,Lunch,0.22123104371097235
+50,1,1,cairo,5,Night wandering,0.0
+50,1,1,cairo,5,sleep,0.6717948717948717
+50,1,1,cairo,5,take medicine,0.0
+50,1,1,cairo,5,wake,0.7676348547717843
+50,1,1,cairo,5,work in office,0.6032786885245902
+50,1,1,cairo,all,Bed to toilet,0.0
+50,1,1,cairo,all,Breakfast,0.7330855018587361
+50,1,1,cairo,all,Dinner,0.7599134823359769
+50,1,1,cairo,all,Laundry,0.9473684210526315
+50,1,1,cairo,all,Leave home,0.0
+50,1,1,cairo,all,Lunch,0.13654618473895583
+50,1,1,cairo,all,Night wandering,0.7657992565055762
+50,1,1,cairo,all,sleep,0.6936708860759494
+50,1,1,cairo,all,take medicine,0.0
+50,1,1,cairo,all,wake,0.7782515991471215
+50,1,1,cairo,all,work in office,0.496
+50,1,2,cairo,5,Bed to toilet,0.0
+50,1,2,cairo,5,Breakfast,0.7291666666666666
+50,1,2,cairo,5,Dinner,0.7606837606837606
+50,1,2,cairo,5,Laundry,0.8809523809523809
+50,1,2,cairo,5,Leave home,0.0
+50,1,2,cairo,5,Lunch,0.6091307066916823
+50,1,2,cairo,5,Night wandering,0.425531914893617
+50,1,2,cairo,5,sleep,0.595
+50,1,2,cairo,5,take medicine,0.03409090909090909
+50,1,2,cairo,5,wake,0.6651634723788049
+50,1,2,cairo,5,work in office,0.5
+50,1,2,cairo,all,Bed to toilet,0.0
+50,1,2,cairo,all,Breakfast,0.6816976127320955
+50,1,2,cairo,all,Dinner,0.7912178956089478
+50,1,2,cairo,all,Laundry,0.8809523809523809
+50,1,2,cairo,all,Leave home,0.0
+50,1,2,cairo,all,Lunch,0.5359801488833746
+50,1,2,cairo,all,Night wandering,0.2916666666666667
+50,1,2,cairo,all,sleep,0.5980498374864572
+50,1,2,cairo,all,take medicine,0.0
+50,1,2,cairo,all,wake,0.7603833865814696
+50,1,2,cairo,all,work in office,0.0
+50,1,3,cairo,5,Bed to toilet,0.0
+50,1,3,cairo,5,Breakfast,0.7251552795031055
+50,1,3,cairo,5,Dinner,0.682271348071088
+50,1,3,cairo,5,Laundry,0.925
+50,1,3,cairo,5,Leave home,0.0
+50,1,3,cairo,5,Lunch,0.41711229946524064
+50,1,3,cairo,5,Night wandering,0.47435897435897434
+50,1,3,cairo,5,sleep,0.4899328859060403
+50,1,3,cairo,5,take medicine,0.0
+50,1,3,cairo,5,wake,0.6060606060606061
+50,1,3,cairo,5,work in office,0.42105263157894735
+50,1,3,cairo,all,Bed to toilet,0.0
+50,1,3,cairo,all,Breakfast,0.7278195488721805
+50,1,3,cairo,all,Dinner,0.765015015015015
+50,1,3,cairo,all,Laundry,0.925
+50,1,3,cairo,all,Leave home,0.0
+50,1,3,cairo,all,Lunch,0.3554788610871441
+50,1,3,cairo,all,Night wandering,0.34196891191709844
+50,1,3,cairo,all,sleep,0.6129032258064516
+50,1,3,cairo,all,take medicine,0.0
+50,1,3,cairo,all,wake,0.7170582226762002
+50,1,3,cairo,all,work in office,0.3964757709251101
+50,1,4,cairo,5,Bed to toilet,0.0
+50,1,4,cairo,5,Breakfast,0.44821533060269164
+50,1,4,cairo,5,Dinner,0.5989199803632793
+50,1,4,cairo,5,Laundry,0.9135802469135802
+50,1,4,cairo,5,Leave home,0.0
+50,1,4,cairo,5,Lunch,0.30097087378640774
+50,1,4,cairo,5,Night wandering,0.3125
+50,1,4,cairo,5,sleep,0.695364238410596
+50,1,4,cairo,5,take medicine,0.0
+50,1,4,cairo,5,wake,0.7323651452282157
+50,1,4,cairo,5,work in office,0.5637583892617449
+50,1,4,cairo,all,Bed to toilet,0.0
+50,1,4,cairo,all,Breakfast,0.503233392122281
+50,1,4,cairo,all,Dinner,0.6634232640424591
+50,1,4,cairo,all,Laundry,0.9135802469135802
+50,1,4,cairo,all,Leave home,0.0
+50,1,4,cairo,all,Lunch,0.2744755244755245
+50,1,4,cairo,all,Night wandering,0.3900414937759336
+50,1,4,cairo,all,sleep,0.6892039258451472
+50,1,4,cairo,all,take medicine,0.0
+50,1,4,cairo,all,wake,0.7925407925407926
+50,1,4,cairo,all,work in office,0.4851063829787234
+50,1,5,cairo,5,Bed to toilet,0.0
+50,1,5,cairo,5,Breakfast,0.5569948186528497
+50,1,5,cairo,5,Dinner,0.8281665190434012
+50,1,5,cairo,5,Laundry,0.891566265060241
+50,1,5,cairo,5,Leave home,0.0
+50,1,5,cairo,5,Lunch,0.5803636363636364
+50,1,5,cairo,5,Night wandering,0.0
+50,1,5,cairo,5,sleep,0.5322997416020672
+50,1,5,cairo,5,take medicine,0.0
+50,1,5,cairo,5,wake,0.6522167487684729
+50,1,5,cairo,5,work in office,0.49193548387096775
+50,1,5,cairo,all,Bed to toilet,0.0
+50,1,5,cairo,all,Breakfast,0.5634306134603931
+50,1,5,cairo,all,Dinner,0.8334901222953904
+50,1,5,cairo,all,Laundry,0.891566265060241
+50,1,5,cairo,all,Leave home,0.0
+50,1,5,cairo,all,Lunch,0.6090342679127726
+50,1,5,cairo,all,Night wandering,0.58
+50,1,5,cairo,all,sleep,0.5684210526315789
+50,1,5,cairo,all,take medicine,0.0
+50,1,5,cairo,all,wake,0.6744868035190615
+50,1,5,cairo,all,work in office,0.460431654676259
+50,2,1,cairo,5,Bed to toilet,0.0
+50,2,1,cairo,5,Breakfast,0.6166134185303515
+50,2,1,cairo,5,Dinner,0.8873362445414847
+50,2,1,cairo,5,Laundry,0.9113924050632911
+50,2,1,cairo,5,Leave home,0.0
+50,2,1,cairo,5,Lunch,0.7414448669201521
+50,2,1,cairo,5,Night wandering,0.0
+50,2,1,cairo,5,sleep,0.7221476510067114
+50,2,1,cairo,5,take medicine,0.0
+50,2,1,cairo,5,wake,0.7802690582959642
+50,2,1,cairo,5,work in office,0.3557483731019523
+50,2,1,cairo,all,Bed to toilet,0.0
+50,2,1,cairo,all,Breakfast,0.6713947990543735
+50,2,1,cairo,all,Dinner,0.8784893267651889
+50,2,1,cairo,all,Laundry,0.9113924050632911
+50,2,1,cairo,all,Leave home,0.0
+50,2,1,cairo,all,Lunch,0.7456687456687456
+50,2,1,cairo,all,Night wandering,0.5743243243243243
+50,2,1,cairo,all,sleep,0.7361647361647362
+50,2,1,cairo,all,take medicine,0.0
+50,2,1,cairo,all,wake,0.7883720930232558
+50,2,1,cairo,all,work in office,0.5179856115107914
+50,2,2,cairo,5,Bed to toilet,0.23893805309734514
+50,2,2,cairo,5,Breakfast,0.7182009838369642
+50,2,2,cairo,5,Dinner,0.8910806174957119
+50,2,2,cairo,5,Laundry,0.8505747126436781
+50,2,2,cairo,5,Leave home,0.0
+50,2,2,cairo,5,Lunch,0.6593406593406593
+50,2,2,cairo,5,Night wandering,0.5787234042553191
+50,2,2,cairo,5,sleep,0.5137614678899083
+50,2,2,cairo,5,take medicine,0.0
+50,2,2,cairo,5,wake,0.8449704142011835
+50,2,2,cairo,5,work in office,0.3076923076923077
+50,2,2,cairo,all,Bed to toilet,0.0
+50,2,2,cairo,all,Breakfast,0.7527193618564177
+50,2,2,cairo,all,Dinner,0.8856548856548857
+50,2,2,cairo,all,Laundry,0.8505747126436781
+50,2,2,cairo,all,Leave home,0.0
+50,2,2,cairo,all,Lunch,0.7129151291512915
+50,2,2,cairo,all,Night wandering,0.5787234042553191
+50,2,2,cairo,all,sleep,0.7266514806378133
+50,2,2,cairo,all,take medicine,0.0
+50,2,2,cairo,all,wake,0.7981438515081206
+50,2,2,cairo,all,work in office,0.39662447257383965
+50,2,3,cairo,5,Bed to toilet,0.19718309859154928
+50,2,3,cairo,5,Breakfast,0.7105847520355293
+50,2,3,cairo,5,Dinner,0.8973897389738974
+50,2,3,cairo,5,Laundry,0.9024390243902439
+50,2,3,cairo,5,Leave home,0.0
+50,2,3,cairo,5,Lunch,0.7340359578425294
+50,2,3,cairo,5,Night wandering,0.0
+50,2,3,cairo,5,sleep,0.779746835443038
+50,2,3,cairo,5,take medicine,0.0
+50,2,3,cairo,5,wake,0.7704918032786885
+50,2,3,cairo,5,work in office,0.4280442804428044
+50,2,3,cairo,all,Bed to toilet,0.0
+50,2,3,cairo,all,Breakfast,0.6975397973950795
+50,2,3,cairo,all,Dinner,0.9272727272727272
+50,2,3,cairo,all,Laundry,0.9024390243902439
+50,2,3,cairo,all,Leave home,0.0
+50,2,3,cairo,all,Lunch,0.7551164431898377
+50,2,3,cairo,all,Night wandering,0.7058823529411765
+50,2,3,cairo,all,sleep,0.779976717112922
+50,2,3,cairo,all,take medicine,0.0
+50,2,3,cairo,all,wake,0.7704918032786885
+50,2,3,cairo,all,work in office,0.43010752688172044
+50,2,4,cairo,5,Bed to toilet,0.0
+50,2,4,cairo,5,Breakfast,0.6871508379888268
+50,2,4,cairo,5,Dinner,0.834721613327488
+50,2,4,cairo,5,Laundry,0.0
+50,2,4,cairo,5,Leave home,0.0
+50,2,4,cairo,5,Lunch,0.7159640635798203
+50,2,4,cairo,5,Night wandering,0.6089965397923875
+50,2,4,cairo,5,sleep,0.4261437908496732
+50,2,4,cairo,5,take medicine,0.0
+50,2,4,cairo,5,wake,0.29873417721518986
+50,2,4,cairo,5,work in office,0.46586345381526106
+50,2,4,cairo,all,Bed to toilet,0.0
+50,2,4,cairo,all,Breakfast,0.7586738627602159
+50,2,4,cairo,all,Dinner,0.8803986710963455
+50,2,4,cairo,all,Laundry,0.0
+50,2,4,cairo,all,Leave home,0.0
+50,2,4,cairo,all,Lunch,0.7009021512838307
+50,2,4,cairo,all,Night wandering,0.6089965397923875
+50,2,4,cairo,all,sleep,0.5864453665283541
+50,2,4,cairo,all,take medicine,0.0
+50,2,4,cairo,all,wake,0.718407960199005
+50,2,4,cairo,all,work in office,0.47058823529411764
+50,2,5,cairo,5,Bed to toilet,0.0
+50,2,5,cairo,5,Breakfast,0.6965408805031447
+50,2,5,cairo,5,Dinner,0.9099485420240138
+50,2,5,cairo,5,Laundry,0.8604651162790697
+50,2,5,cairo,5,Leave home,0.0
+50,2,5,cairo,5,Lunch,0.8050904219691896
+50,2,5,cairo,5,Night wandering,0.5714285714285714
+50,2,5,cairo,5,sleep,0.6784810126582278
+50,2,5,cairo,5,take medicine,0.0
+50,2,5,cairo,5,wake,0.813778256189451
+50,2,5,cairo,5,work in office,0.5633802816901409
+50,2,5,cairo,all,Bed to toilet,0.0
+50,2,5,cairo,all,Breakfast,0.673992673992674
+50,2,5,cairo,all,Dinner,0.9037727850784231
+50,2,5,cairo,all,Laundry,0.8604651162790697
+50,2,5,cairo,all,Leave home,0.0
+50,2,5,cairo,all,Lunch,0.7538677918424754
+50,2,5,cairo,all,Night wandering,0.5714285714285714
+50,2,5,cairo,all,sleep,0.6810673443456162
+50,2,5,cairo,all,take medicine,0.0
+50,2,5,cairo,all,wake,0.813778256189451
+50,2,5,cairo,all,work in office,0.48739495798319327
+50,4,1,cairo,5,Bed to toilet,0.16568047337278108
+50,4,1,cairo,5,Breakfast,0.6909372579395817
+50,4,1,cairo,5,Dinner,0.9544046038069942
+50,4,1,cairo,5,Laundry,0.6915887850467289
+50,4,1,cairo,5,Leave home,0.0
+50,4,1,cairo,5,Lunch,0.7754045307443366
+50,4,1,cairo,5,Night wandering,0.0
+50,4,1,cairo,5,sleep,0.6293929712460063
+50,4,1,cairo,5,take medicine,0.0
+50,4,1,cairo,5,wake,0.7070484581497798
+50,4,1,cairo,5,work in office,0.38095238095238093
+50,4,1,cairo,all,Bed to toilet,0.0
+50,4,1,cairo,all,Breakfast,0.7318475916606758
+50,4,1,cairo,all,Dinner,0.946999561979851
+50,4,1,cairo,all,Laundry,0.6915887850467289
+50,4,1,cairo,all,Leave home,0.0
+50,4,1,cairo,all,Lunch,0.7600281491907108
+50,4,1,cairo,all,Night wandering,0.8156028368794326
+50,4,1,cairo,all,sleep,0.6293929712460063
+50,4,1,cairo,all,take medicine,0.0
+50,4,1,cairo,all,wake,0.7243947858472998
+50,4,1,cairo,all,work in office,0.4566929133858268
+50,4,2,cairo,5,Bed to toilet,0.1728395061728395
+50,4,2,cairo,5,Breakfast,0.7505422993492408
+50,4,2,cairo,5,Dinner,0.9475054229934924
+50,4,2,cairo,5,Laundry,0.8409090909090909
+50,4,2,cairo,5,Leave home,0.0
+50,4,2,cairo,5,Lunch,0.8019191226867718
+50,4,2,cairo,5,Night wandering,0.0
+50,4,2,cairo,5,sleep,0.806930693069307
+50,4,2,cairo,5,take medicine,0.0
+50,4,2,cairo,5,wake,0.8868571428571429
+50,4,2,cairo,5,work in office,0.40816326530612246
+50,4,2,cairo,all,Bed to toilet,0.0
+50,4,2,cairo,all,Breakfast,0.7505422993492408
+50,4,2,cairo,all,Dinner,0.9428444838280904
+50,4,2,cairo,all,Laundry,0.8409090909090909
+50,4,2,cairo,all,Leave home,0.0
+50,4,2,cairo,all,Lunch,0.8019191226867718
+50,4,2,cairo,all,Night wandering,0.8532423208191127
+50,4,2,cairo,all,sleep,0.798196166854566
+50,4,2,cairo,all,take medicine,0.0
+50,4,2,cairo,all,wake,0.8961625282167043
+50,4,2,cairo,all,work in office,0.14054054054054055
+50,4,3,cairo,5,Bed to toilet,0.0
+50,4,3,cairo,5,Breakfast,0.7259010896898574
+50,4,3,cairo,5,Dinner,0.9344978165938864
+50,4,3,cairo,5,Laundry,0.891566265060241
+50,4,3,cairo,5,Leave home,0.0
+50,4,3,cairo,5,Lunch,0.8096118299445472
+50,4,3,cairo,5,Night wandering,0.8231046931407943
+50,4,3,cairo,5,sleep,0.688034188034188
+50,4,3,cairo,5,take medicine,0.0
+50,4,3,cairo,5,wake,0.5412130637636081
+50,4,3,cairo,5,work in office,0.49363867684478374
+50,4,3,cairo,all,Bed to toilet,0.0
+50,4,3,cairo,all,Breakfast,0.7616959064327485
+50,4,3,cairo,all,Dinner,0.9344978165938864
+50,4,3,cairo,all,Laundry,0.891566265060241
+50,4,3,cairo,all,Leave home,0.0
+50,4,3,cairo,all,Lunch,0.7900552486187845
+50,4,3,cairo,all,Night wandering,0.8231046931407943
+50,4,3,cairo,all,sleep,0.6116642958748222
+50,4,3,cairo,all,take medicine,0.0
+50,4,3,cairo,all,wake,0.7215311004784689
+50,4,3,cairo,all,work in office,0.29464285714285715
+50,4,4,cairo,5,Bed to toilet,0.0
+50,4,4,cairo,5,Breakfast,0.6725099601593626
+50,4,4,cairo,5,Dinner,0.9006564551422319
+50,4,4,cairo,5,Laundry,0.9230769230769231
+50,4,4,cairo,5,Leave home,0.0
+50,4,4,cairo,5,Lunch,0.7471186440677966
+50,4,4,cairo,5,Night wandering,0.0
+50,4,4,cairo,5,sleep,0.6104129263913824
+50,4,4,cairo,5,take medicine,0.0
+50,4,4,cairo,5,wake,0.3901098901098901
+50,4,4,cairo,5,work in office,0.5447761194029851
+50,4,4,cairo,all,Bed to toilet,0.0
+50,4,4,cairo,all,Breakfast,0.7136563876651982
+50,4,4,cairo,all,Dinner,0.8974576271186441
+50,4,4,cairo,all,Laundry,0.9230769230769231
+50,4,4,cairo,all,Leave home,0.0
+50,4,4,cairo,all,Lunch,0.7042857142857143
+50,4,4,cairo,all,Night wandering,0.5771812080536913
+50,4,4,cairo,all,sleep,0.5801324503311258
+50,4,4,cairo,all,take medicine,0.0
+50,4,4,cairo,all,wake,0.7259565667011375
+50,4,4,cairo,all,work in office,0.2018348623853211
+50,4,5,cairo,5,Bed to toilet,0.0
+50,4,5,cairo,5,Breakfast,0.666147859922179
+50,4,5,cairo,5,Dinner,0.8839326354119253
+50,4,5,cairo,5,Laundry,0.891566265060241
+50,4,5,cairo,5,Leave home,0.0
+50,4,5,cairo,5,Lunch,0.7248803827751196
+50,4,5,cairo,5,Night wandering,0.6
+50,4,5,cairo,5,sleep,0.7397260273972602
+50,4,5,cairo,5,take medicine,0.0
+50,4,5,cairo,5,wake,0.8603603603603603
+50,4,5,cairo,5,work in office,0.37272727272727274
+50,4,5,cairo,all,Bed to toilet,0.0
+50,4,5,cairo,all,Breakfast,0.7404129793510325
+50,4,5,cairo,all,Dinner,0.8941951420337587
+50,4,5,cairo,all,Laundry,0.891566265060241
+50,4,5,cairo,all,Leave home,0.0
+50,4,5,cairo,all,Lunch,0.7494521548575602
+50,4,5,cairo,all,Night wandering,0.6
+50,4,5,cairo,all,sleep,0.7397260273972602
+50,4,5,cairo,all,take medicine,0.0
+50,4,5,cairo,all,wake,0.8603603603603603
+50,4,5,cairo,all,work in office,0.37272727272727274
+50,8,1,cairo,5,Bed to toilet,0.1728395061728395
+50,8,1,cairo,5,Breakfast,0.7740963855421686
+50,8,1,cairo,5,Dinner,0.9577214063195372
+50,8,1,cairo,5,Laundry,0.28
+50,8,1,cairo,5,Leave home,0.24489795918367346
+50,8,1,cairo,5,Lunch,0.8474350433044637
+50,8,1,cairo,5,Night wandering,0.0
+50,8,1,cairo,5,sleep,0.7787391841779975
+50,8,1,cairo,5,take medicine,0.0
+50,8,1,cairo,5,wake,0.802784222737819
+50,8,1,cairo,5,work in office,0.4647887323943662
+50,8,1,cairo,all,Bed to toilet,0.0
+50,8,1,cairo,all,Breakfast,0.7430207587687903
+50,8,1,cairo,all,Dinner,0.9496276828734121
+50,8,1,cairo,all,Laundry,0.4375
+50,8,1,cairo,all,Leave home,0.0
+50,8,1,cairo,all,Lunch,0.8016759776536313
+50,8,1,cairo,all,Night wandering,0.8290909090909091
+50,8,1,cairo,all,sleep,0.7861885790172642
+50,8,1,cairo,all,take medicine,0.0
+50,8,1,cairo,all,wake,0.8467309753483387
+50,8,1,cairo,all,work in office,0.42524916943521596
+50,8,2,cairo,5,Bed to toilet,0.1728395061728395
+50,8,2,cairo,5,Breakfast,0.7461538461538462
+50,8,2,cairo,5,Dinner,0.9522522522522523
+50,8,2,cairo,5,Laundry,0.6181818181818182
+50,8,2,cairo,5,Leave home,0.0
+50,8,2,cairo,5,Lunch,0.8207171314741036
+50,8,2,cairo,5,Night wandering,0.0
+50,8,2,cairo,5,sleep,0.8056872037914692
+50,8,2,cairo,5,take medicine,0.0
+50,8,2,cairo,5,wake,0.8904267589388697
+50,8,2,cairo,5,work in office,0.33976833976833976
+50,8,2,cairo,all,Bed to toilet,0.0
+50,8,2,cairo,all,Breakfast,0.7541456380677721
+50,8,2,cairo,all,Dinner,0.945260347129506
+50,8,2,cairo,all,Laundry,0.8192771084337349
+50,8,2,cairo,all,Leave home,0.0
+50,8,2,cairo,all,Lunch,0.8089430894308943
+50,8,2,cairo,all,Night wandering,0.8290909090909091
+50,8,2,cairo,all,sleep,0.7977653631284917
+50,8,2,cairo,all,take medicine,0.0
+50,8,2,cairo,all,wake,0.8904267589388697
+50,8,2,cairo,all,work in office,0.19230769230769232
+50,8,3,cairo,5,Bed to toilet,0.1728395061728395
+50,8,3,cairo,5,Breakfast,0.746969696969697
+50,8,3,cairo,5,Dinner,0.9623318385650225
+50,8,3,cairo,5,Laundry,0.6071428571428571
+50,8,3,cairo,5,Leave home,0.0
+50,8,3,cairo,5,Lunch,0.8207547169811321
+50,8,3,cairo,5,Night wandering,0.0
+50,8,3,cairo,5,sleep,0.8208232445520581
+50,8,3,cairo,5,take medicine,0.0
+50,8,3,cairo,5,wake,0.8266331658291457
+50,8,3,cairo,5,work in office,0.389873417721519
+50,8,3,cairo,all,Bed to toilet,0.0
+50,8,3,cairo,all,Breakfast,0.7513069454817027
+50,8,3,cairo,all,Dinner,0.9565217391304348
+50,8,3,cairo,all,Laundry,0.7727272727272727
+50,8,3,cairo,all,Leave home,0.0
+50,8,3,cairo,all,Lunch,0.816382252559727
+50,8,3,cairo,all,Night wandering,0.8290909090909091
+50,8,3,cairo,all,sleep,0.8045714285714286
+50,8,3,cairo,all,take medicine,0.0
+50,8,3,cairo,all,wake,0.8980477223427332
+50,8,3,cairo,all,work in office,0.3
+50,8,4,cairo,5,Bed to toilet,0.1728395061728395
+50,8,4,cairo,5,Breakfast,0.7429775280898876
+50,8,4,cairo,5,Dinner,0.9489927132447492
+50,8,4,cairo,5,Laundry,0.7252747252747253
+50,8,4,cairo,5,Leave home,0.0
+50,8,4,cairo,5,Lunch,0.8272604588394062
+50,8,4,cairo,5,Night wandering,0.0
+50,8,4,cairo,5,sleep,0.8091603053435115
+50,8,4,cairo,5,take medicine,0.0
+50,8,4,cairo,5,wake,0.8835534213685474
+50,8,4,cairo,5,work in office,0.308411214953271
+50,8,4,cairo,all,Bed to toilet,0.0
+50,8,4,cairo,all,Breakfast,0.7429775280898876
+50,8,4,cairo,all,Dinner,0.9626966292134832
+50,8,4,cairo,all,Laundry,0.7252747252747253
+50,8,4,cairo,all,Leave home,0.0
+50,8,4,cairo,all,Lunch,0.8272604588394062
+50,8,4,cairo,all,Night wandering,0.8290909090909091
+50,8,4,cairo,all,sleep,0.8008948545861297
+50,8,4,cairo,all,take medicine,0.0
+50,8,4,cairo,all,wake,0.8835534213685474
+50,8,4,cairo,all,work in office,0.308411214953271
+50,8,5,cairo,5,Bed to toilet,0.1728395061728395
+50,8,5,cairo,5,Breakfast,0.790007806401249
+50,8,5,cairo,5,Dinner,0.9292114695340502
+50,8,5,cairo,5,Laundry,0.43023255813953487
+50,8,5,cairo,5,Leave home,0.0
+50,8,5,cairo,5,Lunch,0.8762755102040817
+50,8,5,cairo,5,Night wandering,0.0
+50,8,5,cairo,5,sleep,0.7980769230769231
+50,8,5,cairo,5,take medicine,0.0
+50,8,5,cairo,5,wake,0.773936170212766
+50,8,5,cairo,5,work in office,0.294478527607362
+50,8,5,cairo,all,Bed to toilet,0.0
+50,8,5,cairo,all,Breakfast,0.7466288147622427
+50,8,5,cairo,all,Dinner,0.95837023914969
+50,8,5,cairo,all,Laundry,0.4927536231884058
+50,8,5,cairo,all,Leave home,0.0
+50,8,5,cairo,all,Lunch,0.8273527420446851
+50,8,5,cairo,all,Night wandering,0.8290909090909091
+50,8,5,cairo,all,sleep,0.8027522935779816
+50,8,5,cairo,all,take medicine,0.0
+50,8,5,cairo,all,wake,0.8847926267281107
+50,8,5,cairo,all,work in office,0.3142857142857143
+50,bal,1,cairo,5,Bed to toilet,0.17177914110429449
+50,bal,1,cairo,5,Breakfast,0.7689992475545523
+50,bal,1,cairo,5,Dinner,0.9592641261498029
+50,bal,1,cairo,5,Laundry,0.6605504587155964
+50,bal,1,cairo,5,Leave home,0.0
+50,bal,1,cairo,5,Lunch,0.8264352469959947
+50,bal,1,cairo,5,Night wandering,0.0
+50,bal,1,cairo,5,sleep,0.830423940149626
+50,bal,1,cairo,5,take medicine,0.0
+50,bal,1,cairo,5,wake,0.9045454545454545
+50,bal,1,cairo,5,work in office,0.5193798449612403
+50,bal,1,cairo,all,Bed to toilet,0.0
+50,bal,1,cairo,all,Breakfast,0.7619047619047619
+50,bal,1,cairo,all,Dinner,0.9350307287093942
+50,bal,1,cairo,all,Laundry,0.4126984126984127
+50,bal,1,cairo,all,Leave home,0.0
+50,bal,1,cairo,all,Lunch,0.8098495212038304
+50,bal,1,cairo,all,Night wandering,0.8260869565217391
+50,bal,1,cairo,all,sleep,0.8112543962485346
+50,bal,1,cairo,all,take medicine,0.0
+50,bal,1,cairo,all,wake,0.9123595505617977
+50,bal,1,cairo,all,work in office,0.5179282868525896
+50,bal,2,cairo,5,Bed to toilet,0.1728395061728395
+50,bal,2,cairo,5,Breakfast,0.7822706065318819
+50,bal,2,cairo,5,Dinner,0.9468599033816425
+50,bal,2,cairo,5,Laundry,0.6476190476190476
+50,bal,2,cairo,5,Leave home,0.0
+50,bal,2,cairo,5,Lunch,0.8584356819650937
+50,bal,2,cairo,5,Night wandering,0.0
+50,bal,2,cairo,5,sleep,0.8131067961165048
+50,bal,2,cairo,5,take medicine,0.0
+50,bal,2,cairo,5,wake,0.6976090014064698
+50,bal,2,cairo,5,work in office,0.3728813559322034
+50,bal,2,cairo,all,Bed to toilet,0.0
+50,bal,2,cairo,all,Breakfast,0.757847533632287
+50,bal,2,cairo,all,Dinner,0.9543828264758497
+50,bal,2,cairo,all,Laundry,0.4057971014492754
+50,bal,2,cairo,all,Leave home,0.0
+50,bal,2,cairo,all,Lunch,0.8073154800783802
+50,bal,2,cairo,all,Night wandering,0.8290909090909091
+50,bal,2,cairo,all,sleep,0.8184971098265896
+50,bal,2,cairo,all,take medicine,0.0
+50,bal,2,cairo,all,wake,0.8944381384790011
+50,bal,2,cairo,all,work in office,0.49382716049382713
+50,bal,3,cairo,5,Bed to toilet,0.1728395061728395
+50,bal,3,cairo,5,Breakfast,0.7573099415204678
+50,bal,3,cairo,5,Dinner,0.962439239946973
+50,bal,3,cairo,5,Laundry,0.5666666666666667
+50,bal,3,cairo,5,Leave home,0.0
+50,bal,3,cairo,5,Lunch,0.7974947807933194
+50,bal,3,cairo,5,Night wandering,0.0
+50,bal,3,cairo,5,sleep,0.8217446270543616
+50,bal,3,cairo,5,take medicine,0.0
+50,bal,3,cairo,5,wake,0.8805309734513275
+50,bal,3,cairo,5,work in office,0.45714285714285713
+50,bal,3,cairo,all,Bed to toilet,0.0
+50,bal,3,cairo,all,Breakfast,0.7573099415204678
+50,bal,3,cairo,all,Dinner,0.962439239946973
+50,bal,3,cairo,all,Laundry,0.39436619718309857
+50,bal,3,cairo,all,Leave home,0.0
+50,bal,3,cairo,all,Lunch,0.7913862718707941
+50,bal,3,cairo,all,Night wandering,0.8290909090909091
+50,bal,3,cairo,all,sleep,0.8042704626334519
+50,bal,3,cairo,all,take medicine,0.0
+50,bal,3,cairo,all,wake,0.8805309734513275
+50,bal,3,cairo,all,work in office,0.2982456140350877
+50,bal,4,cairo,5,Bed to toilet,0.1728395061728395
+50,bal,4,cairo,5,Breakfast,0.757847533632287
+50,bal,4,cairo,5,Dinner,0.9613848202396804
+50,bal,4,cairo,5,Laundry,0.6538461538461539
+50,bal,4,cairo,5,Leave home,0.0
+50,bal,4,cairo,5,Lunch,0.8247011952191236
+50,bal,4,cairo,5,Night wandering,0.0
+50,bal,4,cairo,5,sleep,0.7989756722151088
+50,bal,4,cairo,5,take medicine,0.0
+50,bal,4,cairo,5,wake,0.8813559322033898
+50,bal,4,cairo,5,work in office,0.4797297297297297
+50,bal,4,cairo,all,Bed to toilet,0.0
+50,bal,4,cairo,all,Breakfast,0.743988684582744
+50,bal,4,cairo,all,Dinner,0.9613848202396804
+50,bal,4,cairo,all,Laundry,0.3888888888888889
+50,bal,4,cairo,all,Leave home,0.0
+50,bal,4,cairo,all,Lunch,0.8082191780821918
+50,bal,4,cairo,all,Night wandering,0.8290909090909091
+50,bal,4,cairo,all,sleep,0.793465577596266
+50,bal,4,cairo,all,take medicine,0.0
+50,bal,4,cairo,all,wake,0.8813559322033898
+50,bal,4,cairo,all,work in office,0.2972972972972973
+50,bal,5,cairo,5,Bed to toilet,0.1728395061728395
+50,bal,5,cairo,5,Breakfast,0.7472365512159175
+50,bal,5,cairo,5,Dinner,0.9479212253829322
+50,bal,5,cairo,5,Laundry,0.6296296296296297
+50,bal,5,cairo,5,Leave home,0.0
+50,bal,5,cairo,5,Lunch,0.8258238063214526
+50,bal,5,cairo,5,Night wandering,0.0
+50,bal,5,cairo,5,sleep,0.815347721822542
+50,bal,5,cairo,5,take medicine,0.0
+50,bal,5,cairo,5,wake,0.8766816143497758
+50,bal,5,cairo,5,work in office,0.26
+50,bal,5,cairo,all,Bed to toilet,0.0
+50,bal,5,cairo,all,Breakfast,0.726643598615917
+50,bal,5,cairo,all,Dinner,0.9619346171070309
+50,bal,5,cairo,all,Laundry,0.7341772151898734
+50,bal,5,cairo,all,Leave home,0.0
+50,bal,5,cairo,all,Lunch,0.8218997361477572
+50,bal,5,cairo,all,Night wandering,0.8290909090909091
+50,bal,5,cairo,all,sleep,0.8036117381489842
+50,bal,5,cairo,all,take medicine,0.0
+50,bal,5,cairo,all,wake,0.8532338308457711
+50,bal,5,cairo,all,work in office,0.26
+100,bal,1,cairo,5,Bed to toilet,0.2413793103448276
+100,bal,1,cairo,5,Breakfast,0.7241647241647242
+100,bal,1,cairo,5,Dinner,0.9574370709382151
+100,bal,1,cairo,5,Laundry,0.6407766990291263
+100,bal,1,cairo,5,Leave home,0.0
+100,bal,1,cairo,5,Lunch,0.8274509803921568
+100,bal,1,cairo,5,Night wandering,0.4919786096256685
+100,bal,1,cairo,5,sleep,0.8146399055489965
+100,bal,1,cairo,5,take medicine,0.0
+100,bal,1,cairo,5,wake,0.8346456692913385
+100,bal,1,cairo,5,work in office,0.44755244755244755
+100,bal,1,cairo,all,Bed to toilet,0.0
+100,bal,1,cairo,all,Breakfast,0.7447577729573391
+100,bal,1,cairo,all,Dinner,0.9557130203720107
+100,bal,1,cairo,all,Laundry,0.7252747252747253
+100,bal,1,cairo,all,Leave home,0.0
+100,bal,1,cairo,all,Lunch,0.816382252559727
+100,bal,1,cairo,all,Night wandering,0.8290909090909091
+100,bal,1,cairo,all,sleep,0.8130277442702051
+100,bal,1,cairo,all,take medicine,0.0
+100,bal,1,cairo,all,wake,0.864
+100,bal,1,cairo,all,work in office,0.46564885496183206
+100,bal,2,cairo,5,Bed to toilet,0.2545454545454545
+100,bal,2,cairo,5,Breakfast,0.7795275590551181
+100,bal,2,cairo,5,Dinner,0.954565901934323
+100,bal,2,cairo,5,Laundry,0.8095238095238095
+100,bal,2,cairo,5,Leave home,0.0
+100,bal,2,cairo,5,Lunch,0.867515923566879
+100,bal,2,cairo,5,Night wandering,0.5284974093264249
+100,bal,2,cairo,5,sleep,0.815347721822542
+100,bal,2,cairo,5,take medicine,0.0
+100,bal,2,cairo,5,wake,0.8497041420118343
+100,bal,2,cairo,5,work in office,0.5853658536585366
+100,bal,2,cairo,all,Bed to toilet,0.0
+100,bal,2,cairo,all,Breakfast,0.7507204610951008
+100,bal,2,cairo,all,Dinner,0.9554083885209713
+100,bal,2,cairo,all,Laundry,0.8095238095238095
+100,bal,2,cairo,all,Leave home,0.0
+100,bal,2,cairo,all,Lunch,0.8214528173794976
+100,bal,2,cairo,all,Night wandering,0.8290909090909091
+100,bal,2,cairo,all,sleep,0.817625458996328
+100,bal,2,cairo,all,take medicine,0.0
+100,bal,2,cairo,all,wake,0.8853211009174312
+100,bal,2,cairo,all,work in office,0.5546875
+100,bal,3,cairo,5,Bed to toilet,0.225
+100,bal,3,cairo,5,Breakfast,0.7012987012987013
+100,bal,3,cairo,5,Dinner,0.963669391462307
+100,bal,3,cairo,5,Laundry,0.6732673267326733
+100,bal,3,cairo,5,Leave home,0.0
+100,bal,3,cairo,5,Lunch,0.8328947368421052
+100,bal,3,cairo,5,Night wandering,0.6816143497757847
+100,bal,3,cairo,5,sleep,0.8133174791914387
+100,bal,3,cairo,5,take medicine,0.0
+100,bal,3,cairo,5,wake,0.7321867321867321
+100,bal,3,cairo,5,work in office,0.4946808510638298
+100,bal,3,cairo,all,Bed to toilet,0.0
+100,bal,3,cairo,all,Breakfast,0.7279466271312083
+100,bal,3,cairo,all,Dinner,0.9588182632050134
+100,bal,3,cairo,all,Laundry,0.7906976744186046
+100,bal,3,cairo,all,Leave home,0.0
+100,bal,3,cairo,all,Lunch,0.8154158215010142
+100,bal,3,cairo,all,Night wandering,0.8290909090909091
+100,bal,3,cairo,all,sleep,0.8155339805825242
+100,bal,3,cairo,all,take medicine,0.0
+100,bal,3,cairo,all,wake,0.8662983425414365
+100,bal,3,cairo,all,work in office,0.5524475524475524
+100,bal,4,cairo,5,Bed to toilet,0.24347826086956523
+100,bal,4,cairo,5,Breakfast,0.7584683357879234
+100,bal,4,cairo,5,Dinner,0.9506564056133997
+100,bal,4,cairo,5,Laundry,0.9117647058823529
+100,bal,4,cairo,5,Leave home,0.41379310344827586
+100,bal,4,cairo,5,Lunch,0.8207547169811321
+100,bal,4,cairo,5,Night wandering,0.5
+100,bal,4,cairo,5,sleep,0.8297872340425532
+100,bal,4,cairo,5,take medicine,0.0
+100,bal,4,cairo,5,wake,0.8935185185185185
+100,bal,4,cairo,5,work in office,0.5933333333333334
+100,bal,4,cairo,all,Bed to toilet,0.0
+100,bal,4,cairo,all,Breakfast,0.755072463768116
+100,bal,4,cairo,all,Dinner,0.9536014140521432
+100,bal,4,cairo,all,Laundry,0.9117647058823529
+100,bal,4,cairo,all,Leave home,0.0
+100,bal,4,cairo,all,Lunch,0.8141711229946524
+100,bal,4,cairo,all,Night wandering,0.8290909090909091
+100,bal,4,cairo,all,sleep,0.8199052132701422
+100,bal,4,cairo,all,take medicine,0.0
+100,bal,4,cairo,all,wake,0.8883720930232558
+100,bal,4,cairo,all,work in office,0.5
+100,bal,5,cairo,5,Bed to toilet,0.18181818181818182
+100,bal,5,cairo,5,Breakfast,0.7184170471841704
+100,bal,5,cairo,5,Dinner,0.964494382022472
+100,bal,5,cairo,5,Laundry,0.7816091954022989
+100,bal,5,cairo,5,Leave home,0.3333333333333333
+100,bal,5,cairo,5,Lunch,0.8205822613405552
+100,bal,5,cairo,5,Night wandering,0.0
+100,bal,5,cairo,5,sleep,0.8065739570164349
+100,bal,5,cairo,5,take medicine,0.0
+100,bal,5,cairo,5,wake,0.7699316628701595
+100,bal,5,cairo,5,work in office,0.5440414507772021
+100,bal,5,cairo,all,Bed to toilet,0.0
+100,bal,5,cairo,all,Breakfast,0.7498197548666186
+100,bal,5,cairo,all,Dinner,0.9625
+100,bal,5,cairo,all,Laundry,0.9444444444444444
+100,bal,5,cairo,all,Leave home,0.3448275862068966
+100,bal,5,cairo,all,Lunch,0.8205822613405552
+100,bal,5,cairo,all,Night wandering,0.7940074906367042
+100,bal,5,cairo,all,sleep,0.8004722550177096
+100,bal,5,cairo,all,take medicine,0.0
+100,bal,5,cairo,all,wake,0.8832951945080092
+100,bal,5,cairo,all,work in office,0.5190839694656488
+20,kmeans,1,cairo,5,Bed to toilet,0.0
+20,kmeans,1,cairo,5,Breakfast,0.7939538583929993
+20,kmeans,1,cairo,5,Dinner,0.9534984789222077
+20,kmeans,1,cairo,5,Laundry,0.48148148148148145
+20,kmeans,1,cairo,5,Leave home,0.0
+20,kmeans,1,cairo,5,Lunch,0.896345116836429
+20,kmeans,1,cairo,5,Night wandering,0.8290909090909091
+20,kmeans,1,cairo,5,sleep,0.8140096618357487
+20,kmeans,1,cairo,5,take medicine,0.0
+20,kmeans,1,cairo,5,wake,0.8116959064327486
+20,kmeans,1,cairo,5,work in office,0.22110552763819097
+20,kmeans,1,cairo,all,Bed to toilet,0.0
+20,kmeans,1,cairo,all,Breakfast,0.7209302325581395
+20,kmeans,1,cairo,all,Dinner,0.9534984789222077
+20,kmeans,1,cairo,all,Laundry,0.48148148148148145
+20,kmeans,1,cairo,all,Leave home,0.0
+20,kmeans,1,cairo,all,Lunch,0.8032786885245902
+20,kmeans,1,cairo,all,Night wandering,0.8290909090909091
+20,kmeans,1,cairo,all,sleep,0.8140096618357487
+20,kmeans,1,cairo,all,take medicine,0.0
+20,kmeans,1,cairo,all,wake,0.8314883148831488
+20,kmeans,1,cairo,all,work in office,0.22406639004149378
+20,kmeans,2,cairo,5,Bed to toilet,0.0
+20,kmeans,2,cairo,5,Breakfast,0.7203450754852624
+20,kmeans,2,cairo,5,Dinner,0.9394069617533305
+20,kmeans,2,cairo,5,Laundry,0.0
+20,kmeans,2,cairo,5,Leave home,0.0
+20,kmeans,2,cairo,5,Lunch,0.8142948308870454
+20,kmeans,2,cairo,5,Night wandering,0.8290909090909091
+20,kmeans,2,cairo,5,sleep,0.830423940149626
+20,kmeans,2,cairo,5,take medicine,0.0
+20,kmeans,2,cairo,5,wake,0.7734668335419274
+20,kmeans,2,cairo,5,work in office,0.08333333333333333
+20,kmeans,2,cairo,all,Bed to toilet,0.0
+20,kmeans,2,cairo,all,Breakfast,0.7176308539944903
+20,kmeans,2,cairo,all,Dinner,0.9394069617533305
+20,kmeans,2,cairo,all,Laundry,0.0
+20,kmeans,2,cairo,all,Leave home,0.0
+20,kmeans,2,cairo,all,Lunch,0.796812749003984
+20,kmeans,2,cairo,all,Night wandering,0.8290909090909091
+20,kmeans,2,cairo,all,sleep,0.830423940149626
+20,kmeans,2,cairo,all,take medicine,0.0
+20,kmeans,2,cairo,all,wake,0.8554913294797688
+20,kmeans,2,cairo,all,work in office,0.05747126436781609
+20,kmeans,3,cairo,5,Bed to toilet,0.0
+20,kmeans,3,cairo,5,Breakfast,0.7607655502392344
+20,kmeans,3,cairo,5,Dinner,0.9493287137288869
+20,kmeans,3,cairo,5,Laundry,0.0
+20,kmeans,3,cairo,5,Leave home,0.0
+20,kmeans,3,cairo,5,Lunch,0.8986175115207373
+20,kmeans,3,cairo,5,Night wandering,0.8290909090909091
+20,kmeans,3,cairo,5,sleep,0.8268292682926829
+20,kmeans,3,cairo,5,take medicine,0.0
+20,kmeans,3,cairo,5,wake,0.7197802197802198
+20,kmeans,3,cairo,5,work in office,0.2078853046594982
+20,kmeans,3,cairo,all,Bed to toilet,0.0
+20,kmeans,3,cairo,all,Breakfast,0.6947368421052632
+20,kmeans,3,cairo,all,Dinner,0.9493287137288869
+20,kmeans,3,cairo,all,Laundry,0.0
+20,kmeans,3,cairo,all,Leave home,0.0
+20,kmeans,3,cairo,all,Lunch,0.7959183673469388
+20,kmeans,3,cairo,all,Night wandering,0.8290909090909091
+20,kmeans,3,cairo,all,sleep,0.8268292682926829
+20,kmeans,3,cairo,all,take medicine,0.0
+20,kmeans,3,cairo,all,wake,0.8105395232120451
+20,kmeans,3,cairo,all,work in office,0.22857142857142856
+20,kmeans,4,cairo,5,Bed to toilet,0.0
+20,kmeans,4,cairo,5,Breakfast,0.7189631650750341
+20,kmeans,4,cairo,5,Dinner,0.9624060150375939
+20,kmeans,4,cairo,5,Laundry,0.0
+20,kmeans,4,cairo,5,Leave home,0.0
+20,kmeans,4,cairo,5,Lunch,0.7986577181208053
+20,kmeans,4,cairo,5,Night wandering,0.8290909090909091
+20,kmeans,4,cairo,5,sleep,0.815668202764977
+20,kmeans,4,cairo,5,take medicine,0.0
+20,kmeans,4,cairo,5,wake,0.8484136310223267
+20,kmeans,4,cairo,5,work in office,0.15789473684210525
+20,kmeans,4,cairo,all,Bed to toilet,0.0
+20,kmeans,4,cairo,all,Breakfast,0.7189631650750341
+20,kmeans,4,cairo,all,Dinner,0.9624060150375939
+20,kmeans,4,cairo,all,Laundry,0.0
+20,kmeans,4,cairo,all,Leave home,0.0
+20,kmeans,4,cairo,all,Lunch,0.7986577181208053
+20,kmeans,4,cairo,all,Night wandering,0.8290909090909091
+20,kmeans,4,cairo,all,sleep,0.815668202764977
+20,kmeans,4,cairo,all,take medicine,0.0
+20,kmeans,4,cairo,all,wake,0.8426150121065376
+20,kmeans,4,cairo,all,work in office,0.18604651162790697
+20,kmeans,5,cairo,5,Bed to toilet,0.0
+20,kmeans,5,cairo,5,Breakfast,0.6998616874135546
+20,kmeans,5,cairo,5,Dinner,0.9484625378951927
+20,kmeans,5,cairo,5,Laundry,0.0
+20,kmeans,5,cairo,5,Leave home,0.0
+20,kmeans,5,cairo,5,Lunch,0.8185985592665357
+20,kmeans,5,cairo,5,Night wandering,0.8290909090909091
+20,kmeans,5,cairo,5,sleep,0.8195121951219512
+20,kmeans,5,cairo,5,take medicine,0.0
+20,kmeans,5,cairo,5,wake,0.7083333333333334
+20,kmeans,5,cairo,5,work in office,0.19078947368421054
+20,kmeans,5,cairo,all,Bed to toilet,0.0
+20,kmeans,5,cairo,all,Breakfast,0.6982872200263505
+20,kmeans,5,cairo,all,Dinner,0.9484625378951927
+20,kmeans,5,cairo,all,Laundry,0.2608695652173913
+20,kmeans,5,cairo,all,Leave home,0.0
+20,kmeans,5,cairo,all,Lunch,0.7972508591065293
+20,kmeans,5,cairo,all,Night wandering,0.8290909090909091
+20,kmeans,5,cairo,all,sleep,0.8195121951219512
+20,kmeans,5,cairo,all,take medicine,0.0
+20,kmeans,5,cairo,all,wake,0.7884856070087609
+20,kmeans,5,cairo,all,work in office,0.011764705882352941
+50,kmeans,1,cairo,5,Bed to toilet,0.0
+50,kmeans,1,cairo,5,Breakfast,0.7570370370370371
+50,kmeans,1,cairo,5,Dinner,0.9518019973947026
+50,kmeans,1,cairo,5,Laundry,0.52
+50,kmeans,1,cairo,5,Leave home,0.0
+50,kmeans,1,cairo,5,Lunch,0.8558673469387755
+50,kmeans,1,cairo,5,Night wandering,0.8161764705882353
+50,kmeans,1,cairo,5,sleep,0.8072727272727273
+50,kmeans,1,cairo,5,take medicine,0.0
+50,kmeans,1,cairo,5,wake,0.8347406513872135
+50,kmeans,1,cairo,5,work in office,0.25316455696202533
+50,kmeans,1,cairo,all,Bed to toilet,0.0
+50,kmeans,1,cairo,all,Breakfast,0.737062937062937
+50,kmeans,1,cairo,all,Dinner,0.9518019973947026
+50,kmeans,1,cairo,all,Laundry,0.52
+50,kmeans,1,cairo,all,Leave home,0.0
+50,kmeans,1,cairo,all,Lunch,0.8198924731182796
+50,kmeans,1,cairo,all,Night wandering,0.8161764705882353
+50,kmeans,1,cairo,all,sleep,0.8072727272727273
+50,kmeans,1,cairo,all,take medicine,0.0
+50,kmeans,1,cairo,all,wake,0.8520710059171598
+50,kmeans,1,cairo,all,work in office,0.25339366515837103
+50,kmeans,2,cairo,5,Bed to toilet,0.3111111111111111
+50,kmeans,2,cairo,5,Breakfast,0.7670196671709532
+50,kmeans,2,cairo,5,Dinner,0.9551451187335093
+50,kmeans,2,cairo,5,Laundry,0.5098039215686274
+50,kmeans,2,cairo,5,Leave home,0.0
+50,kmeans,2,cairo,5,Lunch,0.8600508905852418
+50,kmeans,2,cairo,5,Night wandering,0.6823529411764706
+50,kmeans,2,cairo,5,sleep,0.8167281672816729
+50,kmeans,2,cairo,5,take medicine,0.0
+50,kmeans,2,cairo,5,wake,0.8199767711962834
+50,kmeans,2,cairo,5,work in office,0.2631578947368421
+50,kmeans,2,cairo,all,Bed to toilet,0.0
+50,kmeans,2,cairo,all,Breakfast,0.7346368715083799
+50,kmeans,2,cairo,all,Dinner,0.9537117903930131
+50,kmeans,2,cairo,all,Laundry,0.810126582278481
+50,kmeans,2,cairo,all,Leave home,0.0
+50,kmeans,2,cairo,all,Lunch,0.8057455540355677
+50,kmeans,2,cairo,all,Night wandering,0.8290909090909091
+50,kmeans,2,cairo,all,sleep,0.8104886769964244
+50,kmeans,2,cairo,all,take medicine,0.0
+50,kmeans,2,cairo,all,wake,0.8672150411280846
+50,kmeans,2,cairo,all,work in office,0.2761904761904762
+50,kmeans,3,cairo,5,Bed to toilet,0.0
+50,kmeans,3,cairo,5,Breakfast,0.7794508414526129
+50,kmeans,3,cairo,5,Dinner,0.9559144478393714
+50,kmeans,3,cairo,5,Laundry,0.52
+50,kmeans,3,cairo,5,Leave home,0.0
+50,kmeans,3,cairo,5,Lunch,0.9039226833428085
+50,kmeans,3,cairo,5,Night wandering,0.8161764705882353
+50,kmeans,3,cairo,5,sleep,0.8090692124105012
+50,kmeans,3,cairo,5,take medicine,0.0
+50,kmeans,3,cairo,5,wake,0.7990762124711316
+50,kmeans,3,cairo,5,work in office,0.28695652173913044
+50,kmeans,3,cairo,all,Bed to toilet,0.0
+50,kmeans,3,cairo,all,Breakfast,0.7155465037338764
+50,kmeans,3,cairo,all,Dinner,0.9559144478393714
+50,kmeans,3,cairo,all,Laundry,0.52
+50,kmeans,3,cairo,all,Leave home,0.0
+50,kmeans,3,cairo,all,Lunch,0.810663021189337
+50,kmeans,3,cairo,all,Night wandering,0.8161764705882353
+50,kmeans,3,cairo,all,sleep,0.8090692124105012
+50,kmeans,3,cairo,all,take medicine,0.0
+50,kmeans,3,cairo,all,wake,0.8387096774193549
+50,kmeans,3,cairo,all,work in office,0.2938388625592417
+50,kmeans,4,cairo,5,Bed to toilet,0.0
+50,kmeans,4,cairo,5,Breakfast,0.7171929824561404
+50,kmeans,4,cairo,5,Dinner,0.9592111160914388
+50,kmeans,4,cairo,5,Laundry,0.49056603773584906
+50,kmeans,4,cairo,5,Leave home,0.0
+50,kmeans,4,cairo,5,Lunch,0.7986440677966101
+50,kmeans,4,cairo,5,Night wandering,0.8161764705882353
+50,kmeans,4,cairo,5,sleep,0.8164705882352942
+50,kmeans,4,cairo,5,take medicine,0.0
+50,kmeans,4,cairo,5,wake,0.8538283062645011
+50,kmeans,4,cairo,5,work in office,0.3595505617977528
+50,kmeans,4,cairo,all,Bed to toilet,0.0
+50,kmeans,4,cairo,all,Breakfast,0.7189003436426117
+50,kmeans,4,cairo,all,Dinner,0.9547650417215635
+50,kmeans,4,cairo,all,Laundry,0.49056603773584906
+50,kmeans,4,cairo,all,Leave home,0.0
+50,kmeans,4,cairo,all,Lunch,0.8125
+50,kmeans,4,cairo,all,Night wandering,0.8161764705882353
+50,kmeans,4,cairo,all,sleep,0.8164705882352942
+50,kmeans,4,cairo,all,take medicine,0.0
+50,kmeans,4,cairo,all,wake,0.8436018957345972
+50,kmeans,4,cairo,all,work in office,0.27358490566037735
+50,kmeans,5,cairo,5,Bed to toilet,0.0
+50,kmeans,5,cairo,5,Breakfast,0.7964884277733439
+50,kmeans,5,cairo,5,Dinner,0.9508481948673336
+50,kmeans,5,cairo,5,Laundry,0.88
+50,kmeans,5,cairo,5,Leave home,0.0
+50,kmeans,5,cairo,5,Lunch,0.8891580860084797
+50,kmeans,5,cairo,5,Night wandering,0.8090614886731392
+50,kmeans,5,cairo,5,sleep,0.803030303030303
+50,kmeans,5,cairo,5,take medicine,0.0
+50,kmeans,5,cairo,5,wake,0.8427370948379351
+50,kmeans,5,cairo,5,work in office,0.27802690582959644
+50,kmeans,5,cairo,all,Bed to toilet,0.0
+50,kmeans,5,cairo,all,Breakfast,0.7402689313517339
+50,kmeans,5,cairo,all,Dinner,0.9508481948673336
+50,kmeans,5,cairo,all,Laundry,0.88
+50,kmeans,5,cairo,all,Leave home,0.0
+50,kmeans,5,cairo,all,Lunch,0.8195841716968477
+50,kmeans,5,cairo,all,Night wandering,0.8161764705882353
+50,kmeans,5,cairo,all,sleep,0.8033775633293124
+50,kmeans,5,cairo,all,take medicine,0.0
+50,kmeans,5,cairo,all,wake,0.8598351001177856
+50,kmeans,5,cairo,all,work in office,0.28019323671497587
+20,none,1,cairo,5,Bed to toilet,0.0
+20,none,1,cairo,5,Breakfast,0.26740947075208915
+20,none,1,cairo,5,Dinner,0.39768339768339767
+20,none,1,cairo,5,Laundry,0.6016260162601627
+20,none,1,cairo,5,Leave home,0.0
+20,none,1,cairo,5,Lunch,0.28592057761732853
+20,none,1,cairo,5,Night wandering,0.0
+20,none,1,cairo,5,sleep,0.5273200346921075
+20,none,1,cairo,5,take medicine,0.0
+20,none,1,cairo,5,wake,0.28495339547270304
+20,none,1,cairo,5,work in office,0.4880636604774536
+20,none,1,cairo,all,Bed to toilet,0.0
+20,none,1,cairo,all,Breakfast,0.3016759776536313
+20,none,1,cairo,all,Dinner,0.5124732715609408
+20,none,1,cairo,all,Laundry,0.6016260162601627
+20,none,1,cairo,all,Leave home,0.0
+20,none,1,cairo,all,Lunch,0.14035087719298245
+20,none,1,cairo,all,Night wandering,0.36363636363636365
+20,none,1,cairo,all,sleep,0.43800322061191627
+20,none,1,cairo,all,take medicine,0.0
+20,none,1,cairo,all,wake,0.5956607495069034
+20,none,1,cairo,all,work in office,0.4880636604774536
+20,none,2,cairo,5,Bed to toilet,0.0
+20,none,2,cairo,5,Breakfast,0.35241502683363146
+20,none,2,cairo,5,Dinner,0.5670604586518415
+20,none,2,cairo,5,Laundry,0.6166666666666667
+20,none,2,cairo,5,Leave home,0.0
+20,none,2,cairo,5,Lunch,0.14930875576036867
+20,none,2,cairo,5,Night wandering,0.0
+20,none,2,cairo,5,sleep,0.5724508050089445
+20,none,2,cairo,5,take medicine,0.0
+20,none,2,cairo,5,wake,0.4444444444444444
+20,none,2,cairo,5,work in office,0.45482866043613707
+20,none,2,cairo,all,Bed to toilet,0.0
+20,none,2,cairo,all,Breakfast,0.39526184538653364
+20,none,2,cairo,all,Dinner,0.524390243902439
+20,none,2,cairo,all,Laundry,0.6166666666666667
+20,none,2,cairo,all,Leave home,0.0
+20,none,2,cairo,all,Lunch,0.0
+20,none,2,cairo,all,Night wandering,0.35471698113207545
+20,none,2,cairo,all,sleep,0.41068447412353926
+20,none,2,cairo,all,take medicine,0.0
+20,none,2,cairo,all,wake,0.5988593155893536
+20,none,2,cairo,all,work in office,0.45482866043613707
+20,none,3,cairo,5,Bed to toilet,0.0
+20,none,3,cairo,5,Breakfast,0.3616557734204793
+20,none,3,cairo,5,Dinner,0.581629116117851
+20,none,3,cairo,5,Laundry,0.556390977443609
+20,none,3,cairo,5,Leave home,0.0
+20,none,3,cairo,5,Lunch,0.18912529550827423
+20,none,3,cairo,5,Night wandering,0.367816091954023
+20,none,3,cairo,5,sleep,0.6941323345817728
+20,none,3,cairo,5,take medicine,0.0
+20,none,3,cairo,5,wake,0.7692307692307693
+20,none,3,cairo,5,work in office,0.6193181818181818
+20,none,3,cairo,all,Bed to toilet,0.0
+20,none,3,cairo,all,Breakfast,0.44065040650406506
+20,none,3,cairo,all,Dinner,0.5989565217391304
+20,none,3,cairo,all,Laundry,0.556390977443609
+20,none,3,cairo,all,Leave home,0.0
+20,none,3,cairo,all,Lunch,0.12409513960703206
+20,none,3,cairo,all,Night wandering,0.367816091954023
+20,none,3,cairo,all,sleep,0.6941323345817728
+20,none,3,cairo,all,take medicine,0.0
+20,none,3,cairo,all,wake,0.7692307692307693
+20,none,3,cairo,all,work in office,0.6193181818181818
+20,none,4,cairo,5,Bed to toilet,0.0
+20,none,4,cairo,5,Breakfast,0.20245398773006135
+20,none,4,cairo,5,Dinner,0.5067328136073707
+20,none,4,cairo,5,Laundry,0.6218487394957983
+20,none,4,cairo,5,Leave home,0.0
+20,none,4,cairo,5,Lunch,0.1998166819431714
+20,none,4,cairo,5,Night wandering,0.0
+20,none,4,cairo,5,sleep,0.5147058823529411
+20,none,4,cairo,5,take medicine,0.0
+20,none,4,cairo,5,wake,0.6220338983050847
+20,none,4,cairo,5,work in office,0.43986254295532645
+20,none,4,cairo,all,Bed to toilet,0.0
+20,none,4,cairo,all,Breakfast,0.3265625
+20,none,4,cairo,all,Dinner,0.5381372173246455
+20,none,4,cairo,all,Laundry,0.6218487394957983
+20,none,4,cairo,all,Leave home,0.0
+20,none,4,cairo,all,Lunch,0.1998166819431714
+20,none,4,cairo,all,Night wandering,0.0
+20,none,4,cairo,all,sleep,0.5147058823529411
+20,none,4,cairo,all,take medicine,0.0
+20,none,4,cairo,all,wake,0.7161484453360081
+20,none,4,cairo,all,work in office,0.4727272727272727
+20,none,5,cairo,5,Bed to toilet,0.0
+20,none,5,cairo,5,Breakfast,0.2532188841201717
+20,none,5,cairo,5,Dinner,0.49149024491490245
+20,none,5,cairo,5,Laundry,0.6016260162601627
+20,none,5,cairo,5,Leave home,0.0
+20,none,5,cairo,5,Lunch,0.24581005586592178
+20,none,5,cairo,5,Night wandering,0.3295880149812734
+20,none,5,cairo,5,sleep,0.7107623318385651
+20,none,5,cairo,5,take medicine,0.0
+20,none,5,cairo,5,wake,0.7746650426309378
+20,none,5,cairo,5,work in office,0.509090909090909
+20,none,5,cairo,all,Bed to toilet,0.0
+20,none,5,cairo,all,Breakfast,0.35237439779766
+20,none,5,cairo,all,Dinner,0.5235562310030395
+20,none,5,cairo,all,Laundry,0.6016260162601627
+20,none,5,cairo,all,Leave home,0.0
+20,none,5,cairo,all,Lunch,0.12307692307692308
+20,none,5,cairo,all,Night wandering,0.3295880149812734
+20,none,5,cairo,all,sleep,0.7107623318385651
+20,none,5,cairo,all,take medicine,0.0
+20,none,5,cairo,all,wake,0.7746650426309378
+20,none,5,cairo,all,work in office,0.509090909090909
+50,none,1,cairo,5,Bed to toilet,0.20437956204379562
+50,none,1,cairo,5,Breakfast,0.5337569499602859
+50,none,1,cairo,5,Dinner,0.7386185243328101
+50,none,1,cairo,5,Laundry,0.9487179487179487
+50,none,1,cairo,5,Leave home,0.0
+50,none,1,cairo,5,Lunch,0.33869731800766284
+50,none,1,cairo,5,Night wandering,0.11764705882352941
+50,none,1,cairo,5,sleep,0.6204379562043796
+50,none,1,cairo,5,take medicine,0.0
+50,none,1,cairo,5,wake,0.5342281879194631
+50,none,1,cairo,5,work in office,0.5671641791044776
+50,none,1,cairo,all,Bed to toilet,0.0
+50,none,1,cairo,all,Breakfast,0.6393762183235867
+50,none,1,cairo,all,Dinner,0.7484276729559748
+50,none,1,cairo,all,Laundry,0.9487179487179487
+50,none,1,cairo,all,Leave home,0.0
+50,none,1,cairo,all,Lunch,0.2766355140186916
+50,none,1,cairo,all,Night wandering,0.672
+50,none,1,cairo,all,sleep,0.6347724620770129
+50,none,1,cairo,all,take medicine,0.0
+50,none,1,cairo,all,wake,0.642691415313225
+50,none,1,cairo,all,work in office,0.42857142857142855
+50,none,2,cairo,5,Bed to toilet,0.22580645161290322
+50,none,2,cairo,5,Breakfast,0.7466467958271237
+50,none,2,cairo,5,Dinner,0.9103568320278503
+50,none,2,cairo,5,Laundry,0.8604651162790697
+50,none,2,cairo,5,Leave home,0.0
+50,none,2,cairo,5,Lunch,0.7352112676056338
+50,none,2,cairo,5,Night wandering,0.49056603773584906
+50,none,2,cairo,5,sleep,0.42474916387959866
+50,none,2,cairo,5,take medicine,0.0
+50,none,2,cairo,5,wake,0.7722772277227723
+50,none,2,cairo,5,work in office,0.5042492917847026
+50,none,2,cairo,all,Bed to toilet,0.0
+50,none,2,cairo,all,Breakfast,0.7589900535577658
+50,none,2,cairo,all,Dinner,0.9067357512953368
+50,none,2,cairo,all,Laundry,0.8604651162790697
+50,none,2,cairo,all,Leave home,0.0
+50,none,2,cairo,all,Lunch,0.7410894418291862
+50,none,2,cairo,all,Night wandering,0.49056603773584906
+50,none,2,cairo,all,sleep,0.6831460674157304
+50,none,2,cairo,all,take medicine,0.0
+50,none,2,cairo,all,wake,0.778149386845039
+50,none,2,cairo,all,work in office,0.4279835390946502
+50,none,3,cairo,5,Bed to toilet,0.20437956204379562
+50,none,3,cairo,5,Breakfast,0.4752475247524752
+50,none,3,cairo,5,Dinner,0.871358135365307
+50,none,3,cairo,5,Laundry,0.925
+50,none,3,cairo,5,Leave home,0.0
+50,none,3,cairo,5,Lunch,0.7317073170731707
+50,none,3,cairo,5,Night wandering,0.5145631067961165
+50,none,3,cairo,5,sleep,0.5374045801526718
+50,none,3,cairo,5,take medicine,0.0
+50,none,3,cairo,5,wake,0.6920877025738799
+50,none,3,cairo,5,work in office,0.5225806451612903
+50,none,3,cairo,all,Bed to toilet,0.0
+50,none,3,cairo,all,Breakfast,0.6234522942461762
+50,none,3,cairo,all,Dinner,0.8655126498002663
+50,none,3,cairo,all,Laundry,0.925
+50,none,3,cairo,all,Leave home,0.0
+50,none,3,cairo,all,Lunch,0.7261744966442953
+50,none,3,cairo,all,Night wandering,0.5145631067961165
+50,none,3,cairo,all,sleep,0.6770186335403726
+50,none,3,cairo,all,take medicine,0.0
+50,none,3,cairo,all,wake,0.7990654205607477
+50,none,3,cairo,all,work in office,0.3644859813084112
+50,none,4,cairo,5,Bed to toilet,0.11504424778761062
+50,none,4,cairo,5,Breakfast,0.4316981132075472
+50,none,4,cairo,5,Dinner,0.6887417218543046
+50,none,4,cairo,5,Laundry,0.7659574468085106
+50,none,4,cairo,5,Leave home,0.0
+50,none,4,cairo,5,Lunch,0.56
+50,none,4,cairo,5,Night wandering,0.754863813229572
+50,none,4,cairo,5,sleep,0.6581560283687943
+50,none,4,cairo,5,take medicine,0.0
+50,none,4,cairo,5,wake,0.685
+50,none,4,cairo,5,work in office,0.5974842767295597
+50,none,4,cairo,all,Bed to toilet,0.0
+50,none,4,cairo,all,Breakfast,0.4163623082542001
+50,none,4,cairo,all,Dinner,0.6913094769956744
+50,none,4,cairo,all,Laundry,0.7659574468085106
+50,none,4,cairo,all,Leave home,0.0
+50,none,4,cairo,all,Lunch,0.45129059117402165
+50,none,4,cairo,all,Night wandering,0.754863813229572
+50,none,4,cairo,all,sleep,0.6510989010989011
+50,none,4,cairo,all,take medicine,0.0
+50,none,4,cairo,all,wake,0.7094188376753507
+50,none,4,cairo,all,work in office,0.47580645161290325
+50,none,5,cairo,5,Bed to toilet,0.0
+50,none,5,cairo,5,Breakfast,0.604225352112676
+50,none,5,cairo,5,Dinner,0.847210994341148
+50,none,5,cairo,5,Laundry,0.925
+50,none,5,cairo,5,Leave home,0.0
+50,none,5,cairo,5,Lunch,0.5921875
+50,none,5,cairo,5,Night wandering,0.47533632286995514
+50,none,5,cairo,5,sleep,0.7710219922380336
+50,none,5,cairo,5,take medicine,0.0
+50,none,5,cairo,5,wake,0.7147688838782412
+50,none,5,cairo,5,work in office,0.5980066445182725
+50,none,5,cairo,all,Bed to toilet,0.0
+50,none,5,cairo,all,Breakfast,0.6883942766295708
+50,none,5,cairo,all,Dinner,0.849048968029138
+50,none,5,cairo,all,Laundry,0.925
+50,none,5,cairo,all,Leave home,0.0
+50,none,5,cairo,all,Lunch,0.6798307475317349
+50,none,5,cairo,all,Night wandering,0.47619047619047616
+50,none,5,cairo,all,sleep,0.763681592039801
+50,none,5,cairo,all,take medicine,0.0
+50,none,5,cairo,all,wake,0.7147688838782412
+50,none,5,cairo,all,work in office,0.4967741935483871

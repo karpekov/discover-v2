@@ -1,0 +1,45 @@
+\documentclass[acmsmall, review, anonymous=false]{acmart}
+\usepackage{booktabs}\usepackage{subcaption}
+\newcommand{\ToolName}{DISCOVER}
+\newcommand{\sd}[1]{{\color{gray}\scriptsize\,[#1]}}
+\newcommand{\sdrow}[1]{{\color{gray}\tiny[#1]}}
+\definecolor{dltgreen}{RGB}{0, 135, 60}
+\definecolor{dltred}{RGB}{200, 30, 30}
+\newcommand{\dltpos}[2]{{\footnotesize\color{dltgreen}#1\textsuperscript{\,#2}}}
+\newcommand{\dltneg}[2]{{\footnotesize\color{dltred}$-$#1\textsuperscript{\,#2}}}
+\newcommand{\dltzero}[2]{{\footnotesize\color{gray}0.00\textsuperscript{\,#2}}}
+\settopmatter{printacmref=false}\setcopyright{none}
+\begin{document}
+\title{Table 4 preview: split by metric, houses as columns}
+\maketitle
+
+\begin{table}[h]
+\centering\small\setlength{\tabcolsep}{2.6pt}
+\begin{subtable}{\linewidth}\centering
+\input{stacked_sd/main_comparison_weighted}
+\caption{Weighted F1 ($F1_W$)}
+\end{subtable}
+
+\vspace{0.8em}
+\begin{subtable}{\linewidth}\centering
+\input{stacked_sd/main_comparison_macro}
+\caption{Macro F1 ($F1_M$)}
+\end{subtable}
+\caption{\textbf{Variant A: seed std on a small line below each value.} Benchmarking \ToolName{} against SoTA fully-supervised baselines at matched label budgets (house-specific activity labels, mean over five seeds). Columns: number of activity labels (100 and 250: $K{=}20$ and $K{=}50$ clusters with $m{=}5$ labelled representatives each; all: every training window of $K{=}50$ clusters labelled). Bold: best per column. $\Delta$: \ToolName{} minus the best supervised baseline (green: \ToolName{} better, red: worse; ${}^{*}p<0.05$, ${}^{**}p<0.01$, ${}^{***}p<0.001$, paired day-level bootstrap).}
+\end{table}
+\clearpage
+\begin{table}[h]
+\centering\small\setlength{\tabcolsep}{2.6pt}
+\begin{subtable}{\linewidth}\centering
+\input{no_sd/main_comparison_weighted}
+\caption{Weighted F1 ($F1_W$)}
+\end{subtable}
+
+\vspace{0.8em}
+\begin{subtable}{\linewidth}\centering
+\input{no_sd/main_comparison_macro}
+\caption{Macro F1 ($F1_M$)}
+\end{subtable}
+\caption{\textbf{Variant B: no seed std (std stays in the appendix per-house table).} Benchmarking \ToolName{} against SoTA fully-supervised baselines at matched label budgets (house-specific activity labels, mean over five seeds). Columns: number of activity labels (100 and 250: $K{=}20$ and $K{=}50$ clusters with $m{=}5$ labelled representatives each; all: every training window of $K{=}50$ clusters labelled). Bold: best per column. $\Delta$: \ToolName{} minus the best supervised baseline (green: \ToolName{} better, red: worse; ${}^{*}p<0.05$, ${}^{**}p<0.01$, ${}^{***}p<0.001$, paired day-level bootstrap).}
+\end{table}
+\end{document}

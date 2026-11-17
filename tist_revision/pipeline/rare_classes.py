@@ -27,9 +27,9 @@ from sklearn.metrics import f1_score
 from sklearn.preprocessing import normalize
 
 from .histogram_baselines import FEATURE_COLUMNS, build_features
-from .mapping_eval import ARTIFACTS_DIR, EXCLUDED_LABELS, RESULTS_DIR, UNMAPPED, load_protocol
+from .mapping_eval import ARTIFACTS_DIR, EXCLUDED_LABELS, TEMP_DIR, UNMAPPED, load_protocol
 
-OUT = RESULTS_DIR / 'rare_classes'
+OUT = TEMP_DIR / 'rare_classes'
 
 
 def representations(city, fit, pool, test, names):

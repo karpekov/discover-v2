@@ -25,10 +25,10 @@ from sklearn.manifold import TSNE  # noqa: E402
 from sklearn.metrics import f1_score  # noqa: E402
 
 from .histogram_baselines import FEATURE_COLUMNS, build_features  # noqa: E402
-from .mapping_eval import (ARTIFACTS_DIR, EXCLUDED_LABELS, RESULTS_DIR, UNMAPPED, load_protocol,  # noqa: E402
+from .mapping_eval import (ARTIFACTS_DIR, EXCLUDED_LABELS, TEMP_DIR, UNMAPPED, load_protocol,  # noqa: E402
                            map_clusters)
 
-FIG_DIR = RESULTS_DIR / 'figures'
+FIG_DIR = TEMP_DIR / 'figures'
 DEFAULT_METHODS = ('hist_sensor__kmeans_k20', 'hist_sensor_tod__kmeans_k20', 'mlm__kmeans_k20', 'scan_enc__scan_head')
 TSNE_REPRESENTATIONS = ('hist_sensor', 'hist_sensor_tod', 'mlm', 'scan_enc')
 

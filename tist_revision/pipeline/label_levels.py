@@ -19,11 +19,11 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 
-from .mapping_eval import (ARTIFACTS_DIR, MIN_POOL, MIN_TEST, RESULTS_DIR, evaluate_clustering, load_protocol,
+from .mapping_eval import (ARTIFACTS_DIR, MIN_POOL, MIN_TEST, TEMP_DIR, evaluate_clustering, load_protocol,
                            save_assignments, scored_classes)
 from .rare_classes import representations
 
-OUT = RESULTS_DIR / 'label_levels'
+OUT = TEMP_DIR / 'label_levels'
 FROZEN = re.compile(r'^(?P<city>[a-z]+)__(?P<rep>[\w+]+)__(?P<method>scan|dec)_k(?P<K>\d+)$')
 
 

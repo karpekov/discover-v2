@@ -19,11 +19,11 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from .mapping_eval import EXCLUDED_LABELS, RESULTS_DIR, _scores, load_protocol, predict_activity, scored_classes
+from .mapping_eval import EXCLUDED_LABELS, TEMP_DIR, _scores, load_protocol, predict_activity, scored_classes
 from ..baselines.data import budget_indices
 from .rare_classes import representations
 
-OUT = RESULTS_DIR / 'probes'
+OUT = TEMP_DIR / 'probes'
 
 
 def main():
