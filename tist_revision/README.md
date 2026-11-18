@@ -118,6 +118,17 @@ Throttle `%10`; `gpu:1` + exclude 2080 Ti/Titan X (lands on a40/l40s/rtx_6000/a5
 - **Section 3 (Alex, 2026-11-17):** describes the revised pipeline as the method (small transformer from scratch,
   time-of-day histogram, frozen encoder + SCAN head with balanced ToD weighting), minimal edits to v1 text, with
   pointers to `app:design/repr/clustering/kmeans/k_m`. Section 5 (annotation study on v1 BERT clusters) left as is.
+  Section 3 stays general (embed, neighbours, cluster, annotate); architecture and hyperparameters live in
+  Section 4.3 "Implementation Details" (Alex, 2026-11-17).
+- **Section 4.1 datasets (Alex, 2026-11-17):** two paragraphs + short summary table
+  (`report_final.dataset_tables` → `tables/dataset_summary.tex`); the full L2/L1 window distribution
+  (`tables/label_distribution.tex`) is in the appendix (`app:data`). Counts are over the protocol's windows
+  (continuous training, pre-segmented test), not raw events; Milan has 62 usable days (10 days of temperature only).
+- **Section 4 review (Alex, 2026-11-17):** taxonomy subsection moved to Section 5 (before the annotation protocol);
+  training settings in `app:training` (`discover-v1/tables/training_details.tex`, hand-written from the
+  `*_nocoord_mlm_time` configs and `frozen_deep.py`); test-window construction in `app:protocol`.
+  **Open:** the Section 5 annotation study still uses v1 (BERT + fine-tuned SCAN) clusters while Sections 4.3/5
+  describe the revised pipeline; Alex plans to redo the study on the new clusters.
 - **No_Activity is never predicted on test** (as in the paper, whose test set has no No_Activity). It stays a
   training / annotation label. Clustering: the annotator skips No_Activity windows when labelling a cluster
   (`map_clusters`). Probes and baselines: argmax over non-No_Activity classes (`mapping_eval.predict_activity`).
