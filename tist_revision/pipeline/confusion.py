@@ -3,7 +3,7 @@ Confusion matrices and per-class F1 for the main methods (L1, continuous FL_20 p
 
 Methods: DISCOVER = SCAN on TF+ToD (balanced ToD weighting), k-means on TF+ToD (K=50), linear probe on TF+ToD, TDOST.
 Budgets: ≈250 labels (K=50 m=5 / 250 random activity labels) and all labels (K=50 m=all / all windows).
-Each matrix pools the predictions of all 5 seeds; rows are normalised (recall). Classes marked * are excluded
+Each matrix pools the predictions of all 5 seeds; rows are normalized (recall). Classes marked * are excluded
 from the masked macro F1 (too rare in pool or test).
 
 Writes `results/final/confusion/{confusion_matrices.pdf, <city>_<budget>.png, <city>_per_class_f1.png,
@@ -131,7 +131,7 @@ def main():
                     m = np.mean([f1_score(y, p, labels=masked, average='macro', zero_division=0) for y, p in runs])
                     draw(ax, confusion(runs, rows, cols), rows, cols, masked,
                          f'{method}\nweighted F1 {w:.2f} · masked macro F1 {m:.2f}')
-                fig.suptitle(f'{city.capitalize()} — L1, {btitle}\nrow-normalised recall (%), 5 seeds pooled; '
+                fig.suptitle(f'{city.capitalize()} — L1, {btitle}\nrow-normalized recall (%), 5 seeds pooled; '
                              f'(n) = test windows per seed; * = rare class, not in masked macro F1', fontsize=11)
                 fig.tight_layout(rect=(0, 0, 1, 0.95))
                 pdf.savefig(fig)

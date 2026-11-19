@@ -1,0 +1,22 @@
+---
+description: Use American English spelling in all written text (paper, response letter, figure/table strings, docs)
+alwaysApply: true
+---
+
+# American English spelling
+
+All prose uses American spelling: the paper (`discover-v1/`), the response letter and tracker
+(`OTHER/discover-v1-tist-reviews/`), text that generators print into tables and figures
+(`tist_revision/pipeline/*.py`), and docs.
+
+| ❌ British | ✅ American |
+|---|---|
+| neighbour, behaviour, colour, favour | neighbor, behavior, color, favor |
+| labelled, labelling, unlabelled, modelled, modelling | labeled, labeling, unlabeled, modeled, modeling |
+| standardise(d), normalise(d), initialise(d), optimise(r), minimise, maximise, summarise, harmonise, tokenisation | standardize(d), normalize(d), initialize(d), optimize(r), minimize, maximize, summarize, harmonize, tokenization |
+| analyse (verb), centre, grey | analyze, center, gray |
+
+Notes:
+- "analyses" as the plural noun is correct; keep it.
+- Don't rename code identifiers, file names or CSV columns just for spelling; fix only user-facing text.
+- Text quoted from reviewers stays as written.

@@ -246,7 +246,7 @@ def clustering_blocks(summary, level, variant, m):
             rows.append((METHOD_NAMES[method], REP_NAMES.get(rep, rep), city_row(sub)))
         labels = K * (int(m) if m != 'all' else 0)
         header = (f'$K = {K}$ clusters ({labels} labels)' if m != 'all'
-                  else f'$K = {K}$ clusters (all labelled windows vote)')
+                  else f'$K = {K}$ clusters (all labeled windows vote)')
         yield header, rows
 
 
@@ -897,7 +897,7 @@ def label_efficiency_svg(curves):
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
            f'font-family="{FIG_FONT}">', f'<rect width="{width}" height="{height}" fill="#ffffff"/>',
            f'<text x="{width / 2}" y="24" font-size="16" font-weight="500" text-anchor="middle" fill="#0f172a">'
-           'DISCOVER vs. Supervised Baselines at Varying Labelling Budgets</text>']
+           'DISCOVER vs. Supervised Baselines at Varying Labeling Budgets</text>']
     for i, (title, metric) in enumerate(panels):
         x0 = ml + i * (pw + gap)
         lo = min((m - s).min() for (mt_, _), (m, s) in curves.items() if mt_ == metric)
@@ -920,7 +920,7 @@ def label_efficiency_svg(curves):
                    f'<line x1="{bx - 7}" y1="{by + 5}" x2="{bx - 1}" y2="{by - 5}" stroke="#334155" stroke-width="1.1"/>'
                    f'<line x1="{bx + 1}" y1="{by + 5}" x2="{bx + 7}" y2="{by - 5}" stroke="#334155" stroke-width="1.1"/>')
         out.append(f'<text x="{x0 + pw / 2}" y="{mt + ph + 38}" font-size="12.5" text-anchor="middle" fill="#64748b">'
-                   'Labelled windows per house</text>')
+                   'Labeled windows per house</text>')
         for name in list(FIG_SERIES)[::-1]:
             color, alpha, lw, dash = FIG_SERIES[name]
             m, s = curves[metric, name]
