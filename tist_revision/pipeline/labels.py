@@ -7,7 +7,7 @@ Keys are normalised raw (l1) names: lower-case, spaces -> underscores.
 """
 
 TDOST_CLASSES = ('Other', 'Relax', 'Cook', 'Leave_Home', 'Enter_Home', 'Sleep', 'Eat', 'Work',
-                 'Bed_to_Toilet', 'Bathing', 'Take_Medicine')
+                 'Bed_to_Toilet', 'Bathing', 'Take_Medicine', 'Personal_Hygiene')
 
 _RAW_TO_TDOST = {
     # Milan
@@ -28,6 +28,12 @@ _RAW_TO_TDOST = {
     'r1_wake': 'Other', 'r2_wake': 'Other', 'night_wandering': 'Other',
     'r1_work_in_office': 'Work', 'laundry': 'Work',
     'r2_take_medicine': 'Take_Medicine', 'r2_take_meds': 'Take_Medicine',
+    # Kyoto7 / twor.2009 (TDOST keeps Personal_Hygiene as its own class); with and without the resident id
+    'clean': 'Work', 'study': 'Other', 'wash_bathtub': 'Other',
+    'personal_hygiene': 'Personal_Hygiene', 'r1_personal_hygiene': 'Personal_Hygiene',
+    'r2_personal_hygiene': 'Personal_Hygiene',
+    'r1_bed_to_toilet': 'Bed_to_Toilet', 'r2_bed_to_toilet': 'Bed_to_Toilet',
+    'r1_work': 'Work', 'r2_work': 'Work',
     # Continuous data only (absent from pre-segmented windows)
     'no_activity': 'No_Activity',
 }

@@ -349,19 +349,12 @@ class BaseSampler(ABC):
         print(f"  Added temporal features (tod_bucket, dow_bucket, time_delta_bucket)")
         return df
 
-    def _split_by_days(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Split dataframe into train/val/test by days (70/10/20)."""
+    def _assign_days(self, df: pd.DataFrame) -> Tuple[list, list, list]:
+        """Assign the calendar days of `df` to train/val/test (70/10/20). Returns three lists of dates."""
         from .config import SplitStrategy
 
-        # Get unique dates (timestamp column is now standardized)
-        df['date'] = pd.to_datetime(df['timestamp']).dt.date
-
-        # Filter out NaT values before sorting
-        valid_dates = df['date'].dropna().unique()
+        valid_dates = pd.to_datetime(df['timestamp']).dt.date.dropna().unique()
         unique_dates = sorted(valid_dates)
-
-        # Remove rows with NaT dates
-        df = df[df['date'].notna()].copy()
 
         n_dates = len(unique_dates)
         n_train = int(n_dates * 0.7)  # 70% for training
@@ -380,6 +373,24 @@ class BaseSampler(ABC):
             train_dates = unique_dates[:n_train]
             val_dates = unique_dates[n_train:n_train+n_val]
             test_dates = unique_dates[n_train+n_val:]
+
+        return list(train_dates), list(val_dates), list(test_dates)
+
+    def _split_by_days(self, df: pd.DataFrame, day_split: Optional[Tuple[list, list, list]] = None
+                       ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """Split dataframe into train/val/test by days (70/10/20).
+
+        `day_split` (from `_assign_days`) fixes the day assignment; by default it is drawn from `df` itself.
+        """
+        # Get unique dates (timestamp column is now standardized)
+        df['date'] = pd.to_datetime(df['timestamp']).dt.date
+
+        if day_split is None:
+            day_split = self._assign_days(df)
+        train_dates, val_dates, test_dates = day_split
+
+        # Remove rows with NaT dates
+        df = df[df['date'].notna()].copy()
 
         train_df = df[df['date'].isin(train_dates)].copy()
         val_df = df[df['date'].isin(val_dates)].copy()
@@ -452,13 +463,14 @@ class BaseSampler(ABC):
     def _load_flattened_data(self) -> pd.DataFrame:
         """Load the pre-flattened multi-resident CSV and standardize columns.
 
-        Expects data_processed_flattened.csv in config.raw_data_path.
+        Expects config.multiresident_stream_file (default data_processed_flattened.csv) in config.raw_data_path.
         Maps activity_flattened → activity_l1 so downstream windowing uses the
         stripped, resident-neutral activity label.
         """
         from .utils import standardize_column_names
 
-        flat_path = Path(self.config.raw_data_path) / 'data_processed_flattened.csv'
+        flat_path = Path(self.config.raw_data_path) / getattr(
+            self.config, 'multiresident_stream_file', 'data_processed_flattened.csv')
         if not flat_path.exists():
             raise FileNotFoundError(
                 f"Flattened CSV not found: {flat_path}\n"
@@ -498,13 +510,14 @@ class BaseSampler(ABC):
     def _sample_multiresident_splits(
         self, df: pd.DataFrame
     ) -> Tuple[List, List, List]:
-        """Split data by resident_info, day-split each subset, create windows, pool.
+        """Day-split the house once, split by resident_info, create windows, pool.
 
-        For each resident group (e.g. 'both', 'R1', 'R2'):
-          1. day-split into train/val/test (70/10/20)
-          2. create windows from each split
-        All groups' windows are then pooled into the final train/val/test sets.
-        This guarantees no window crosses resident boundaries.
+        The calendar days are assigned to train/val/test (70/10/20) once for the whole house, so a day is
+        never a training day for one resident group and a test day for another (drawing the days per group
+        did exactly that: the groups hold different sets of days, so their random splits differ, and the
+        groups share events of concurrent activities). Then, for each resident group (e.g. 'both', 'R1', 'R2'),
+        windows are created from that group's events of each split and pooled into the final train/val/test
+        sets. This guarantees no window crosses resident boundaries.
 
         Returns:
             (train_samples, val_samples, test_samples)
@@ -521,6 +534,8 @@ class BaseSampler(ABC):
 
         resident_groups = sorted(df['resident_info'].dropna().unique())
         print(f"  Resident groups found: {resident_groups}")
+        day_split = self._assign_days(df)
+        print(f"  Days — Train: {len(day_split[0])}  Val: {len(day_split[1])}  Test: {len(day_split[2])}")
 
         all_train, all_val, all_test = [], [], []
 
@@ -544,7 +559,7 @@ class BaseSampler(ABC):
             )
             print(f"\n  --- Resident: {resident} ({len(group_df)} events) ---")
 
-            train_df, val_df, test_df = self._split_by_days(group_df)
+            train_df, val_df, test_df = self._split_by_days(group_df, day_split)
             print(f"    Train: {len(train_df)}  Val: {len(val_df)}  Test: {len(test_df)}")
 
             # Reset counter per resident so IDs encode resident context

@@ -1,7 +1,7 @@
 """
 TDOST rule-based v1-1 sentences (time between readings) and their sentence embeddings, ported from
-`~/code/har/TDOST/TDOST/generate_embeddings_v1-1.py` (cbalab/TDOST): same templates, house layout phrases,
-value mapping and number-to-words. Encoder: `all-distilroberta-v1` (768-d, as in TDOST's best HAR setting).
+`~/code/har/TDOST/TDOST/generate_embeddings_v1-1.py` (cbalab/TDOST): same templates, house layout phrases
+(Milan, Aruba, Cairo, Kyoto7), value mapping and number-to-words. Encoder: `all-distilroberta-v1` (768-d, as in TDOST's best HAR setting).
 
 Per window (20 events, chronological):
   event 0:  "{Motion sensor }{location} fired with value {ON} at {fourteen} hours {five} minutes {PM}"
@@ -101,6 +101,64 @@ LAYOUT = {
         ("M027",): "near garage door",
         ("T002",): "in office near work area",
     },
+    'kyoto': {
+        ("M01",): "between home entrance aisle and living room near TV shelf",
+        ("M02",): "in living room near TV shelf",
+        ("M03", "M04", "M05", "M11", "M13", "M14"): "in living room",
+        ("M06", "M07"): "in living room near couch",
+        ("M08",): "in living room near hall",
+        ("M09", "M10"): "in dining room",
+        ("M12",): "in living room near back door",
+        ("M15",): "in living room near kitchen",
+        ("M16",): "in kitchen near living room",
+        ("M17",): "in kitchen",
+        ("M18",): "in kitchen near sink",
+        ("M19",): "in kitchen near kitchen closet",
+        ("M20",): "in kitchen inside kitchen closet",
+        ("M21", "M22", "M25"): "in home entrance aisle",
+        ("M23",): "in home entrance aisle near living room",
+        ("M24",): "in home entrance aisle near front door",
+        ("M26",): "on stairs near home entrance aisle",
+        ("M27", "M28", "M29"): "in aisle near first bedroom",
+        ("M30",): "between aisle and first bedroom",
+        ("M31", "M32"): "in first bedroom near desk",
+        ("M33", "M36"): "in first bedroom",
+        ("M34", "M35"): "in first bedroom near bed",
+        ("M37",): "between aisle and bathroom",
+        ("M38",): "in bathroom near basin",
+        ("M39",): "in bathroom near bath",
+        ("M40",): "in bathroom",
+        ("M41",): "in bathroom near toilet",
+        ("M42",): "between aisle and work area",
+        ("M43", "M44"): "between aisle and second bedroom",
+        ("M45", "M50"): "in second bedroom",
+        ("M46", "M47"): "in second bedroom near bed",
+        ("M48", "M49"): "in second bedroom near desk",
+        ("M51",): "in kitchen inside pantry",
+        ("D01",): "on front door",
+        ("D02",): "on back door",
+        ("D03",): "on the door of first bedroom",
+        ("D04",): "on the door of second bedroom",
+        ("D05",): "on bathroom door",
+        ("D06",): "on toilet door inside bathroom",
+        ("D07", "D14", "D15", "D16"): "on kitchen cabinet door",
+        ("D08",): "on refrigerator door",
+        ("D09",): "on fridge door",
+        ("D10",): "on microwave door",
+        ("D11",): "on kitchen pantry door",
+        ("D12",): "on home entrance closet door",
+        ("D13",): "on living room TV door",
+        ("I03",): "on living room TV shelf",
+        ("L04",): "for living space",
+        ("L06",): "for stairs near home entrance",
+        ("L09",): "for workplace",
+        ("L10",): "for first bedroom",
+        ("L11",): "for bathroom",
+        ("L12",): "for shower in bathroom",
+        ("L13",): "for shower fan in bathroom",
+        ("AD1-A",): "in kitchen near stove",
+        ("AD1-B", "AD1-C"): "in kitchen near sink",
+    },
 }
 LOCATION = {city: {s: ctx for keys, ctx in m.items() for s in keys} for city, m in LAYOUT.items()}
 
@@ -111,9 +169,14 @@ def words(n):
     return _P.number_to_words(n)
 
 
+def house(city):
+    """Layout key of a dataset name: the Kyoto7 split variants (`kyotomerged`, `kyotoflat`, ...) share one house."""
+    return 'kyoto' if city.startswith('kyoto') else city
+
+
 def sensor_phrase(city, sensor, state):
     # Unknown sensors fall back to TDOST's default type ('Motion sensor') and an empty location.
-    return (SENSOR_TYPE.get(sensor[0], "Motion sensor ") + LOCATION[city].get(sensor, '')
+    return (SENSOR_TYPE.get(sensor[0], "Motion sensor ") + LOCATION[house(city)].get(sensor, '')
             + " fired with value " + VALUE.get(state, state))
 
 

@@ -64,6 +64,7 @@ class SamplingConfig:
     # Multi-resident options
     multiresident_flatten: bool = False  # Load pre-flattened CSV (data_processed_flattened.csv) instead of raw data
     multiresident_split_by_resident: bool = False  # Split by resident_info before windowing so no window crosses resident boundaries
+    multiresident_stream_file: str = "data_processed_flattened.csv"  # Stream CSV in raw_data_path used when multiresident_flatten is set
 
     def __post_init__(self):
         """Validate configuration."""
