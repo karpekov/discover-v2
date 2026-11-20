@@ -80,7 +80,10 @@ def scan_variant(rep, suffix):
     return 'scan_unw' if rep.endswith('+tod') else 'scan'
 
 
-def score_clustering(m_values=('1', '5', 'all'), n_boot=1):
+def score_clustering(m_values=('1', '5', 'all'), n_boot=1, cities=None):
+    """`cities` defaults to the paper's houses; other datasets' assignments in artifacts/ (e.g. the Kyoto7
+    trial) are scored only when asked for."""
+    cities = CITIES if cities is None else cities
     rows = []
     paths = [p for p in sorted((ARTIFACTS_DIR / 'assignments').glob('*.npz')) if 'smoke' not in p.stem]
     m_vals = [m if m == 'all' else int(m) for m in m_values]
@@ -89,6 +92,8 @@ def score_clustering(m_values=('1', '5', 'all'), n_boot=1):
         if not mt:
             continue
         city, seed, K, method = mt['city'], int(mt['seed']), int(mt['K']), mt['method']
+        if city not in cities:
+            continue
         rep = mt['enc'] + (mt['tod'] or '')
         if method == 'scan':
             method = scan_variant(rep, mt['suffix'])
@@ -120,10 +125,11 @@ def score_clustering(m_values=('1', '5', 'all'), n_boot=1):
     return pd.DataFrame(rows)
 
 
-def score_baselines():
+def score_baselines(cities=None):
+    cities = CITIES if cities is None else cities
     rows = []
     for path in sorted((BASELINES_DIR / 'final').glob('*/*.npz')):
-        mt = re.match(rf'^({"|".join(CITIES)})_(l[12])_(\w+)_s(\d+)$', path.stem)
+        mt = re.match(rf'^({"|".join(cities)})_(l[12])_(\w+)_s(\d+)$', path.stem)
         if not mt:
             continue
         city, level, budget, seed = mt.groups()
@@ -140,9 +146,9 @@ def score_baselines():
     return pd.DataFrame(rows)
 
 
-def score_probes(budgets=('100', '250', 'all'), max_full=20000):
+def score_probes(budgets=('100', '250', 'all'), max_full=20000, cities=None):
     rows = []
-    for city in CITIES:
+    for city in (CITIES if cities is None else cities):
         fit, pool2, test2 = load_protocol(city, level='l2')
         _, pool1, test1 = load_protocol(city, level='l1')
         protocols = {'l1': (pool1, test1), 'l2': (pool2, test2)}
