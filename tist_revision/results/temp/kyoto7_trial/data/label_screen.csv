@@ -1,0 +1,141 @@
+scheme,subset,method,budget,f1_weighted,f1_macro,classes
+Most recently begun (kyotomerged),all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.6231679179783076,0.45894045648889537,8.25
+Most recently begun (kyotomerged),all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.6338622515513224,0.4832482413089692,8.25
+Most recently begun (kyotomerged),all windows,"SCAN, TF",≈100 labels,0.6409081627937033,0.48043557252530233,8.25
+Most recently begun (kyotomerged),all windows,"SCAN, TF",≈250 labels,0.6983658760768677,0.5409212444994173,8.25
+Most recently begun (kyotomerged),all windows,"k-means, TF",≈100 labels,0.6964323205963232,0.5296370411658132,8.25
+Most recently begun (kyotomerged),all windows,"k-means, TF",≈250 labels,0.7172547850291493,0.5687104398700483,8.25
+Most recently begun (kyotomerged),all windows,"k-means, sensor hist.",≈100 labels,0.701205408203907,0.5325652229275337,8.25
+Most recently begun (kyotomerged),all windows,"k-means, sensor hist.",≈250 labels,0.7205180621341707,0.5726691827941475,8.25
+Most recently begun (kyotomerged),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.7127620850087236,0.5566506020687207,8.25
+Most recently begun (kyotomerged),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.7174001699563493,0.5701274183748648,8.25
+Most recently begun (kyotomerged),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7303952632909381,0.5563084756270752,8.0
+Most recently begun (kyotomerged),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.8063424096841191,0.6931532132395751,8.0
+Most recently begun (kyotomerged),windows with one activity,"SCAN, TF",≈100 labels,0.8117636988377296,0.6668165484780841,8.0
+Most recently begun (kyotomerged),windows with one activity,"SCAN, TF",≈250 labels,0.8543956862231366,0.7289852277935248,8.0
+Most recently begun (kyotomerged),windows with one activity,"k-means, TF",≈100 labels,0.8119696536202913,0.666114281290068,8.0
+Most recently begun (kyotomerged),windows with one activity,"k-means, TF",≈250 labels,0.8657491890729805,0.7524047045050699,8.0
+Most recently begun (kyotomerged),windows with one activity,"k-means, sensor hist.",≈100 labels,0.8353067548299598,0.66963214192896,8.0
+Most recently begun (kyotomerged),windows with one activity,"k-means, sensor hist.",≈250 labels,0.8738064261161502,0.7672511468761993,8.0
+Most recently begun (kyotomerged),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.838487448740028,0.6988353946944805,8.0
+Most recently begun (kyotomerged),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8502138321080077,0.7287940281894241,8.0
+Sensor-attributed (kyotoaff),all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.6930145487155732,0.5208344280399754,8.25
+Sensor-attributed (kyotoaff),all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7314800809646476,0.5816767120088839,8.25
+Sensor-attributed (kyotoaff),all windows,"SCAN, TF",≈100 labels,0.7464639150516197,0.583905984068752,8.25
+Sensor-attributed (kyotoaff),all windows,"SCAN, TF",≈250 labels,0.7695030522504208,0.6165823244983799,8.25
+Sensor-attributed (kyotoaff),all windows,"k-means, TF",≈100 labels,0.7931646768442386,0.6348344667773106,8.25
+Sensor-attributed (kyotoaff),all windows,"k-means, TF",≈250 labels,0.7933217854008842,0.6689442136861848,8.25
+Sensor-attributed (kyotoaff),all windows,"k-means, sensor hist.",≈100 labels,0.7966306335568948,0.6510365940621993,8.25
+Sensor-attributed (kyotoaff),all windows,"k-means, sensor hist.",≈250 labels,0.8088899773083897,0.6784184883285691,8.25
+Sensor-attributed (kyotoaff),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.77346506744925,0.6240851985584656,8.25
+Sensor-attributed (kyotoaff),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.7920184973454749,0.6550408271566461,8.25
+Sensor-attributed (kyotoaff),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7303952632909381,0.5563084756270752,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.8063424096841191,0.6931532132395751,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"SCAN, TF",≈100 labels,0.8117636988377296,0.6668165484780841,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"SCAN, TF",≈250 labels,0.8543956862231366,0.7289852277935248,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"k-means, TF",≈100 labels,0.8119696536202913,0.666114281290068,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"k-means, TF",≈250 labels,0.8657491890729805,0.7524047045050699,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"k-means, sensor hist.",≈100 labels,0.8353067548299598,0.66963214192896,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"k-means, sensor hist.",≈250 labels,0.8738064261161502,0.7672511468761993,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.838487448740028,0.6988353946944805,8.0
+Sensor-attributed (kyotoaff),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8502138321080077,0.7287940281894241,8.0
+Household state (kyotojoint),all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.4222928151139693,0.30663653527839163,23.75
+Household state (kyotojoint),all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.4889738235532186,0.3850439149842016,23.75
+Household state (kyotojoint),all windows,"SCAN, TF",≈100 labels,0.4367156770231448,0.3139652781695494,23.75
+Household state (kyotojoint),all windows,"SCAN, TF",≈250 labels,0.5315275894184315,0.4174767689510247,23.75
+Household state (kyotojoint),all windows,"k-means, TF",≈100 labels,0.46397458879189746,0.3256412379492311,23.75
+Household state (kyotojoint),all windows,"k-means, TF",≈250 labels,0.5365948236380815,0.41090414583419343,23.75
+Household state (kyotojoint),all windows,"k-means, sensor hist.",≈100 labels,0.47735946443412003,0.347105719875137,23.75
+Household state (kyotojoint),all windows,"k-means, sensor hist.",≈250 labels,0.5335954571869711,0.41133442074411075,23.75
+Household state (kyotojoint),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.42919108475028744,0.31583906274677254,23.75
+Household state (kyotojoint),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.4643625878019527,0.35556216617593095,23.75
+Household state (kyotojoint),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7303952632909381,0.5563084756270752,8.0
+Household state (kyotojoint),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.8063424096841191,0.6931532132395751,8.0
+Household state (kyotojoint),windows with one activity,"SCAN, TF",≈100 labels,0.8117636988377296,0.6668165484780841,8.0
+Household state (kyotojoint),windows with one activity,"SCAN, TF",≈250 labels,0.8543956862231366,0.7289852277935248,8.0
+Household state (kyotojoint),windows with one activity,"k-means, TF",≈100 labels,0.8119696536202913,0.666114281290068,8.0
+Household state (kyotojoint),windows with one activity,"k-means, TF",≈250 labels,0.8657491890729805,0.7524047045050699,8.0
+Household state (kyotojoint),windows with one activity,"k-means, sensor hist.",≈100 labels,0.8353067548299598,0.66963214192896,8.0
+Household state (kyotojoint),windows with one activity,"k-means, sensor hist.",≈250 labels,0.8738064261161502,0.7672511468761993,8.0
+Household state (kyotojoint),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.838487448740028,0.6988353946944805,8.0
+Household state (kyotojoint),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8502138321080077,0.7287940281894241,8.0
+R1 labels (kyotoresa),all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7338982490263275,0.5253974523276892,8.0
+R1 labels (kyotoresa),all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7742072981136985,0.5681077609839148,8.0
+R1 labels (kyotoresa),all windows,"SCAN, TF",≈100 labels,0.75439966754392,0.5307258050909232,8.0
+R1 labels (kyotoresa),all windows,"SCAN, TF",≈250 labels,0.8042434226521546,0.6367760934954108,8.0
+R1 labels (kyotoresa),all windows,"k-means, TF",≈100 labels,0.7825682989031778,0.560359995863263,8.0
+R1 labels (kyotoresa),all windows,"k-means, TF",≈250 labels,0.8028595753740244,0.6042736569645359,8.0
+R1 labels (kyotoresa),all windows,"k-means, sensor hist.",≈100 labels,0.8018154154586533,0.6170859480994523,8.0
+R1 labels (kyotoresa),all windows,"k-means, sensor hist.",≈250 labels,0.82015578872353,0.6461104048011324,8.0
+R1 labels (kyotoresa),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.7883880491151143,0.6046060470883664,8.0
+R1 labels (kyotoresa),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8086589193864808,0.6386470346711473,8.0
+R1 labels (kyotoresa),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.8296465379609087,0.7939072863926462,8.0
+R1 labels (kyotoresa),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.8834709812379019,0.8524541390378391,8.0
+R1 labels (kyotoresa),windows with one activity,"SCAN, TF",≈100 labels,0.8946728605452117,0.8533009180370088,8.0
+R1 labels (kyotoresa),windows with one activity,"SCAN, TF",≈250 labels,0.9102873256864692,0.8739915605601363,8.0
+R1 labels (kyotoresa),windows with one activity,"k-means, TF",≈100 labels,0.8923641454413666,0.8594228900710048,8.0
+R1 labels (kyotoresa),windows with one activity,"k-means, TF",≈250 labels,0.9204070719667665,0.896446144799436,8.0
+R1 labels (kyotoresa),windows with one activity,"k-means, sensor hist.",≈100 labels,0.8972281344566394,0.8684298675616484,8.0
+R1 labels (kyotoresa),windows with one activity,"k-means, sensor hist.",≈250 labels,0.9272315733668115,0.9035965192047156,8.0
+R1 labels (kyotoresa),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.9017079215313938,0.8452270430168601,8.0
+R1 labels (kyotoresa),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.9095967780793327,0.8682665564638036,8.0
+R2 labels (kyotoresb),all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.5906663827365964,0.4640555393578346,8.25
+R2 labels (kyotoresb),all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.6587899646747021,0.5324749176396334,8.25
+R2 labels (kyotoresb),all windows,"SCAN, TF",≈100 labels,0.6473111703461015,0.514795412780888,8.25
+R2 labels (kyotoresb),all windows,"SCAN, TF",≈250 labels,0.7007375447893172,0.5804393264199147,8.25
+R2 labels (kyotoresb),all windows,"k-means, TF",≈100 labels,0.6625621118746292,0.5284004526840378,8.25
+R2 labels (kyotoresb),all windows,"k-means, TF",≈250 labels,0.6994175094931012,0.5987488369272118,8.25
+R2 labels (kyotoresb),all windows,"k-means, sensor hist.",≈100 labels,0.6596991958997744,0.5404208894409709,8.25
+R2 labels (kyotoresb),all windows,"k-means, sensor hist.",≈250 labels,0.6912658680700027,0.5906387801311489,8.25
+R2 labels (kyotoresb),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.7056621079922456,0.5889146809762591,8.25
+R2 labels (kyotoresb),all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.7325227109982573,0.6179067333153838,8.25
+R2 labels (kyotoresb),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.6855660060799833,0.5999856900039273,7.75
+R2 labels (kyotoresb),windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7913463896290155,0.7313820832689127,7.75
+R2 labels (kyotoresb),windows with one activity,"SCAN, TF",≈100 labels,0.8170643802638919,0.7482409210418146,7.75
+R2 labels (kyotoresb),windows with one activity,"SCAN, TF",≈250 labels,0.8554932136456197,0.7987095490385608,7.75
+R2 labels (kyotoresb),windows with one activity,"k-means, TF",≈100 labels,0.7991120727276071,0.7389641595094181,7.75
+R2 labels (kyotoresb),windows with one activity,"k-means, TF",≈250 labels,0.8649527794877259,0.8340232829735035,7.75
+R2 labels (kyotoresb),windows with one activity,"k-means, sensor hist.",≈100 labels,0.800641577754807,0.7302077833980227,7.75
+R2 labels (kyotoresb),windows with one activity,"k-means, sensor hist.",≈250 labels,0.8639041374792595,0.8333611726590705,7.75
+R2 labels (kyotoresb),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.8263008066105835,0.7767316605751858,7.75
+R2 labels (kyotoresb),windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8432350353048472,0.805103828983127,7.75
+"Most recently begun, resident id kept",all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.4559780209011975,0.3254951234501646,12.25
+"Most recently begun, resident id kept",all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.4971852336247025,0.3665625447787925,12.25
+"Most recently begun, resident id kept",all windows,"SCAN, TF",≈100 labels,0.46617193864497,0.3347939707586659,12.25
+"Most recently begun, resident id kept",all windows,"SCAN, TF",≈250 labels,0.5501372593120475,0.43179627966402145,12.25
+"Most recently begun, resident id kept",all windows,"k-means, TF",≈100 labels,0.4977969259637865,0.3608249956814778,12.25
+"Most recently begun, resident id kept",all windows,"k-means, TF",≈250 labels,0.5494975725361313,0.42633109282961784,12.25
+"Most recently begun, resident id kept",all windows,"k-means, sensor hist.",≈100 labels,0.5264926223745501,0.3811910087795104,12.25
+"Most recently begun, resident id kept",all windows,"k-means, sensor hist.",≈250 labels,0.5709435520332599,0.4416692019038174,12.25
+"Most recently begun, resident id kept",all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.5400579662136604,0.4141152886250493,12.25
+"Most recently begun, resident id kept",all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.5542121592985697,0.43748269114765537,12.25
+"Most recently begun, resident id kept",windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.6794140273878949,0.5320215842906303,11.75
+"Most recently begun, resident id kept",windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7514927409899653,0.6286404738973088,11.75
+"Most recently begun, resident id kept",windows with one activity,"SCAN, TF",≈100 labels,0.7485414768894207,0.6232102317125529,11.75
+"Most recently begun, resident id kept",windows with one activity,"SCAN, TF",≈250 labels,0.7946120867589691,0.6773478099646951,11.75
+"Most recently begun, resident id kept",windows with one activity,"k-means, TF",≈100 labels,0.7397971835433114,0.6242355498624154,11.75
+"Most recently begun, resident id kept",windows with one activity,"k-means, TF",≈250 labels,0.809876537561324,0.7081952448785798,11.75
+"Most recently begun, resident id kept",windows with one activity,"k-means, sensor hist.",≈100 labels,0.7781986952387422,0.66259860433479,11.75
+"Most recently begun, resident id kept",windows with one activity,"k-means, sensor hist.",≈250 labels,0.815697674531769,0.7141255486566008,11.75
+"Most recently begun, resident id kept",windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.7860909598025368,0.6624686044767059,11.75
+"Most recently begun, resident id kept",windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8058793035231021,0.7032429133450935,11.75
+"Sensor-attributed, resident id kept",all windows,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.5570284875431308,0.3693772923715063,12.25
+"Sensor-attributed, resident id kept",all windows,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.6243285884834686,0.44503260912050474,12.25
+"Sensor-attributed, resident id kept",all windows,"SCAN, TF",≈100 labels,0.6285145671387331,0.4337935098258566,12.25
+"Sensor-attributed, resident id kept",all windows,"SCAN, TF",≈250 labels,0.6614092472494975,0.49863828350611306,12.25
+"Sensor-attributed, resident id kept",all windows,"k-means, TF",≈100 labels,0.6753737665958587,0.47509421778249444,12.25
+"Sensor-attributed, resident id kept",all windows,"k-means, TF",≈250 labels,0.6874507811777104,0.5266261882006419,12.25
+"Sensor-attributed, resident id kept",all windows,"k-means, sensor hist.",≈100 labels,0.6795013848668084,0.48923451711170085,12.25
+"Sensor-attributed, resident id kept",all windows,"k-means, sensor hist.",≈250 labels,0.6843099589720283,0.5185694898362413,12.25
+"Sensor-attributed, resident id kept",all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.6689089849030602,0.4979466292507138,12.25
+"Sensor-attributed, resident id kept",all windows,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.6913707195372196,0.5350742649503928,12.25
+"Sensor-attributed, resident id kept",windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.6794140273878949,0.5320215842906303,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7514927409899653,0.6286404738973088,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"SCAN, TF",≈100 labels,0.7485414768894207,0.6232102317125529,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"SCAN, TF",≈250 labels,0.7946120867589691,0.6773478099646951,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"k-means, TF",≈100 labels,0.7397971835433114,0.6242355498624154,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"k-means, TF",≈250 labels,0.809876537561324,0.7081952448785798,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"k-means, sensor hist.",≈100 labels,0.7781986952387422,0.66259860433479,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"k-means, sensor hist.",≈250 labels,0.815697674531769,0.7141255486566008,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈100 labels,0.7860909598025368,0.6624686044767059,11.75
+"Sensor-attributed, resident id kept",windows with one activity,"Supervised stand-in (logistic regression, sensor hist.)",≈250 labels,0.8058793035231021,0.7032429133450935,11.75

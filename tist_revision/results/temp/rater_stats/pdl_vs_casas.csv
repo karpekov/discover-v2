@@ -1,0 +1,138 @@
+city,label,casas,windows
+aruba,Back-door hallway: entering house,No CASAS label,1.0
+aruba,Front-door hallway: back and forth,No CASAS label,2.5
+aruba,Front-door hallway: entering house,No CASAS label,0.5
+aruba,Front-door hallway: leaving house,No CASAS label,1.0
+aruba,Garage hallway: back and forth,Meal Preparation,0.5
+aruba,Garage hallway: back and forth,No CASAS label,1.0
+aruba,Garage hallway: entering house,No CASAS label,1.5
+aruba,Garage hallway: leaving house,Meal Preparation,0.5
+aruba,Guest bedroom: inside,Relax,2.0
+aruba,Kitchen (all over),Meal Preparation,10.5
+aruba,Kitchen (all over),No CASAS label,4.0
+aruba,Kitchen (all over),Relax,1.0
+aruba,Kitchen + dining,Eating,1.0
+aruba,Kitchen + dining,Meal Preparation,1.0
+aruba,Kitchen + dining,No CASAS label,2.0
+aruba,Kitchen + living,Meal Preparation,3.0
+aruba,Kitchen + living + dining,Meal Preparation,1.5
+aruba,Kitchen + living + dining,No CASAS label,3.0
+aruba,Kitchen + living + dining,Relax,2.0
+aruba,Living + dining,Relax,1.0
+aruba,Living room (all over),No CASAS label,1.0
+aruba,Living room (all over),Relax,9.0
+aruba,Living room (all over),unknown,1.0
+aruba,Living room: sitting on couch/armchair,No CASAS label,2.0
+aruba,Living room: sitting on couch/armchair,Relax,13.0
+aruba,Living spaces → master bedroom,Relax,1.0
+aruba,Master bedroom (all over),No CASAS label,4.0
+aruba,Master bedroom → living spaces,No CASAS label,4.0
+aruba,Master bedroom: near bed,No CASAS label,4.0
+aruba,Master bedroom: near bed,Sleeping,2.0
+aruba,Office (all over),Respirate,5.0
+aruba,"Simultaneous activity, 2+ rooms",Eating,2.0
+aruba,"Simultaneous activity, 2+ rooms",Meal Preparation,4.0
+aruba,"Simultaneous activity, 2+ rooms",No CASAS label,2.0
+aruba,"Simultaneous activity, 2+ rooms",Relax,4.0
+aruba,"Walking through house, 3+ rooms",Meal Preparation,1.0
+aruba,"Walking through house, 3+ rooms",No CASAS label,0.5
+cairo,Bedroom → office,No CASAS label,3.5
+cairo,Bedroom → office,take medicine,1.0
+cairo,Bedroom → office,unknown,1.0
+cairo,Bedroom → office,wake,1.0
+cairo,Dining room (all over),No CASAS label,1.0
+cairo,Garage hallway: back and forth,No CASAS label,2.5
+cairo,Garage hallway: leaving house,Laundry,1.0
+cairo,Garage hallway: leaving house,No CASAS label,0.5
+cairo,Kitchen (all over),Lunch,0.5
+cairo,Kitchen (all over),No CASAS label,1.0
+cairo,Kitchen + dining,Breakfast,1.0
+cairo,Kitchen + dining,Dinner,1.5
+cairo,Kitchen + dining,Leave home,0.5
+cairo,Kitchen + dining,Lunch,2.5
+cairo,Kitchen + dining,No CASAS label,18.0
+cairo,Kitchen + living,Breakfast,1.0
+cairo,Kitchen + living,No CASAS label,2.0
+cairo,Kitchen + living + dining,Breakfast,2.0
+cairo,Kitchen + living + dining,Dinner,1.5
+cairo,Kitchen + living + dining,Leave home,0.5
+cairo,Kitchen + living + dining,Lunch,1.0
+cairo,Kitchen + living + dining,No CASAS label,14.5
+cairo,Kitchen + living + dining,take medicine,1.0
+cairo,Kitchen + living + dining,wake,1.0
+cairo,Living + dining,Dinner,1.0
+cairo,Living room: sitting on couch/armchair,No CASAS label,5.5
+cairo,Master bedroom: near bed,No CASAS label,1.0
+cairo,Master bedroom: near bed,sleep,2.0
+cairo,Master bedroom: near bed,wake,1.0
+cairo,Master bedroom: near bed,work in office,1.0
+cairo,Office → bedroom,No CASAS label,4.0
+cairo,Office → bedroom,sleep,1.0
+cairo,"Simultaneous activity, 2+ rooms",Lunch,1.0
+cairo,"Simultaneous activity, 2+ rooms",No CASAS label,7.5
+cairo,"Simultaneous activity, 2+ rooms",wake,5.0
+cairo,"Simultaneous activity, 2+ rooms",work in office,1.0
+cairo,"Walking through house, 3+ rooms",Breakfast,1.0
+cairo,"Walking through house, 3+ rooms",No CASAS label,4.0
+cairo,"Walking through house, 3+ rooms",sleep,1.0
+cairo,"Walking through house, 3+ rooms",wake,1.0
+cairo,"Walking through house, 3+ rooms",work in office,1.0
+milan,Bedroom → office,Desk Activity,1.0
+milan,Bedroom → office,Master Bedroom Activity,0.5
+milan,Front-door hallway: back and forth,Leave Home,2.0
+milan,Front-door hallway: back and forth,No CASAS label,2.5
+milan,Front-door hallway: entering house,No CASAS label,0.5
+milan,Front-door hallway: leaving house,Meditate,0.5
+milan,Guest bathroom: entering,Guest Bathroom,3.5
+milan,Guest bathroom: entering,Kitchen Activity,1.0
+milan,Guest bathroom: entering,Read,1.0
+milan,Guest bathroom: entering,Watch TV,1.0
+milan,Guest bathroom: entering,unknown,1.0
+milan,Guest bathroom: leaving,Guest Bathroom,1.0
+milan,Guest bathroom: leaving,Kitchen Activity,2.0
+milan,Guest bathroom: leaving,Read,2.0
+milan,Guest bedroom: entering,Meditate,0.5
+milan,Guest bedroom: inside,Meditate,1.0
+milan,Guest bedroom: leaving,Kitchen Activity,1.0
+milan,Guest bedroom: leaving,Meditate,1.0
+milan,Kitchen (all over),Kitchen Activity,11.0
+milan,Kitchen (all over),No CASAS label,4.0
+milan,Kitchen + dining,Kitchen Activity,2.0
+milan,Kitchen + dining,No CASAS label,0.5
+milan,Kitchen + dining,Read,0.5
+milan,Kitchen + living,Read,1.5
+milan,Kitchen + living + dining,Kitchen Activity,5.5
+milan,Kitchen + living + dining,Meditate,0.5
+milan,Kitchen + living + dining,No CASAS label,1.5
+milan,Kitchen + living + dining,Read,1.5
+milan,Kitchen: near fridge,Kitchen Activity,1.0
+milan,Kitchen: near medicine cabinet,Kitchen Activity,5.0
+milan,Kitchen: near medicine cabinet,No CASAS label,1.0
+milan,Kitchen: near stove,Kitchen Activity,3.0
+milan,Kitchen: near stove,No CASAS label,1.0
+milan,Living room: sitting on couch/armchair,No CASAS label,3.0
+milan,Living room: sitting on couch/armchair,Read,3.0
+milan,Master bathroom: entering,Bed to Toilet,1.0
+milan,Master bathroom: entering,Master Bathroom,1.0
+milan,Master bathroom: entering,Master Bedroom Activity,0.5
+milan,Master bathroom: entering,No CASAS label,1.0
+milan,Master bathroom: entering,Read,1.0
+milan,Master bathroom: entering,Sleep,0.5
+milan,Master bathroom: inside,Master Bathroom,2.0
+milan,Master bathroom: inside,Master Bedroom Activity,1.5
+milan,Master bathroom: leaving,Master Bathroom,1.0
+milan,Master bathroom: leaving,Master Bedroom Activity,2.0
+milan,Master bathroom: leaving,Sleep,1.5
+milan,Master bedroom (all over),Sleep,1.0
+milan,Office → bedroom,Watch TV,0.5
+milan,Office: near desk,Desk Activity,4.0
+milan,Office: sitting in armchair,No CASAS label,2.0
+milan,Office: sitting in armchair,Watch TV,2.5
+milan,"Simultaneous activity, 2+ rooms",Master Bedroom Activity,0.5
+milan,"Simultaneous activity, 2+ rooms",Read,0.5
+milan,"Walking through house, 3+ rooms",Guest Bathroom,0.5
+milan,"Walking through house, 3+ rooms",Kitchen Activity,0.5
+milan,"Walking through house, 3+ rooms",Meditate,0.5
+milan,"Walking through house, 3+ rooms",No CASAS label,3.0
+milan,"Walking through house, 3+ rooms",Read,2.0
+milan,"Walking through house, 3+ rooms",Sleep,1.0

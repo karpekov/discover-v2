@@ -1,0 +1,27 @@
+{
+ "cmd": "build",
+ "name": "v2_k20",
+ "run": "tf_s1+tod__scan_k20_todwbal",
+ "m": 5,
+ "n_random": 2,
+ "raters": [
+  "R01",
+  "R02",
+  "R03",
+  "R04",
+  "R05",
+  "R06"
+ ],
+ "context": 60,
+ "min_sep": 2,
+ "seed": 0,
+ "n_items": 420,
+ "items_per_rater": {
+  "R01": 140,
+  "R02": 140,
+  "R03": 140,
+  "R04": 140,
+  "R05": 140,
+  "R06": 140
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "a": {
+  "cluster": 18,
+  "title": "Medicine cabinet",
+  "agreement": "10/10 raters agree",
+  "agreement_parent": "10/10 at parent level",
+  "casas": "Kitchen Activity 82% · no label 14%",
+  "windows": 1672
+ },
+ "b": {
+  "cluster": 13,
+  "title": "Stove",
+  "agreement": "10/10 raters agree",
+  "agreement_parent": "10/10 at parent level",
+  "casas": "Kitchen Activity 71% · no label 28%",
+  "windows": 1669
+ },
+ "c": {
+  "cluster": 16,
+  "title": "Inside guest bathroom",
+  "agreement": "10/10 raters agree",
+  "agreement_parent": "10/10 at parent level",
+  "casas": "no label 30% · Guest Bathroom 30% · Kitchen Activity 19%",
+  "windows": 1470
+ },
+ "d": {
+  "cluster": 14,
+  "title": "Office armchair",
+  "agreement": "10/10 raters agree",
+  "agreement_parent": "10/10 at parent level",
+  "casas": "no label 44% · Watch TV 24% · Kitchen Activity 7%",
+  "windows": 1698
+ }
+}

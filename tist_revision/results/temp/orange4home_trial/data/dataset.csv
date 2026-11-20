@@ -1,0 +1,2 @@
+variant,dataset,events,pool windows (FL_20 train),test windows (FL_20_p test),pool No_Activity,"pool windows, >=2 activities at last event","test windows, >=2 activities at last event",test windows with a twin under another label,accuracy ceiling from twins,classes in test,classes scored (masked)
+Orange4Home,orange,43442,3004,862,0.007656458055925432,0.0,0.0,0.0,1.0,20,7

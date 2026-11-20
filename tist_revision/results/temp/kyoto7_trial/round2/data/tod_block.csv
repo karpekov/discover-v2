@@ -1,0 +1,91 @@
+Variant,Method,budget,f1_weighted,f1_macro
+"Merged, sensor-attributed labels",Better supervised baseline,≈100 labels,0.7085951734613284,0.5996878411469994
+"Merged, sensor-attributed labels","DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7067396270866283,0.5912938692792002
+"Merged, sensor-attributed labels","SCAN, TF",≈100 labels,0.871393150476969,0.751554455444731
+"Merged, sensor-attributed labels","k-means, TF",≈100 labels,0.9100624986948428,0.8086198666737486
+"Merged, sensor-attributed labels",Better supervised baseline,≈250 labels,0.7857574179016494,0.6712276782755118
+"Merged, sensor-attributed labels","DISCOVER (SCAN, TF+ToD)",≈250 labels,0.806988722285841,0.7389000347310474
+"Merged, sensor-attributed labels","SCAN, TF",≈250 labels,0.865186759672601,0.7957338410086581
+"Merged, sensor-attributed labels","k-means, TF",≈250 labels,0.9256489626050185,0.8361599527156184
+"Merged, sensor-attributed labels",Better supervised baseline,all labels,0.9362815757833296,0.8597377833761793
+"Merged, sensor-attributed labels","DISCOVER (SCAN, TF+ToD)",all labels,0.8653366618001948,0.767069448540747
+"Merged, sensor-attributed labels","SCAN, TF",all labels,0.9156929415765399,0.8025828924716758
+"Merged, sensor-attributed labels","k-means, TF",all labels,0.931567710928464,0.8265362979444651
+"Merged, household-state labels",Better supervised baseline,≈100 labels,0.5255453164035987,0.3382079961038935
+"Merged, household-state labels","DISCOVER (SCAN, TF+ToD)",≈100 labels,0.4691172412165329,0.3081819688650188
+"Merged, household-state labels","SCAN, TF",≈100 labels,0.5685233545417662,0.4088689524392281
+"Merged, household-state labels","k-means, TF",≈100 labels,0.5453372039376447,0.3386214741589066
+"Merged, household-state labels",Better supervised baseline,≈250 labels,0.5816817910042469,0.4217926731596448
+"Merged, household-state labels","DISCOVER (SCAN, TF+ToD)",≈250 labels,0.4717515456109195,0.3332277627323222
+"Merged, household-state labels","SCAN, TF",≈250 labels,0.6264033296517724,0.4587318006744232
+"Merged, household-state labels","k-means, TF",≈250 labels,0.6152601700709993,0.4322638273430009
+"Merged, household-state labels",Better supervised baseline,all labels,0.7429387193944237,0.629797286963516
+"Merged, household-state labels","DISCOVER (SCAN, TF+ToD)",all labels,0.5638193267316242,0.3922012563649721
+"Merged, household-state labels","SCAN, TF",all labels,0.6783611052033361,0.5128598517809326
+"Merged, household-state labels","k-means, TF",all labels,0.6268064999224077,0.44856429021269
+"Resident streams, no copies",Better supervised baseline,≈100 labels,0.8906211019126538,0.6500787653224427
+"Resident streams, no copies","DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7868378012039174,0.5805630531964467
+"Resident streams, no copies","SCAN, TF",≈100 labels,0.889407202288306,0.6473477624066294
+"Resident streams, no copies","k-means, TF",≈100 labels,0.9283242393924044,0.6799131741161959
+"Resident streams, no copies",Better supervised baseline,≈250 labels,0.8806895182325627,0.664515815667938
+"Resident streams, no copies","DISCOVER (SCAN, TF+ToD)",≈250 labels,0.8560137136135,0.6584535362663336
+"Resident streams, no copies","SCAN, TF",≈250 labels,0.8855890984116573,0.7176859888089583
+"Resident streams, no copies","k-means, TF",≈250 labels,0.9072688911891844,0.67920336857352
+"Resident streams, no copies",Better supervised baseline,all labels,0.9498853108569876,0.7863513064072631
+"Resident streams, no copies","DISCOVER (SCAN, TF+ToD)",all labels,0.8833865966793353,0.6453862853240379
+"Resident streams, no copies","SCAN, TF",all labels,0.9202726046526628,0.6739683092135521
+"Resident streams, no copies","k-means, TF",all labels,0.93187115884896,0.6841929459747025
+Milan (paper),Better supervised baseline,≈100 labels,0.6527962543136099,0.2933637277571033
+Milan (paper),"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.7276004736967514,0.45939790998356367
+Milan (paper),"SCAN, TF",≈100 labels,0.7525984049069832,0.49061946696606445
+Milan (paper),"k-means, TF",≈100 labels,0.7503290231849434,0.48620543495259644
+Milan (paper),"DEC, TF",≈100 labels,0.7421866955640937,0.4654514984256878
+Milan (paper),"k-means, sensor hist.",≈100 labels,0.7469762767069318,0.5240935390752126
+Milan (paper),Better supervised baseline,≈250 labels,0.7169067909925279,0.37887379538940974
+Milan (paper),"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7727094715607845,0.5349186505301577
+Milan (paper),"SCAN, TF",≈250 labels,0.7667792765285384,0.555439212531815
+Milan (paper),"k-means, TF",≈250 labels,0.7607325317206307,0.5003285407762523
+Milan (paper),"DEC, TF",≈250 labels,0.7581253277786667,0.49539913420543735
+Milan (paper),"k-means, sensor hist.",≈250 labels,0.7401254196746166,0.4863012451796355
+Milan (paper),Better supervised baseline,all labels,0.8068891225825559,0.6123642950309967
+Milan (paper),"DISCOVER (SCAN, TF+ToD)",all labels,0.7794834896881362,0.5132712230019572
+Milan (paper),"SCAN, TF",all labels,0.791318025915338,0.5896968823554778
+Milan (paper),"k-means, TF",all labels,0.7988882928197134,0.5966036201745508
+Milan (paper),"DEC, TF",all labels,0.7690831785397662,0.5028449137050385
+Milan (paper),"k-means, sensor hist.",all labels,0.8024625625322301,0.6079226831239385
+Aruba (paper),Better supervised baseline,≈100 labels,0.8096823411144045,0.3632904908644422
+Aruba (paper),"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.8080038645092886,0.5032889235981834
+Aruba (paper),"SCAN, TF",≈100 labels,0.8412293359587177,0.5957061327967634
+Aruba (paper),"k-means, TF",≈100 labels,0.8793375393968592,0.6424325112254708
+Aruba (paper),"DEC, TF",≈100 labels,0.8796679013790392,0.6164320442627564
+Aruba (paper),"k-means, sensor hist.",≈100 labels,0.8366530334633726,0.5945063806172189
+Aruba (paper),Better supervised baseline,≈250 labels,0.8559780806800145,0.5475698069734578
+Aruba (paper),"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.8446425932766649,0.5814254808138914
+Aruba (paper),"SCAN, TF",≈250 labels,0.8587167919325145,0.5928514313823495
+Aruba (paper),"k-means, TF",≈250 labels,0.8775131474084382,0.6247551391280272
+Aruba (paper),"DEC, TF",≈250 labels,0.8668611166896527,0.5841395246531704
+Aruba (paper),"k-means, sensor hist.",≈250 labels,0.8596013139741178,0.6112987097057256
+Aruba (paper),Better supervised baseline,all labels,0.8993292200086731,0.667611869672697
+Aruba (paper),"DISCOVER (SCAN, TF+ToD)",all labels,0.8572533589531801,0.5737334412112987
+Aruba (paper),"SCAN, TF",all labels,0.8744742496489163,0.6133062887400207
+Aruba (paper),"k-means, TF",all labels,0.8764243834212728,0.6130081252356109
+Aruba (paper),"DEC, TF",all labels,0.8713042019897308,0.5739696480005716
+Aruba (paper),"k-means, sensor hist.",all labels,0.8732477476559639,0.6104834042859075
+Cairo (paper),Better supervised baseline,≈100 labels,0.2829813631385022,0.18127733082723757
+Cairo (paper),"DISCOVER (SCAN, TF+ToD)",≈100 labels,0.6489538037797227,0.41394905711883856
+Cairo (paper),"SCAN, TF",≈100 labels,0.30683780310802,0.2765443197697044
+Cairo (paper),"k-means, TF",≈100 labels,0.3049052605725691,0.26320650278102037
+Cairo (paper),"DEC, TF",≈100 labels,0.30706189760623054,0.2583207499226223
+Cairo (paper),"k-means, sensor hist.",≈100 labels,0.2728996925296419,0.26816581626283637
+Cairo (paper),Better supervised baseline,≈250 labels,0.306137342897205,0.2015175339413799
+Cairo (paper),"DISCOVER (SCAN, TF+ToD)",≈250 labels,0.7903582414434029,0.5431065710040892
+Cairo (paper),"SCAN, TF",≈250 labels,0.34011052621217386,0.3377830958726901
+Cairo (paper),"k-means, TF",≈250 labels,0.34165494490869647,0.3286006615256157
+Cairo (paper),"DEC, TF",≈250 labels,0.3202789664280186,0.27720443314759435
+Cairo (paper),"k-means, sensor hist.",≈250 labels,0.30776167944069666,0.30083354257889217
+Cairo (paper),Better supervised baseline,all labels,0.8731313095064746,0.6598580466772395
+Cairo (paper),"DISCOVER (SCAN, TF+ToD)",all labels,0.8136372717161884,0.5872046283417381
+Cairo (paper),"SCAN, TF",all labels,0.3761640612529951,0.3421407117627773
+Cairo (paper),"k-means, TF",all labels,0.3657020933590652,0.3507897703183106
+Cairo (paper),"DEC, TF",all labels,0.3311565192153223,0.2899567358111674
+Cairo (paper),"k-means, sensor hist.",all labels,0.3521714731332177,0.3326359158869702

@@ -1,0 +1,5 @@
+variant,dataset,events,pool windows (FL_20 train),test windows (FL_20_p test),pool No_Activity,"pool windows, >=2 activities at last event","test windows, >=2 activities at last event",test windows with a twin under another label,accuracy ceiling from twins,classes in test,classes scored (masked)
+Merged stream,kyotomerged,130098,9374,2006,0.008960955835289098,0.3554512481331342,0.2527417746759721,0.0,1.0,7,7
+Resident streams,kyotoflat,202455,14709,2778,0.004487048745665919,0.4631858046094228,0.24118070554355653,0.03959683225341973,0.9802015838732901,7,7
+R1 labels,kyotoresa,130098,9374,1900,0.09750373373159804,0.3554512481331342,0.27,0.0,1.0,6,6
+R2 labels,kyotoresb,130098,9374,1716,0.16396415617665885,0.3554512481331342,0.30244755244755245,0.0,1.0,7,7

@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1126" height="604" viewBox="0 0 1126 604" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<rect width="1126" height="604" fill="#fff"/>
+<text x="12" y="24" font-size="15" font-weight="500" fill="#2563eb">Milan</text>
+<text x="12" y="57" font-size="12.5" font-weight="500" fill="#0f172a">Kitchen Activity <tspan font-weight="400" fill="#64748b">(46%)</tspan></text>
+<rect x="12.0" y="64" width="124.2" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="78" font-size="11.5" fill="#0f172a">Medicine cabinet ×3</text>
+<rect x="141.2" y="64" width="63.2" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="149.2" y="78" font-size="11.5" fill="#0f172a">Stove ×2</text>
+<rect x="12.0" y="89" width="159.6" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="103" font-size="11.5" fill="#0f172a">Walking through the house</text>
+<rect x="12.0" y="114" width="143.7" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="128" font-size="11.5" fill="#0f172a">Kitchen + living + dining</text>
+<rect x="12.0" y="139" width="116.5" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="153" font-size="11.5" fill="#0f172a">Front-door hallway</text>
+<rect x="133.5" y="139" width="55.2" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="141.5" y="153" font-size="11.5" fill="#0f172a">Kitchen</text>
+<text x="12" y="189" font-size="12.5" font-weight="500" fill="#0f172a">Read <tspan font-weight="400" fill="#64748b">(21%)</tspan></text>
+<rect x="12.0" y="196" width="146.6" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="210" font-size="11.5" fill="#0f172a">Living-room armchair ×2</text>
+<rect x="163.6" y="196" width="92.9" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="171.6" y="210" font-size="11.5" fill="#0f172a">Living + dining</text>
+<rect x="12.0" y="221" width="132.3" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="235" font-size="11.5" fill="#0f172a">Leaving via front door</text>
+<text x="12" y="271" font-size="12.5" font-weight="500" fill="#0f172a">Watch TV <tspan font-weight="400" fill="#64748b">(10%)</tspan></text>
+<rect x="12.0" y="278" width="114.4" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="292" font-size="11.5" fill="#0f172a">Office armchair ×2</text>
+<text x="12" y="328" font-size="12.5" font-weight="500" fill="#0f172a">Master Bedroom Activity <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="12.0" y="335" width="103.7" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="349" font-size="11.5" fill="#0f172a">Master bedroom</text>
+<text x="12" y="385" font-size="12.5" font-weight="500" fill="#0f172a">Sleep <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="12.0" y="392" width="36.2" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="406" font-size="11.5" fill="#0f172a">Bed</text>
+<text x="12" y="442" font-size="12.5" font-weight="500" fill="#0f172a">Guest Bathroom <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="12.0" y="449" width="135.3" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="463" font-size="11.5" fill="#0f172a">Inside guest bathroom</text>
+<text x="12" y="499" font-size="12.5" font-weight="500" fill="#0f172a">Master Bathroom <tspan font-weight="400" fill="#64748b">(4%)</tspan></text>
+<rect x="12.0" y="506" width="142.4" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="520" font-size="11.5" fill="#0f172a">Inside master bathroom</text>
+<text x="12" y="556" font-size="12.5" font-weight="500" fill="#0f172a">Desk Activity <tspan font-weight="400" fill="#64748b">(4%)</tspan></text>
+<rect x="12.0" y="563" width="76.6" height="20" rx="10" fill="#2563eb" fill-opacity="0.16" stroke="#2563eb" stroke-opacity="0.6"/><text x="20.0" y="577" font-size="11.5" fill="#0f172a">Office desk</text>
+<text x="290" y="24" font-size="15" font-weight="500" fill="#d97706">Aruba</text>
+<text x="290" y="57" font-size="12.5" font-weight="500" fill="#0f172a">Relax <tspan font-weight="400" fill="#64748b">(35%)</tspan></text>
+<rect x="290.0" y="64" width="67.8" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="298.0" y="78" font-size="11.5" fill="#0f172a">Couch ×3</text>
+<rect x="362.8" y="64" width="153.1" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="370.8" y="78" font-size="11.5" fill="#0f172a">Bedroom → living spaces</text>
+<rect x="290.0" y="89" width="144.8" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="298.0" y="103" font-size="11.5" fill="#0f172a">Leaving via garage door</text>
+<rect x="439.8" y="89" width="77.4" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="447.8" y="103" font-size="11.5" fill="#0f172a">Living room</text>
+<rect x="290.0" y="114" width="155.7" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="298.0" y="128" font-size="11.5" fill="#0f172a">Living spaces → bedroom</text>
+<text x="290" y="164" font-size="12.5" font-weight="500" fill="#0f172a">Meal Preparation <tspan font-weight="400" fill="#64748b">(35%)</tspan></text>
+<rect x="290.0" y="171" width="72.7" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="298.0" y="185" font-size="11.5" fill="#0f172a">Kitchen ×5</text>
+<rect x="367.7" y="171" width="161.1" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="375.7" y="185" font-size="11.5" fill="#0f172a">Kitchen + living + dining ×2</text>
+<text x="290" y="221" font-size="12.5" font-weight="500" fill="#0f172a">Sleeping <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="290.0" y="228" width="36.2" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="298.0" y="242" font-size="11.5" fill="#0f172a">Bed</text>
+<text x="290" y="278" font-size="12.5" font-weight="500" fill="#0f172a">Work <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="290.0" y="285" width="76.6" height="20" rx="10" fill="#d97706" fill-opacity="0.16" stroke="#d97706" stroke-opacity="0.6"/><text x="298.0" y="299" font-size="11.5" fill="#0f172a">Office desk</text>
+<text x="290" y="335" font-size="12.5" font-weight="500" fill="#64748b">No CASAS label <tspan font-weight="400" fill="#64748b">(20%)</tspan></text>
+<rect x="290.0" y="342" width="121.1" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="298.0" y="356" font-size="11.5" fill="#0f172a">Master bedroom ×2</text>
+<rect x="290.0" y="367" width="144.8" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="298.0" y="381" font-size="11.5" fill="#0f172a">Leaving via garage door</text>
+<rect x="439.8" y="367" width="92.9" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="447.8" y="381" font-size="11.5" fill="#0f172a">Living + dining</text>
+<line x1="284" y1="10" x2="284" y2="598" stroke="#e2e8f0"/>
+<text x="568" y="24" font-size="15" font-weight="500" fill="#059669">Cairo</text>
+<text x="568" y="57" font-size="12.5" font-weight="500" fill="#0f172a">Dinner <tspan font-weight="400" fill="#64748b">(20%)</tspan></text>
+<rect x="568.0" y="64" width="119.4" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="576.0" y="78" font-size="11.5" fill="#0f172a">Kitchen + dining ×2</text>
+<rect x="568.0" y="89" width="147.4" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="576.0" y="103" font-size="11.5" fill="#0f172a">Entering via garage door</text>
+<rect x="720.4" y="89" width="77.4" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="728.4" y="103" font-size="11.5" fill="#0f172a">Living room</text>
+<text x="568" y="139" font-size="12.5" font-weight="500" fill="#0f172a">Breakfast <tspan font-weight="400" fill="#64748b">(16%)</tspan></text>
+<rect x="568.0" y="146" width="119.4" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="576.0" y="160" font-size="11.5" fill="#0f172a">Kitchen + dining ×2</text>
+<rect x="692.4" y="146" width="55.2" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="700.4" y="160" font-size="11.5" fill="#0f172a">Kitchen</text>
+<text x="568" y="196" font-size="12.5" font-weight="500" fill="#0f172a">wake <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="568.0" y="203" width="103.7" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="576.0" y="217" font-size="11.5" fill="#0f172a">Master bedroom</text>
+<text x="568" y="253" font-size="12.5" font-weight="500" fill="#0f172a">sleep <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="568.0" y="260" width="103.7" height="20" rx="10" fill="#059669" fill-opacity="0.16" stroke="#059669" stroke-opacity="0.6"/><text x="576.0" y="274" font-size="11.5" fill="#0f172a">Master bedroom</text>
+<text x="568" y="310" font-size="12.5" font-weight="500" fill="#64748b">No CASAS label <tspan font-weight="400" fill="#64748b">(55%)</tspan></text>
+<rect x="568.0" y="317" width="131.2" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="576.0" y="331" font-size="11.5" fill="#0f172a">None of the above ×2</text>
+<rect x="704.2" y="317" width="103.7" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="712.2" y="331" font-size="11.5" fill="#0f172a">Master bedroom</text>
+<rect x="568.0" y="342" width="114.1" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="576.0" y="356" font-size="11.5" fill="#0f172a">Office → bedroom</text>
+<rect x="687.1" y="342" width="92.9" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="695.1" y="356" font-size="11.5" fill="#0f172a">Living + dining</text>
+<rect x="568.0" y="367" width="143.7" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="576.0" y="381" font-size="11.5" fill="#0f172a">Kitchen + living + dining</text>
+<rect x="568.0" y="392" width="113.0" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="576.0" y="406" font-size="11.5" fill="#0f172a">Bedroom → office</text>
+<rect x="686.0" y="392" width="96.9" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="694.0" y="406" font-size="11.5" fill="#0f172a">Kitchen + living</text>
+<rect x="568.0" y="417" width="159.6" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="576.0" y="431" font-size="11.5" fill="#0f172a">Walking through the house</text>
+<rect x="568.0" y="442" width="102.1" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="576.0" y="456" font-size="11.5" fill="#0f172a">Kitchen + dining</text>
+<rect x="675.1" y="442" width="77.4" height="20" rx="10" fill="#f1f5f9" fill-opacity="1.00" stroke="#cbd5e1" stroke-opacity="0.6"/><text x="683.1" y="456" font-size="11.5" fill="#0f172a">Living room</text>
+<line x1="562" y1="10" x2="562" y2="598" stroke="#e2e8f0"/>
+<text x="846" y="24" font-size="15" font-weight="500" fill="#7c3aed">Orange4Home</text>
+<text x="846" y="57" font-size="12.5" font-weight="500" fill="#0f172a">Office Computing <tspan font-weight="400" fill="#64748b">(61%)</tspan></text>
+<rect x="846.0" y="64" width="70.8" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="78" font-size="11.5" fill="#0f172a">Office ×10</text>
+<rect x="921.8" y="64" width="56.7" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="929.8" y="78" font-size="11.5" fill="#0f172a">Shower</text>
+<rect x="846.0" y="89" width="159.6" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="103" font-size="11.5" fill="#0f172a">Walking through the house</text>
+<text x="846" y="139" font-size="12.5" font-weight="500" fill="#0f172a">Living room Watching TV <tspan font-weight="400" fill="#64748b">(9%)</tspan></text>
+<rect x="846.0" y="146" width="50.3" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="160" font-size="11.5" fill="#0f172a">Couch</text>
+<rect x="901.3" y="146" width="96.9" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="909.3" y="160" font-size="11.5" fill="#0f172a">Kitchen + living</text>
+<text x="846" y="196" font-size="12.5" font-weight="500" fill="#0f172a">Bedroom Reading <tspan font-weight="400" fill="#64748b">(7%)</tspan></text>
+<rect x="846.0" y="203" width="64.2" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="217" font-size="11.5" fill="#0f172a">Bedroom</text>
+<text x="846" y="253" font-size="12.5" font-weight="500" fill="#0f172a">Bedroom Dressing <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="846.0" y="260" width="64.2" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="274" font-size="11.5" fill="#0f172a">Bedroom</text>
+<text x="846" y="310" font-size="12.5" font-weight="500" fill="#0f172a">Kitchen Cooking <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="846.0" y="317" width="109.2" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="331" font-size="11.5" fill="#0f172a">Living-room table</text>
+<text x="846" y="367" font-size="12.5" font-weight="500" fill="#0f172a">Kitchen Washing the dishes <tspan font-weight="400" fill="#64748b">(5%)</tspan></text>
+<rect x="846.0" y="374" width="96.9" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="388" font-size="11.5" fill="#0f172a">Kitchen + living</text>
+<text x="846" y="424" font-size="12.5" font-weight="500" fill="#0f172a">Kitchen Preparing <tspan font-weight="400" fill="#64748b">(4%)</tspan></text>
+<rect x="846.0" y="431" width="159.6" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="445" font-size="11.5" fill="#0f172a">Walking through the house</text>
+<text x="846" y="481" font-size="12.5" font-weight="500" fill="#0f172a">Living room Computing <tspan font-weight="400" fill="#64748b">(4%)</tspan></text>
+<rect x="846.0" y="488" width="50.3" height="20" rx="10" fill="#7c3aed" fill-opacity="0.16" stroke="#7c3aed" stroke-opacity="0.6"/><text x="854.0" y="502" font-size="11.5" fill="#0f172a">Couch</text>
+<line x1="840" y1="10" x2="840" y2="598" stroke="#e2e8f0"/>
+</svg>

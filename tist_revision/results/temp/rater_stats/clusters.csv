@@ -1,0 +1,61 @@
+city,cluster,n_labels,majority,majority_share,majority_share_level_up,casas_majority,casas_purity,casas_labels
+milan,0,10,Motion in Guest bedroom: leaving,0.4,0.7,Meditate,0.8,"Meditate:4, Kitchen_Activity:1"
+milan,1,10,Motion in Kitchen (all over),0.8,1.0,Kitchen_Activity,0.6,"Kitchen_Activity:3, No_Activity:2"
+milan,2,10,Motion in Kitchen: near stove,0.8,1.0,Kitchen_Activity,0.8,"Kitchen_Activity:4, No_Activity:1"
+milan,3,10,Motion in Office: sitting in armchair,0.9,0.9,Watch_TV,0.6,"Watch_TV:3, No_Activity:2"
+milan,4,10,Motion in Guest bathroom: entering,0.9,0.9,Guest_Bathroom,0.8,"Guest_Bathroom:4, Watch_TV:1"
+milan,5,10,Motion in Kitchen: near medicine cabinet,1.0,1.0,Kitchen_Activity,0.8,"Kitchen_Activity:4, No_Activity:1"
+milan,6,10,Motion in Guest bathroom: leaving,0.4,0.8,Read,0.8,"Read:4, unknown:1"
+milan,7,10,Motion in Front-door hallway: back and forth,0.9,1.0,No_Activity,0.6,"No_Activity:3, Leave_Home:2"
+milan,8,10,Motion in Kitchen (all over),1.0,1.0,Kitchen_Activity,1.0,Kitchen_Activity:5
+milan,9,10,Motion in Guest bathroom: leaving,0.6,0.7,Kitchen_Activity,0.8,"Kitchen_Activity:4, Guest_Bathroom:1"
+milan,10,10,Motion in Master bathroom: entering,0.6,0.9,Master_Bathroom,0.4,"Master_Bathroom:2, Master_Bedroom_Activity:1, No_Activity:1, Read:1"
+milan,11,10,Motion in Master bathroom: inside,0.7,0.9,Master_Bedroom_Activity,0.6,"Master_Bedroom_Activity:3, Master_Bathroom:2"
+milan,12,10,Motion in Master bathroom: leaving,0.5,0.9,Sleep,0.6,"Sleep:3, Master_Bedroom_Activity:1, Bed_to_Toilet:1"
+milan,13,10,Motion in Kitchen (all over),0.8,0.8,Kitchen_Activity,0.8,"Kitchen_Activity:4, No_Activity:1"
+milan,14,10,Motion in Office: near desk,0.8,0.8,Desk_Activity,1.0,Desk_Activity:5
+milan,15,10,Kitchen + living + dining,1.0,1.0,Kitchen_Activity,1.0,Kitchen_Activity:5
+milan,16,10,Kitchen + dining,0.5,1.0,Kitchen_Activity,0.4,"Kitchen_Activity:2, No_Activity:2, Read:1"
+milan,17,10,Kitchen + living,0.3,0.5,Read,0.8,"Read:4, No_Activity:1"
+milan,18,10,"Walking through house, 3+ rooms",1.0,1.0,No_Activity,0.6,"No_Activity:3, Read:1, Sleep:1"
+milan,19,10,Motion in Living room: sitting on couch/armchair,1.0,1.0,No_Activity,0.6,"No_Activity:3, Read:2"
+aruba,0,10,Motion in Kitchen (all over),0.8,0.8,No_Activity,0.6,"No_Activity:3, Meal_Preparation:2"
+aruba,1,10,Motion in Living room: sitting on couch/armchair,0.6,1.0,Relax,1.0,Relax:5
+aruba,2,10,"Simultaneous activity, 2+ rooms",0.4,0.4,No_Activity,0.4,"No_Activity:2, Relax:2, Meal_Preparation:1"
+aruba,3,10,Motion in Kitchen (all over),0.4,0.6,Meal_Preparation,0.6,"Meal_Preparation:3, Relax:2"
+aruba,4,10,"Simultaneous activity, 2+ rooms",1.0,1.0,Meal_Preparation,0.6,"Meal_Preparation:3, Eating:2"
+aruba,5,10,"Walking through house, 3+ rooms",0.3,0.7,No_Activity,0.6,"No_Activity:3, Meal_Preparation:2"
+aruba,6,10,Motion in Living room (all over),0.6,0.8,Relax,0.8,"Relax:4, unknown:1"
+aruba,7,10,Motion in Kitchen (all over),1.0,1.0,Meal_Preparation,1.0,Meal_Preparation:5
+aruba,8,10,Kitchen + dining,0.8,0.8,No_Activity,0.6,"No_Activity:3, Eating:1, Meal_Preparation:1"
+aruba,9,10,Motion in Kitchen (all over),0.7,0.7,Meal_Preparation,0.8,"Meal_Preparation:4, No_Activity:1"
+aruba,10,10,Kitchen + living + dining,0.9,0.9,No_Activity,0.6,"No_Activity:3, Relax:1, Meal_Preparation:1"
+aruba,11,10,Motion in Master bedroom (all over),0.6,1.0,No_Activity,1.0,No_Activity:5
+aruba,12,10,Motion in Front-door hallway: back and forth,0.5,0.8,No_Activity,1.0,No_Activity:5
+aruba,13,10,Motion in Living room: sitting on couch/armchair,1.0,1.0,Relax,1.0,Relax:5
+aruba,14,10,Motion in Living room: sitting on couch/armchair,1.0,1.0,Relax,0.8,"Relax:4, No_Activity:1"
+aruba,15,10,Motion in Living room (all over),1.0,1.0,Relax,1.0,Relax:5
+aruba,16,10,Motion in Office (all over),1.0,1.0,Respirate,1.0,Respirate:5
+aruba,17,10,Master bedroom → living spaces,0.8,1.0,No_Activity,0.8,"No_Activity:4, Relax:1"
+aruba,18,10,"Simultaneous activity, 2+ rooms",1.0,1.0,Relax,0.8,"Relax:4, No_Activity:1"
+aruba,19,10,Motion in Master bedroom: near bed,0.8,0.8,No_Activity,0.6,"No_Activity:3, Sleeping:2"
+cairo,0,10,Kitchen + living + dining,0.8,1.0,No_Activity,0.8,"No_Activity:4, R2 wake:1"
+cairo,1,10,Motion in Master bedroom: near bed,1.0,1.0,R2 sleep,0.4,"R2 sleep:2, R2 wake:1, No_Activity:1, R1 work in office:1"
+cairo,2,10,Motion in Living room: sitting on couch/armchair,1.0,1.0,No_Activity,1.0,No_Activity:5
+cairo,3,10,Bedroom → office,0.8,1.0,No_Activity,0.8,"No_Activity:4, R1 wake:1"
+cairo,4,10,Kitchen + dining,0.9,1.0,No_Activity,0.8,"No_Activity:4, Breakfast:1"
+cairo,5,10,"Walking through house, 3+ rooms",1.0,1.0,No_Activity,0.4,"No_Activity:2, R2 sleep:1, Breakfast:1, R1 work in office:1"
+cairo,6,10,Office → bedroom,0.7,1.0,No_Activity,0.6,"No_Activity:3, R2 sleep:1, unknown:1"
+cairo,7,10,"Simultaneous activity, 2+ rooms",0.9,0.9,No_Activity,0.8,"No_Activity:4, R1 work in office:1"
+cairo,8,10,Kitchen + dining,0.7,0.7,No_Activity,0.8,"No_Activity:4, Lunch:1"
+cairo,9,10,"Simultaneous activity, 2+ rooms",1.0,1.0,R2 wake,0.6,"R2 wake:3, No_Activity:2"
+cairo,10,10,Kitchen + dining,0.4,0.8,No_Activity,1.0,No_Activity:5
+cairo,11,10,"Walking through house, 3+ rooms",0.6,0.6,No_Activity,0.4,"No_Activity:2, R2 take medicine:1, R2 wake:1, Lunch:1"
+cairo,12,10,Kitchen + dining,0.6,1.0,No_Activity,0.8,"No_Activity:4, Dinner:1"
+cairo,13,10,Kitchen + living + dining,0.4,1.0,No_Activity,0.4,"No_Activity:2, Breakfast:2, Dinner:1"
+cairo,14,10,"Simultaneous activity, 2+ rooms",0.8,0.8,R2 wake,0.4,"R2 wake:2, Lunch:2, No_Activity:1"
+cairo,15,10,Kitchen + living + dining,1.0,1.0,No_Activity,0.4,"No_Activity:2, Lunch:1, R2 take medicine:1, Breakfast:1"
+cairo,16,10,Kitchen + dining,0.7,1.0,Dinner,0.4,"Dinner:2, No_Activity:2, Leave home:1"
+cairo,17,10,Kitchen + dining,1.0,1.0,No_Activity,1.0,No_Activity:5
+cairo,18,10,Kitchen + living + dining,0.9,0.9,No_Activity,1.0,No_Activity:5
+cairo,19,10,Motion in Garage hallway: back and forth,0.5,0.7,No_Activity,0.8,"No_Activity:4, Laundry:1"

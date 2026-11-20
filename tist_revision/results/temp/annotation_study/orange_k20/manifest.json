@@ -1,0 +1,29 @@
+{
+ "cmd": "build",
+ "study": "orange",
+ "name": "orange_k20",
+ "run": "tf_s1+tod__scan_k20_todwbal",
+ "m": 5,
+ "n_random": 2,
+ "raters": [
+  "R01",
+  "R02",
+  "R03",
+  "R04",
+  "R05",
+  "R06"
+ ],
+ "context": 60,
+ "min_sep": 2,
+ "seed": 0,
+ "returned": "",
+ "n_items": 140,
+ "items_per_rater": {
+  "R01": 47,
+  "R03": 47,
+  "R04": 47,
+  "R06": 47,
+  "R02": 46,
+  "R05": 46
+ }
+}

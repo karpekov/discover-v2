@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sensor replay annotation</title>
+<style>
+  :root { --accent:#3A6BC4; --target:#f5c542; --bg:#f6f7fb; --text:#1a1a2e; --sub:#6b7280; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif; color:var(--text); background:var(--bg); }
+  header { display:flex; gap:16px; align-items:center; padding:10px 16px; background:#fff; border-bottom:1px solid #e5e7eb; }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  header input { padding:5px 8px; border:1px solid #ccc; border-radius:6px; width:110px; }
+  header .grow { flex:1; }
+  button { cursor:pointer; border:1px solid #cfd4dc; background:#fff; border-radius:6px; padding:6px 12px; font-size:13px; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #layout { display:flex; height:calc(100vh - 52px); }
+  #list { width:110px; overflow-y:auto; background:#fff; border-right:1px solid #e5e7eb; }
+  #list .home { padding:6px 10px; font-size:11px; font-weight:700; color:var(--sub); background:#f3f4f6; text-transform:uppercase; }
+  #list .it { padding:6px 10px; font-size:12px; cursor:pointer; border-bottom:1px solid #f0f0f0; }
+  #list .it.active { background:#e8eefc; font-weight:600; }
+  #list .it.done::after { content:" ✓"; color:#16a34a; }
+  #main { flex:1; display:flex; flex-direction:column; padding:12px 16px; min-width:0; }
+  #stage { flex:1; display:flex; gap:12px; min-height:0; }
+  #canvasWrap { flex:1; position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:8px; min-width:0; }
+  canvas#map { width:100%; height:100%; display:block; }
+  #side { width:340px; display:flex; flex-direction:column; gap:10px; min-height:0; }
+  .card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; font-size:13px; }
+  #clock { font-size:22px; font-variant-numeric:tabular-nums; font-weight:600; }
+  #inTarget { margin-top:4px; font-weight:600; }
+  #timeline { height:34px; margin-top:10px; position:relative; background:#fff; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; }
+  #controls { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  #picker { flex:1; overflow-y:auto; min-height:0; }
+  #picker .cat { font-size:11px; font-weight:700; color:var(--sub); text-transform:uppercase; margin:8px 0 4px; }
+  #picker .grp { margin:2px 0; }
+  #picker .grp > summary { cursor:pointer; padding:4px 6px; border-radius:5px; font-weight:600; }
+  #picker .grp > summary:hover { background:#f3f4f6; }
+  #picker label { display:block; padding:4px 6px 4px 22px; border-radius:5px; cursor:pointer; }
+  #picker label:hover { background:#eef2ff; }
+  #picker label.sel { background:#3A6BC4; color:#fff; }
+  #picker input { display:none; }
+  #chosen { font-weight:600; min-height:18px; }
+  textarea { width:100%; height:44px; font-family:inherit; font-size:12px; }
+  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+  .hint { color:var(--sub); font-size:11px; }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:10; }
+  #modal .box { background:#fff; border-radius:10px; max-width:720px; max-height:85vh; overflow-y:auto; padding:20px 26px; font-size:14px; line-height:1.45; }
+  #modal h2 { margin-top:0; font-size:18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Sensor replay annotation</h1>
+  <label>Rater ID <input id="rater" placeholder="as assigned"></label>
+  <span id="progress" class="hint"></span>
+  <span class="grow"></span>
+  <button id="instructionsBtn">Instructions</button>
+  <button class="primary" id="exportBtn">Export annotations (CSV)</button>
+</header>
+<div id="layout">
+  <div id="list"></div>
+  <div id="main">
+    <div id="stage">
+      <div id="canvasWrap"><canvas id="map"></canvas></div>
+      <div id="side">
+        <div class="card">
+          <div id="clock">--:--:--</div>
+          <div class="hint" id="date"></div>
+          <div id="inTarget"></div>
+        </div>
+        <div class="card">
+          <div class="hint">Sensor summary (highlighted segment)</div>
+          <div id="summary"></div>
+        </div>
+        <div class="card legend" id="legend">
+          <div><span style="background:#dc2626"></span>motion sensor (highlighted segment)</div>
+          <div><span style="background:#9ca3af"></span>motion sensor (context before/after)</div>
+          <div><span style="background:#2563eb;border-radius:2px"></span>door sensor</div>
+          <div class="hint" style="margin-top:4px">Lines show the most recent movement path.</div>
+        </div>
+        <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0">
+          <div class="hint">Which pattern best describes the <b style="color:#b45309">highlighted segment</b>?</div>
+          <div id="chosen"></div>
+          <div id="picker"></div>
+          <textarea id="note" placeholder="optional note"></textarea>
+          <button class="primary" id="saveBtn" style="margin-top:6px">Save and next (Enter)</button>
+        </div>
+      </div>
+    </div>
+    <div id="timeline"><canvas id="tl" style="width:100%;height:100%;display:block"></canvas></div>
+    <div id="controls">
+      <button id="playBtn">▶ Play</button>
+      <button id="targetBtn">Replay segment (r)</button>
+      <label class="hint">Speed
+        <select id="speed"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option><option>50</option></select>×
+      </label>
+      <label class="hint"><input type="checkbox" id="skipGaps" checked> skip pauses &gt; 10 s</label>
+      <span class="grow"></span>
+      <button id="prevBtn">← Prev</button>
+      <button id="nextBtn">Next →</button>
+    </div>
+  </div>
+</div>
+<div id="modal"><div class="box" id="modalBox"></div></div>
+<script>
+const DATA = /*__DATA__*/null;
+const STORE = `pdl-annotation:${DATA.packet}:${DATA.build}`;
+const state = JSON.parse(localStorage.getItem(STORE) || '{"rater":"","labels":{}}');
+let cur = 0, t = 0, playing = false, lastFrame = null, pending = null;
+const imgs = {};
+for (const h in DATA.homes) { const im = new Image(); im.src = DATA.homes[h].image.src; im.onload = () => draw(); imgs[h] = im; }
+const map = document.getElementById('map'), ctx = map.getContext('2d');
+const tl = document.getElementById('tl'), tctx = tl.getContext('2d');
+const $ = id => document.getElementById(id);
+const LABELS = Object.fromEntries(DATA.taxonomy.labels.map(l => [l.id, l]));
+// Homes with typed sensors (home.kinds: sensor -> motion | door | switch | light | shutter | tv) get their own
+// markers, event tags and legend; homes without kinds are drawn as before (motion circles, door squares).
+const KIND = {
+  switch: { color: '124,58,237', shape: 'diamond', tag: { ON: 'switch' } },
+  light: { color: '245,158,11', shape: 'circle', tag: { ON: 'light on', OFF: 'light off' }, state: true },
+  tv: { color: '5,150,105', shape: 'square', tag: { ON: 'TV on', OFF: 'TV off' }, state: true },
+  shutter: { color: '13,148,136', shape: 'bar', tag: { OPEN: 'shutter opened', CLOSE: 'shutter closed' } },
+  door: { tag: { OPEN: 'opened', CLOSE: 'closed' } },
+};
+const TAG_SECONDS = 6, HOLD_SECONDS = 4;
+const DEFAULT_LEGEND = $('legend').innerHTML;
+const KIND_LEGEND = `
+  <div><span style="background:#dc2626"></span>presence sensor (highlighted segment)</div>
+  <div><span style="background:#9ca3af"></span>presence sensor (context before/after)</div>
+  <div><span style="background:#2563eb;border-radius:2px"></span>door, cupboard, drawer, fridge or window</div>
+  <div><span style="background:rgb(124,58,237);border-radius:1px;transform:rotate(45deg) scale(.85)"></span>wall switch pressed</div>
+  <div><span style="background:rgb(245,158,11)"></span>light on &nbsp; <span style="background:rgb(5,150,105);border-radius:2px"></span>TV on</div>
+  <div><span style="background:rgb(13,148,136);border-radius:2px;height:5px"></span>shutter opened or closed</div>
+  <div class="hint" style="margin-top:4px">Lines show the most recent movement path.</div>`;
+$('rater').value = state.rater || DATA.rater || '';
+state.rater = $('rater').value;
+$('rater').oninput = e => { state.rater = e.target.value.trim(); save(); };
+
+function save() { localStorage.setItem(STORE, JSON.stringify(state)); renderList(); }
+function item() { return DATA.items[cur]; }
+function home() { return DATA.homes[item().home]; }
+
+function renderList() {
+  const list = $('list'); list.innerHTML = ''; let last = null;
+  DATA.items.forEach((it, i) => {
+    if (it.home !== last) { const h = document.createElement('div'); h.className = 'home'; h.textContent = DATA.homes[it.home].name; list.appendChild(h); last = it.home; }
+    const d = document.createElement('div');
+    d.textContent = it.id; d.className = 'it' + (i === cur ? ' active' : '') + (state.labels[it.id] ? ' done' : '');
+    d.onclick = () => select(i); list.appendChild(d);
+  });
+  const done = DATA.items.filter(i => state.labels[i.id]).length;
+  $('progress').textContent = `${done} / ${DATA.items.length} annotated`;
+}
+
+function renderPicker() {
+  const it = item(), allowed = home().labels, box = $('picker'); box.innerHTML = '';
+  const cats = DATA.taxonomy.categories, groups = DATA.taxonomy.groups;
+  for (const c in cats) {
+    const gs = Object.keys(groups).filter(g => groups[g].category === c && allowed.some(id => LABELS[id].group === g));
+    if (!gs.length) continue;
+    const ch = document.createElement('div'); ch.className = 'cat'; ch.textContent = cats[c]; box.appendChild(ch);
+    for (const g of gs) {
+      const det = document.createElement('details'); det.className = 'grp';
+      const sum = document.createElement('summary'); sum.textContent = groups[g].label; det.appendChild(sum);
+      for (const id of allowed.filter(id => LABELS[id].group === g)) {
+        const lab = document.createElement('label'); lab.textContent = LABELS[id].label; lab.dataset.id = id;
+        if (pending === id) { lab.className = 'sel'; det.open = true; }
+        lab.onclick = () => { pending = id; renderPicker(); };
+        det.appendChild(lab);
+      }
+      box.appendChild(det);
+    }
+  }
+  $('chosen').textContent = pending ? `Selected: ${LABELS[pending].label}` : 'Nothing selected yet';
+}
+
+function select(i) {
+  cur = Math.max(0, Math.min(DATA.items.length - 1, i));
+  const r = state.labels[item().id];
+  pending = r ? r.label_id : null; $('note').value = r ? (r.note || '') : '';
+  $('title').textContent = `Sensor replay annotation — ${home().name}`;
+  $('summary').textContent = item().summary || '';
+  $('legend').innerHTML = home().kinds ? KIND_LEGEND : DEFAULT_LEGEND;
+  t = Math.max(0, item().target[0] - 3); playing = false; $('playBtn').textContent = '▶ Play';
+  renderPicker(); renderList(); draw();
+}
+
+function commit() {
+  if (!state.rater) { alert('Please enter your rater ID first.'); $('rater').focus(); return; }
+  if (!pending) { alert('Please select a pattern (or "None of the above").'); return; }
+  state.labels[item().id] = { label_id: pending, note: $('note').value };
+  save();
+  const next = DATA.items.findIndex((it, j) => j > cur && !state.labels[it.id]);
+  if (next >= 0) select(next);
+  else if (DATA.items.every(it => state.labels[it.id])) alert('All items are annotated. Please click "Export annotations (CSV)" and send the file back.');
+  else select(cur + 1);
+}
+$('saveBtn').onclick = commit;
+
+function fit() {
+  const H = home(), w = map.clientWidth, h = map.clientHeight, dpr = window.devicePixelRatio || 1;
+  map.width = w * dpr; map.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  tl.width = tl.clientWidth * dpr; tl.height = tl.clientHeight * dpr; tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const s = Math.min(w / H.image.w, h / H.image.h);
+  return { s, ox: (w - H.image.w * s) / 2, oy: (h - H.image.h * s) / 2 };
+}
+
+function draw() {
+  const it = item(), H = home(), { s, ox, oy } = fit(), img = imgs[it.home];
+  const P = id => { const c = H.sensors[id]; return c ? [ox + c[0] * s, oy + c[1] * s] : null; };
+  ctx.clearRect(0, 0, map.width, map.height);
+  if (img.complete && img.width) { ctx.globalAlpha = 0.6; ctx.drawImage(img, ox, oy, H.image.w * s, H.image.h * s); ctx.globalAlpha = 1; }
+  const K = H.kinds || null, kindOf = id => K ? (K[id] || 'motion') : null;
+  for (const id in H.sensors) { const p = P(id); ctx.fillStyle = '#d1d5db'; ctx.beginPath(); ctx.arc(p[0], p[1], K && K[id] !== 'motion' ? 2.5 : 4, 0, 7); ctx.fill(); }
+  const active = {}, path = [];
+  for (const [et, sid, st] of it.events) {
+    if (et > t) break;
+    const k = kindOf(sid);
+    if (k === 'switch' && st !== 'ON') continue;  // a press is ON, then OFF one second later
+    active[sid] = { on: st === 'ON' || st === 'OPEN', t: et, st };
+    if (st === 'ON' && P(sid) && (!k || k === 'motion' || k === 'switch') && (!path.length || path[path.length - 1].sid !== sid)) path.push({ sid, t: et });
+  }
+  const recent = path.filter(p => t - p.t < 30).slice(-6);
+  for (let i = 1; i < recent.length; i++) {
+    const a = P(recent[i - 1].sid), b = P(recent[i].sid);
+    ctx.strokeStyle = `rgba(220,38,38,${0.15 + 0.6 * i / recent.length})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+  }
+  const inT = t >= it.target[0] && t <= it.target[1];
+  const tags = [];
+  for (const sid in active) {
+    const a = active[sid], p = P(sid); if (!p) continue;
+    const age = t - a.t, door = a.st === 'OPEN' || a.st === 'CLOSE', k = kindOf(sid), kd = KIND[k];
+    if (kd && kd.tag[a.st] && age < TAG_SECONDS) tags.push([p, kd.tag[a.st]]);
+    if (kd && kd.shape) {  // switch, light, TV, shutter
+      const held = kd.state && a.on;
+      if (!held && age > TAG_SECONDS) continue;
+      const alpha = held ? 0.9 : Math.max(0.15, 1 - age / TAG_SECONDS), r = 6 + 6 * Math.max(0, 1 - age / 3);
+      if (held) { ctx.fillStyle = `rgba(${kd.color},0.22)`; ctx.beginPath(); ctx.arc(p[0], p[1], r + 8, 0, 7); ctx.fill(); }
+      ctx.fillStyle = ctx.strokeStyle = `rgba(${kd.color},${alpha})`; ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (kd.shape === 'diamond') { ctx.moveTo(p[0], p[1] - r); ctx.lineTo(p[0] + r, p[1]); ctx.lineTo(p[0], p[1] + r); ctx.lineTo(p[0] - r, p[1]); ctx.closePath(); }
+      else if (kd.shape === 'bar') ctx.rect(p[0] - r * 1.4, p[1] - r * 0.45, r * 2.8, r * 0.9);
+      else if (kd.shape === 'square') ctx.rect(p[0] - r, p[1] - r * 0.7, r * 2, r * 1.4);
+      else ctx.arc(p[0], p[1], r, 0, 7);
+      kd.state && !a.on ? ctx.stroke() : ctx.fill();  // a light or TV just switched off: outline only
+      continue;
+    }
+    if (!a.on && age > 2) continue;
+    const alpha = a.on ? Math.max(0.35, 1 - age / 20) : 0.3, r = 7 + 10 * Math.max(0, 1 - age / 3);
+    ctx.fillStyle = door ? `rgba(37,99,235,${alpha})` : (inT ? `rgba(220,38,38,${alpha})` : `rgba(156,163,175,${alpha})`);
+    ctx.beginPath(); door ? ctx.rect(p[0] - r / 2, p[1] - r / 2, r, r) : ctx.arc(p[0], p[1], r, 0, 7); ctx.fill();
+  }
+  ctx.font = '600 11px -apple-system,Segoe UI,Helvetica,Arial,sans-serif'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+  tags.forEach(([p, text], i) => {
+    const same = tags.slice(0, i).filter(([q]) => Math.abs(q[0] - p[0]) < 60 && Math.abs(q[1] - p[1]) < 12).length;
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.strokeText(text, p[0] + 10, p[1] - 9 - same * 12);
+    ctx.fillStyle = '#1f2937'; ctx.fillText(text, p[0] + 10, p[1] - 9 - same * 12);
+  });
+  if (inT) { ctx.strokeStyle = '#f5c542'; ctx.lineWidth = 6; ctx.strokeRect(3, 3, map.clientWidth - 6, map.clientHeight - 6); }
+  const clock = new Date(new Date(it.clock_start).getTime() + t * 1000);
+  $('clock').textContent = clock.toTimeString().slice(0, 8);
+  $('date').textContent = clock.toLocaleDateString('en-US', { weekday: 'long' });
+  $('inTarget').innerHTML = inT ? '<span style="color:#b45309">● in highlighted segment</span>' : '<span class="hint">context (before/after)</span>';
+  const W = tl.clientWidth, Ht = tl.clientHeight, X = v => v / it.duration * W;
+  tctx.clearRect(0, 0, W, Ht);
+  tctx.fillStyle = 'rgba(245,197,66,0.45)'; tctx.fillRect(X(it.target[0]), 0, X(it.target[1]) - X(it.target[0]), Ht);
+  tctx.fillStyle = '#6b7280';
+  for (const [et, , st] of it.events) if (st === 'ON' || st === 'OPEN') tctx.fillRect(X(et), Ht * 0.3, 1, Ht * 0.4);
+  tctx.fillStyle = '#3A6BC4'; tctx.fillRect(X(t) - 1, 0, 3, Ht);
+}
+
+function nextEventAfter(x) { for (const [et] of item().events) if (et > x) return et; return null; }
+function lastEventBefore(x) { let last = -Infinity; for (const [et] of item().events) { if (et > x) break; last = et; } return last; }
+function loop(ts) {
+  if (playing) {
+    if (lastFrame !== null) t += (ts - lastFrame) / 1000 * +$('speed').value;
+    // typed homes: keep an event on screen for a moment before skipping the pause that follows it
+    if ($('skipGaps').checked) { const n = nextEventAfter(t); if (n !== null && n - t > 10 && (!home().kinds || t - lastEventBefore(t) > HOLD_SECONDS)) t = n - 1; }
+    if (t >= item().duration) { t = item().duration; playing = false; $('playBtn').textContent = '▶ Play'; }
+    draw();
+  }
+  lastFrame = ts; requestAnimationFrame(loop);
+}
+function togglePlay() { if (t >= item().duration) t = 0; playing = !playing; $('playBtn').textContent = playing ? '❚❚ Pause' : '▶ Play'; }
+$('playBtn').onclick = togglePlay;
+$('targetBtn').onclick = () => { t = Math.max(0, item().target[0] - 3); playing = true; $('playBtn').textContent = '❚❚ Pause'; };
+$('prevBtn').onclick = () => select(cur - 1); $('nextBtn').onclick = () => select(cur + 1);
+$('timeline').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); t = (e.clientX - r.left) / r.width * item().duration; draw(); };
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if ($('modal').style.display === 'flex') { if (e.key === 'Escape') closeModal(); return; }
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowRight') select(cur + 1); else if (e.key === 'ArrowLeft') select(cur - 1);
+  else if (e.key === 'Enter') commit(); else if (e.key === 'r') $('targetBtn').onclick();
+});
+$('note').onchange = () => { const r = state.labels[item().id]; if (r) { r.note = $('note').value; save(); } };
+
+$('exportBtn').onclick = () => {
+  if (!state.rater) { alert('Please enter your rater ID first.'); return; }
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = [['rater', 'item_id', 'label_id', 'label', 'note'].join(',')];
+  for (const it of DATA.items) {
+    const r = state.labels[it.id];
+    if (r) rows.push([state.rater, it.id, r.label_id, LABELS[r.label_id].label, r.note].map(esc).join(','));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+  a.download = `annotations_${DATA.packet}_${state.rater}.csv`; a.click();
+};
+
+function closeModal() { $('modal').style.display = 'none'; state.seenInstructions = true; save(); }
+$('instructionsBtn').onclick = () => { $('modal').style.display = 'flex'; };
+$('modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
+$('modalBox').innerHTML = DATA.instructions + '<p style="text-align:right"><button class="primary" id="closeModal">Start</button></p>';
+$('closeModal').onclick = closeModal;
+window.onresize = draw;
+const firstOpen = DATA.items.findIndex(it => !state.labels[it.id]);
+select(firstOpen >= 0 ? firstOpen : 0); requestAnimationFrame(loop);
+if (!state.seenInstructions) $('modal').style.display = 'flex';
+</script>
+</body>
+</html>

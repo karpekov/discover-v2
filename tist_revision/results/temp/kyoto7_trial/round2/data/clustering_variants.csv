@@ -1,0 +1,10 @@
+Variant,Clustering,Representation,Seeds,"K = 20, m = 5","K = 50, m = 5","K = 50, m = all","K = 100, m = 5"
+"Merged, sensor-attributed labels",k-means,TF,3,0.91 / 0.81,0.93 / 0.84,0.93 / 0.83,–
+"Merged, sensor-attributed labels",SCAN,TF,3,0.87 / 0.75,0.87 / 0.80,0.92 / 0.80,–
+"Merged, sensor-attributed labels",SCAN,TF+ToD,3,0.71 / 0.59,0.81 / 0.74,0.87 / 0.77,–
+"Merged, household-state labels",k-means,TF,1,0.55 / 0.34,0.62 / 0.43,0.63 / 0.45,–
+"Merged, household-state labels",SCAN,TF,1,0.57 / 0.41,0.63 / 0.46,0.68 / 0.51,–
+"Merged, household-state labels",SCAN,TF+ToD,1,0.47 / 0.31,0.47 / 0.33,0.56 / 0.39,–
+"Resident streams, no copies",k-means,TF,1,0.93 / 0.68,0.91 / 0.68,0.93 / 0.68,–
+"Resident streams, no copies",SCAN,TF,1,0.89 / 0.65,0.89 / 0.72,0.92 / 0.67,–
+"Resident streams, no copies",SCAN,TF+ToD,1,0.79 / 0.58,0.86 / 0.66,0.88 / 0.65,–

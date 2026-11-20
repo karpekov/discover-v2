@@ -1,0 +1,4 @@
+variant,dataset,events,pool windows (FL_20 train),test windows (FL_20_p test),pool No_Activity,"pool windows, >=2 activities at last event","test windows, >=2 activities at last event",test windows with a twin under another label,accuracy ceiling from twins,classes in test,classes scored (masked)
+"Merged, sensor-attributed labels",kyotoaff,130098,9374,1605,0.008960955835289098,0.3554512481331342,0.20249221183800623,0.0,1.0,7,6
+"Merged, household-state labels",kyotojoint,130098,9374,2004,0.008960955835289098,0.3554512481331342,0.2569860279441118,0.0,1.0,20,12
+"Resident streams, no copies",kyotoattr,130098,8986,1864,0.007233474293345203,0.36133986200756735,0.24678111587982832,0.0,1.0,7,7

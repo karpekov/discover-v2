@@ -171,6 +171,75 @@ TDOST variant: rule-based v1-1 (with time between readings).
 - Throttle: `%10` per array on overcap. The QoS cap is 48 GPUs per user; jobs are preemptible and requeued.
 - Total: about 64 GPU jobs and ~55 GPU-hours, roughly 6–9 h wall-clock.
 
+## Annotation study on the revised clusters (prepared 2026-11-19, not launched)
+Section 5 currently reports the v1 study (Alex, 2026-11-19: keep it for now). A redo on the revised clusters is
+ready in `annotation/` (`packets.py`, `template.html`, `pdl_taxonomy.json`); the rater app is adapted from
+`src/analyst/rater_template.html`.
+- Build: `python -m tist_revision.annotation.packets build` → `results/temp/annotation_study/v2_k20/`
+  (`packets/DISCOVER_annotation_R0x.html`, `key.csv`, `assignment.csv`, `manifest.json`).
+- Items: SCAN K=20, main method seed 1 (`tf_s1+tod__scan_k20_todwbal`); per cluster 5 most confident training
+  windows (≥2 min apart) + 2 random windows from the upper/lower confidence halves (R2-2.13); 140 per house.
+- Raters: 6 by default; every item gets 2 raters (all 15 pairs, 27–29 items each); 140 items per rater.
+- Send only the HTML (one file per rater, ~1.3 MB, offline, autosaves in the browser, exports a CSV). Never send
+  `key.csv` (clusters, confidence, stratum, CASAS labels).
+- Score: put returned CSVs in `returned/`, run `... packets score` → `scores/` (Fleiss per window, Krippendorff α,
+  cluster κ, agreement breakdown, propagation accuracy; `ratings.csv` in the v1 format of `rater_stats.py`).
+- Open decisions before launch: see the 2026-11-19 entry in `EXPLORATIONS.md`.
+- Milan rounds: `returned/v0.1_milan` (first instructions), `returned/v0.2_milan` (separate raters, reinstructed).
+- Sensor summary (Alex, 2026-11-19): each item now shows one text line of the activations in the highlighted
+  segment (rooms in order of first activation, counts, fixture from `casas_metadata.json` `sensor_details`, else
+  "other"). Item selection, key and assignment unchanged. Packets with the summary are a new protocol, so v0.1/v0.2
+  Milan ratings are not comparable with ratings collected on them. `returned/v0.3_milan` = this protocol.
+- Sensor overrides (Alex, 2026-11-19): `pdl_taxonomy.json` `houses.<city>.sensor_overrides` replace metadata
+  rooms/uses that contradict the floor plan (Milan M003, M006; Aruba M004, M006, M029, M031, D003; Cairo M024,
+  M011, M014). Autosave is keyed by packet build, so a rebuilt packet starts empty.
+- Final round (Alex, 2026-11-19): all three homes rated on these packets, Milan included (31 Milan summaries
+  changed vs v0.3, so v0.3 is superseded). Return Milan to `returned/v0.4_milan`.
+
+### Orange4Home packets (prepared 2026-11-20, not launched)
+Same protocol for the Orange4Home apartment ("Home D"), to see how the study carries over to a non-CASAS home.
+- Floor plan: `python -m tist_revision.annotation.orange_floorplan` redraws the two Amiqual4Home plans in the CASAS
+  re-render style → `metadata/floor_plans_augmented/orange.{png,svg}` and `sensor_coordinates` of the `orange`
+  entry in `casas_metadata.json`. Sensor positions inside a room are schematic (the dataset gives rooms only).
+- Build: `python -m tist_revision.annotation.packets build --study orange` → `results/temp/annotation_study/orange_k20/`
+  (`packets/DISCOVER_annotation_homeD_R0x.html`); 140 items (20 clusters × 5 top + 2 random), 6 raters, 2 per item,
+  46–47 items each.
+- Score: returned CSVs in `orange_k20/returned/<round>/`, then `... packets score --study orange --returned <round>`.
+- Typed sensors: the replay marks presence, contacts, switches, lights, shutters and TV differently
+  (`TYPED_HOMES` in `packets.py`, `home.kinds` in `template.html`); Home D options are the `orange` house of
+  `pdl_taxonomy.json` (labels with `only` are offered in the listed homes alone).
+- Known limit: 10 of 20 clusters are office-presence only and differ by time of day; see `EXPLORATIONS.md`.
+- Statistics: `python -m tist_revision.pipeline.section5_figures --study orange` → `results/temp/section5_orange/`
+  (`kappa_scores.tex`, `stats.json`, `clusters.csv`; figures are CASAS only). Returned 2026-11-20, CSVs directly in
+  `orange_k20/returned/`, so score without `--returned`.
+
+## Section 5 revision plan (agreed with Alex 2026-11-20, not yet implemented)
+Built by `python -m tist_revision.pipeline.section5_figures` → `results/temp/section5/` from the final study
+(`v2_k20/scores/final`, same clusters as Section 6: SCAN K=20, seed 1). Keep the old text and reword only where
+the new study differs.
+- §5.1 taxonomy: unchanged.
+- §5.2 protocol: rewrite for the new study: 6 raters in rotating pairs, 140 items per house (5 top-confidence
+  windows ≥2 min apart + 2 random windows per cluster), sensor summary line, sensor overrides, Milan pilot rounds,
+  IRB-exempt wording, Krippendorff's α cited as `hayes2007answering`. Drop the "original BERT clusters" caveat
+  (closes the open part of R2-3.3).
+- §5.3 consensus: Table 2 ← `kappa_scores.tex` (window and cluster κ, PDL and parent level, bootstrap CIs);
+  Fig. 4 ← `annotation_agreement` (a: agreement of two labels by source; b: majority share per cluster). Keep
+  the existing sentences, swap the numbers from `stats.json`.
+- §5.4 granularity: the old Fig. 5 (PDL × CASAS heatmap) moves to the appendix; main figure ←
+  `casas_to_pdl` (each CASAS activity → the patterns of the clusters it dominates). New result in the text:
+  windows without a CASAS label (33/49/74% of rated windows) are labeled consistently (κ 0.68/0.66/0.78, "None"
+  2/0/10%).
+- §5.5 t-SNE (Fig. 6): Milan only, insets (a) medicine cabinet c18, (b) stove c13 (both CASAS Kitchen_Activity),
+  (c) inside guest bathroom c16, (d) office armchair c14. Evidence for (a): the medicine-cabinet clusters (5, 15,
+  18; 4,777 windows) fire M014 in 91–97% of windows, open D003 at 4× the base rate, peak 8–10 h and 17–19 h;
+  CASAS has 39 medication windows in total. Alex redraws the figure from `section5/fig6_parts/` (scatter PNG,
+  outlines and legend SVGs in the same frame, one SVG per inset, `texts.json` with titles and CASAS mixes).
+- Appendix: random-window agreement and propagation (R2-2.13), the PDL × CASAS heatmap, protocol evolution
+  (pilot rounds, sensor summary), per-cluster details. Human agreement vs CASAS purity (Spearman 0.11–0.39) goes
+  to the response letter only (R2-2.14).
+- Then update `OTHER/discover-v1-tist-reviews/TRACKING.md`.
+- Open: whether Orange4Home joins Sections 5 and 6 (preview in `results/temp/with_orange/`).
+
 ## Findings and explorations
 Current state: `FINDINGS.md`. Full history (single-seed ablations, protocol switch, final runs, analyses, parked
 ideas): `EXPLORATIONS.md`. Paper-grade numbers: `results/final/REPORT.md`.

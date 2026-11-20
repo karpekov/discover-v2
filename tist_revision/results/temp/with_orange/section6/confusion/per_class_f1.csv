@@ -1,0 +1,409 @@
+city,label,masked_in,n_test,method,budget,f1
+milan,Kitchen_Activity,True,2395,DISCOVER (SCAN),250,0.8887913974830062
+milan,Kitchen_Activity,True,2395,k-means TF+ToD,250,0.8821905948592811
+milan,Kitchen_Activity,True,2395,Linear probe TF+ToD,250,0.8837492314790392
+milan,Kitchen_Activity,True,2395,TDOST,250,0.8846962357539654
+milan,Kitchen_Activity,True,2395,DISCOVER (SCAN),all,0.8946574632082298
+milan,Kitchen_Activity,True,2395,k-means TF+ToD,all,0.9022156540288252
+milan,Kitchen_Activity,True,2395,Linear probe TF+ToD,all,0.9031074860073952
+milan,Kitchen_Activity,True,2395,TDOST,all,0.9034177620537156
+milan,Read,True,973,DISCOVER (SCAN),250,0.8835181834615471
+milan,Read,True,973,k-means TF+ToD,250,0.879955951891653
+milan,Read,True,973,Linear probe TF+ToD,250,0.8525811659930269
+milan,Read,True,973,TDOST,250,0.7912318952962243
+milan,Read,True,973,DISCOVER (SCAN),all,0.8959130977436149
+milan,Read,True,973,k-means TF+ToD,all,0.8971910076977686
+milan,Read,True,973,Linear probe TF+ToD,all,0.8948146966317484
+milan,Read,True,973,TDOST,all,0.8682984858483402
+milan,Watch_TV,True,503,DISCOVER (SCAN),250,0.7544404521943956
+milan,Watch_TV,True,503,k-means TF+ToD,250,0.7911489133502025
+milan,Watch_TV,True,503,Linear probe TF+ToD,250,0.7977961171868462
+milan,Watch_TV,True,503,TDOST,250,0.5549587535116609
+milan,Watch_TV,True,503,DISCOVER (SCAN),all,0.7918060353320441
+milan,Watch_TV,True,503,k-means TF+ToD,all,0.7989586207346798
+milan,Watch_TV,True,503,Linear probe TF+ToD,all,0.8506347279725641
+milan,Watch_TV,True,503,TDOST,all,0.8010713403486488
+milan,Master_Bedroom_Activity,True,247,DISCOVER (SCAN),250,0.3773775866636583
+milan,Master_Bedroom_Activity,True,247,k-means TF+ToD,250,0.4152123488861523
+milan,Master_Bedroom_Activity,True,247,Linear probe TF+ToD,250,0.3782666585423663
+milan,Master_Bedroom_Activity,True,247,TDOST,250,0.2582557699655866
+milan,Master_Bedroom_Activity,True,247,DISCOVER (SCAN),all,0.4484737822466004
+milan,Master_Bedroom_Activity,True,247,k-means TF+ToD,all,0.4272647908495769
+milan,Master_Bedroom_Activity,True,247,Linear probe TF+ToD,all,0.4668920927270073
+milan,Master_Bedroom_Activity,True,247,TDOST,all,0.3732878686177792
+milan,Sleep,True,214,DISCOVER (SCAN),250,0.5853920345574709
+milan,Sleep,True,214,k-means TF+ToD,250,0.649173886532832
+milan,Sleep,True,214,Linear probe TF+ToD,250,0.6488200967738471
+milan,Sleep,True,214,TDOST,250,0.1088666469931813
+milan,Sleep,True,214,DISCOVER (SCAN),all,0.5451815339262901
+milan,Sleep,True,214,k-means TF+ToD,all,0.7005164309378301
+milan,Sleep,True,214,Linear probe TF+ToD,all,0.7592988262952292
+milan,Sleep,True,214,TDOST,all,0.4902899908103449
+milan,Master_Bathroom,True,208,DISCOVER (SCAN),250,0.4741910642697221
+milan,Master_Bathroom,True,208,k-means TF+ToD,250,0.5174936768660029
+milan,Master_Bathroom,True,208,Linear probe TF+ToD,250,0.595818744940971
+milan,Master_Bathroom,True,208,TDOST,250,0.2667195274669369
+milan,Master_Bathroom,True,208,DISCOVER (SCAN),all,0.5240618360392989
+milan,Master_Bathroom,True,208,k-means TF+ToD,all,0.6206556943679093
+milan,Master_Bathroom,True,208,Linear probe TF+ToD,all,0.6534139366348952
+milan,Master_Bathroom,True,208,TDOST,all,0.5568770000091268
+milan,Guest_Bathroom,True,175,DISCOVER (SCAN),250,0.642619111919392
+milan,Guest_Bathroom,True,175,k-means TF+ToD,250,0.4264698548718481
+milan,Guest_Bathroom,True,175,Linear probe TF+ToD,250,0.5504228418480792
+milan,Guest_Bathroom,True,175,TDOST,250,0.1705064059397504
+milan,Guest_Bathroom,True,175,DISCOVER (SCAN),all,0.5873845107907297
+milan,Guest_Bathroom,True,175,k-means TF+ToD,all,0.5843602071785567
+milan,Guest_Bathroom,True,175,Linear probe TF+ToD,all,0.6468463425587018
+milan,Guest_Bathroom,True,175,TDOST,all,0.5520545020176806
+milan,Chores,True,103,DISCOVER (SCAN),250,0.0927758678052567
+milan,Chores,True,103,k-means TF+ToD,250,0.0
+milan,Chores,True,103,Linear probe TF+ToD,250,0.0533623767932933
+milan,Chores,True,103,TDOST,250,0.0066115702479338
+milan,Chores,True,103,DISCOVER (SCAN),all,0.0
+milan,Chores,True,103,k-means TF+ToD,all,0.0
+milan,Chores,True,103,Linear probe TF+ToD,all,0.0462553402724907
+milan,Chores,True,103,TDOST,all,0.0031746031746031
+milan,Dining_Rm_Activity,True,83,DISCOVER (SCAN),250,0.365482343242224
+milan,Dining_Rm_Activity,True,83,k-means TF+ToD,250,0.4717843867796435
+milan,Dining_Rm_Activity,True,83,Linear probe TF+ToD,250,0.2292966158723691
+milan,Dining_Rm_Activity,True,83,TDOST,250,0.0071428571428571
+milan,Dining_Rm_Activity,True,83,DISCOVER (SCAN),all,0.3779937858344491
+milan,Dining_Rm_Activity,True,83,k-means TF+ToD,all,0.4905343867796435
+milan,Dining_Rm_Activity,True,83,Linear probe TF+ToD,all,0.3178989508198433
+milan,Dining_Rm_Activity,True,83,TDOST,all,0.3629153611537132
+milan,Leave_Home,True,40,DISCOVER (SCAN),250,0.4693937287231861
+milan,Leave_Home,True,40,k-means TF+ToD,250,0.0
+milan,Leave_Home,True,40,Linear probe TF+ToD,250,0.4496835104076123
+milan,Leave_Home,True,40,TDOST,250,0.0818765215564294
+milan,Leave_Home,True,40,DISCOVER (SCAN),all,0.0
+milan,Leave_Home,True,40,k-means TF+ToD,all,0.0347826086956521
+milan,Leave_Home,True,40,Linear probe TF+ToD,all,0.5083996463306809
+milan,Leave_Home,True,40,TDOST,all,0.438721478541516
+milan,Desk_Activity,True,31,DISCOVER (SCAN),250,0.3501233855118765
+milan,Desk_Activity,True,31,k-means TF+ToD,250,0.6414001993712137
+milan,Desk_Activity,True,31,Linear probe TF+ToD,250,0.5823154623154624
+milan,Desk_Activity,True,31,TDOST,250,0.1164947993393152
+milan,Desk_Activity,True,31,DISCOVER (SCAN),all,0.5805114079002728
+milan,Desk_Activity,True,31,k-means TF+ToD,all,0.6400264982271514
+milan,Desk_Activity,True,31,Linear probe TF+ToD,all,0.5921240204583857
+milan,Desk_Activity,True,31,TDOST,all,0.5797904309907673
+milan,Bed_to_Toilet,False,12,DISCOVER (SCAN),250,0.0
+milan,Bed_to_Toilet,False,12,k-means TF+ToD,250,0.0837887067395264
+milan,Bed_to_Toilet,False,12,Linear probe TF+ToD,250,0.1736340852130325
+milan,Bed_to_Toilet,False,12,TDOST,250,0.0
+milan,Bed_to_Toilet,False,12,DISCOVER (SCAN),all,0.0
+milan,Bed_to_Toilet,False,12,k-means TF+ToD,all,0.0
+milan,Bed_to_Toilet,False,12,Linear probe TF+ToD,all,0.2618743829270145
+milan,Bed_to_Toilet,False,12,TDOST,all,0.0285714285714285
+milan,Meditate,False,8,DISCOVER (SCAN),250,0.064
+milan,Meditate,False,8,k-means TF+ToD,250,0.0
+milan,Meditate,False,8,Linear probe TF+ToD,250,0.519144385026738
+milan,Meditate,False,8,TDOST,250,0.0117647058823529
+milan,Meditate,False,8,DISCOVER (SCAN),all,0.0
+milan,Meditate,False,8,k-means TF+ToD,all,0.0
+milan,Meditate,False,8,Linear probe TF+ToD,all,0.3264382676147382
+milan,Meditate,False,8,TDOST,all,0.7732631578947368
+milan,Eve_Meds,False,8,DISCOVER (SCAN),250,0.0
+milan,Eve_Meds,False,8,k-means TF+ToD,250,0.0
+milan,Eve_Meds,False,8,Linear probe TF+ToD,250,0.0
+milan,Eve_Meds,False,8,TDOST,250,0.0
+milan,Eve_Meds,False,8,DISCOVER (SCAN),all,0.0
+milan,Eve_Meds,False,8,k-means TF+ToD,all,0.0
+milan,Eve_Meds,False,8,Linear probe TF+ToD,all,0.0
+milan,Eve_Meds,False,8,TDOST,all,0.0
+milan,Morning_Meds,False,5,DISCOVER (SCAN),250,0.0
+milan,Morning_Meds,False,5,k-means TF+ToD,250,0.0
+milan,Morning_Meds,False,5,Linear probe TF+ToD,250,0.0
+milan,Morning_Meds,False,5,TDOST,250,0.0
+milan,Morning_Meds,False,5,DISCOVER (SCAN),all,0.0
+milan,Morning_Meds,False,5,k-means TF+ToD,all,0.0
+milan,Morning_Meds,False,5,Linear probe TF+ToD,all,0.0
+milan,Morning_Meds,False,5,TDOST,all,0.0
+aruba,Relax,True,6442,DISCOVER (SCAN),250,0.9057137231001188
+aruba,Relax,True,6442,k-means TF+ToD,250,0.9170148640705232
+aruba,Relax,True,6442,Linear probe TF+ToD,250,0.9284009054556452
+aruba,Relax,True,6442,TDOST,250,0.9253761636462712
+aruba,Relax,True,6442,DISCOVER (SCAN),all,0.9134750878115374
+aruba,Relax,True,6442,k-means TF+ToD,all,0.9275808711484526
+aruba,Relax,True,6442,Linear probe TF+ToD,all,0.9430610759126417
+aruba,Relax,True,6442,TDOST,all,0.9432109820171156
+aruba,Meal_Preparation,True,5245,DISCOVER (SCAN),250,0.8750558813148783
+aruba,Meal_Preparation,True,5245,k-means TF+ToD,250,0.8727863448641194
+aruba,Meal_Preparation,True,5245,Linear probe TF+ToD,250,0.8883008263957917
+aruba,Meal_Preparation,True,5245,TDOST,250,0.8956879041094485
+aruba,Meal_Preparation,True,5245,DISCOVER (SCAN),all,0.9046895115981436
+aruba,Meal_Preparation,True,5245,k-means TF+ToD,all,0.8949338402859622
+aruba,Meal_Preparation,True,5245,Linear probe TF+ToD,all,0.920410078883186
+aruba,Meal_Preparation,True,5245,TDOST,all,0.9189258308448583
+aruba,Housekeeping,True,395,DISCOVER (SCAN),250,0.3089156107463727
+aruba,Housekeeping,True,395,k-means TF+ToD,250,0.2607996297325373
+aruba,Housekeeping,True,395,Linear probe TF+ToD,250,0.1287000850291584
+aruba,Housekeeping,True,395,TDOST,250,0.0009876543209876
+aruba,Housekeeping,True,395,DISCOVER (SCAN),all,0.1206996389101652
+aruba,Housekeeping,True,395,k-means TF+ToD,all,0.1119993473712896
+aruba,Housekeeping,True,395,Linear probe TF+ToD,all,0.274662223230483
+aruba,Housekeeping,True,395,TDOST,all,0.2575147885933647
+aruba,Sleeping,True,357,DISCOVER (SCAN),250,0.6692950990564877
+aruba,Sleeping,True,357,k-means TF+ToD,250,0.8023528521813535
+aruba,Sleeping,True,357,Linear probe TF+ToD,250,0.8854384049592754
+aruba,Sleeping,True,357,TDOST,250,0.5750683659688213
+aruba,Sleeping,True,357,DISCOVER (SCAN),all,0.8076907306303303
+aruba,Sleeping,True,357,k-means TF+ToD,all,0.8895935102428207
+aruba,Sleeping,True,357,Linear probe TF+ToD,all,0.9620282264177432
+aruba,Sleeping,True,357,TDOST,all,0.9014621988735602
+aruba,Eating,True,352,DISCOVER (SCAN),250,0.6185269681735059
+aruba,Eating,True,352,k-means TF+ToD,250,0.6111500642246825
+aruba,Eating,True,352,Linear probe TF+ToD,250,0.6319828080298557
+aruba,Eating,True,352,TDOST,250,0.2295723535587916
+aruba,Eating,True,352,DISCOVER (SCAN),all,0.5926509651330639
+aruba,Eating,True,352,k-means TF+ToD,all,0.6256593606212073
+aruba,Eating,True,352,Linear probe TF+ToD,all,0.6852569843097885
+aruba,Eating,True,352,TDOST,all,0.6501891117362802
+aruba,Work,True,333,DISCOVER (SCAN),250,0.6810232718580655
+aruba,Work,True,333,k-means TF+ToD,250,0.5445641430115953
+aruba,Work,True,333,Linear probe TF+ToD,250,0.7448354283782941
+aruba,Work,True,333,TDOST,250,0.4058889898818143
+aruba,Work,True,333,DISCOVER (SCAN),all,0.6769281543958506
+aruba,Work,True,333,k-means TF+ToD,all,0.6037955610779262
+aruba,Work,True,333,Linear probe TF+ToD,all,0.8464725780910293
+aruba,Work,True,333,TDOST,all,0.8274649428268989
+aruba,Wash_Dishes,True,147,DISCOVER (SCAN),250,0.0114478114478114
+aruba,Wash_Dishes,True,147,k-means TF+ToD,250,0.0120627261761158
+aruba,Wash_Dishes,True,147,Linear probe TF+ToD,250,0.0416285494399971
+aruba,Wash_Dishes,True,147,TDOST,250,0.0
+aruba,Wash_Dishes,True,147,DISCOVER (SCAN),all,0.0
+aruba,Wash_Dishes,True,147,k-means TF+ToD,all,0.0
+aruba,Wash_Dishes,True,147,Linear probe TF+ToD,all,0.0156548740746489
+aruba,Wash_Dishes,True,147,TDOST,all,0.0
+aruba,Bed_to_Toilet,False,19,DISCOVER (SCAN),250,0.0242424242424242
+aruba,Bed_to_Toilet,False,19,k-means TF+ToD,250,0.0609769820255257
+aruba,Bed_to_Toilet,False,19,Linear probe TF+ToD,250,0.0703703703703703
+aruba,Bed_to_Toilet,False,19,TDOST,250,0.0
+aruba,Bed_to_Toilet,False,19,DISCOVER (SCAN),all,0.0
+aruba,Bed_to_Toilet,False,19,k-means TF+ToD,all,0.0
+aruba,Bed_to_Toilet,False,19,Linear probe TF+ToD,all,0.2594461859979101
+aruba,Bed_to_Toilet,False,19,TDOST,all,0.0
+aruba,Leave_Home,False,4,DISCOVER (SCAN),250,0.0295380611581001
+aruba,Leave_Home,False,4,k-means TF+ToD,250,0.0097560975609756
+aruba,Leave_Home,False,4,Linear probe TF+ToD,250,0.0
+aruba,Leave_Home,False,4,TDOST,250,0.0
+aruba,Leave_Home,False,4,DISCOVER (SCAN),all,0.0
+aruba,Leave_Home,False,4,k-means TF+ToD,all,0.0
+aruba,Leave_Home,False,4,Linear probe TF+ToD,all,0.1833333333333333
+aruba,Leave_Home,False,4,TDOST,all,0.08
+aruba,Enter_Home,False,4,DISCOVER (SCAN),250,0.0143645409317051
+aruba,Enter_Home,False,4,k-means TF+ToD,250,0.0
+aruba,Enter_Home,False,4,Linear probe TF+ToD,250,0.0235294117647058
+aruba,Enter_Home,False,4,TDOST,250,0.0
+aruba,Enter_Home,False,4,DISCOVER (SCAN),all,0.0
+aruba,Enter_Home,False,4,k-means TF+ToD,all,0.0
+aruba,Enter_Home,False,4,Linear probe TF+ToD,all,0.1471428571428571
+aruba,Enter_Home,False,4,TDOST,all,0.0
+cairo,Dinner,True,1109,DISCOVER (SCAN),250,0.955573863020206
+cairo,Dinner,True,1109,k-means TF+ToD,250,0.9545841749852711
+cairo,Dinner,True,1109,Linear probe TF+ToD,250,0.8898441703530917
+cairo,Dinner,True,1109,TDOST,250,0.5132789100608135
+cairo,Dinner,True,1109,DISCOVER (SCAN),all,0.9550344464957856
+cairo,Dinner,True,1109,k-means TF+ToD,all,0.9534082944431967
+cairo,Dinner,True,1109,Linear probe TF+ToD,all,0.9633541080565722
+cairo,Dinner,True,1109,TDOST,all,0.962231042670507
+cairo,Lunch,True,853,DISCOVER (SCAN),250,0.8265781422589968
+cairo,Lunch,True,853,k-means TF+ToD,250,0.861528614934383
+cairo,Lunch,True,853,Linear probe TF+ToD,250,0.7627497855770657
+cairo,Lunch,True,853,TDOST,250,0.138936215557346
+cairo,Lunch,True,853,DISCOVER (SCAN),all,0.8077340374765909
+cairo,Lunch,True,853,k-means TF+ToD,all,0.8136770440080063
+cairo,Lunch,True,853,Linear probe TF+ToD,all,0.8637006709701593
+cairo,Lunch,True,853,TDOST,all,0.9626881397630758
+cairo,Breakfast,True,533,DISCOVER (SCAN),250,0.7627327760910212
+cairo,Breakfast,True,533,k-means TF+ToD,250,0.7634377911780175
+cairo,Breakfast,True,533,Linear probe TF+ToD,250,0.6976308645214175
+cairo,Breakfast,True,533,TDOST,250,0.1678893219365134
+cairo,Breakfast,True,533,DISCOVER (SCAN),all,0.7495389040512356
+cairo,Breakfast,True,533,k-means TF+ToD,all,0.7292831174599078
+cairo,Breakfast,True,533,Linear probe TF+ToD,all,0.7678392551603145
+cairo,Breakfast,True,533,TDOST,all,0.8821449631497679
+cairo,wake,True,455,DISCOVER (SCAN),250,0.8481445951912834
+cairo,wake,True,455,k-means TF+ToD,250,0.8300718072314129
+cairo,wake,True,455,Linear probe TF+ToD,250,0.7487890690957993
+cairo,wake,True,455,TDOST,250,0.4443526836880066
+cairo,wake,True,455,DISCOVER (SCAN),all,0.8843836851082575
+cairo,wake,True,455,k-means TF+ToD,all,0.8522865440633964
+cairo,wake,True,455,Linear probe TF+ToD,all,0.8718242743122401
+cairo,wake,True,455,TDOST,all,0.869494884771008
+cairo,sleep,True,384,DISCOVER (SCAN),250,0.8159197514716287
+cairo,sleep,True,384,k-means TF+ToD,250,0.8105141996460997
+cairo,sleep,True,384,Linear probe TF+ToD,250,0.7307449877412123
+cairo,sleep,True,384,TDOST,250,0.3739897139747692
+cairo,sleep,True,384,DISCOVER (SCAN),all,0.8062198568907654
+cairo,sleep,True,384,k-means TF+ToD,all,0.8093357536488519
+cairo,sleep,True,384,Linear probe TF+ToD,all,0.8310008050345241
+cairo,sleep,True,384,TDOST,all,0.8434588792081765
+cairo,work in office,True,169,DISCOVER (SCAN),250,0.4178267575532061
+cairo,work in office,True,169,k-means TF+ToD,250,0.2881712882130694
+cairo,work in office,True,169,Linear probe TF+ToD,250,0.4477024844323694
+cairo,work in office,True,169,TDOST,250,0.0953488372093023
+cairo,work in office,True,169,DISCOVER (SCAN),all,0.3734596717357604
+cairo,work in office,True,169,k-means TF+ToD,all,0.2754402292566884
+cairo,work in office,True,169,Linear probe TF+ToD,all,0.5469413758469617
+cairo,work in office,True,169,TDOST,all,0.6024091247258776
+cairo,Night wandering,True,141,DISCOVER (SCAN),250,0.0
+cairo,Night wandering,True,141,k-means TF+ToD,250,0.7879887683228631
+cairo,Night wandering,True,141,Linear probe TF+ToD,250,0.5577783162377555
+cairo,Night wandering,True,141,TDOST,250,0.0486046229623684
+cairo,Night wandering,True,141,DISCOVER (SCAN),all,0.8284901185770751
+cairo,Night wandering,True,141,k-means TF+ToD,all,0.81875935828877
+cairo,Night wandering,True,141,Linear probe TF+ToD,all,0.6615320227585787
+cairo,Night wandering,True,141,TDOST,all,0.427631200625486
+cairo,Laundry,True,37,DISCOVER (SCAN),250,0.6316623912954189
+cairo,Laundry,True,37,k-means TF+ToD,250,0.5840739918608953
+cairo,Laundry,True,37,Linear probe TF+ToD,250,0.6807524552931236
+cairo,Laundry,True,37,TDOST,250,0.1128205128205128
+cairo,Laundry,True,37,DISCOVER (SCAN),all,0.4671855630819098
+cairo,Laundry,True,37,k-means TF+ToD,all,0.644138524002866
+cairo,Laundry,True,37,Linear probe TF+ToD,all,0.9004735425788055
+cairo,Laundry,True,37,TDOST,all,0.9243874055141662
+cairo,take medicine,True,31,DISCOVER (SCAN),250,0.0
+cairo,take medicine,True,31,k-means TF+ToD,250,0.0
+cairo,take medicine,True,31,Linear probe TF+ToD,250,0.0212765957446808
+cairo,take medicine,True,31,TDOST,250,0.0
+cairo,take medicine,True,31,DISCOVER (SCAN),all,0.0
+cairo,take medicine,True,31,k-means TF+ToD,all,0.0
+cairo,take medicine,True,31,Linear probe TF+ToD,all,0.0951342874617383
+cairo,take medicine,True,31,TDOST,all,0.0
+cairo,Bed to toilet,True,28,DISCOVER (SCAN),250,0.1726274331591304
+cairo,Bed to toilet,True,28,k-means TF+ToD,250,0.0622222222222222
+cairo,Bed to toilet,True,28,Linear probe TF+ToD,250,0.100584890651162
+cairo,Bed to toilet,True,28,TDOST,250,0.0
+cairo,Bed to toilet,True,28,DISCOVER (SCAN),all,0.0
+cairo,Bed to toilet,True,28,k-means TF+ToD,all,0.0
+cairo,Bed to toilet,True,28,Linear probe TF+ToD,all,0.2459665632286136
+cairo,Bed to toilet,True,28,TDOST,all,0.1241348263443308
+cairo,Leave home,False,17,DISCOVER (SCAN),250,0.0
+cairo,Leave home,False,17,k-means TF+ToD,250,0.0
+cairo,Leave home,False,17,Linear probe TF+ToD,250,0.0983622828784119
+cairo,Leave home,False,17,TDOST,250,0.0
+cairo,Leave home,False,17,DISCOVER (SCAN),all,0.0
+cairo,Leave home,False,17,k-means TF+ToD,all,0.0
+cairo,Leave home,False,17,Linear probe TF+ToD,all,0.4326119288168624
+cairo,Leave home,False,17,TDOST,all,0.1526013071895424
+orange,Office_Computing,True,512,DISCOVER (SCAN),250,0.9735074487205672
+orange,Office_Computing,True,512,Linear probe TF+ToD,250,0.972713289724713
+orange,Office_Computing,True,512,TDOST,250,0.9733580805748122
+orange,Office_Computing,True,512,DISCOVER (SCAN),all,0.9791573596748918
+orange,Office_Computing,True,512,Linear probe TF+ToD,all,0.9450457536728706
+orange,Office_Computing,True,512,TDOST,all,0.976364534312234
+orange,Living_room_Watching_TV,True,104,DISCOVER (SCAN),250,0.9556024159503776
+orange,Living_room_Watching_TV,True,104,Linear probe TF+ToD,250,0.9613827367881388
+orange,Living_room_Watching_TV,True,104,TDOST,250,0.6275021373658738
+orange,Living_room_Watching_TV,True,104,DISCOVER (SCAN),all,0.93076352615052
+orange,Living_room_Watching_TV,True,104,Linear probe TF+ToD,all,0.9459494572891582
+orange,Living_room_Watching_TV,True,104,TDOST,all,0.9200689922170158
+orange,Living_room_Computing,True,34,DISCOVER (SCAN),250,0.5249392021314572
+orange,Living_room_Computing,True,34,Linear probe TF+ToD,250,0.7320359347936634
+orange,Living_room_Computing,True,34,TDOST,250,0.2332385120920714
+orange,Living_room_Computing,True,34,DISCOVER (SCAN),all,0.6496723712611779
+orange,Living_room_Computing,True,34,Linear probe TF+ToD,all,0.7150044652944404
+orange,Living_room_Computing,True,34,TDOST,all,0.6304658405429456
+orange,Bedroom_Reading,True,31,DISCOVER (SCAN),250,0.6137966502096937
+orange,Bedroom_Reading,True,31,Linear probe TF+ToD,250,0.6499178981937603
+orange,Bedroom_Reading,True,31,TDOST,250,0.6577141113609697
+orange,Bedroom_Reading,True,31,DISCOVER (SCAN),all,0.6988906120760959
+orange,Bedroom_Reading,True,31,Linear probe TF+ToD,all,0.6978567517844816
+orange,Bedroom_Reading,True,31,TDOST,all,0.7369932523616735
+orange,Kitchen_Cooking,True,28,DISCOVER (SCAN),250,0.6636768135123211
+orange,Kitchen_Cooking,True,28,Linear probe TF+ToD,250,0.5531637749954932
+orange,Kitchen_Cooking,True,28,TDOST,250,0.0961656836405933
+orange,Kitchen_Cooking,True,28,DISCOVER (SCAN),all,0.6636768135123211
+orange,Kitchen_Cooking,True,28,Linear probe TF+ToD,all,0.6288779453810509
+orange,Kitchen_Cooking,True,28,TDOST,all,0.5179661197812458
+orange,Bedroom_Napping,True,26,DISCOVER (SCAN),250,0.4047434017595308
+orange,Bedroom_Napping,True,26,Linear probe TF+ToD,250,0.5878305394057842
+orange,Bedroom_Napping,True,26,TDOST,250,0.2547674905739422
+orange,Bedroom_Napping,True,26,DISCOVER (SCAN),all,0.4102144083439827
+orange,Bedroom_Napping,True,26,Linear probe TF+ToD,all,0.6012694924123496
+orange,Bedroom_Napping,True,26,TDOST,all,0.3644087938205586
+orange,Office_Watching_TV,True,21,DISCOVER (SCAN),250,0.1270591250854408
+orange,Office_Watching_TV,True,21,Linear probe TF+ToD,250,0.3156693082030413
+orange,Office_Watching_TV,True,21,TDOST,250,0.033391304347826
+orange,Office_Watching_TV,True,21,DISCOVER (SCAN),all,0.0
+orange,Office_Watching_TV,True,21,Linear probe TF+ToD,all,0.4428219533275713
+orange,Office_Watching_TV,True,21,TDOST,all,0.2848484848484848
+orange,Living_room_Eating,False,17,DISCOVER (SCAN),250,0.08
+orange,Living_room_Eating,False,17,Linear probe TF+ToD,250,0.3749194847020934
+orange,Living_room_Eating,False,17,TDOST,250,0.1034050179211469
+orange,Living_room_Eating,False,17,DISCOVER (SCAN),all,0.0
+orange,Living_room_Eating,False,17,Linear probe TF+ToD,all,0.5676908376908376
+orange,Living_room_Eating,False,17,TDOST,all,0.2707455562870309
+orange,Staircase_Going_down,False,12,DISCOVER (SCAN),250,0.0
+orange,Staircase_Going_down,False,12,Linear probe TF+ToD,250,0.139047619047619
+orange,Staircase_Going_down,False,12,TDOST,250,0.0
+orange,Staircase_Going_down,False,12,DISCOVER (SCAN),all,0.2067340067340067
+orange,Staircase_Going_down,False,12,Linear probe TF+ToD,all,0.0533333333333333
+orange,Staircase_Going_down,False,12,TDOST,all,0.0422222222222222
+orange,Kitchen_Washing_the_dishes,False,12,DISCOVER (SCAN),250,0.4408952666523881
+orange,Kitchen_Washing_the_dishes,False,12,Linear probe TF+ToD,250,0.4453781512605042
+orange,Kitchen_Washing_the_dishes,False,12,TDOST,250,0.0804209073658789
+orange,Kitchen_Washing_the_dishes,False,12,DISCOVER (SCAN),all,0.4408952666523881
+orange,Kitchen_Washing_the_dishes,False,12,Linear probe TF+ToD,all,0.6225123170424713
+orange,Kitchen_Washing_the_dishes,False,12,TDOST,all,0.4309941520467836
+orange,Cleaning,False,10,DISCOVER (SCAN),250,0.2083211982525483
+orange,Cleaning,False,10,Linear probe TF+ToD,250,0.1413533834586466
+orange,Cleaning,False,10,TDOST,250,0.0
+orange,Cleaning,False,10,DISCOVER (SCAN),all,0.1241106719367588
+orange,Cleaning,False,10,Linear probe TF+ToD,all,0.4565359477124183
+orange,Cleaning,False,10,TDOST,all,0.0941176470588235
+orange,Bedroom_Dressing,False,10,DISCOVER (SCAN),250,0.2582857142857143
+orange,Bedroom_Dressing,False,10,Linear probe TF+ToD,250,0.4907874545699286
+orange,Bedroom_Dressing,False,10,TDOST,250,0.2093924466338259
+orange,Bedroom_Dressing,False,10,DISCOVER (SCAN),all,0.6059047619047618
+orange,Bedroom_Dressing,False,10,Linear probe TF+ToD,all,0.5793567251461988
+orange,Bedroom_Dressing,False,10,TDOST,all,0.5971293300718061
+orange,Entrance_Entering,False,8,DISCOVER (SCAN),250,0.5375954415954417
+orange,Entrance_Entering,False,8,Linear probe TF+ToD,250,0.3252747252747253
+orange,Entrance_Entering,False,8,TDOST,250,0.08
+orange,Entrance_Entering,False,8,DISCOVER (SCAN),all,0.0
+orange,Entrance_Entering,False,8,Linear probe TF+ToD,all,0.8219780219780219
+orange,Entrance_Entering,False,8,TDOST,all,0.5518599048010813
+orange,Staircase_Going_up,False,8,DISCOVER (SCAN),250,0.0
+orange,Staircase_Going_up,False,8,Linear probe TF+ToD,250,0.2187878787878788
+orange,Staircase_Going_up,False,8,TDOST,250,0.0
+orange,Staircase_Going_up,False,8,DISCOVER (SCAN),all,0.2957037037037037
+orange,Staircase_Going_up,False,8,Linear probe TF+ToD,all,0.1984415584415584
+orange,Staircase_Going_up,False,8,TDOST,all,0.0
+orange,Bathroom_Using_the_sink,False,8,DISCOVER (SCAN),250,0.5681474870254674
+orange,Bathroom_Using_the_sink,False,8,Linear probe TF+ToD,250,0.237624140565317
+orange,Bathroom_Using_the_sink,False,8,TDOST,250,0.1
+orange,Bathroom_Using_the_sink,False,8,DISCOVER (SCAN),all,0.4280570409982174
+orange,Bathroom_Using_the_sink,False,8,Linear probe TF+ToD,all,0.295054945054945
+orange,Bathroom_Using_the_sink,False,8,TDOST,all,0.2618283166109253
+orange,Kitchen_Preparing,False,8,DISCOVER (SCAN),250,0.4886335403726708
+orange,Kitchen_Preparing,False,8,Linear probe TF+ToD,250,0.4382911825017087
+orange,Kitchen_Preparing,False,8,TDOST,250,0.0551724137931034
+orange,Kitchen_Preparing,False,8,DISCOVER (SCAN),all,0.6298100109609062
+orange,Kitchen_Preparing,False,8,Linear probe TF+ToD,all,0.5322144522144522
+orange,Kitchen_Preparing,False,8,TDOST,all,0.4601971128286918
+orange,Bathroom_Showering,False,4,DISCOVER (SCAN),250,0.0
+orange,Bathroom_Showering,False,4,Linear probe TF+ToD,250,0.0695652173913043
+orange,Bathroom_Showering,False,4,TDOST,250,0.0222222222222222
+orange,Bathroom_Showering,False,4,DISCOVER (SCAN),all,0.0
+orange,Bathroom_Showering,False,4,Linear probe TF+ToD,all,0.1404761904761904
+orange,Bathroom_Showering,False,4,TDOST,all,0.0
+orange,Entrance_Leaving,False,4,DISCOVER (SCAN),250,0.5297435897435897
+orange,Entrance_Leaving,False,4,Linear probe TF+ToD,250,0.51052790346908
+orange,Entrance_Leaving,False,4,TDOST,250,0.1388888888888889
+orange,Entrance_Leaving,False,4,DISCOVER (SCAN),all,0.5297435897435897
+orange,Entrance_Leaving,False,4,Linear probe TF+ToD,all,0.6065934065934067
+orange,Entrance_Leaving,False,4,TDOST,all,0.5178191856452725
+orange,Toilet_Using_the_toilet,False,3,DISCOVER (SCAN),250,0.0
+orange,Toilet_Using_the_toilet,False,3,Linear probe TF+ToD,250,0.0
+orange,Toilet_Using_the_toilet,False,3,TDOST,250,0.0
+orange,Toilet_Using_the_toilet,False,3,DISCOVER (SCAN),all,0.0
+orange,Toilet_Using_the_toilet,False,3,Linear probe TF+ToD,all,0.1
+orange,Toilet_Using_the_toilet,False,3,TDOST,all,0.0
+orange,Bathroom_Using_the_toilet,False,2,DISCOVER (SCAN),250,0.0
+orange,Bathroom_Using_the_toilet,False,2,Linear probe TF+ToD,250,0.3
+orange,Bathroom_Using_the_toilet,False,2,TDOST,250,0.0
+orange,Bathroom_Using_the_toilet,False,2,DISCOVER (SCAN),all,0.0
+orange,Bathroom_Using_the_toilet,False,2,Linear probe TF+ToD,all,0.8
+orange,Bathroom_Using_the_toilet,False,2,TDOST,all,0.0363636363636363

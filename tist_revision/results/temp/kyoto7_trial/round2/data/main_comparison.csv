@@ -1,0 +1,73 @@
+city,method,budget,metric,mean,std,n_seeds
+kyotoaff,DeepCASAS,≈100 labels,f1_weighted,0.676866173585689,0.021958688063007836,3
+kyotoaff,DeepCASAS,≈250 labels,f1_weighted,0.7857574179016494,0.04357194967016373,3
+kyotoaff,DeepCASAS,all labels,f1_weighted,0.9362815757833296,0.008297524053457942,3
+kyotoaff,TDOST,≈100 labels,f1_weighted,0.7085951734613286,0.02997752776807152,3
+kyotoaff,TDOST,≈250 labels,f1_weighted,0.7422258876055624,0.03554722668554451,3
+kyotoaff,TDOST,all labels,f1_weighted,0.8590938731395633,0.04384261059341469,3
+kyotoaff,DISCOVER,≈100 labels,f1_weighted,0.7067396270866283,0.041157720652867366,3
+kyotoaff,DISCOVER,≈250 labels,f1_weighted,0.806988722285841,0.027036061584709913,3
+kyotoaff,DISCOVER,all labels,f1_weighted,0.8653366618001948,0.02920839313882375,3
+kyotoaff,Linear probe (DISCOVER features),≈100 labels,f1_weighted,0.8545762957179034,0.059525438970329365,3
+kyotoaff,Linear probe (DISCOVER features),≈250 labels,f1_weighted,0.856217924559226,0.03100380574806105,3
+kyotoaff,Linear probe (DISCOVER features),all labels,f1_weighted,0.8750534792178429,0.021476390079580288,3
+kyotojoint,DeepCASAS,≈100 labels,f1_weighted,0.478543278571198,,1
+kyotojoint,DeepCASAS,≈250 labels,f1_weighted,0.5816817910042469,,1
+kyotojoint,DeepCASAS,all labels,f1_weighted,0.7429387193944237,,1
+kyotojoint,TDOST,≈100 labels,f1_weighted,0.5255453164035987,,1
+kyotojoint,TDOST,≈250 labels,f1_weighted,0.5656610087120791,,1
+kyotojoint,TDOST,all labels,f1_weighted,0.7362868015910737,,1
+kyotojoint,DISCOVER,≈100 labels,f1_weighted,0.4691172412165329,,1
+kyotojoint,DISCOVER,≈250 labels,f1_weighted,0.4717515456109195,,1
+kyotojoint,DISCOVER,all labels,f1_weighted,0.5638193267316242,,1
+kyotojoint,Linear probe (DISCOVER features),≈100 labels,f1_weighted,0.5068063597342665,,1
+kyotojoint,Linear probe (DISCOVER features),≈250 labels,f1_weighted,0.5804293794903345,,1
+kyotojoint,Linear probe (DISCOVER features),all labels,f1_weighted,0.5943652608772558,,1
+kyotoattr,DeepCASAS,≈100 labels,f1_weighted,0.8906211019126538,,1
+kyotoattr,DeepCASAS,≈250 labels,f1_weighted,0.8647248856873068,,1
+kyotoattr,DeepCASAS,all labels,f1_weighted,0.9498853108569876,,1
+kyotoattr,TDOST,≈100 labels,f1_weighted,0.8019444055024325,,1
+kyotoattr,TDOST,≈250 labels,f1_weighted,0.8806895182325627,,1
+kyotoattr,TDOST,all labels,f1_weighted,0.925871533630056,,1
+kyotoattr,DISCOVER,≈100 labels,f1_weighted,0.7868378012039174,,1
+kyotoattr,DISCOVER,≈250 labels,f1_weighted,0.8560137136135,,1
+kyotoattr,DISCOVER,all labels,f1_weighted,0.8833865966793353,,1
+kyotoattr,Linear probe (DISCOVER features),≈100 labels,f1_weighted,0.8527107194022499,,1
+kyotoattr,Linear probe (DISCOVER features),≈250 labels,f1_weighted,0.8729623408119798,,1
+kyotoattr,Linear probe (DISCOVER features),all labels,f1_weighted,0.8823636588208735,,1
+kyotoaff,DeepCASAS,≈100 labels,f1_macro,0.5623308697483527,0.03362912027599136,3
+kyotoaff,DeepCASAS,≈250 labels,f1_macro,0.6712276782755118,0.05606715764051294,3
+kyotoaff,DeepCASAS,all labels,f1_macro,0.8597377833761793,0.0426337780447743,3
+kyotoaff,TDOST,≈100 labels,f1_macro,0.5996878411469994,0.03666511609350338,3
+kyotoaff,TDOST,≈250 labels,f1_macro,0.6483958675648025,0.03700777323367499,3
+kyotoaff,TDOST,all labels,f1_macro,0.789442058098729,0.04319351141344412,3
+kyotoaff,DISCOVER,≈100 labels,f1_macro,0.5912938692792002,0.022885054644470687,3
+kyotoaff,DISCOVER,≈250 labels,f1_macro,0.7389000347310474,0.049797648499742914,3
+kyotoaff,DISCOVER,all labels,f1_macro,0.767069448540747,0.06853462595448126,3
+kyotoaff,Linear probe (DISCOVER features),≈100 labels,f1_macro,0.7557204308307403,0.07907723846547708,3
+kyotoaff,Linear probe (DISCOVER features),≈250 labels,f1_macro,0.7562903384554099,0.028801648211987524,3
+kyotoaff,Linear probe (DISCOVER features),all labels,f1_macro,0.8086389906363438,0.026696761632074954,3
+kyotojoint,DeepCASAS,≈100 labels,f1_macro,0.3186865554305407,,1
+kyotojoint,DeepCASAS,≈250 labels,f1_macro,0.4217926731596448,,1
+kyotojoint,DeepCASAS,all labels,f1_macro,0.629797286963516,,1
+kyotojoint,TDOST,≈100 labels,f1_macro,0.3382079961038935,,1
+kyotojoint,TDOST,≈250 labels,f1_macro,0.3736035728562282,,1
+kyotojoint,TDOST,all labels,f1_macro,0.6038342378532445,,1
+kyotojoint,DISCOVER,≈100 labels,f1_macro,0.3081819688650188,,1
+kyotojoint,DISCOVER,≈250 labels,f1_macro,0.3332277627323222,,1
+kyotojoint,DISCOVER,all labels,f1_macro,0.3922012563649721,,1
+kyotojoint,Linear probe (DISCOVER features),≈100 labels,f1_macro,0.369264432185573,,1
+kyotojoint,Linear probe (DISCOVER features),≈250 labels,f1_macro,0.4176482922891795,,1
+kyotojoint,Linear probe (DISCOVER features),all labels,f1_macro,0.5064254917224482,,1
+kyotoattr,DeepCASAS,≈100 labels,f1_macro,0.6500787653224427,,1
+kyotoattr,DeepCASAS,≈250 labels,f1_macro,0.664515815667938,,1
+kyotoattr,DeepCASAS,all labels,f1_macro,0.7863513064072631,,1
+kyotoattr,TDOST,≈100 labels,f1_macro,0.5444368496870045,,1
+kyotoattr,TDOST,≈250 labels,f1_macro,0.6338400767665562,,1
+kyotoattr,TDOST,all labels,f1_macro,0.698037035081804,,1
+kyotoattr,DISCOVER,≈100 labels,f1_macro,0.5805630531964467,,1
+kyotoattr,DISCOVER,≈250 labels,f1_macro,0.6584535362663336,,1
+kyotoattr,DISCOVER,all labels,f1_macro,0.6453862853240379,,1
+kyotoattr,Linear probe (DISCOVER features),≈100 labels,f1_macro,0.6582673250911089,,1
+kyotoattr,Linear probe (DISCOVER features),≈250 labels,f1_macro,0.6764371576015443,,1
+kyotoattr,Linear probe (DISCOVER features),all labels,f1_macro,0.6855498748519036,,1

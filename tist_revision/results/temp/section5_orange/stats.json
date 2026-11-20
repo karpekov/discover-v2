@@ -1,0 +1,27 @@
+{
+ "orange": {
+  "kappa": 0.9161073825503356,
+  "kappa_parent": 0.9428979300499644,
+  "alpha": 0.916526845637584,
+  "alpha_parent": 0.9431834403997144,
+  "exact": 0.94,
+  "none_rate": 0.0,
+  "categories": 15,
+  "categories_parent": 11,
+  "unlabeled_windows": 0.01,
+  "kappa_unlabeled": null,
+  "none_unlabeled": 0.0,
+  "majority_share": 0.9049999999999999,
+  "majority_share_parent": 0.925,
+  "weak_clusters": 1,
+  "weak_parent": 0,
+  "agree_same_window": 0.94,
+  "agree_same_cluster": 0.8425,
+  "agree_other_cluster": 0.2541052631578947,
+  "distinct_patterns": 7,
+  "top_pattern": "off_any",
+  "top_pattern_clusters": 10,
+  "top_pattern_size": 0.5286284953395474,
+  "kappa_other_clusters": 0.8605947955390335
+ }
+}

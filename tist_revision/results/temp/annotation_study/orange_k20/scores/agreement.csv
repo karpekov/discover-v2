@@ -1,0 +1,3 @@
+city,level,windows,ratings,fleiss_window,kripp_alpha,fleiss_window_ci,fleiss_cluster,fleiss_cluster_ci,agree_same_window,agree_same_cluster_other_window,agree_other_cluster,none_rate
+orange,original,100,200,0.9161073825503355,0.9165268456375839,"[0.833, 0.985]",0.7949291573452647,"[0.658, 0.912]",0.94,0.8425,0.2541052631578947,0.0
+orange,level_up,100,200,0.9428979300499643,0.9431834403997145,"[0.875, 1.0]",0.8286937901498931,"[0.697, 0.947]",0.96,0.87,0.26831578947368423,0.0

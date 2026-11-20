@@ -13,6 +13,7 @@ Usage:
     python -m tist_revision.pipeline.confusion
 """
 from collections import Counter
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -67,6 +68,8 @@ def collect(city):
             assert (z['y_test'] == y_test).all()
             out[('TDOST', budget)].append((y_test, z['pred'].astype(str)))
         for name, run in CLUSTERING.items():
+            if not (ARTIFACTS_DIR / 'assignments' / f'{city}__tf_s1+tod__{run}.npz').exists():
+                continue
             out[(name, budget)] = [(y_test, clustering_preds(city, run, s, budget, y_pool, len(y_test))) for s in SEEDS]
         out[('Linear probe TF+ToD', budget)] = []
     for seed in SEEDS:
@@ -113,6 +116,15 @@ def per_class_f1(runs, classes):
 
 
 def main():
+    global CITIES, OUT
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--cities', nargs='+', default=CITIES)
+    ap.add_argument('--out', type=Path, default=FINAL_DIR, help='writes <out>/confusion and <out>/figures')
+    args = ap.parse_args()
+    if args.out.resolve() == FINAL_DIR.resolve() and args.cities != CITIES:
+        ap.error('results/final holds the paper houses only; write other house sets to --out results/temp/<name>')
+    CITIES, OUT = args.cities, args.out / 'confusion'
     OUT.mkdir(parents=True, exist_ok=True)
     f1_rows = []
     with PdfPages(OUT / 'confusion_matrices.pdf') as pdf:
@@ -125,7 +137,7 @@ def main():
             cols = rows + extra
             for budget, btitle in BUDGETS.items():
                 fig, axes = plt.subplots(2, 2, figsize=(15, 13.5))
-                for ax, method in zip(axes.flat, METHODS):
+                for ax, method in zip(axes.flat, [m for m in METHODS if (m, budget) in preds]):
                     runs = preds[(method, budget)]
                     w = np.mean([f1_score(y, p, average='weighted', zero_division=0) for y, p in runs])
                     m = np.mean([f1_score(y, p, labels=masked, average='macro', zero_division=0) for y, p in runs])
@@ -137,7 +149,7 @@ def main():
                 pdf.savefig(fig)
                 fig.savefig(OUT / f'{city}_{budget}.png', dpi=110)
                 plt.close(fig)
-            settings = [(m, b) for b in BUDGETS for m in METHODS]
+            settings = [(m, b) for b in BUDGETS for m in METHODS if (m, b) in preds]
             f1 = np.array([per_class_f1(preds[s], rows) for s in settings]).T
             for i, l in enumerate(rows):
                 for (m, b), v in zip(settings, f1[i]):
@@ -153,7 +165,7 @@ def main():
             ax.set_xticks(range(len(settings)))
             ax.set_xticklabels([f'{m}\n{"≈250" if b == "250" else "all"}' for m, b in settings], fontsize=7.5,
                                rotation=30, ha='right')
-            ax.axvline(len(METHODS) - 0.5, color='k', lw=1.2)
+            ax.axvline(len(settings) / 2 - 0.5, color='k', lw=1.2)
             ax.set_title(f'{city.capitalize()} — per-class F1 (L1, mean over 5 seeds); left: ≈250 labels, right: all',
                          fontsize=10)
             fig.tight_layout()
@@ -170,8 +182,8 @@ def paper_figure(f1):
     settings = [(m, b) for b in BUDGETS for m in PAPER_METHODS]
     short = {'DISCOVER (SCAN)': 'DISCOVER', 'Linear probe TF+ToD': 'Probe', 'TDOST': 'TDOST'}
     heights = [f1[f1.city == c].label.nunique() for c in CITIES]
-    fig, axes = plt.subplots(1, 3, figsize=(13, 0.32 * max(heights) + 1.8),
-                             gridspec_kw={'width_ratios': [1, 1, 1]})
+    fig, axes = plt.subplots(1, len(CITIES), figsize=(13 / 3 * len(CITIES), 0.32 * max(heights) + 1.8), squeeze=False)
+    axes = axes[0]
     for ax, city in zip(axes, CITIES):
         d = f1[f1.city == city]
         labels = list(dict.fromkeys(d.sort_values('n_test', ascending=False).label))
@@ -189,7 +201,7 @@ def paper_figure(f1):
         ax.axvline(len(PAPER_METHODS) - 0.5, color='k', lw=1)
         ax.set_title(city.capitalize(), fontsize=10)
     fig.tight_layout()
-    figdir = FINAL_DIR / 'figures'
+    figdir = OUT.parent / 'figures'
     figdir.mkdir(parents=True, exist_ok=True)
     fig.savefig(figdir / 'per_class_f1.pdf', bbox_inches='tight')
     fig.savefig(figdir / 'per_class_f1.png', bbox_inches='tight', dpi=130)

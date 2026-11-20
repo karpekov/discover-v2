@@ -1,0 +1,601 @@
+city,task_code,rater,cluster,label,label_level_up,casas
+aruba,a18,r1,0,1 room(s): Motion in Back Door Hallway - Entering the house through Back door,1 room(s): Motion in Back Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,b2,r1,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c7,r1,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,d7,r1,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,e18,r1,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,a18,r2,0,1 room(s): Motion in Back Door Hallway - Entering the house through Back door,1 room(s): Motion in Back Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,b2,r2,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c7,r2,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,d7,r2,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,e18,r2,0,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,a13,r1,1,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b17,r1,1,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c5,r1,1,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c15,r1,1,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,e4,r1,1,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a13,r2,1,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b17,r2,1,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c5,r2,1,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c15,r2,1,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,e4,r2,1,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a2,r1,2,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+aruba,a9,r1,2,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Relax
+aruba,b10,r1,2,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Relax
+aruba,c3,r1,2,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,c4,r1,2,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,a2,r2,2,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+aruba,a9,r2,2,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Relax
+aruba,b10,r2,2,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Relax
+aruba,c3,r2,2,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,c4,r2,2,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,a11,r1,3,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Relax
+aruba,a15,r1,3,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,b0,r1,3,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,c8,r1,3,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Relax
+aruba,c17,r1,3,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,a11,r2,3,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Relax
+aruba,a15,r2,3,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,b0,r2,3,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,c8,r2,3,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Relax
+aruba,c17,r2,3,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,a6,r1,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Eating
+aruba,b9,r1,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,b18,r1,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,d1,r1,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,e0,r1,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Eating
+aruba,a6,r2,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Eating
+aruba,b9,r2,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,b18,r2,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,d1,r2,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Meal_Preparation
+aruba,e0,r2,4,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Eating
+aruba,a7,r1,5,1 room(s): Motion in Garage Hallway - Leaving the house through Garage door,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,Meal_Preparation
+aruba,b14,r1,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Meal_Preparation
+aruba,c2,r1,5,1 room(s): Motion in Garage Hallway - Entering the house through Garage door,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+aruba,d8,r1,5,1 room(s): Motion in Garage Hallway - Entering the house through Garage door,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+aruba,e6,r1,5,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+aruba,a7,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Meal_Preparation
+aruba,b14,r2,5,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,Meal_Preparation
+aruba,c2,r2,5,1 room(s): Motion in Garage Hallway - Entering the house through Garage door,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+aruba,d8,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+aruba,e6,r2,5,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+aruba,a17,r1,6,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b11,r1,6,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",unknown
+aruba,d0,r1,6,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d15,r1,6,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Living + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Relax
+aruba,e15,r1,6,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a17,r2,6,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b11,r2,6,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",unknown
+aruba,d0,r2,6,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d15,r2,6,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Living + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Relax
+aruba,e15,r2,6,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a10,r1,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,b13,r1,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c18,r1,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,e7,r1,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,e17,r1,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,a10,r2,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,b13,r2,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c18,r2,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,e7,r2,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,e17,r2,7,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,a16,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Eating
+aruba,d5,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,d10,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,e3,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,e14,r1,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,a16,r2,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Eating
+aruba,d5,r2,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,d10,r2,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,e3,r2,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,e14,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,b15,r1,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c1,r1,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c14,r1,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,d14,r1,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,d19,r1,9,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,b15,r2,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c1,r2,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Meal_Preparation
+aruba,c14,r2,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+aruba,d14,r2,9,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,d19,r2,9,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,a5,r1,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,a8,r1,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,b12,r1,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Relax
+aruba,b19,r1,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,d3,r1,10,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,Meal_Preparation
+aruba,a5,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,a8,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,b12,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Relax
+aruba,b19,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+aruba,d3,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meal_Preparation
+aruba,a1,r1,11,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,b16,r1,11,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,c10,r1,11,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,c16,r1,11,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,e5,r1,11,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,a1,r2,11,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,b16,r2,11,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,c10,r2,11,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,c16,r2,11,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,e5,r2,11,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,a14,r1,12,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",No_Activity
+aruba,c0,r1,12,1 room(s): Motion in Front Door Hallway - Leaving the house through Front door,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,c9,r1,12,1 room(s): Motion in Front Door Hallway - Entering the house through Front door,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,d6,r1,12,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,d11,r1,12,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,a14,r2,12,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",No_Activity
+aruba,c0,r2,12,1 room(s): Motion in Front Door Hallway - Leaving the house through Front door,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,c9,r2,12,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,d6,r2,12,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,d11,r2,12,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+aruba,b3,r1,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d2,r1,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d9,r1,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,e1,r1,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,e9,r1,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b3,r2,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d2,r2,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d9,r2,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,e1,r2,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,e9,r2,13,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a12,r1,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+aruba,b1,r1,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b6,r1,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c11,r1,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c12,r1,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a12,r2,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+aruba,b1,r2,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b6,r2,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c11,r2,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c12,r2,14,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a19,r1,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b4,r1,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b8,r1,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c19,r1,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d12,r1,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a19,r2,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b4,r2,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,b8,r2,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,c19,r2,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,d12,r2,15,"1 room(s): Motion in Living room - (""all over"")","1 room(s): Motion in Living room - (""all over"")",Relax
+aruba,a4,r1,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,b5,r1,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,e10,r1,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,e16,r1,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,e19,r1,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,a4,r2,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,b5,r2,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,e10,r2,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,e16,r2,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,e19,r2,16,"1 room(s): Motion in Office area - (""all over"")","1 room(s): Motion in Office area - (""all over"")",Respirate
+aruba,b7,r1,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,d4,r1,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,d13,r1,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from living spaces to master bedroom,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,Relax
+aruba,d17,r1,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,e2,r1,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,b7,r2,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,d4,r2,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,d13,r2,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from living spaces to master bedroom,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,Relax
+aruba,d17,r2,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,e2,r2,17,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,2 room(s): Walking between:  Bedroom and Living spaces (kitch + liv + din) - Walking from master bedroom to living spaces,No_Activity
+aruba,a3,r1,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+aruba,c6,r1,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,d16,r1,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,d18,r1,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,e11,r1,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,a3,r2,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+aruba,c6,r2,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,d16,r2,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,d18,r2,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,e11,r2,18,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Relax
+aruba,a0,r1,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",Sleeping
+aruba,c13,r1,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+aruba,e8,r1,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",Sleeping
+aruba,e12,r1,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,e13,r1,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,a0,r2,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",Sleeping
+aruba,c13,r2,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+aruba,e8,r2,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",Sleeping
+aruba,e12,r2,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+aruba,e13,r2,19,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+cairo,a18,r1,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,R2 wake
+cairo,b2,r1,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c7,r1,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d7,r1,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e18,r1,0,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a18,r2,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,R2 wake
+cairo,b2,r2,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c7,r2,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d7,r2,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e18,r2,0,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a13,r1,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R2 wake
+cairo,b17,r1,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R2 sleep
+cairo,c5,r1,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R2 sleep
+cairo,c15,r1,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+cairo,e4,r1,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R1 work in office
+cairo,a13,r2,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R2 wake
+cairo,b17,r2,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R2 sleep
+cairo,c5,r2,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R2 sleep
+cairo,c15,r2,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",No_Activity
+cairo,e4,r2,1,1 room(s): Motion in Master Bedroom - Movement near bed,"1 room(s): Motion in Master Bedroom - (""all over"")",R1 work in office
+cairo,a2,r1,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,a9,r1,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,b10,r1,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,c3,r1,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,c4,r1,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,a2,r2,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,a9,r2,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,b10,r2,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,c3,r2,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,c4,r2,2,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,a11,r1,3,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a15,r1,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,R1 wake
+cairo,b0,r1,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,c8,r1,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,c17,r1,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a11,r2,3,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a15,r2,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,R1 wake
+cairo,b0,r2,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,c8,r2,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,c17,r2,3,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a6,r1,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b9,r1,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b18,r1,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,d1,r1,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e0,r1,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a6,r2,4,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b9,r2,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b18,r2,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,d1,r2,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e0,r2,4,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a7,r1,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,R2 sleep
+cairo,b14,r1,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Breakfast
+cairo,c2,r1,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,d8,r1,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,R1 work in office
+cairo,e6,r1,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,a7,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,R2 sleep
+cairo,b14,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Breakfast
+cairo,c2,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,d8,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,R1 work in office
+cairo,e6,r2,5,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,a17,r1,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,R2 sleep
+cairo,b11,r1,6,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,unknown
+cairo,d0,r1,6,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,d15,r1,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,e15,r1,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a17,r2,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,R2 sleep
+cairo,b11,r2,6,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,unknown
+cairo,d0,r2,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,d15,r2,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,e15,r2,6,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a10,r1,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,b13,r1,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,c18,r1,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R1 work in office
+cairo,e7,r1,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,e17,r1,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,a10,r2,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,b13,r2,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,c18,r2,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R1 work in office
+cairo,e7,r2,7,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,e17,r2,7,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,No_Activity
+cairo,a16,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,d5,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d10,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e3,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e14,r1,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a16,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Lunch
+cairo,d5,r2,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d10,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+cairo,e3,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+cairo,e14,r2,8,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b15,r1,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,c1,r1,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,c14,r1,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,d14,r1,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,d19,r1,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,b15,r2,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,c1,r2,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,c14,r2,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,d14,r2,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,d19,r2,9,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,a5,r1,10,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a8,r1,10,"1 room(s): Motion in Dining Room - (""all over"")","1 room(s): Motion in Dining Room - (""all over"")",No_Activity
+cairo,b12,r1,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b19,r1,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d3,r1,10,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a5,r2,10,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a8,r2,10,"1 room(s): Motion in Dining Room - (""all over"")","1 room(s): Motion in Dining Room - (""all over"")",No_Activity
+cairo,b12,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b19,r2,10,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d3,r2,10,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a1,r1,11,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,b16,r1,11,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,c10,r1,11,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,R2 take medicine
+cairo,c16,r1,11,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,R2 wake
+cairo,e5,r1,11,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,a1,r2,11,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,b16,r2,11,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+cairo,c10,r2,11,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,R2 take medicine
+cairo,c16,r2,11,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,R2 wake
+cairo,e5,r2,11,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,a14,r1,12,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c0,r1,12,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c9,r1,12,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d6,r1,12,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,d11,r1,12,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a14,r2,12,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c0,r2,12,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c9,r2,12,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d6,r2,12,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,d11,r2,12,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b3,r1,13,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d2,r1,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d9,r1,13,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,e1,r1,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Living + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,e9,r1,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,b3,r2,13,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d2,r2,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d9,r2,13,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,e1,r2,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Living + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,e9,r2,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,a12,r1,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,b1,r1,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,b6,r1,14,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,c11,r1,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Lunch
+cairo,c12,r1,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,a12,r2,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,b1,r2,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,b6,r2,14,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,c11,r2,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Lunch
+cairo,c12,r2,14,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,R2 wake
+cairo,a19,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,b4,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b8,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,R2 take medicine
+cairo,c19,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d12,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,a19,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Lunch
+cairo,b4,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b8,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,R2 take medicine
+cairo,c19,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d12,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Breakfast
+cairo,a4,r1,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,b5,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Leave home
+cairo,e10,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e16,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,e19,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a4,r2,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,b5,r2,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Leave home
+cairo,e10,r2,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e16,r2,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Dinner
+cairo,e19,r2,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b7,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d4,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d13,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d17,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e2,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,b7,r2,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d4,r2,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d13,r2,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d17,r2,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e2,r2,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a3,r1,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c6,r1,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d16,r1,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d18,r1,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e11,r1,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a3,r2,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,c6,r2,18,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+cairo,d16,r2,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,d18,r2,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,e11,r2,18,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+cairo,a0,r1,19,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+cairo,c13,r1,19,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+cairo,e8,r1,19,1 room(s): Motion in Garage Hallway - Leaving the house through Garage door,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+cairo,e12,r1,19,1 room(s): Motion in Garage Hallway - Leaving the house through Garage door,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,Laundry
+cairo,e13,r1,19,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+cairo,a0,r2,19,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+cairo,c13,r2,19,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+cairo,e8,r2,19,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,1 room(s): Motion in Garage Hallway - Walking back and forth through the hallway,No_Activity
+cairo,e12,r2,19,1 room(s): Motion in Garage Hallway - Leaving the house through Garage door,1 room(s): Motion in Garage Hallway - Leaving the house through Garage door,Laundry
+cairo,e13,r2,19,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,No_Activity
+milan,a18,r1,0,1 room(s): Motion in Guest Bedroom - Entering the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Meditate
+milan,b2,r1,0,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Meditate
+milan,c7,r1,0,1 room(s): Motion in Guest Bedroom - Leaving the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Kitchen_Activity
+milan,d7,r1,0,1 room(s): Motion in Guest Bedroom - Leaving the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Meditate
+milan,e18,r1,0,1 room(s): Motion in Front Door Hallway - Leaving the house through Front door,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,Meditate
+milan,a18,r2,0,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Meditate
+milan,b2,r2,0,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Meditate
+milan,c7,r2,0,1 room(s): Motion in Guest Bedroom - Leaving the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Kitchen_Activity
+milan,d7,r2,0,1 room(s): Motion in Guest Bedroom - Leaving the Guest Bedroom,1 room(s): Motion in Guest Bedroom - Movement inside the Guest Bedroom,Meditate
+milan,e18,r2,0,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Meditate
+milan,a13,r1,1,1 room(s): Motion in Kitchen area - Movement near Fridge,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,b17,r1,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c5,r1,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c15,r1,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,e4,r1,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,a13,r2,1,1 room(s): Motion in Kitchen area - Movement near Fridge,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,b17,r2,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c5,r2,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c15,r2,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,e4,r2,1,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,a2,r1,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,a9,r1,2,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,b10,r1,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c3,r1,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c4,r1,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,a2,r2,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,a9,r2,2,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,b10,r2,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c3,r2,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c4,r2,2,1 room(s): Motion in Kitchen area - Movement near Stove ,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,a11,r1,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",Watch_TV
+milan,a15,r1,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",No_Activity
+milan,b0,r1,3,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,2 room(s): Walking between:  Bedroom and Office - Walking from office to bedroom,Watch_TV
+milan,c8,r1,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",Watch_TV
+milan,c17,r1,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",No_Activity
+milan,a11,r2,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",Watch_TV
+milan,a15,r2,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",No_Activity
+milan,b0,r2,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",Watch_TV
+milan,c8,r2,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",Watch_TV
+milan,c17,r2,3,1 room(s): Motion in Office area - Sitting in armchair,"1 room(s): Motion in Office area - (""all over"")",No_Activity
+milan,a6,r1,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,b9,r1,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,b18,r1,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,d1,r1,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,e0,r1,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Watch_TV
+milan,a6,r2,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,b9,r2,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,b18,r2,4,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Guest_Bathroom
+milan,d1,r2,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,e0,r2,4,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Watch_TV
+milan,a7,r1,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,b14,r1,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c2,r1,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d8,r1,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e6,r1,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,a7,r2,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,b14,r2,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c2,r2,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d8,r2,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e6,r2,5,1 room(s): Motion in Kitchen area - Movement near Medicine Cabinet,"1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,a17,r1,6,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Read
+milan,b11,r1,6,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,unknown
+milan,d0,r1,6,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Read
+milan,d15,r1,6,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Read
+milan,e15,r1,6,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Read
+milan,a17,r2,6,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Read
+milan,b11,r2,6,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,unknown
+milan,d0,r2,6,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Read
+milan,d15,r2,6,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Read
+milan,e15,r2,6,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Read
+milan,a10,r1,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+milan,b13,r1,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,Leave_Home
+milan,c18,r1,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,Leave_Home
+milan,e7,r1,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+milan,e17,r1,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+milan,a10,r2,7,1 room(s): Motion in Front Door Hallway - Entering the house through Front door,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+milan,b13,r2,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,Leave_Home
+milan,c18,r2,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,Leave_Home
+milan,e7,r2,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+milan,e17,r2,7,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,1 room(s): Motion in Front Door Hallway - Walking back and forth through the hallway,No_Activity
+milan,a16,r1,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d5,r1,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d10,r1,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e3,r1,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e14,r1,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,a16,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d5,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d10,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e3,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e14,r2,8,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,b15,r1,9,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,c1,r1,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c14,r1,9,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Kitchen_Activity
+milan,d14,r1,9,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Kitchen_Activity
+milan,d19,r1,9,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Kitchen_Activity
+milan,b15,r2,9,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Guest_Bathroom
+milan,c1,r2,9,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,c14,r2,9,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Kitchen_Activity
+milan,d14,r2,9,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Leaving the Guest Bathroom,Kitchen_Activity
+milan,d19,r2,9,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,1 room(s): Motion in Guest Bathroom - Entering the Guest Bathroom,Kitchen_Activity
+milan,a5,r1,10,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,a8,r1,10,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,Master_Bedroom_Activity
+milan,b12,r1,10,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,b19,r1,10,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,No_Activity
+milan,d3,r1,10,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Read
+milan,a5,r2,10,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,a8,r2,10,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,b12,r2,10,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,b19,r2,10,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,No_Activity
+milan,d3,r2,10,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Read
+milan,a1,r1,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,b16,r1,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,c10,r1,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,c16,r1,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,e5,r1,11,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,a1,r2,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,b16,r2,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,c10,r2,11,1 room(s): Motion in Master Bathroom - Movement in bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bathroom
+milan,c16,r2,11,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Master_Bedroom_Activity
+milan,e5,r2,11,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,a14,r1,12,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Sleep
+milan,c0,r1,12,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,c9,r1,12,"1 room(s): Motion in Master Bedroom - (""all over"")",1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Sleep
+milan,d6,r1,12,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Bed_to_Toilet
+milan,d11,r1,12,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Sleep
+milan,a14,r2,12,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Sleep
+milan,c0,r2,12,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Master_Bedroom_Activity
+milan,c9,r2,12,"1 room(s): Motion in Master Bedroom - (""all over"")","1 room(s): Motion in Master Bedroom - (""all over"")",Sleep
+milan,d6,r2,12,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Bed_to_Toilet
+milan,d11,r2,12,1 room(s): Motion in Master Bathroom - Leaving Master Bathroom,1 room(s): Motion in Master Bathroom - Entering Master Bathroom,Sleep
+milan,b3,r1,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d2,r1,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,d9,r1,13,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,e1,r1,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e9,r1,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,b3,r2,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,d2,r2,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,d9,r2,13,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Kitchen_Activity
+milan,e1,r2,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,e9,r2,13,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",Kitchen_Activity
+milan,a12,r1,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,b1,r1,14,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,Desk_Activity
+milan,b6,r1,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,c11,r1,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,c12,r1,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,a12,r2,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,b1,r2,14,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,2 room(s): Walking between:  Bedroom and Office - Walking from bedroom to office,Desk_Activity
+milan,b6,r2,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,c11,r2,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,c12,r2,14,1 room(s): Motion in Office area - Movement near computer/desk,"1 room(s): Motion in Office area - (""all over"")",Desk_Activity
+milan,a19,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,b4,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,b8,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,c19,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,d12,r1,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,a19,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,b4,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,b8,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,c19,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,d12,r2,15,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,a4,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,b5,r1,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,e10,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+milan,e16,r1,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+milan,e19,r1,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,a4,r2,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,b5,r2,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,e10,r2,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+milan,e16,r2,16,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,No_Activity
+milan,e19,r2,16,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Dining,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Kitchen_Activity
+milan,b7,r1,17,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Read
+milan,d4,r1,17,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,d13,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,d17,r1,17,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,e2,r1,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,b7,r2,17,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Read
+milan,d4,r2,17,"1 room(s): Motion in Kitchen area - (""all over"")","1 room(s): Motion in Kitchen area - (""all over"")",No_Activity
+milan,d13,r2,17,2+ room(s): Simultaneous activity in two or more rooms - ,2+ room(s): Simultaneous activity in two or more rooms - ,Read
+milan,d17,r2,17,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,e2,r2,17,2 room(s): Movement through Living areas: Kitchen + Living + Dining - Kitchen + Living,3 room(s): Movement through Living areas: Kitchen + Living + Dining - All three rooms,Read
+milan,a3,r1,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Read
+milan,c6,r1,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Sleep
+milan,d16,r1,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+milan,d18,r1,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+milan,e11,r1,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+milan,a3,r2,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Read
+milan,c6,r2,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,Sleep
+milan,d16,r2,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+milan,d18,r2,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+milan,e11,r2,18,3+ room(s): Walking through the House (3 or more rooms) - ,3+ room(s): Walking through the House (3 or more rooms) - ,No_Activity
+milan,a0,r1,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Read
+milan,c13,r1,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Read
+milan,e8,r1,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+milan,e12,r1,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+milan,e13,r1,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+milan,a0,r2,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Read
+milan,c13,r2,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",Read
+milan,e8,r2,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+milan,e12,r2,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
+milan,e13,r2,19,1 room(s): Motion in Living room - Sitting on couch/armchair,"1 room(s): Motion in Living room - (""all over"")",No_Activity
