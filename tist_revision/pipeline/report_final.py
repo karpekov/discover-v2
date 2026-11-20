@@ -362,7 +362,7 @@ def to_latex(title, blocks, key, table_best=False):
     out = [r'\begin{table}[H]', r'\centering\small',
            rf'\caption{{{title}. W/M = weighted/macro F1 (mean over seeds); bold = best in column '
            rf'{"over the whole table" if table_best else "within a block"}, shaded = within {MARGIN:.2f} of it; '
-           r'grey [\,$\cdot$\,] = std over seeds (Average: std of the per-seed three-house mean; '
+           r'grey [\,$\cdot$\,] = std over seeds (Average: std of the per-seed mean over houses; '
            r'none = single seed).}',
            rf'\label{{tab:{key}}}', r'\setlength{\tabcolsep}{3.2pt}',
            rf'\begin{{tabular}}{{{spec}}}', r'\toprule',
@@ -700,14 +700,13 @@ def stars(p):
     return '***' if p < 0.001 else '**' if p < 0.01 else '*' if p < 0.05 else ''
 
 
-def main_table_split(runs, sig, out_dir, with_sd=True):
-    """Section 6 table, one tabular per metric: rows DeepCASAS / TDOST / DISCOVER / delta, columns house x budget.
-    Writes main_comparison_{weighted,macro}.tex to out_dir. with_sd: True (inline \\sd), 'stack' (std on a small
-    line below, needs \\sdrow), False (none)."""
+def main_table(runs, sig, out_dir):
+    """Section 6 table: rows house x label budget (average last), columns DeepCASAS / TDOST / DISCOVER / delta,
+    weighted F1 on the left and macro F1 on the right. Writes main_comparison.tex to out_dir."""
     x = runs[(runs.level == 'l1') & (runs.variant == 'masked')]
     setups = {'DeepCASAS': ('baseline', dict(method='deepcasas')), 'TDOST': ('baseline', dict(method='tdost')),
               r'\textbf{\ToolName{}}': ('clustering', dict(method='scan', rep='tf+tod'))}
-    houses = CITIES + ['average']
+    metrics = ('f1_weighted', 'f1_macro')
 
     def value(name, city, metric, clu, budget):
         fam, filt = setups[name]
@@ -715,55 +714,34 @@ def main_table_split(runs, sig, out_dir, with_sd=True):
         for k, v in (filt | (clu if fam == 'clustering' else {'budget': budget})).items():
             q = q[q[k] == v]
         if city == 'average':
-            return seed_stats(q, metric)[1]
-        qq = q[q.city == city][metric]
-        return qq.mean(), qq.std()
+            return seed_stats(q, metric)[1][0]
+        return q[q.city == city][metric].mean()
 
-    def fmt(v, bold):
-        s = rf'\textbf{{{v[0]:.2f}}}' if bold else f'{v[0]:.2f}'
-        return s + (rf'\sd{{{v[1]:.2f}}}'.replace('0.', '.', 1) if with_sd is True else '')
+    def cells(city, col, clu, budget, metric):
+        vals = [value(n, city, metric, clu, budget) for n in setups]
+        best = max(vals)
+        out = [rf'\textbf{{{v:.2f}}}' if abs(v - best) < 5e-3 else f'{v:.2f}' for v in vals]
+        d = round(vals[-1], 2) - round(max(vals[:-1]), 2)
+        r = sig[(sig.city == city) & (sig.budget == col) & (sig.metric == metric)].iloc[0]
+        kind = 'pos' if d > 5e-3 else 'neg' if d < -5e-3 else 'zero'
+        return out + [rf'\dlt{kind}{{{abs(d):.2f}}}{{{stars(r.p)}}}']
 
-    def sd_row(vs):
-        return ' & ' + ' & '.join(rf'\sdrow{{{v[1]:.2f}}}'.replace('0.', '.', 1) for v in vs) + r' \\[1pt]'
-
+    n = len(setups) + 1
+    lines = [r'\begin{tabular}{l c ' + ' '.join(['c' * n] * len(metrics)) + '}', r'\toprule',
+             r' & & \multicolumn{%d}{c}{Weighted F1 ($F1_W$)} & \multicolumn{%d}{c}{Macro F1 ($F1_M$)} \\' % (n, n),
+             rf'\cmidrule(lr){{3-{2 + n}}}\cmidrule(lr){{{3 + n}-{2 + 2 * n}}}',
+             'House & Labels & ' + ' & '.join([*setups, r'$\Delta$'] * len(metrics)) + r' \\']
+    for city in CITIES + ['average']:
+        lines.append(r'\midrule' if city != 'average' else r'\midrule[\heavyrulewidth]')
+        name = HOUSE_NAMES[city] if city != 'average' else r'\textit{Average}'
+        for i, (col, clu, budget) in enumerate(MATCHED):
+            head = rf'\multirow{{{len(MATCHED)}}}{{*}}{{{name}}}' if i == 0 else ''
+            row = [c for metric in metrics for c in cells(city, col, clu, budget, metric)]
+            lines.append(f'{head} & {budget} & ' + ' & '.join(row) + r' \\')
+    lines += [r'\bottomrule', r'\end{tabular}']
     out_dir.mkdir(parents=True, exist_ok=True)
-    for metric, tag in (('f1_weighted', 'weighted'), ('f1_macro', 'macro')):
-        cols = [(city, col, clu, budget) for city in houses for col, clu, budget in MATCHED]
-        vals = {n: [value(n, c, metric, clu, b) for c, _, clu, b in cols] for n in setups}
-        names = list(setups)
-        best = [max(vals[n][i][0] for n in names) for i in range(len(cols))]
-        dbl = r'!{\hspace{2pt}\vrule width 0.4pt\hspace{1.2pt}\vrule width 0.4pt\hspace{2pt}}'
-        heads = [r'\multicolumn{3}{c' + (dbl if c == CITIES[-1] else '') + '}{'
-                 + (HOUSE_NAMES[c] if c != 'average' else r'\textit{Average}') + '}' for c in houses]
-        # Double vertical rule before the average group; booktabs rule padding is zeroed (and replaced by row
-        # height) so the vertical lines meet the horizontal rules without gaps. The rule's 6pt belong to the Cairo
-        # column, so its cmidrule is trimmed by that much more on the right.
-        trims = ['lr'] * (len(CITIES) - 1) + [r'l{.5em}r{\dimexpr.5em+6pt}', 'lr']
-        lines = [r'\begingroup\setlength{\aboverulesep}{0pt}\setlength{\belowrulesep}{0pt}'
-                 r'\setlength{\extrarowheight}{2.5pt}',
-                 r'\begin{tabular}{l ' + 'ccc ' * len(CITIES) + dbl + ' ccc}',
-                 r'\toprule',
-                 ' & ' + ' & '.join(heads) + r' \\',
-                 ''.join(rf'\cmidrule({trims[i]}){{{2 + 3 * i}-{4 + 3 * i}}}' for i in range(len(houses))),
-                 'Method & ' + ' & '.join(['100', '250', 'all'] * len(houses)) + r' \\', r'\midrule']
-        for n in names:
-            if n == names[-1]:
-                lines.append(r'\midrule')
-            lines.append(f'{n} & ' + ' & '.join(fmt(v, abs(v[0] - b) < 5e-3) for v, b in zip(vals[n], best))
-                         + (r' \\[-2pt]' if with_sd == 'stack' else r' \\'))
-            if with_sd == 'stack':
-                lines.append(sd_row(vals[n]))
-        deltas = []
-        for i, (city, col, _, _) in enumerate(cols):
-            d = round(vals[names[-1]][i][0], 2) - round(max(vals[n][i][0] for n in names[:2]), 2)
-            r = sig[(sig.city == city) & (sig.budget == col) & (sig.metric == metric)].iloc[0]
-            kind = 'pos' if d > 5e-3 else 'neg' if d < -5e-3 else 'zero'
-            deltas.append(rf'\dlt{kind}{{{abs(d):.2f}}}{{{stars(r.p)}}}')
-        lines.append(r'$\Delta$ vs.\ best & ' + ' & '.join(deltas) + r' \\')
-        lines += [r'\bottomrule', r'\end{tabular}', r'\endgroup']
-        (out_dir / f'main_comparison_{tag}.tex').write_text(
-            '% generated by report_final.py (main_table_split); requires \\sd, \\dltpos/neg/zero\n'
-            + '\n'.join(lines) + '\n')
+    (out_dir / 'main_comparison.tex').write_text(
+        '% generated by report_final.py (main_table); requires \\dltpos/neg/zero\n' + '\n'.join(lines) + '\n')
 
 
 def significance_table(sig):
@@ -1235,7 +1213,7 @@ def main():
     make_figures(summary)
     paper_figures(runs)
     sig = significance(runs)
-    main_table_split(runs, sig, OUT / 'tables', with_sd=False)
+    main_table(runs, sig, OUT / 'tables')
     significance_table(sig)
     dataset_tables()
     write_report_md(summary, sections)

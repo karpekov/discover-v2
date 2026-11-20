@@ -24,7 +24,7 @@ PAPER = PROJECT_DIR.parent / 'discover-v1'
 S5 = FINAL_DIR / 'section5'
 SYNC = {  # source under results/final -> destination under discover-v1/
     **{f'tables/{t}.tex': f'tables/{t}.tex' for t in (
-        'dataset_summary', 'label_distribution', 'main_comparison_weighted', 'main_comparison_macro',
+        'dataset_summary', 'label_distribution', 'main_comparison',
         'per_house_l1', 'per_house_l2', 'significance')},
     'figures/label_efficiency.pdf': 'figures/label_efficiency.pdf',
     'figures/k_m_budget.pdf': 'figures/k_m_budget.pdf',
@@ -38,7 +38,7 @@ SYNC = {  # source under results/final -> destination under discover-v1/
     'section5/pdl_vs_casas.pdf': 'figures/pdl_vs_casas.pdf',
     'section5/tsne_clusters.pdf': 'figures/tsne_clusters.pdf',
 }
-PER_HOUSE = ['dataset_summary', 'label_distribution', 'main_comparison_weighted', 'main_comparison_macro',
+PER_HOUSE = ['dataset_summary', 'label_distribution', 'main_comparison',
              'per_house_l1', 'per_house_l2', 'significance', 'kappa_scores', 'random_windows',
              'cluster_annotation_summary']
 
@@ -114,11 +114,78 @@ def claims():
              f'{f2(h["cairo"]["kappa_unlabeled"])}; ``None of the above\'\' for {pct(h["milan"]["none_unlabeled"])}\\%, '
              f'{pct(h["aruba"]["none_unlabeled"])}\\% and {pct(h["cairo"]["none_unlabeled"])}\\%'),
     ]
-    return out + section6_claims()
+    return out + section4_claims() + section6_claims()
+
+
+def table_row(table, row):
+    """Cells of the row starting with `row` in a generated table, one per house."""
+    for line in (FINAL_DIR / 'tables' / f'{table}.tex').read_text().splitlines():
+        if line.startswith(row + ' &'):
+            return [c.strip().rstrip('\\').strip() for c in line.split('&')[1:]]
+    raise KeyError(row)
+
+
+def section4_claims():
+    s4 = '4_data.tex'
+    unl = dict(zip(CITIES, (int(c.replace('\\%', '')) for c in table_row('dataset_summary', r'\quad without activity label'))))
+    days = dict(zip(CITIES, table_row('dataset_summary', 'Days')))
+    casas = [unl[c] for c in CITIES if c != 'orange']
+    dist = (FINAL_DIR / 'tables' / 'label_distribution.tex').read_text()
+    office = re.search(r'Office computing & [\d{},]+ \([\d.]+\) & [\d{},]+ \(([\d.]+)\)', dist).group(1)
+    return [(s4, f'{min(casas)}\\% to {max(casas)}\\% of the continuous training windows'),
+            (s4, f'Orange4Home is labeled almost throughout ({unl["orange"]}\\%)'),
+            (s4, f'\\textit{{Office computing}} {round(float(office))}\\% of Orange4Home'),
+            (s4, f'over {days["orange"]} work days'), (s4, f"of Orange4Home's {days['orange']} days")]
 
 
 def section6_claims():
-    return []
+    s6 = '6_supervised_benchmark.tex'
+    sig = pd.read_csv(FINAL_DIR / 'data' / 'significance.csv')
+    sm = pd.read_csv(FINAL_DIR / 'data' / 'summary.csv')
+    sm = sm[(sm.level == 'l1') & (sm.variant == 'masked')]
+    disc = sm[(sm.family == 'clustering') & (sm.method == 'scan') & (sm.rep == 'tf+tod')]
+    probe = sm[(sm.family == 'probe') & (sm.rep == 'tf+tod')]
+    budgets = {'100': (20, 'm5'), '250': (50, 'm5'), 'all': (50, 'mall')}
+
+    def d(budget):
+        K, m = budgets[budget]
+        return disc[(disc.K == K) & (disc.budget == m)].set_index('city').loc[CITIES]
+
+    def gap(city, budget, metric):
+        """DISCOVER minus best baseline, as the Delta row of the main table (difference of rounded means)."""
+        b = sm[(sm.family == 'baseline') & (sm.budget == budget) & (sm.city == city)].groupby('method')[metric].mean()
+        return round(d(budget).loc[city, metric], 2) - round(b.max(), 2)
+
+    def avg(budget, metric):
+        return d(budget)[metric].mean()
+
+    lo_sig = sig[(sig.city == 'average') & sig.budget.str.contains('100|250')]
+    avg_gaps = []
+    for budget in ('100', '250'):
+        for metric in ('f1_weighted', 'f1_macro'):
+            b = sm[(sm.family == 'baseline') & (sm.budget == budget)].groupby(['method', 'city'])[metric].mean()
+            best = b.groupby('method').mean().max()
+            avg_gaps.append(round(avg(budget, metric), 2) - round(best, 2))
+    all_gaps = []
+    for metric in ('f1_weighted', 'f1_macro'):
+        b = sm[(sm.family == 'baseline') & (sm.budget == 'all')].groupby(['method', 'city'])[metric].mean()
+        all_gaps.append(round(b.groupby('method').mean().max(), 2) - round(avg('all', metric), 2))
+    p_max = lo_sig.p.max()
+    orange_w = [gap('orange', b, 'f1_weighted') for b in ('100', '250')]
+    orange_m = [gap('orange', b, 'f1_macro') for b in ('100', '250')]
+    pr = {b: probe[probe.budget == b].set_index('city').loc[CITIES] for b in ('100', '250')}
+    pw = [(pr[b]['f1_weighted'] - d(b)['f1_weighted']).mean() for b in ('100', '250')]
+    pm = [(pr[b]['f1_macro'] - d(b)['f1_macro']).mean() for b in ('100', '250')]
+    return [
+        (s6, f'{f2(avg("100", "f1_weighted"))} / {f2(avg("100", "f1_macro"))} with 100 labels'),
+        (s6, f'{f2(avg("250", "f1_weighted"))} / {f2(avg("250", "f1_macro"))} with 250 labels, '
+             f'{span(avg_gaps)} above the best baseline ($p<{0.001 if p_max < 0.001 else 0.01}$)'),
+        (s6, f'by {span(orange_w)} $F1_W$ and {span(orange_m)} $F1_M$'.replace(f'{f2(min(orange_w))}--{f2(min(orange_w))}', f2(min(orange_w)))),
+        (s6, f'(by {f2(all_gaps[0])} $F1_W$ and {f2(all_gaps[1])} $F1_M$ on average'),
+        (s6, f'it is {span(pw)} $F1_W$ and {span(pm)} $F1_M$ above'),
+        (s6, f'leads the best baseline by {span(avg_gaps)} F1'),
+        (s6, f'mean over {["zero", "one", "two", "three", "four", "five"][len(CITIES)]} houses and five seeds'),
+    ]
 
 
 # ---------------------------------------------------------------- checks
@@ -126,7 +193,7 @@ def section6_claims():
 def check(compile_=True):
     problems = []
     if compile_:
-        r = subprocess.run(['latexmk', '-pdf', '-interaction=nonstopmode', '-halt-on-error', 'main.tex'], cwd=PAPER,
+        r = subprocess.run(['latexmk', '-g', '-pdf', '-interaction=nonstopmode', '-halt-on-error', 'main.tex'], cwd=PAPER,
                            capture_output=True, text=True)
         if r.returncode:
             problems.append('LaTeX build failed (see discover-v1/main.log)')
