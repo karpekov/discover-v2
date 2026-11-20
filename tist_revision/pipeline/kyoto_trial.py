@@ -14,6 +14,17 @@ split (seed 42) and run through the unchanged Section 6 pipeline:
   kyotoresa    One chronological stream, each event once; labels follow resident R1 only: R1's own activity,
   kyotoresb    else a running activity without a resident id, else No_Activity. `kyotoresb`: same for R2.
 
+Second round (2026-11-20), same model, other ways of labeling the concurrent events:
+
+  kyotoaff     Merged stream; an event inside several activities is labeled with the one that most often fires
+               its sensor: argmax over the running activities of P(sensor | activity), estimated from the events
+               that fall inside exactly one activity. Same events and windows as `kyotomerged`, whose encoders
+               are reused.
+  kyotojoint   Merged stream; the label is the household state: all activities running at the event, resident
+               ids removed and sorted (`Sleep+Work`). Encoders of `kyotomerged` reused.
+  kyotoattr    Resident streams without copies: each event goes once, into the stream (R1 / R2 / both) of the
+               activity chosen as in `kyotoaff`.
+
 Steps:
     python -m tist_revision.pipeline.kyoto_trial prepare    # streams, sampling, encoder configs, skynet tasks
     bash tist_revision/skynet/launch_final.sh kyoto_tdost_text && ... kyoto_encoder_tf kyoto_baselines  (skynet)
@@ -42,7 +53,12 @@ VARIANTS = {  # dataset name -> (short title, windows are built per resident str
     'kyotoflat': ('Resident streams', True),
     'kyotoresa': ('R1 labels', False),
     'kyotoresb': ('R2 labels', False),
+    'kyotoaff': ('Merged, sensor-attributed labels', False),
+    'kyotojoint': ('Merged, household-state labels', False),
+    'kyotoattr': ('Resident streams, no copies', True),
 }
+ROUNDS = {'': ['kyotomerged', 'kyotoflat', 'kyotoresa', 'kyotoresb'], '2': ['kyotoaff', 'kyotojoint', 'kyotoattr']}
+ENCODER_OF = {'kyotoaff': 'kyotomerged', 'kyotojoint': 'kyotomerged'}  # same events and FL_20 windows: reuse encoders
 SEEDS = [1, 2, 3, 4, 5]
 NO_ACTIVITY = 'no_activity'  # raw spelling in the processed CASAS data
 
@@ -82,6 +98,28 @@ def resident_label(acts, resident):
     return mine[-1] if mine else NO_ACTIVITY
 
 
+def sensor_affinity(df, acts):
+    """P(sensor | activity) from the motion / door events that fall inside exactly one activity (all days; this
+    defines labels, it is not a model). Add-one smoothing over the sensors."""
+    ev = df[~df['is_numeric'] & (acts.map(len) == 1)]
+    counts = pd.crosstab(ev['sensor'], acts[ev.index].str[0])
+    counts = counts.reindex(sorted(df.loc[~df['is_numeric'], 'sensor'].unique()), fill_value=0) + 1
+    return (counts / counts.sum()).to_dict()  # activity -> sensor -> probability
+
+
+def attributed_label(acts, sensor, affinity):
+    """Of the running activities (in the order they began), the one most likely to fire `sensor`; ties and
+    activities never seen alone go to the most recently begun one."""
+    if not acts:
+        return NO_ACTIVITY
+    return max(reversed(acts), key=lambda a: affinity.get(a, {}).get(sensor, 0.0))
+
+
+def joint_label(acts):
+    from .mapping_eval import l1_label
+    return '+'.join(sorted(l1_label(a) for a in acts)) if acts else NO_ACTIVITY
+
+
 def build_streams():
     """Write one event CSV per variant (`_load_flattened_data` format: label in `activity_flattened`)."""
     sys.path.insert(0, str(REPO / 'src'))  # as in sample_data.py
@@ -106,9 +144,22 @@ def build_streams():
         'kyotoresb': df.assign(activity_flattened=[resident_label(a, 2) for a in acts]),
         'kyotoflat': flatten_processed(df.drop(columns='running')),
     }
+    affinity = sensor_affinity(df, pd.Series(acts, index=df.index))
+    attributed = [attributed_label(a, s, affinity) for a, s in zip(acts, df['sensor'])]
+    streams['kyotoaff'] = df.assign(activity_flattened=attributed)
+    streams['kyotojoint'] = df.assign(activity_flattened=[joint_label(a) for a in acts])
+    streams['kyotoattr'] = df.assign(  # as `flatten_processed`: label without resident id, stream in resident_info
+        activity_flattened=[re.sub(r'^R\d+_', '', a) for a in attributed],
+        resident_info=[m.group(0)[:-1] if (m := re.match(r'R\d+_', a)) else 'both' for a in attributed])
+    multi = pd.Series(acts, index=df.index).map(len).ge(2) & ~df['is_numeric']
+    changed = multi & (pd.Series(attributed, index=df.index) != streams['kyotomerged']['activity_flattened'])
+    print(f'sensor-attributed labels: {changed.sum()} of {multi.sum()} concurrent events ({changed.sum() / multi.sum():.1%}) '
+          f'differ from the most-recently-begun label', flush=True)
     for name, s in streams.items():
         s = s.drop(columns='running', errors='ignore').copy()
         s['first_activity_l2'] = s['activity_flattened'].map(tdost_label)
+        if (out_dir / f'{name}.csv').exists() and name in ROUNDS['']:
+            continue  # first-round streams are in use; never rewrite them
         s.to_csv(out_dir / f'{name}.csv', index=False)
         ev = s[~s['is_numeric']]
         print(f'[{name}] {len(ev)} events; labels: {ev["activity_flattened"].value_counts().to_dict()}', flush=True)
@@ -203,29 +254,36 @@ def encoder_config(name):
 
 
 def task_files():
-    """Skynet task arrays, same commands as `encoder_tf.txt` / `baselines.txt` restricted to the main models."""
-    enc, base = [], []
-    for name in VARIANTS:
-        for s in SEEDS:
-            model = f'trained_models/{name}/tf_nocoord_mlm_time_s{s}'
-            enc.append(
-                f'python train.py --config tist_revision/configs/alignment/{name}_fl20_seq_nocoord_mlm_time.yaml '
-                f'--seed {s} --output-dir {model} && '
-                f'python -m tist_revision.pipeline.encode_embeddings --city {name} --kind tf --model_dir {model} '
-                f'--name tf_s{s} && '
-                f'python -m tist_revision.pipeline.frozen_deep --cities {name} --representations tf_s{s}+tod '
-                f'--methods scan --K 20 50 --seed {s} --tod_weight balanced --suffix _todwbal')
-    for method in ('deepcasas', 'tdost'):
-        for name in VARIANTS:
-            for s in SEEDS:
-                base.append(f'python -m tist_revision.baselines.run --method {method} --city {name} --seed {s} '
-                            f'--protocol final --levels l1')
+    """Skynet task arrays, same commands as `encoder_tf.txt` / `baselines.txt` restricted to the main models; one
+    set of files per round (`kyoto_*`, `kyoto2_*`). Variants in ENCODER_OF skip training and encode with the
+    encoder of the variant that has the same events; they also get the two time-of-day-free reference clusterings."""
     tasks = PROJECT_DIR / 'skynet' / 'tasks'
-    (tasks / 'kyoto_encoder_tf.txt').write_text('\n'.join(enc) + '\n')
-    (tasks / 'kyoto_baselines.txt').write_text('\n'.join(base) + '\n')
-    (tasks / 'kyoto_tdost_text.txt').write_text(
-        f'python -m tist_revision.baselines.tdost_text --cities {" ".join(VARIANTS)}\n')
-    print(f'Wrote {tasks}/kyoto_*.txt ({len(enc)} encoder, {len(base)} baseline tasks)')
+    fd = 'python -m tist_revision.pipeline.frozen_deep'
+    for suffix, names in ROUNDS.items():
+        enc, base = [], []
+        for name in names:
+            for s in SEEDS:
+                model = f'trained_models/{ENCODER_OF.get(name, name)}/tf_nocoord_mlm_time_s{s}'
+                steps = [] if name in ENCODER_OF else [
+                    f'python train.py --config tist_revision/configs/alignment/{name}_fl20_seq_nocoord_mlm_time.yaml '
+                    f'--seed {s} --output-dir {model}']
+                steps += [f'python -m tist_revision.pipeline.encode_embeddings --city {name} --kind tf --model_dir {model} '
+                          f'--name tf_s{s}',
+                          f'{fd} --cities {name} --representations tf_s{s}+tod '
+                          f'--methods scan --K 20 50 --seed {s} --tod_weight balanced --suffix _todwbal']
+                if suffix:
+                    steps.append(f'{fd} --cities {name} --representations tf_s{s} --methods kmeans scan --K 20 50 --seed {s}')
+                enc.append(' && '.join(steps))
+        for method in ('deepcasas', 'tdost'):
+            for name in names:
+                for s in SEEDS:
+                    base.append(f'python -m tist_revision.baselines.run --method {method} --city {name} --seed {s} '
+                                f'--protocol final --levels l1')
+        (tasks / f'kyoto{suffix}_encoder_tf.txt').write_text('\n'.join(enc) + '\n')
+        (tasks / f'kyoto{suffix}_baselines.txt').write_text('\n'.join(base) + '\n')
+        (tasks / f'kyoto{suffix}_tdost_text.txt').write_text(
+            f'python -m tist_revision.baselines.tdost_text --cities {" ".join(names)}\n')
+        print(f'Wrote {tasks}/kyoto{suffix}_*.txt ({len(enc)} encoder, {len(base)} baseline tasks)')
 
 
 def ablation_task_files(variants):
@@ -261,7 +319,7 @@ def ablation_task_files(variants):
 def prepare(args):
     if 'streams' in args.steps:
         build_streams()
-    for name in VARIANTS:
+    for name in args.variants:
         for window in ('FL_20', 'FL_20_p'):
             cfg = sampling_config(name, window)
             if 'windows' in args.steps:
@@ -285,6 +343,11 @@ METHODS = [  # name, run family, filter, color
 MAIN = ('DeepCASAS', 'TDOST', 'DISCOVER')  # rows of the Section 6 table; the probe is the label-efficiency reference
 METRICS = (('f1_weighted', 'F1 weighted'), ('f1_macro', 'F1 macro'))
 PAPER_HOUSES = ['milan', 'aruba', 'cairo']
+TOD_SETUPS = [  # name, clustering method, representation, color
+    ('DISCOVER (SCAN, TF+ToD)', 'scan', 'tf+tod', '#6d28d9'), ('SCAN, TF', 'scan', 'tf', '#a78bfa'),
+    ('k-means, TF', 'kmeans', 'tf', '#0d9488'), ('DEC, TF', 'dec', 'tf', '#5eead4'),
+    ('k-means, sensor hist.', 'kmeans', 'hist_sensor', '#94a3b8'),
+]
 
 
 def pick(runs, city, name, clu, budget, level='l1', variant='masked'):
@@ -580,6 +643,95 @@ def main_tables(runs, sig):
     return out, pd.DataFrame(flat)
 
 
+def clustering_table(runs):
+    """Diagnostic: every clustering configuration of the appendix ablations that has been run, weighted / macro F1
+    (L1, mean over seeds). K = 100 x 5 labels is about 500 labels and has no matched supervised budget."""
+    from .report_final import CLU_ORDER, METHOD_NAMES, REP_NAMES
+    x = runs[(runs.family == 'clustering') & (runs.level == 'l1') & (runs.variant == 'masked')]
+    cols = [('K = 20, m = 5', 20, 'm5'), ('K = 50, m = 5', 50, 'm5'), ('K = 50, m = all', 50, 'mall'), ('K = 100, m = 5', 100, 'm5')]
+    rows = []
+    for city, (title, _) in VARIANTS.items():
+        for method, r in CLU_ORDER:
+            q = x[(x.city == city) & (x.method == method) & (x.rep == r)]
+            if q.empty:
+                continue
+            row = {'Variant': title, 'Clustering': METHOD_NAMES[method], 'Representation': REP_NAMES[r],
+                   'Seeds': q.seed.nunique()}
+            for col, K, budget in cols:
+                v = q[(q.K == K) & (q.budget == budget)]
+                row[col] = f'{v.f1_weighted.mean():.2f} / {v.f1_macro.mean():.2f}' if len(v) else '–'
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def tod_table(runs):
+    """Clustering with and without the time-of-day histogram block next to the better supervised baseline, at the
+    matched budgets (L1, mean over seeds), long format. Paper houses from results/final for reference."""
+    from .report_final import MATCHED
+    final = pd.read_csv(PROJECT_DIR / 'results' / 'final' / 'data' / 'runs.csv', dtype={'budget': str, 'rep': str})
+    rows = []
+    for src, cities in ((runs, {c: t for c, (t, _) in VARIANTS.items()}), (final, {h: f'{h.capitalize()} (paper)' for h in PAPER_HOUSES})):
+        x = src[(src.level == 'l1') & (src.variant == 'masked')]
+        for city, title in cities.items():
+            for col, clu, budget in MATCHED:
+                q = x[(x.family == 'baseline') & (x.city == city) & (x.budget == budget) & x.method.isin(['deepcasas', 'tdost'])]
+                g = q.groupby('method')[['f1_weighted', 'f1_macro']].mean()
+                if len(g):
+                    rows.append({'Variant': title, 'Method': 'Better supervised baseline', 'budget': col,
+                                 'f1_weighted': g.f1_weighted.max(), 'f1_macro': g.f1_macro.max()})
+                for name, method, r, _ in TOD_SETUPS:
+                    v = x[(x.family == 'clustering') & (x.city == city) & (x.method == method) & (x.rep == r)
+                          & (x.K == clu['K']) & (x.budget == clu['budget'])]
+                    if len(v):
+                        rows.append({'Variant': title, 'Method': name, 'budget': col,
+                                     'f1_weighted': v.f1_weighted.mean(), 'f1_macro': v.f1_macro.mean()})
+    return pd.DataFrame(rows)
+
+
+def tod_figure(tod):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from .report_final import MATCHED
+    methods = [('Better supervised baseline', '#ea580c')] + [(n, c) for n, _, _, c in TOD_SETUPS]
+    variants = list(dict.fromkeys(tod.Variant))
+    fig, axes = plt.subplots(1, 2, figsize=(12.5, 3.6), sharey=True)
+    for ax, (col, _, _) in zip(axes, MATCHED[:2]):
+        t = tod[tod.budget == col].pivot(index='Variant', columns='Method', values='f1_weighted').reindex(variants)
+        width = 0.8 / len(methods)
+        for i, (name, color) in enumerate(methods):
+            if name in t.columns:
+                ax.bar(np.arange(len(variants)) + (i - (len(methods) - 1) / 2) * width, t[name], width, color=color, label=name)
+        ax.axvline(len(VARIANTS) - 0.5, color='#94a3b8', lw=0.8, ls=':')
+        ax.set_xticks(range(len(variants)), [v.replace(' (paper)', '\n(paper)').replace(' ', '\n', 1) if '(paper)' not in v
+                                             else v.replace(' (paper)', '\n(paper)') for v in variants])
+        ax.set_title(col, fontsize=10)
+        ax.grid(axis='y', alpha=0.3)
+        ax.spines[['top', 'right']].set_visible(False)
+    axes[0].set_ylabel('F1 weighted')
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc='lower center', ncol=len(methods), frameon=False, fontsize=8.5, bbox_to_anchor=(0.5, -0.02))
+    fig.suptitle('Clustering with and without the time-of-day block vs. the better supervised baseline', fontsize=10.5)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    fig.savefig(OUT / 'figures' / 'tod_block.png', dpi=170)
+    plt.close(fig)
+
+
+def l2_table(runs):
+    """TDOST label level (L2, variant `all` as in TDOST: every class incl. Other), weighted / macro F1."""
+    from .report_final import MATCHED
+    rows = []
+    for city, (title, _) in VARIANTS.items():
+        for name in MAIN:
+            cells = [pick(runs, city, name, clu, budget, level='l2', variant='all') for _, clu, budget in MATCHED]
+            if all(len(v) == 0 for v in cells):
+                continue
+            rows.append({'Variant': title, 'Method': name, 'Seeds': '/'.join(str(len(v)) for v in cells)}
+                        | {col: f'{v.f1_weighted.mean():.2f} / {v.f1_macro.mean():.2f}' if len(v) else '–'
+                           for (col, _, _), v in zip(MATCHED, cells)})
+    return pd.DataFrame(rows)
+
+
 def report(args):
     from .report_final import MATCHED
     OUT.mkdir(parents=True, exist_ok=True)
@@ -648,6 +800,27 @@ def report(args):
             t = t.reindex(columns=[m for m in MAIN if m in t.columns]).reset_index().sort_values('test_windows', ascending=False)
             md += [f'**{title[city]}**', '', md_table(t), '']
         md += ['![Per-class F1](figures/per_class_f1.png)', '', '![DISCOVER confusion](figures/confusion_discover.png)', '']
+    l2 = l2_table(runs)
+    if len(l2) and (l2.Method != 'DISCOVER').any():
+        l2.to_csv(OUT / 'data' / 'l2_comparison.csv', index=False)
+        md += ['## TDOST label level (L2), weighted / macro F1', '',
+               'All L2 classes scored (incl. Other), as in the per-house appendix table of the paper.', '', md_table(l2), '']
+    clu = clustering_table(runs)
+    if clu.groupby('Variant').size().max() > 1:
+        tod = tod_table(runs)
+        tod.to_csv(OUT / 'data' / 'tod_block.csv', index=False)
+        tod_figure(tod)
+        wide = tod.assign(cell=[f'{w:.2f} / {m:.2f}' for w, m in zip(tod.f1_weighted, tod.f1_macro)]).pivot(
+            index=['Variant', 'Method'], columns='budget', values='cell')
+        order = list(dict.fromkeys(zip(tod.Variant, tod.Method)))
+        wide = wide.reindex(order)[[c for c, _, _ in MATCHED]].reset_index()
+        md += ['## With and without the time-of-day block (weighted / macro F1)', '',
+               'Baseline cells take the better of DeepCASAS and TDOST per metric. Clustering rows other than DISCOVER '
+               'were not chosen in advance; they are diagnostics, not results.', '', md_table(wide), '',
+               '![Time-of-day block](figures/tod_block.png)', '']
+        clu.to_csv(OUT / 'data' / 'clustering_variants.csv', index=False)
+        md += ['## Clustering variants (weighted / macro F1)', '',
+               'Same grid as the appendix ablations of the paper houses. DISCOVER is SCAN on TF+ToD.', '', md_table(clu), '']
     (OUT / 'REPORT.md').write_text('\n'.join(md))
     print(f'Saved {OUT}/REPORT.md ({len(runs)} runs)')
 
@@ -658,6 +831,7 @@ def main():
     p = sub.add_parser('prepare')
     p.add_argument('--steps', nargs='+', default=['streams', 'windows'], choices=['streams', 'windows'],
                    help='configs and task files are always rewritten')
+    p.add_argument('--variants', nargs='+', default=list(VARIANTS), choices=list(VARIANTS))
     p.set_defaults(fn=prepare)
     p = sub.add_parser('ablation', help='write the skynet task files of the appendix ablations')
     p.add_argument('--variants', nargs='+', default=list(VARIANTS), choices=list(VARIANTS))

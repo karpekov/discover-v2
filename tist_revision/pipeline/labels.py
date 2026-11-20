@@ -41,6 +41,8 @@ _RAW_TO_TDOST = {
 
 def tdost_label(raw: str) -> str:
     """Map a raw CASAS activity name (any city) to its TDOST / DeepCASAS class."""
+    if raw and '+' in raw:  # several activities at once (Kyoto7 household-state labels): map each part
+        return '+'.join(sorted(tdost_label(part) for part in raw.split('+')))
     key = (raw or '').strip().lower().replace(' ', '_')
     if key not in _RAW_TO_TDOST:
         raise KeyError(f'No TDOST mapping for activity {raw!r}')
