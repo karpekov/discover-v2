@@ -171,14 +171,34 @@ def words(n):
 
 
 def house(city):
-    """Layout key of a dataset name: the Kyoto7 split variants (`kyotomerged`, `kyotoflat`, ...) share one house."""
-    return 'kyoto' if city.startswith('kyoto') else city
+    """Layout key of a dataset name: the Kyoto7 split variants (`kyotomerged`, `kyotoflat`, ...) share one house,
+    as do the Orange4Home variants (`orange`, `orangem`)."""
+    return 'kyoto' if city.startswith('kyoto') else 'orange' if city.startswith('orange') else city
+
+
+# Orange4Home meter events (`orange_trial.METERS`), in TDOST's sensor-type wording where it has one (Kyoto7 AD1-A/B/C).
+ORANGE_METERS = {
+    'kitchen_cooktop': 'Burner sensor in kitchen',
+    'kitchen_hood': 'Power sensor on hood in kitchen',
+    'kitchen_sink_water': 'Water sensor in kitchen near sink',
+    'livingroom_tv_plug': 'Power sensor on TV in living room',
+    'livingroom_couch_plug': 'Power sensor on plug near couch in living room',
+    'livingroom_table_plug': 'Power sensor on plug near table in living room',
+    'office_tv_plug': 'Power sensor on TV in office',
+    'office_desk_plug': 'Power sensor on plug near desk in office',
+    'bathroom_shower_water': 'Water sensor in bathroom near shower',
+    'bathroom_sink_water': 'Water sensor in bathroom near sink',
+    'toilet_flush': 'Water sensor in toilet',
+    'bedroom_bed': 'Pressure sensor on bed in bedroom',
+}
 
 
 def orange_phrase(sensor):
     """Orange4Home sources are named `<place>_<what>`; TDOST has no layout for this house, so the phrase is built
     from the name with TDOST's sensor-type wording: `kitchen_cupboard3` -> 'Door sensor on cupboard three in
     kitchen', `livingroom_presence_table` -> 'Motion sensor in living room near table'."""
+    if sensor in ORANGE_METERS:
+        return ORANGE_METERS[sensor]
     place, rest = sensor.split('_', 1)
     room = {'livingroom': 'living room'}.get(place, place)
     rest = ' '.join(words(int(w)) if w.isdigit() else w for w in re.sub(r'(\d+)', r' \1 ', rest).replace('_', ' ').split())
@@ -197,7 +217,7 @@ def orange_phrase(sensor):
 
 
 def sensor_phrase(city, sensor, state):
-    if city == 'orange':
+    if house(city) == 'orange':
         return orange_phrase(sensor) + " fired with value " + VALUE.get(state, state)
     # Unknown sensors fall back to TDOST's default type ('Motion sensor') and an empty location.
     return (SENSOR_TYPE.get(sensor[0], "Motion sensor ") + LOCATION[house(city)].get(sensor, '')
