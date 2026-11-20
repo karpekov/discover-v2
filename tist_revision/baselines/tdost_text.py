@@ -12,6 +12,7 @@ arrays (windows x 20). Usage:
 """
 import argparse
 import math
+import re
 from datetime import datetime
 
 import inflect
@@ -174,7 +175,30 @@ def house(city):
     return 'kyoto' if city.startswith('kyoto') else city
 
 
+def orange_phrase(sensor):
+    """Orange4Home sources are named `<place>_<what>`; TDOST has no layout for this house, so the phrase is built
+    from the name with TDOST's sensor-type wording: `kitchen_cupboard3` -> 'Door sensor on cupboard three in
+    kitchen', `livingroom_presence_table` -> 'Motion sensor in living room near table'."""
+    place, rest = sensor.split('_', 1)
+    room = {'livingroom': 'living room'}.get(place, place)
+    rest = ' '.join(words(int(w)) if w.isdigit() else w for w in re.sub(r'(\d+)', r' \1 ', rest).replace('_', ' ').split())
+    if rest.startswith('presence'):
+        near = rest[len('presence'):].strip()
+        return f'Motion sensor in {room}' + (f' near {near}' if near else '')
+    if rest.startswith('switch'):
+        return f'Light switch sensor {rest[len("switch"):].strip()} in {room}'.replace('  ', ' ')
+    if rest.startswith('light'):
+        return f'Light {rest[len("light"):].strip()} in {room}'.replace('  ', ' ')
+    if rest.startswith('shutter'):
+        return f'Shutter {rest[len("shutter"):].strip()} in {room}'.replace('  ', ' ')
+    if rest == 'tv status':
+        return f'TV in {room}'
+    return f'Door sensor on {rest} in {room}'
+
+
 def sensor_phrase(city, sensor, state):
+    if city == 'orange':
+        return orange_phrase(sensor) + " fired with value " + VALUE.get(state, state)
     # Unknown sensors fall back to TDOST's default type ('Motion sensor') and an empty location.
     return (SENSOR_TYPE.get(sensor[0], "Motion sensor ") + LOCATION[house(city)].get(sensor, '')
             + " fired with value " + VALUE.get(state, state))

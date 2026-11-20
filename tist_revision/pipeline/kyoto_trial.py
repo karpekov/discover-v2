@@ -58,6 +58,9 @@ VARIANTS = {  # dataset name -> (short title, windows are built per resident str
     'kyotoattr': ('Resident streams, no copies', True),
 }
 ROUNDS = {'': ['kyotomerged', 'kyotoflat', 'kyotoresa', 'kyotoresb'], '2': ['kyotoaff', 'kyotojoint', 'kyotoattr']}
+STREAMS = {}  # event CSV of a dataset, if not RAW_DIR / STREAM_DIR / <name>.csv (set by orange_trial)
+HOUSE = 'Kyoto7'  # name in figure titles
+HEADER = None  # report title and intro lines, if not the Kyoto7 ones (set by orange_trial)
 ENCODER_OF = {'kyotoaff': 'kyotomerged', 'kyotojoint': 'kyotomerged'}  # same events and FL_20 windows: reuse encoders
 SEEDS = [1, 2, 3, 4, 5]
 NO_ACTIVITY = 'no_activity'  # raw spelling in the processed CASAS data
@@ -404,7 +407,7 @@ def dataset_table():
     for city, (title, _) in VARIANTS.items():
         _, pool, test = load_protocol(city, level='l1')
         ex_pool, ex_test = window_extras(city, 'FL_20', 'train'), window_extras(city, 'FL_20_p', 'test')
-        events = pd.read_csv(RAW_DIR / STREAM_DIR / f'{city}.csv', usecols=['is_numeric'])
+        events = pd.read_csv(STREAMS.get(city, RAW_DIR / STREAM_DIR / f'{city}.csv'), usecols=['is_numeric'])
         # Windows whose exact event sequence also occurs under another label (resident streams hold copies).
         labels_of = test.assign(events=ex_test['events']).groupby('events')['label'].agg(list)
         ceiling = sum(max(l.count(x) for x in set(l)) for l in labels_of) / len(test)
@@ -506,7 +509,8 @@ def figures(runs, per_class, confusions):
     plt.rcParams.update({'font.size': 9, 'axes.spines.top': False, 'axes.spines.right': False})
 
     # 1. Label efficiency per variant: F1 against the labeling budget.
-    fig, axes = plt.subplots(2, len(VARIANTS), figsize=(3.1 * len(VARIANTS), 5.4), sharex=True, sharey='row')
+    fig, axes = plt.subplots(2, len(VARIANTS), figsize=(max(3.1 * len(VARIANTS), 6), 5.4), sharex=True, sharey='row',
+                             squeeze=False)
     for j, (city, (title, _)) in enumerate(VARIANTS.items()):
         for i, (metric, mname) in enumerate(METRICS):
             ax = axes[i, j]
@@ -529,13 +533,15 @@ def figures(runs, per_class, confusions):
                 ax.set_ylabel(mname)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc='lower center', ncol=4, frameon=False, bbox_to_anchor=(0.5, -0.01))
-    fig.suptitle('Kyoto7: DISCOVER vs. supervised baselines by resident handling (L1, mean ± std over seeds)', fontsize=10.5)
+    fig.suptitle(f'{HOUSE}: DISCOVER vs. supervised baselines (L1, mean ± std over seeds)', fontsize=10.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.97))
     fig.savefig(figdir / 'label_efficiency.png', dpi=170)
     plt.close(fig)
 
     # 2. Per-class F1 at ~250 labels.
-    fig, axes = plt.subplots(1, len(VARIANTS), figsize=(3.3 * len(VARIANTS), 3.4), sharey=False)
+    fig, axes = plt.subplots(1, len(VARIANTS), figsize=(max(3.3 * len(VARIANTS), 5), 3.4 if HOUSE == 'Kyoto7' else 6),
+                             sharey=False, squeeze=False)
+    axes = axes[0]
     for ax, (city, (title, _)) in zip(axes, VARIANTS.items()):
         q = per_class[(per_class.city == city) & (per_class.budget == '≈250 labels')]
         if q.empty:
@@ -552,14 +558,17 @@ def figures(runs, per_class, confusions):
         ax.set_title(title, fontsize=10)
         for sp in ax.spines.values():
             sp.set_visible(False)
-    fig.suptitle('Kyoto7: per-class F1 at ≈250 labels (test windows in parentheses)', fontsize=10.5)
+    fig.suptitle(f'{HOUSE}: per-class F1 at ≈250 labels (test windows in parentheses)', fontsize=10.5)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(figdir / 'per_class_f1.png', dpi=170)
     plt.close(fig)
 
     # 3. DISCOVER confusion matrices at ~250 labels (K = 50, m = 5), pooled over seeds, row-normalized.
     if confusions:
-        fig, axes = plt.subplots(1, len(VARIANTS), figsize=(3.6 * len(VARIANTS), 3.9))
+        n = max(len(c) for c, _ in confusions.values())
+        size = max(3.6, 0.42 * n)
+        fig, axes = plt.subplots(1, len(VARIANTS), figsize=(size * len(VARIANTS) + 1, size + 0.6), squeeze=False)
+        axes = axes[0]
         for ax, (city, (title, _)) in zip(axes, VARIANTS.items()):
             if city not in confusions:
                 ax.axis('off')
@@ -579,7 +588,7 @@ def figures(runs, per_class, confusions):
             for sp in ax.spines.values():
                 sp.set_visible(False)
         axes[0].set_ylabel('True')
-        fig.suptitle('Kyoto7: DISCOVER confusion at ≈250 labels (rows sum to 1)', fontsize=10.5)
+        fig.suptitle(f'{HOUSE}: DISCOVER confusion at ≈250 labels (rows sum to 1)', fontsize=10.5)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         fig.savefig(figdir / 'confusion_discover.png', dpi=170)
         plt.close(fig)
@@ -734,6 +743,11 @@ def l2_table(runs):
 
 def report(args):
     from .report_final import MATCHED
+    global VARIANTS, OUT
+    if getattr(args, 'variants', None):
+        VARIANTS = {k: VARIANTS[k] for k in args.variants}
+    if getattr(args, 'tag', None):
+        OUT = OUT / args.tag
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / 'data').mkdir(exist_ok=True)
     runs = score_runs(args.rescore)
@@ -750,24 +764,35 @@ def report(args):
     figures(runs, per_class, confusions)
 
     title = {c: t for c, (t, _) in VARIANTS.items()}
-    md = ['# Kyoto7 (twor.2009) trial: Section 6 models under four ways of handling the two residents', '',
-          'Generated by `python -m tist_revision.pipeline.kyoto_trial report`; do not edit. Findings are logged in '
-          '`tist_revision/EXPLORATIONS.md`. Not part of the paper.', '',
+    rows = {
+        'kyotomerged': 'all events, once, in time order | most recently begun activity still running',
+        'kyotoflat': 'one stream per resident (R1, R2) and one for activities without a resident id; an event is '
+                     'copied into the stream of every activity running at that time; windows never cross streams | '
+                     'the activity that put the event into the stream',
+        'kyotoresa': 'all events, once, in time order | R1\'s activity; else a running activity without resident id; '
+                     'else No_Activity',
+        'kyotoresb': 'all events, once, in time order | same for R2',
+        'kyotoaff': 'all events, once, in time order (windows of `kyotomerged`) | of the running activities, the one '
+                    'that most often fires the event\'s sensor when it runs alone',
+        'kyotojoint': 'all events, once, in time order (windows of `kyotomerged`) | household state: all running '
+                      'activities, e.g. `Sleep+Work`',
+        'kyotoattr': 'one stream per resident and one for activities without a resident id; each event goes into one '
+                     'stream only, that of its sensor-attributed activity | the sensor-attributed activity',
+    }
+    md = HEADER or [
+        '# Kyoto7 (twor.2009) trial: Section 6 models under several ways of handling the two residents', '',
+        'Generated by `python -m tist_revision.pipeline.kyoto_trial report`; do not edit. Findings are logged in '
+        '`tist_revision/EXPLORATIONS.md`. Not part of the paper.', '']
+    md = md + [
           'Protocol as in Section 6: clusters and supervised models are fit on continuous `FL_20` train windows '
-          '(20 events, 50% overlap), tested on pre-segmented `FL_20_p` windows of 10 held-out days (same days in every '
-          'variant); L1 labels (resident id removed), macro F1 over classes with ≥ 50 pool and ≥ 20 test windows. '
+          '(20 events, 50% overlap), tested on pre-segmented `FL_20_p` windows of held-out days (20% of the days); '
+          'L1 labels (resident id removed), macro F1 over classes with ≥ 50 pool and ≥ 20 test windows. '
           'DISCOVER = MLM encoder + time-of-day histogram + SCAN (balanced); ≈100 = K 20 × 5 labels, ≈250 = K 50 × 5, '
-          'all = K 50 with every pool window labeled. Mean ± std over seeds.', '',
-          '## Variants', '',
-          '| Variant | Dataset | Sensor stream | Label of an event |', '|---|---|---|---|',
-          '| Merged stream | `kyotomerged` | all events, once, in time order | most recently begun activity still running |',
-          '| Resident streams | `kyotoflat` | one stream per resident (R1, R2) and one for activities without a resident '
-          'id; an event is copied into the stream of every activity running at that time; windows never cross streams | '
-          'the activity that put the event into the stream |',
-          '| R1 labels | `kyotoresa` | all events, once, in time order | R1\'s activity; else a running activity without '
-          'resident id; else No_Activity |',
-          '| R2 labels | `kyotoresb` | all events, once, in time order | same for R2 |', '',
-          '## Data', '', md_table(data.assign(**{c: data[c].map('{:.1%}'.format) for c in data.columns
+          'all = K 50 with every pool window labeled. Mean ± std over seeds.', '']
+    if any(c in rows for c in VARIANTS):
+        md += ['## Variants', '', '| Variant | Dataset | Sensor stream | Label of an event |', '|---|---|---|---|']
+        md += [f'| {t} | `{c}` | {rows[c]} |' for c, (t, _) in VARIANTS.items() if c in rows] + ['']
+    md += ['## Data', '', md_table(data.assign(**{c: data[c].map('{:.1%}'.format) for c in data.columns
                                                  if data[c].dtype == float and data[c].max() <= 1})), '',
           '"Twin": another test window with exactly the same events and a different label (copies of one event in '
           'two resident streams). No method can label both twins correctly; the ceiling is the best achievable accuracy.', '']
@@ -825,6 +850,124 @@ def report(args):
     print(f'Saved {OUT}/REPORT.md ({len(runs)} runs)')
 
 
+# --------------------------------------------------------------------------------------------------------------
+# screen: label schemes for the merged stream, scored on training days only
+# --------------------------------------------------------------------------------------------------------------
+
+def screen(args):
+    """Which label of a concurrent event suits the fixed model? Scored without the test set and without training.
+
+    All schemes below label the same windows (continuous FL_20 training windows of `kyotomerged`), so the encoder
+    and the clusters of `kyotomerged` apply to every scheme. The 32 training days are split into 4 folds: labels
+    come from 3 folds (5 most confident windows per cluster for the clusterings; 100 / 250 random windows for a
+    logistic regression on the sensor histogram, the stand-in for the supervised baselines), scores from the 4th.
+    Windows are continuous, not pre-segmented as in the test protocol."""
+    import ast
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import f1_score
+    from sklearn.preprocessing import StandardScaler
+    from .mapping_eval import ARTIFACTS_DIR, UNMAPPED, l1_label, load_protocol, map_clusters, predict_activity
+    from .mapping_eval import NO_ACTIVITY as NA
+    from .rare_classes import representations
+
+    df = pd.read_csv(RAW_DIR / 'data_processed.csv', low_memory=False)
+    acts = pd.Series(running_activities(df['activity'], df['marker']), index=df.index)
+    affinity = sensor_affinity(df, acts)
+    fit, pool, _ = load_protocol('kyotomerged', level='l1')
+    samples = json.loads((DATA_ROOT / 'kyotomerged' / 'FL_20' / 'train.json').read_text())['samples']
+    last = [s['sensor_sequence'][-1] for s in samples]
+    running = [tuple(a for a in str(e.get('activity_full', '')).split('|') if a and a != 'nan') for e in last]
+    sensor = [e['sensor_id'] for e in last]
+    def l1(a):
+        return l1_label(a)
+    schemes = {
+        'Most recently begun (kyotomerged)': [l1(merged_label(r)) for r in running],
+        'Sensor-attributed (kyotoaff)': [l1(attributed_label(r, s, affinity)) for r, s in zip(running, sensor)],
+        'Household state (kyotojoint)': [l1(joint_label(r)) for r in running],
+        'R1 labels (kyotoresa)': [l1(resident_label(r, 1)) for r in running],
+        'R2 labels (kyotoresb)': [l1(resident_label(r, 2)) for r in running],
+        'Most recently begun, resident id kept': [merged_label(r) if r else 'No_Activity' for r in running],
+        'Sensor-attributed, resident id kept': [attributed_label(r, s, affinity) if r else 'No_Activity'
+                                                 for r, s in zip(running, sensor)],
+    }
+    assert schemes['Most recently begun (kyotomerged)'] == pool['label'].tolist()
+    single = np.array([len(r) <= 1 for r in running])
+    subsets = {'all windows': np.ones(len(pool), bool), 'windows with one activity': single}
+
+    days = pool['day'].to_numpy()
+    uniq = np.random.default_rng(0).permutation(np.unique(days))
+    folds = [set(uniq[i::4]) for i in range(4)]
+    (_, (X_hist, _, _)), = representations('kyotomerged', fit, pool, pool.iloc[:1], ['hist_sensor_s1'])
+    X_hist = np.asarray(X_hist, dtype=np.float32)
+    clusterings = {'DISCOVER (SCAN, TF+ToD)': 'tf_s{s}+tod__scan_k{K}_todwbal', 'SCAN, TF': 'tf_s{s}__scan_k{K}',
+                   'k-means, TF': 'tf_s{s}__kmeans_k{K}', 'k-means, sensor hist.': 'hist_sensor_s{s}__kmeans_k{K}'}
+
+    def f1s(y, pred, y_lab):
+        from collections import Counter
+        pc, tc = Counter(y_lab), Counter(y)
+        masked = sorted(c for c in tc if pc[c] >= 50 * 3 // 4 and tc[c] >= 20 and c != 'No_Activity')
+        keep = y != 'No_Activity'  # the test protocol has no No_Activity windows
+        return (f1_score(y[keep], pred[keep], average='weighted', zero_division=0),
+                f1_score(y[keep], pred[keep], labels=masked, average='macro', zero_division=0) if masked else np.nan)
+
+    rows = []
+    for scheme, labels in schemes.items():
+        y_all = np.array(labels)
+        for subset, keep in subsets.items():
+            for fi, fold in enumerate(folds):
+                held = np.isin(days, list(fold)) & keep
+                lab = ~np.isin(days, list(fold)) & keep
+                li, hi = np.flatnonzero(lab), np.flatnonzero(held)
+                for seed in SEEDS:
+                    for name, pattern in clusterings.items():
+                        for K, col in ((20, '≈100 labels'), (50, '≈250 labels')):
+                            path = ARTIFACTS_DIR / 'assignments' / f'kyotomerged__{pattern.format(s=seed, K=K)}.npz'
+                            if not path.exists():
+                                continue
+                            z = np.load(path)
+                            mapping = map_clusters(z['pool_cluster'][li], z['pool_conf'][li], y_all[li], 5, skip=('No_Activity',))
+                            pred = np.array([mapping.get(c, UNMAPPED) for c in z['pool_cluster'][hi]])
+                            w, m = f1s(y_all[hi], pred, y_all[li])
+                            rows.append({'scheme': scheme, 'subset': subset, 'fold': fi, 'seed': seed, 'method': name,
+                                         'budget': col, 'f1_weighted': w, 'f1_macro': m, 'classes': len(set(y_all[hi]))})
+                    for budget, col in (('100', '≈100 labels'), ('250', '≈250 labels')):
+                        tr, va = budget_idx(y_all[li], budget, seed)
+                        idx = li[np.concatenate([tr, va])]
+                        scaler = StandardScaler().fit(X_hist[idx])
+                        clf = LogisticRegression(max_iter=2000).fit(scaler.transform(X_hist[idx]), y_all[idx])
+                        pred = predict_activity(clf.predict_proba(scaler.transform(X_hist[hi])), clf.classes_, skip=('No_Activity',))
+                        w, m = f1s(y_all[hi], pred, y_all[li])
+                        rows.append({'scheme': scheme, 'subset': subset, 'fold': fi, 'seed': seed,
+                                     'method': 'Supervised stand-in (logistic regression, sensor hist.)',
+                                     'budget': col, 'f1_weighted': w, 'f1_macro': m, 'classes': len(set(y_all[hi]))})
+        print(f'  screened {scheme}', flush=True)
+    out = pd.DataFrame(rows)
+    (OUT / 'data').mkdir(parents=True, exist_ok=True)
+    out.to_csv(OUT / 'data' / 'label_screen_runs.csv', index=False)
+    g = out.groupby(['scheme', 'subset', 'method', 'budget'], sort=False)[['f1_weighted', 'f1_macro', 'classes']].mean().reset_index()
+    g.to_csv(OUT / 'data' / 'label_screen.csv', index=False)
+    wide = g.assign(cell=[f'{w:.2f} / {m:.2f}' for w, m in zip(g.f1_weighted, g.f1_macro)]).pivot(
+        index=['scheme', 'subset', 'method'], columns='budget', values='cell')
+    wide = wide.reindex(list(dict.fromkeys(zip(g.scheme, g.subset, g.method)))).reset_index()
+    ncls = g.groupby('scheme', sort=False)['classes'].max().round().astype(int)
+    wide.insert(1, 'classes', wide['scheme'].map(ncls))
+    md = ['# Kyoto7: label schemes for concurrent events, screened on training days', '',
+          'Generated by `python -m tist_revision.pipeline.kyoto_trial screen`; do not edit.', '',
+          screen.__doc__.split('\n\n', 1)[1].replace('\n    ', ' ').strip(), '',
+          'Weighted / macro F1, mean over 4 folds x 5 seeds. Macro F1 over classes with at least 38 labeled-fold and 20 '
+          'held-out windows. No_Activity windows are not scored.', '', md_table(wide), '']
+    (OUT / 'LABEL_SCREEN.md').write_text('\n'.join(md))
+    print(f'Saved {OUT}/LABEL_SCREEN.md')
+
+
+def budget_idx(y, budget, seed):
+    """`baselines.data.budget_indices` with the L1 spelling of No_Activity."""
+    order = np.random.default_rng(seed).permutation(len(y))
+    drawn = order[:int(np.searchsorted(np.cumsum(y[order] != 'No_Activity'), int(budget))) + 1]
+    is_val = np.arange(len(drawn)) % 5 == 4
+    return drawn[~is_val], drawn[is_val]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -836,9 +979,13 @@ def main():
     p = sub.add_parser('ablation', help='write the skynet task files of the appendix ablations')
     p.add_argument('--variants', nargs='+', default=list(VARIANTS), choices=list(VARIANTS))
     p.set_defaults(fn=lambda a: ablation_task_files(a.variants))
+    p = sub.add_parser('screen', help='label schemes of the merged stream, scored on training days')
+    p.set_defaults(fn=screen)
     p = sub.add_parser('report')
     p.add_argument('--rescore', action='store_true', help='re-score all runs instead of reading data/runs.csv')
     p.add_argument('--n_boot', type=int, default=2000)
+    p.add_argument('--variants', nargs='+', default=ROUNDS[''], choices=list(VARIANTS))
+    p.add_argument('--tag', help='write to a subfolder of the trial folder (e.g. round2)')
     p.set_defaults(fn=report)
     args = ap.parse_args()
     args.fn(args)

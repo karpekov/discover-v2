@@ -36,6 +36,15 @@ _RAW_TO_TDOST = {
     'r1_work': 'Work', 'r2_work': 'Work',
     # Continuous data only (absent from pre-segmented windows)
     'no_activity': 'No_Activity',
+    # Orange4Home (trial; `<place>_<activity>`, see pipeline/orange_trial.py)
+    'entrance_entering': 'Enter_Home', 'entrance_leaving': 'Leave_Home',
+    'kitchen_preparing': 'Cook', 'kitchen_cooking': 'Cook', 'kitchen_washing_the_dishes': 'Work',
+    'living_room_eating': 'Eat', 'living_room_watching_tv': 'Relax', 'living_room_computing': 'Work',
+    'toilet_using_the_toilet': 'Personal_Hygiene', 'bathroom_using_the_toilet': 'Personal_Hygiene',
+    'bathroom_using_the_sink': 'Personal_Hygiene', 'bathroom_showering': 'Bathing',
+    'staircase_going_up': 'Other', 'staircase_going_down': 'Other',
+    'office_computing': 'Work', 'office_watching_tv': 'Relax',
+    'bedroom_dressing': 'Other', 'bedroom_reading': 'Relax', 'bedroom_napping': 'Sleep', 'cleaning': 'Work',
 }
 
 
