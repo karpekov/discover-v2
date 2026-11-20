@@ -440,3 +440,46 @@ Result (K=20/50, 5 seeds, L1 masked W/M):
   sliding windows, so their Orange numbers (DeepCASAS F1 79.1, TDOST-Basic 79.6) are not directly comparable.
   `artifacts/local_mps_orange/` (3 seeds, locally trained encoders) is not usable for the paper.
 
+
+## 2026-11-20 — Orange4Home: launched the missing ablation runs on Skynet
+- Question: run the 16 jobs counted above so Orange4Home can fill every Section 6 / appendix table.
+- Command: `bash tist_revision/skynet/launch_final.sh orange_ablation_clustering orange_ablation_bert
+  orange_ablation_baselines_l2` (task files in `skynet/tasks/`, same commands as the `kyoto_ablation_*` files).
+  Jobs 4818078 (clustering, 5 seeds × 19 fits), 4818079 (BERT s1 + 12 fits), 4818080 (L2 baselines, 10 × 3 budgets).
+- Output: `artifacts/assignments/orange__*`, `artifacts/embeddings/orange_bert_s1_embeddings.npz`,
+  `artifacts/baselines/final/{deepcasas,tdost}/orange_l2_*`; pull with `skynet/sync.sh pull-results`.
+- Expected time: about 15 minutes (comparable jobs took 2–9 min per clustering seed, 6–11 min for BERT, under 1 min per
+  baseline). Actual: all 16 tasks finished in about 6 minutes, no failures.
+- Result: 95 clustering fits + 12 BERT fits + BERT embeddings + 30 L2 baseline npz, all pulled locally (117 Orange
+  assignment files in `artifacts/assignments/`). Verdict: Orange now has the full grid of a CASAS house; scoring
+  (`report_final` / `confusion` with orange) still to run.
+
+## 2026-11-20 — Orange4Home with meter events (`orangem`): Section 6 core models, 5 seeds
+- Question: does adding on/off events derived from the meters the occupant drives (appliance and plug power,
+  water flow, bed pressure) change the Section 6 comparison on Orange4Home?
+- Repeated-state decision (checked on the raw rows, all 82 binary sources): keep state changes only, as in `orange`.
+  TV status is polled at second :02 of every minute (20,844 of 20,910 rows are repeats, 97% "off"); a repeated light
+  row comes 1 s after the first (median), after the same switch press (switch within 5 s for 97%); a repeated shutter
+  row comes ~22 s after the command (motor travel), switch nearby for 23%. Presence and doors never repeat (a person
+  moving keeps producing ON/OFF changes, which are kept). The repeats are logging artifacts, not actions.
+- Meters (`orange_trial.METERS`, thresholds from the value distributions only, never from labels): cooktop > 100 W,
+  hood > 20 W, five plugs > 5 W (standby 0–1 W), sink / shower / toilet water and bed pressure = any reading. A
+  reading is active until the next one (≤ 60 s); gaps < 120 s are bridged (cooktop cycling). Left out: ambient
+  (temperature, humidity, CO2, luminosity, noise), automatic loads (fridge, water heater, heaters), house totals;
+  oven / dishwasher / washing machine never ran. 333 on/off pairs = 666 events (1.5% of 44,108), e.g. cooktop 19
+  (= 19 Cooking), shower 19 (= 19 Showering), TV plugs 18 / 14 (= Watching_TV), toilet 12, bed 72, desk 40.
+- Data: 3,053 pool / 878 test windows (orange: 3,004 / 862), same 4 test days.
+- Command: `python -m tist_revision.pipeline.orange_trial prepare --variants orangem`; TDOST text local
+  (`tdost_text --cities orangem`, 12 meter phrases in `tdost_text.ORANGE_METERS`); Skynet jobs 4818127
+  (`orangem_core_tf`, 5 encoders + SCAN) and 4818128 (`orangem_baselines`), rail-lab A40 qos short; then
+  `python -m tist_revision.pipeline.orange_trial report --variants orange orangem --tag meters --rescore`
+  → `results/temp/orange4home_trial/meters/`.
+
+## 2026-11-20 — Orange4Home ablations folded into results/final
+- Command: scored Orange (clustering incl. the 107 new fits, L2 baselines, BERT probes; tf / hist probes reused,
+  identical to the earlier scoring) via `report_final.score_*`, replaced the Orange rows of
+  `results/final/data/runs.csv` (510 → 2,235 rows), then `report_final` (no rescore) and `paper_sync`.
+- Result: every appendix table / figure now has Orange; figure axes say 4-house. Hand-written `design_choices.tex`
+  and the clustering-methods table updated to four-house means. Orange: SCAN −0.12 macro vs k-means at K=20 (like
+  Cairo); balanced ToD costs Orange 0.03 macro; no ToD dependence; probe +0.05 W / +0.13 M over DISCOVER at 100.
+- Verdict: promoted. Orange confusion matrices still missing (`confusion/orange_250.png`).

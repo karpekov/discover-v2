@@ -496,7 +496,7 @@ def make_figures(summary):
         ax.bar(xs + (i - 1) * width, vals, width, label=METHOD_NAMES[method])
     ax.set_xticks(xs)
     ax.set_xticklabels([REP_NAMES[r] for r in reps], rotation=25, ha='right')
-    ax.set_ylabel('Macro F1 (3-house mean)')
+    ax.set_ylabel(f'Macro F1 ({len(CITIES)}-house mean)')
     ax.set_title('Clustering L1 masked, $K=50$, $m=5$ (~250 labels)')
     ax.set_ylim(0, 0.75)
     ax.legend(frameon=False)
@@ -523,7 +523,7 @@ def make_figures(summary):
         ax.bar(xs + (i - 0.5) * 0.35, vals, 0.35, label=label)
     ax.set_xticks(xs)
     ax.set_xticklabels([f'{METHOD_NAMES[m]}\n{REP_NAMES[r]}' for m, r in setups], fontsize=8)
-    ax.set_ylabel('Macro F1 (3-house)')
+    ax.set_ylabel(f'Macro F1 ({len(CITIES)}-house mean)')
     ax.set_title('Clustering $K=50$: $m=5$ vs $m=$all (L1 masked)')
     ax.set_ylim(0, 0.75)
     ax.legend(frameon=False)
@@ -585,7 +585,7 @@ def make_figures(summary):
     ax.axhline(0, color='0.5', lw=0.5)
     ax.set_xticks(xs)
     ax.set_xticklabels([p[0] for p in pairs])
-    ax.set_ylabel('Macro F1 (3-house)')
+    ax.set_ylabel(f'Macro F1 ({len(CITIES)}-house mean)')
     ax.set_title('Encoder gate: BERT vs our transformer ($K=50$, $m=5$)')
     ax.legend(frameon=False)
     fig.tight_layout()
@@ -1100,7 +1100,7 @@ Activity-only label budgets. Cells in tables: **mean over seeds** of weighted / 
 | BERT encoder seeds | 1 (gate) |
 | DeepCASAS / TDOST npz | 5 seeds × L1/L2 × 100/250/all |
 
-## Headline numbers (L1 masked, 3-house avg, W/M)
+## Headline numbers (L1 masked, {len(CITIES)}-house avg, W/M)
 
 | Setup | Labels | W / M |
 |---|---|---|

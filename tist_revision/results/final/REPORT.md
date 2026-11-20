@@ -13,17 +13,17 @@ Activity-only label budgets. Cells in tables: **mean over seeds** of weighted / 
 | BERT encoder seeds | 1 (gate) |
 | DeepCASAS / TDOST npz | 5 seeds × L1/L2 × 100/250/all |
 
-## Headline numbers (L1 masked, 3-house avg, W/M)
+## Headline numbers (L1 masked, 4-house avg, W/M)
 
 | Setup | Labels | W / M |
 |---|---|---|
-| k-means **TF+ToD**, $K=50$, $m=5$ | ~250 | **0.81 / 0.56** |
+| k-means **TF+ToD**, $K=50$, $m=5$ | ~250 | **0.81 / 0.58** |
 | k-means Sensor+ToD hist., $K=50$, $m=5$ | ~250 | 0.80 / 0.55 |
-| k-means BERT+ToD, $K=50$, $m=5$ (1 seed) | ~250 | 0.82 / 0.57 |
+| k-means BERT+ToD, $K=50$, $m=5$ (1 seed) | ~250 | 0.82 / 0.59 |
 | DeepCASAS | 250 | 0.66 / 0.40 |
 | TDOST | 250 | 0.63 / 0.33 |
-| k-means TF+ToD, $K=50$, **$m=$all** | all pool labels | 0.82 / 0.57 |
-| k-means Sensor+ToD hist., $K=50$, $m=$all | all pool labels | 0.82 / 0.59 |
+| k-means TF+ToD, $K=50$, **$m=$all** | all pool labels | 0.82 / 0.58 |
+| k-means Sensor+ToD hist., $K=50$, $m=$all | all pool labels | 0.82 / 0.60 |
 | TDOST | all | **0.84 / 0.62** |
 | DeepCASAS | all | 0.73 / 0.57 |
 
