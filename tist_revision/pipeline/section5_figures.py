@@ -7,9 +7,14 @@ Section 5 figures and tables from the final annotation study (`annotation/packet
   - stats.json: numbers quoted in the text.
 Figures are SVG printed to PDF with headless Chrome (same style as the Section 6 figure).
 
+  - random_windows.tex (appendix): agreement on the two random windows per cluster and label propagation.
+  - cluster_summary.tex (appendix): majority label, votes and dataset-activity composition of every cluster.
+  - pdl_vs_casas.{pdf,png} (appendix): rated windows, pattern label x dataset activity, one panel per house.
+The paper study (all four houses) writes to results/final/section5; the others are previews under results/temp.
+
 Usage:
-    python -m tist_revision.pipeline.section5_figures
-    python -m tist_revision.pipeline.section5_figures --study orange   # Orange4Home: table and stats only
+    python -m tist_revision.pipeline.section5_figures                  # paper: Milan, Aruba, Cairo, Orange4Home
+    python -m tist_revision.pipeline.section5_figures --study casas    # preview, CASAS houses only
 """
 import base64
 import io
@@ -20,20 +25,20 @@ import pandas as pd
 
 from ..annotation.packets import FLOOR_PLANS, METADATA, OUT_ROOT, load_city
 from . import rater_stats as rs
-from .mapping_eval import ARTIFACTS_DIR, DATA_ROOT, TEMP_DIR, load_protocol
+from .mapping_eval import ARTIFACTS_DIR, DATA_ROOT, FINAL_DIR, TEMP_DIR, load_protocol
 from .report_final import FIG_FONT, svg_to_pdf, text_width
 
-OUT = TEMP_DIR / 'section5'
+OUT = FINAL_DIR / 'section5'
 STUDY = OUT_ROOT / 'v2_k20'
 RUN = 'tf_s1+tod__scan_k20_todwbal'
 RETURNED = 'final'
-CITIES = ['milan', 'aruba', 'cairo']
-STUDIES = {  # study -> (annotation study folder, returned/ subfolder, houses, output folder under temp/)
-    'casas': ('v2_k20', 'final', ['milan', 'aruba', 'cairo'], 'section5'),
-    'orange': ('orange_k20', '', ['orange'], 'section5_orange'),
-    # preview: CASAS houses + Orange4Home in one set of tables and figures
-    'with_orange': ([('v2_k20', 'final'), ('orange_k20', '')], None, ['milan', 'aruba', 'cairo', 'orange'],
-                    'with_orange/section5'),
+CITIES = ['milan', 'aruba', 'cairo', 'orange']
+TSNE_CACHE = ARTIFACTS_DIR / 'tsne'
+STUDIES = {  # study -> (annotation study folder(s), returned/ subfolder, houses, output folder)
+    'paper': ([('v2_k20', 'final'), ('orange_k20', '')], None, ['milan', 'aruba', 'cairo', 'orange'],
+              FINAL_DIR / 'section5'),
+    'casas': ('v2_k20', 'final', ['milan', 'aruba', 'cairo'], TEMP_DIR / 'section5'),
+    'orange': ('orange_k20', '', ['orange'], TEMP_DIR / 'section5_orange'),
 }
 HOUSE = {'milan': 'Milan', 'aruba': 'Aruba', 'cairo': 'Cairo', 'orange': 'Orange4Home'}
 HOUSE_COLOR = {'milan': '#2563eb', 'aruba': '#d97706', 'cairo': '#059669', 'orange': '#7c3aed'}
@@ -68,7 +73,7 @@ def esc(s):
 
 
 def casas_name(label):
-    return 'No CASAS label' if label == UNLABELED else label.replace('_', ' ')
+    return 'No activity label' if label == UNLABELED else label.replace('_', ' ')
 
 
 def write_figure(svg, name):
@@ -149,7 +154,7 @@ def text_stats(r, stats, clus):
 
 # ---------------------------------------------------------------- table
 
-def kappa_table(stats, path):
+def kappa_table(stats, path, avg=None):
     def cell(row, k):
         lo, hi = row[f'{k}_ci']
         return f'{row[k]:.2f} {{\\scriptsize [{lo:.2f}, {hi:.2f}]}}'
@@ -164,9 +169,14 @@ def kappa_table(stats, path):
         u = stats[(stats.city == city) & (stats.level == 'level_up')].iloc[0]
         lines.append(f'{HOUSE[city]} & {cell(o, "fleiss_window")} & {cell(u, "fleiss_window")} & '
                      f'{cell(o, "fleiss_cluster")} & {cell(u, "fleiss_cluster")} \\\\')
+    if avg is not None:
+        lines += [r'\midrule', r'\textit{Average} & ' + ' & '.join(
+            cell(avg[level], k) for k in ('fleiss_window', 'fleiss_cluster') for level in ('original', 'level_up'))
+            + r' \\']
     caption = (
         r'\tist[R2-2.12]{Agreement of the human annotations (100 windows per house, two annotations each, '
-        r"95\% cluster-bootstrap intervals in brackets). \emph{Inter-rater}: Fleiss' $\kappa$ with each window as "
+        r"95\% cluster-bootstrap intervals in brackets; for the average, the houses are resampled independently). "
+        r"\emph{Inter-rater}: Fleiss' $\kappa$ with each window as "
         r"one item, which allows a different pair of raters per window (Krippendorff's $\alpha$ differs by at most 0.01). "
         r"\emph{Cluster agreement}: Fleiss' $\kappa$ with each cluster as one item and its 10 labels (5 windows "
         r'$\times$ 2 annotations) as ratings; it therefore also counts differences between windows of the same '
@@ -175,6 +185,189 @@ def kappa_table(stats, path):
     lines += [r'\bottomrule', r'\end{tabular}', r'\vspace{0.5em}', rf'\caption{{{caption}}}', r'\vspace*{-1.5em}',
               r'\label{tab:kappa_scores}', r'\end{table}', '']
     path.write_text('\n'.join(lines))
+
+
+def _fleiss(m):
+    """Fleiss' kappa from an items x categories count matrix (items may have different numbers of ratings)."""
+    n = m.sum(1)
+    p_i = ((m ** 2).sum(1) - n) / (n * (n - 1))
+    p_j = m.sum(0) / m.sum()
+    pe = (p_j ** 2).sum()
+    return (p_i.mean() - pe) / (1 - pe)
+
+
+class HouseBoot:
+    """Per-cluster count matrices of one house's ratings, so that a cluster-bootstrap resample is a concatenation
+    of precomputed rows. Statistics per label level: window kappa on top windows (as rater_stats.fleiss_items),
+    cluster kappa (as rater_stats.fleiss_clusters), window kappa on random windows, and the share of random-window
+    annotations matching the cluster's majority label from its top windows."""
+
+    def __init__(self, d):
+        self.clusters = sorted(d['cluster'].unique())
+        self.parts = {}
+        for col in ('label', 'label_level_up'):
+            cats = {c: i for i, c in enumerate(sorted(d[col].unique()))}
+
+            def items(x):
+                g = [v for _, v in x.groupby('task_code')[col] if len(v) == 2]
+                m = np.zeros((len(g), len(cats)))
+                for i, v in enumerate(g):
+                    for c in v:
+                        m[i, cats[c]] += 1
+                return m
+            per = []
+            for c in self.clusters:
+                x = d[d['cluster'] == c]
+                top, rnd = x[x['stratum'] == 'top'], x[x['stratum'] == 'random']
+                row = np.zeros(len(cats))
+                for v in top[col]:
+                    row[cats[v]] += 1
+                maj = top[col].value_counts().index[0]
+                per.append((items(top), row, items(rnd), ((rnd[col] == maj).sum(), len(rnd))))
+            self.parts[col] = per
+
+    def stats(self, pick=None):
+        pick = range(len(self.clusters)) if pick is None else pick
+        out = {}
+        for col, tag in (('label', ''), ('label_level_up', '_parent')):
+            per = [self.parts[col][k] for k in pick]
+            hits, n = np.sum([p[3] for p in per], axis=0)
+            out |= {f'kappa{tag}': _fleiss(np.vstack([p[0] for p in per])),
+                    f'cluster{tag}': _fleiss(np.vstack([p[1] for p in per])),
+                    f'kappa_random{tag}': _fleiss(np.vstack([p[2] for p in per])), f'match{tag}': hits / n}
+        return out
+
+    def boot(self, rng, n_boot=rs.N_BOOT):
+        k = len(self.clusters)
+        return pd.DataFrame([self.stats(rng.choice(k, k)) for _ in range(n_boot)])
+
+
+def bootstraps(r, seed=0):
+    rng = np.random.default_rng(seed)
+    hb = {c: HouseBoot(r[r['city'] == c]) for c in CITIES}
+    return {c: (h.stats(), h.boot(rng)) for c, h in hb.items()}
+
+
+def average_agreement(stats, boots):
+    """Mean over houses of the window and cluster kappas, with a 95% CI from resampling the clusters of every
+    house independently and averaging the per-house statistics."""
+    mean_boot = sum(b for _, b in boots.values()) / len(boots)
+    out = {}
+    for level, tag in (('original', ''), ('level_up', '_parent')):
+        s = stats[stats.level == level].set_index('city').loc[CITIES]
+        out[level] = {}
+        for k, bk in (('fleiss_window', f'kappa{tag}'), ('fleiss_cluster', f'cluster{tag}')):
+            out[level][k] = float(s[k].mean())
+            out[level][f'{k}_ci'] = np.nanpercentile(mean_boot[bk], [2.5, 97.5]).tolist()
+    return out
+
+
+def random_windows(r, boots):
+    """Appendix (R2-2.13): agreement on the random windows and how often their labels match the cluster label."""
+    rows = []
+    for city in CITIES:
+        d = r[r['city'] == city]
+        point, b = boots[city]
+        row = dict(city=city, windows=int(d.loc[d['stratum'] == 'random', 'task_code'].nunique()))
+        for col, tag in (('label', ''), ('label_level_up', '_parent')):
+            row[f'kappa{tag}'] = float(point[f'kappa_random{tag}'])
+            row[f'kappa{tag}_ci'] = np.nanpercentile(b[f'kappa_random{tag}'], [2.5, 97.5]).tolist()
+            row[f'match{tag}'] = float(point[f'match{tag}'])
+            row[f'match{tag}_ci'] = np.nanpercentile(b[f'match{tag}'], [2.5, 97.5]).tolist()
+            row[f'match_top{tag}'] = float(rs.pair_agreement(d[d['stratum'] == 'top'], col)[1])
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def random_table(rw, path):
+    def cell(row, k):
+        lo, hi = row[f'{k}_ci']
+        return f'{row[k]:.2f} {{\\scriptsize [{lo:.2f}, {hi:.2f}]}}'
+    lines = ['% Generated by tist_revision/pipeline/section5_figures.py; do not edit by hand.',
+             r'\begin{tabular}{l c cc cc}', r'\toprule',
+             r' & & \multicolumn{2}{c}{Inter-rater $\kappa$} & \multicolumn{2}{c}{Matches cluster label} \\',
+             r'\cmidrule(lr){3-4} \cmidrule(lr){5-6}',
+             r'House & Windows & PDL label & Parent label & PDL label & Parent label \\', r'\midrule']
+    for _, row in rw.iterrows():
+        lines.append(f'{HOUSE[row.city]} & {row.windows} & ' + ' & '.join(
+            cell(row, k) for k in ('kappa', 'kappa_parent', 'match', 'match_parent')) + r' \\')
+    m = rw[['kappa', 'kappa_parent', 'match', 'match_parent']].mean()
+    lines += [r'\midrule', rf'\textit{{Average}} & {int(rw.windows.sum() / len(rw))} & '
+              + ' & '.join(f'{m[k]:.2f}' for k in m.index) + r' \\', r'\bottomrule', r'\end{tabular}', '']
+    path.write_text('\n'.join(lines))
+
+
+def cluster_summary_table(r, clus, path):
+    """Appendix: one table per house with every cluster's majority label and its dataset-activity composition."""
+    import re
+    tax = json.loads((OUT_ROOT.parents[2] / 'annotation' / 'pdl_taxonomy.json').read_text())
+    group = {k: v['label'] for k, v in tax['groups'].items()}
+    top = r[r['stratum'] == 'top']
+
+    def tex(x):
+        return re.sub(r'([&%_#])', r'\\\1', str(x)).replace('→', r'$\rightarrow$')
+    out = ['% Generated by tist_revision/pipeline/section5_figures.py; do not edit by hand.']
+    for i, city in enumerate(CITIES):
+        c = clus[clus.city == city].sort_values('cluster')
+        out += [r'\begin{table}[p]', r'\centering', r'\scriptsize', r'\setlength{\tabcolsep}{4pt}',
+                r'\begin{tabular}{r l c l c l r}', r'\toprule',
+                r'Cluster & PDL label & Votes & Parent label & Votes & Most frequent activity (share) & Unlabeled \\',
+                r'\midrule']
+        for _, row in c.iterrows():
+            g = top[(top.city == city) & (top.cluster == row.cluster)]
+            up = g['label_level_up'].value_counts()
+            parent = group.get(up.index[0], PDL.get(up.index[0], up.index[0]))
+            act = '--' if row.casas == UNLABELED else f'{tex(casas_name(rs.casas_l1(city, row.casas)))} ({row.casas_purity:.0%})'
+            out.append(f'{row.cluster} & {tex(PDL[row.pattern])} & {int(round(row.share * len(g)))}/{len(g)} & '
+                       f'{tex(parent)} & {up.iloc[0]}/{len(g)} & {act} & {row.unlabeled:.0%} \\\\'.replace('%', r'\%'))
+        caption = (rf'{HOUSE[city]}: annotated pattern of each cluster ($K{{=}}20$). \emph{{Votes}}: annotations of the '
+                   r"cluster's five top windows (two per window) that chose the label; \emph{Parent label}: the label "
+                   r'one level up in the taxonomy (\cref{fig:atomic_activity_tree}). \emph{Most frequent activity}: the '
+                   r"dataset activity of most of the cluster's labeled training windows and its share among them; "
+                   r"\emph{Unlabeled}: share of the cluster's training windows without an activity label."
+                   if i == 0 else rf'{HOUSE[city]}: as \cref{{tab:cluster_annotation}}.')
+        out += [r'\bottomrule', r'\end{tabular}', rf'\caption{{\tist[R2-5.4]{{{caption}}}}}',
+                rf'\label{{tab:cluster_annotation{"" if i == 0 else "_" + city}}}', r'\end{table}', '']
+    path.write_text('\n'.join(out))
+
+
+def pdl_vs_casas_plot(r, path):
+    """Rated top windows: pattern label (rows) x dataset activity of the window (columns), one panel per house."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({'font.size': 7, 'pdf.fonttype': 42, 'ps.fonttype': 42})
+    nol = casas_name(UNLABELED)
+    d = r[r['stratum'] == 'top'].assign(
+        pdl=lambda x: x['label'].map(PDL),
+        cas=lambda x: [nol if c == UNLABELED else casas_name(rs.casas_l1(h, c)) for h, c in zip(x['city'], x['casas'])])
+    tabs = {}
+    for city in CITIES:
+        t = pd.crosstab(d.loc[d['city'] == city, 'pdl'], d.loc[d['city'] == city, 'cas']) / 2
+        cols = [c for c in t.sum().sort_values(ascending=False).index if c != nol] + ([nol] if nol in t else [])
+        t = t[cols]
+        order = pd.DataFrame({'col': t.idxmax(axis=1).map(cols.index), 'n': -t.max(axis=1)})
+        tabs[city] = t.loc[order.sort_values(['col', 'n']).index]
+    heights = [len(t) for t in tabs.values()]
+    fig, axes = plt.subplots(len(CITIES), 1, figsize=(6.2, 0.13 * sum(heights) + 1.2 * len(CITIES)),
+                             gridspec_kw={'height_ratios': heights}, squeeze=False)
+    for ax, (city, t) in zip(axes[:, 0], tabs.items()):
+        v = t.to_numpy()
+        ax.imshow(v, cmap='Blues', aspect='auto', vmin=0, vmax=max(6, v.max()))
+        for (i, j), x in np.ndenumerate(v):
+            if x:
+                ax.text(j, i, f'{x:g}', ha='center', va='center', fontsize=5.5,
+                        color='white' if x > 0.6 * v.max() else 'black')
+        ax.set_yticks(range(len(t)), t.index)
+        ax.set_xticks(range(t.shape[1]), t.columns, rotation=35, ha='right')
+        if nol in t:
+            ax.axvline(t.shape[1] - 1.5, color='0.3', lw=0.8)
+        ax.set_title(f'{HOUSE[city]} ({int(v.sum())} rated windows)', loc='left', fontsize=8)
+        ax.tick_params(length=0)
+    fig.tight_layout(h_pad=0.6)
+    fig.savefig(path.with_suffix('.pdf'))
+    fig.savefig(path.with_suffix('.png'), dpi=200)
+    plt.close(fig)
 
 
 # ---------------------------------------------------------------- figure: agreement
@@ -348,7 +541,8 @@ def tsne_coords(city, seed=0):
     from sklearn.decomposition import PCA
     from sklearn.manifold import TSNE
     from .rare_classes import representations
-    cache = OUT / f'tsne_{city}.npz'
+    TSNE_CACHE.mkdir(parents=True, exist_ok=True)
+    cache = TSNE_CACHE / f'{city}.npz'
     if cache.exists():
         z = np.load(cache)
         return z['idx'], z['Z']
@@ -554,33 +748,34 @@ def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument('--tsne', default='milan:18,13,16,14', help='t-SNE figure: house:cluster,cluster,...')
-    ap.add_argument('--study', choices=list(STUDIES), default='casas')
+    ap.add_argument('--study', choices=list(STUDIES), default='paper')
     args = ap.parse_args()
     global OUT, STUDY, RETURNED, CITIES
-    name, RETURNED, CITIES, out = STUDIES[args.study]
-    OUT = TEMP_DIR / out
+    name, RETURNED, CITIES, OUT = STUDIES[args.study]
     STUDY = [(OUT_ROOT / f, ret) for f, ret in name] if isinstance(name, list) else OUT_ROOT / name
     OUT.mkdir(parents=True, exist_ok=True)
     r, stats, windows = load()
     clus = cluster_table(r, windows)
     clus.to_csv(OUT / 'clusters.csv', index=False)
     st = text_stats(r, stats, clus)
+    boots = bootstraps(r)
+    avg = average_agreement(stats, boots) if len(CITIES) > 1 else None
+    rw = random_windows(r, boots)
+    rw.to_csv(OUT / 'random_windows.csv', index=False)
+    st['average'] = {'agreement': avg, 'random_windows': rw.drop(columns='city').mean(numeric_only=True).to_dict()}
+    for _, row in rw.iterrows():
+        st[row.city]['random_windows'] = row.drop('city').to_dict()
     (OUT / 'stats.json').write_text(json.dumps(st, indent=1, default=float))
-    kappa_table(stats, OUT / 'kappa_scores.tex')
-    if args.study == 'with_orange':
-        write_figure(agreement_svg(stats, clus), 'annotation_agreement')
-        write_figure(casas_to_pdl_svg(clus), 'casas_to_pdl')
-        print(f'outputs: {OUT}')
-        return
-    if args.study != 'casas':  # the figures are laid out for the three CASAS houses
-        print(json.dumps(st, indent=1, default=float))
-        print(f'outputs: {OUT}')
-        return
+    kappa_table(stats, OUT / 'kappa_scores.tex', avg)
+    random_table(rw, OUT / 'random_windows.tex')
+    cluster_summary_table(r, clus, OUT / 'cluster_summary.tex')
+    pdl_vs_casas_plot(r, OUT / 'pdl_vs_casas')
     write_figure(agreement_svg(stats, clus), 'annotation_agreement')
     write_figure(casas_to_pdl_svg(clus), 'casas_to_pdl')
     city, ks = args.tsne.split(':')
-    write_figure(tsne_svg(city, [int(k) for k in ks.split(',')], windows, clus, parts_dir=OUT / 'fig6_parts'),
-                 'tsne_clusters')
+    if city in CITIES:
+        write_figure(tsne_svg(city, [int(k) for k in ks.split(',')], windows, clus, parts_dir=OUT / 'fig6_parts'),
+                     'tsne_clusters')
     print(f'outputs: {OUT}')
 
 

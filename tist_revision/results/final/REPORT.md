@@ -20,12 +20,12 @@ Activity-only label budgets. Cells in tables: **mean over seeds** of weighted / 
 | k-means **TF+ToD**, $K=50$, $m=5$ | ~250 | **0.81 / 0.56** |
 | k-means Sensor+ToD hist., $K=50$, $m=5$ | ~250 | 0.80 / 0.55 |
 | k-means BERT+ToD, $K=50$, $m=5$ (1 seed) | ~250 | 0.82 / 0.57 |
-| DeepCASAS | 250 | 0.63 / 0.38 |
-| TDOST | 250 | 0.60 / 0.31 |
+| DeepCASAS | 250 | 0.66 / 0.40 |
+| TDOST | 250 | 0.63 / 0.33 |
 | k-means TF+ToD, $K=50$, **$m=$all** | all pool labels | 0.82 / 0.57 |
 | k-means Sensor+ToD hist., $K=50$, $m=$all | all pool labels | 0.82 / 0.59 |
-| TDOST | all | **0.85 / 0.61** |
-| DeepCASAS | all | 0.70 / 0.56 |
+| TDOST | all | **0.84 / 0.62** |
+| DeepCASAS | all | 0.73 / 0.57 |
 
 ![Label efficiency](figures/label_efficiency.png)
 

@@ -27,8 +27,9 @@ from ..baselines.data import budget_indices
 from .mapping_eval import (ARTIFACTS_DIR, BASELINES_DIR, FINAL_DIR, load_protocol, map_clusters, predict_activity,
                            scored_classes)
 from .rare_classes import representations
+from .report_final import HOUSE_NAMES
 
-CITIES = ['milan', 'aruba', 'cairo']
+CITIES = ['milan', 'aruba', 'cairo', 'orange']
 SEEDS = [1, 2, 3, 4, 5]
 OUT = FINAL_DIR / 'confusion'
 METHODS = ['DISCOVER (SCAN)', 'k-means TF+ToD', 'Linear probe TF+ToD', 'TDOST']
@@ -143,7 +144,7 @@ def main():
                     m = np.mean([f1_score(y, p, labels=masked, average='macro', zero_division=0) for y, p in runs])
                     draw(ax, confusion(runs, rows, cols), rows, cols, masked,
                          f'{method}\nweighted F1 {w:.2f} · masked macro F1 {m:.2f}')
-                fig.suptitle(f'{city.capitalize()} — L1, {btitle}\nrow-normalized recall (%), 5 seeds pooled; '
+                fig.suptitle(f'{HOUSE_NAMES[city]} — L1, {btitle}\nrow-normalized recall (%), 5 seeds pooled; '
                              f'(n) = test windows per seed; * = rare class, not in masked macro F1', fontsize=11)
                 fig.tight_layout(rect=(0, 0, 1, 0.95))
                 pdf.savefig(fig)
@@ -166,7 +167,7 @@ def main():
             ax.set_xticklabels([f'{m}\n{"≈250" if b == "250" else "all"}' for m, b in settings], fontsize=7.5,
                                rotation=30, ha='right')
             ax.axvline(len(settings) / 2 - 0.5, color='k', lw=1.2)
-            ax.set_title(f'{city.capitalize()} — per-class F1 (L1, mean over 5 seeds); left: ≈250 labels, right: all',
+            ax.set_title(f'{HOUSE_NAMES[city]} — per-class F1 (L1, mean over 5 seeds); left: ≈250 labels, right: all',
                          fontsize=10)
             fig.tight_layout()
             pdf.savefig(fig)
@@ -199,7 +200,7 @@ def paper_figure(f1):
         ax.set_xticks(range(len(settings)))
         ax.set_xticklabels([f'{short[m]}\n{"≈250" if b == "250" else "all"}' for m, b in settings], fontsize=6.5)
         ax.axvline(len(PAPER_METHODS) - 0.5, color='k', lw=1)
-        ax.set_title(city.capitalize(), fontsize=10)
+        ax.set_title(HOUSE_NAMES[city], fontsize=10)
     fig.tight_layout()
     figdir = OUT.parent / 'figures'
     figdir.mkdir(parents=True, exist_ok=True)
