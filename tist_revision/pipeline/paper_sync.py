@@ -24,7 +24,7 @@ PAPER = PROJECT_DIR.parent / 'discover-v1'
 S5 = FINAL_DIR / 'section5'
 SYNC = {  # source under results/final -> destination under discover-v1/
     **{f'tables/{t}.tex': f'tables/{t}.tex' for t in (
-        'dataset_summary', 'label_distribution', 'main_comparison',
+        'dataset_summary', 'label_distribution', 'main_comparison_weighted', 'main_comparison_macro',
         'per_house_l1', 'per_house_l2', 'significance')},
     'figures/label_efficiency.pdf': 'figures/label_efficiency.pdf',
     'figures/k_m_budget.pdf': 'figures/k_m_budget.pdf',
@@ -38,7 +38,7 @@ SYNC = {  # source under results/final -> destination under discover-v1/
     'section5/pdl_vs_casas.pdf': 'figures/pdl_vs_casas.pdf',
     'section5/tsne_clusters.pdf': 'figures/tsne_clusters.pdf',
 }
-PER_HOUSE = ['dataset_summary', 'label_distribution', 'main_comparison',
+PER_HOUSE = ['dataset_summary', 'label_distribution', 'main_comparison_weighted', 'main_comparison_macro',
              'per_house_l1', 'per_house_l2', 'significance', 'kappa_scores', 'random_windows',
              'cluster_annotation_summary']
 
