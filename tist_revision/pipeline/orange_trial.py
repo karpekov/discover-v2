@@ -168,16 +168,18 @@ def configs():
     assert 'Cairo' not in cfg and cfg.count(NAME) == src.count('cairo') and 'max_epochs: 2000' in cfg
     (PROJECT_DIR / 'configs' / 'alignment' / f'{NAME}_fl20_seq_nocoord_mlm_time.yaml').write_text(cfg)
 
-    enc, base = [], []
+    enc, core, base = [], [], []
     fd = 'python -m tist_revision.pipeline.frozen_deep'
     for s in SEEDS:
         model = f'trained_models/{NAME}/tf_nocoord_mlm_time_s{s}'
-        enc.append(' && '.join([
+        discover = [
             f'python train.py --config tist_revision/configs/alignment/{NAME}_fl20_seq_nocoord_mlm_time.yaml '
             f'--seed {s} --output-dir {model}',
             f'python -m tist_revision.pipeline.encode_embeddings --city {NAME} --kind tf --model_dir {model} --name tf_s{s}',
             f'{fd} --cities {NAME} --representations tf_s{s}+tod --methods scan --K 20 50 --seed {s} '
-            f'--tod_weight balanced --suffix _todwbal',
+            f'--tod_weight balanced --suffix _todwbal']
+        core.append(' && '.join(discover))  # DISCOVER only (Section 6 model)
+        enc.append(' && '.join(discover + [  # plus the clustering variants of the ToD table
             f'{fd} --cities {NAME} --representations tf_s{s} tf_s{s}+tod --methods kmeans scan dec --K 20 50 --seed {s}',
             f'{fd} --cities {NAME} --representations hist_sensor_s{s} hist_sensor_tod_s{s} --methods kmeans --K 20 50 --seed {s}']))
     for method in ('deepcasas', 'tdost'):
@@ -185,6 +187,7 @@ def configs():
                  f'--levels l1' for s in SEEDS]
     tasks = PROJECT_DIR / 'skynet' / 'tasks'
     (tasks / f'{NAME}_encoder_tf.txt').write_text('\n'.join(enc) + '\n')
+    (tasks / f'{NAME}_core_tf.txt').write_text('\n'.join(core) + '\n')
     (tasks / f'{NAME}_baselines.txt').write_text('\n'.join(base) + '\n')
     (tasks / f'{NAME}_tdost_text.txt').write_text(f'python -m tist_revision.baselines.tdost_text --cities {NAME}\n')
     print(f'Wrote configs and {tasks}/{NAME}_*.txt ({len(enc)} encoder, {len(base)} baseline tasks)')
