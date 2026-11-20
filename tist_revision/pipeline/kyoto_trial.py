@@ -806,7 +806,7 @@ def report(args):
                                                                 values=['f1_weighted', 'f1_macro', 'accuracy'])
         t.columns = [f'{a} ({b})' for a, b in t.columns]
         t = t.reindex([(c, n) for c, _, _ in MATCHED for n in MAIN if (c, n) in t.index]).reset_index()
-        md += ['## Merged stream: strict vs. lenient scoring', '',
+        md += [] if t.empty else ['## Merged stream: strict vs. lenient scoring', '',
                'Lenient: a prediction naming any activity that is running at the window\'s last event counts as correct '
                '(the strict label is only the most recently begun one).', '', md_table(t), '']
     if len(groups):
@@ -814,7 +814,7 @@ def report(args):
         n = groups[groups.city == 'kyotoflat'].drop_duplicates('stream').set_index('stream')['test_windows']
         t.columns = [f'{c} (n = {n[c]})' for c in t.columns]
         t = t.reindex([(c, m) for c, _, _ in MATCHED for m in MAIN if (c, m) in t.index]).reset_index()
-        md += ['## Resident streams: accuracy by stream', '', md_table(t), '']
+        md += [] if t.empty else ['## Resident streams: accuracy by stream', '', md_table(t), '']
     if len(per_class):
         md += ['## Per-class F1 at ≈250 labels', '']
         for city in VARIANTS:
