@@ -483,3 +483,33 @@ Result (K=20/50, 5 seeds, L1 masked W/M):
   and the clustering-methods table updated to four-house means. Orange: SCAN −0.12 macro vs k-means at K=20 (like
   Cairo); balanced ToD costs Orange 0.03 macro; no ToD dependence; probe +0.05 W / +0.13 M over DISCOVER at 100.
 - Verdict: promoted. Orange confusion matrices still missing (`confusion/orange_250.png`).
+  Smoke-test scoring: DISCOVER (SCAN balanced K 20 / 50) and baselines only, no linear probes (runs.csv written by
+  `report_final.score_clustering` / `score_baselines` on those files, then `report` without `--rescore`).
+- Result (weighted F1, ≈100 / ≈250 / all labels, 5 seeds; `orange` → `orangem`): DISCOVER 0.75 / 0.80 / 0.81 →
+  0.75 / 0.81 / 0.80; DeepCASAS 0.70 / 0.75 / 0.82 → 0.70 / 0.72 / 0.86; TDOST 0.69 / 0.71 / 0.81 → 0.69 / 0.73 / 0.81.
+  Macro (7 classes): DISCOVER 0.46 / 0.61 / 0.62 → 0.46 / 0.64 / 0.60; DeepCASAS 0.39 / 0.46 / 0.59 → 0.42 / 0.44 / 0.73.
+  Δ DISCOVER vs. best baseline: weighted +0.06 / +0.08 / −0.06, macro +0.05 / +0.15 / −0.14 (was +0.05 / +0.06 / −0.01,
+  +0.07 / +0.14 / −0.02). Per class at ≈250 (DISCOVER): Living_room_Computing 0.52 → 0.70, Office_Watching_TV
+  0.13 → 0.21, others within noise.
+- Verdict: meter events help supervised DeepCASAS with all labels (+0.04 weighted, +0.14 macro) and leave DISCOVER
+  and the low-budget baselines unchanged. They are 1.5% of events, so few windows contain one; clusters from an MLM
+  encoder do not pick them up, a classifier trained on every label does. The low-budget advantage of DISCOVER holds;
+  the all-labels gap widens. 4 test days, smoke-test scoring; not promoted.
+
+## 2026-11-20 — Orange4Home t-SNE panel and four-house layouts grid (appendix figures)
+- Question: add Orange to the appendix t-SNE figures and the household-layouts figure.
+- Commands: `python -m tist_revision.pipeline.tsne_panels --city orange`; `python -m tist_revision.pipeline.house_layouts`
+- Output: `results/temp/tsne_panels/tsne_label_and_cluster_orange.{pdf,png}` (t-SNE of TF s1+ToD on the 3,004 training
+  windows, cached in `artifacts/tsne/orange.npz`; left = L2/TDOST classes, right = SCAN K=20 balanced-ToD clusters,
+  opacity = confidence); `results/temp/house_layouts/all_house_layouts.{pdf,png}` (2x2 grid of
+  `metadata/floor_plans_augmented/{milan,aruba,cairo,orange}.png`).
+- Verdict: copied into `discover-v1/figures/` (new `tsne_label_and_cluster_orange.pdf`, `all_house_layouts.pdf` overwritten);
+  appendix now Fig. 13 (Orange t-SNE) and Fig. 19 (layouts, last figure). The CASAS t-SNE panels stay the v1 originals.
+
+## 2026-11-20 — PDL hierarchy figure replaced by a generated table
+- Question: redo the v1 "atomic activity tree" figure (old Fig. 15) as a table matching the parent/child labels actually
+  offered in the labeling tool.
+- Command: `python -m tist_revision.pipeline.section5_figures` (new `taxonomy_table`, source `annotation/pdl_taxonomy.json`);
+  synced by `paper_sync` to `discover-v1/tables/pdl_taxonomy.tex`.
+- Output: `results/final/section5/pdl_taxonomy.tex` → appendix Table 11 (`tab:pdl_taxonomy`); per-cluster tables now cite it.
+- Verdict: kept rather than dropped, since parent-level kappa and the "Parent label" column depend on the hierarchy.

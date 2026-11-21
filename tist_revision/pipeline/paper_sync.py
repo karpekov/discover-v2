@@ -31,6 +31,7 @@ SYNC = {  # source under results/final -> destination under discover-v1/
     'section5/kappa_scores.tex': 'tables/kappa_scores.tex',
     'section5/random_windows.tex': 'tables/random_windows.tex',
     'section5/cluster_summary.tex': 'tables/cluster_annotation_summary.tex',
+    'section5/pdl_taxonomy.tex': 'tables/pdl_taxonomy.tex',
     'section5/annotation_agreement.pdf': 'figures/annotation_agreement.pdf',
     'section5/casas_to_pdl.pdf': 'figures/casas_to_pdl.pdf',
     'section5/pdl_vs_casas.pdf': 'figures/pdl_vs_casas.pdf',

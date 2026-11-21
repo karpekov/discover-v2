@@ -1,0 +1,10 @@
+python -m tist_revision.baselines.run --method deepcasas --city orange --seed 1 --protocol final --levels l2
+python -m tist_revision.baselines.run --method deepcasas --city orange --seed 2 --protocol final --levels l2
+python -m tist_revision.baselines.run --method deepcasas --city orange --seed 3 --protocol final --levels l2
+python -m tist_revision.baselines.run --method deepcasas --city orange --seed 4 --protocol final --levels l2
+python -m tist_revision.baselines.run --method deepcasas --city orange --seed 5 --protocol final --levels l2
+python -m tist_revision.baselines.run --method tdost --city orange --seed 1 --protocol final --levels l2
+python -m tist_revision.baselines.run --method tdost --city orange --seed 2 --protocol final --levels l2
+python -m tist_revision.baselines.run --method tdost --city orange --seed 3 --protocol final --levels l2
+python -m tist_revision.baselines.run --method tdost --city orange --seed 4 --protocol final --levels l2
+python -m tist_revision.baselines.run --method tdost --city orange --seed 5 --protocol final --levels l2
