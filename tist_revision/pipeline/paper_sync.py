@@ -28,8 +28,6 @@ SYNC = {  # source under results/final -> destination under discover-v1/
         'per_house_l1', 'per_house_l2', 'significance')},
     'figures/label_efficiency.pdf': 'figures/label_efficiency.pdf',
     'figures/k_m_budget.pdf': 'figures/k_m_budget.pdf',
-    'figures/per_class_f1.pdf': 'figures/per_class_f1.pdf',
-    **{f'confusion/{c}_250.png': f'figures/confusion_{c}_250.png' for c in CITIES},
     'section5/kappa_scores.tex': 'tables/kappa_scores.tex',
     'section5/random_windows.tex': 'tables/random_windows.tex',
     'section5/cluster_summary.tex': 'tables/cluster_annotation_summary.tex',
